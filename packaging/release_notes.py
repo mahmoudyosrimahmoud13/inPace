@@ -27,7 +27,8 @@ def main() -> None:
 |---|---|---|
 | **Windows** 10 or 11 | [inPace-windows.zip]({base}/inPace-windows.zip) | Unzip, then double-click **inPace.exe** |
 | **Mac** (Apple Silicon: M1 or newer) | [inPace-mac.dmg]({base}/inPace-mac.dmg) | Open it, drag **inPace** into Applications |
-| **Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |
+| **Ubuntu / Debian** | [inPace-linux.deb]({base}/inPace-linux.deb) | Double-click to install, then find **inPace** in your apps |
+| **Other Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |
 
 **First time opening it?** The app isn't signed yet, so your computer may warn you once:
 - **Windows:** "Windows protected your PC" → click **More info** → **Run anyway**.

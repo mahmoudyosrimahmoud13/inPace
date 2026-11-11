@@ -34,7 +34,8 @@ def main() -> None:
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", "inPace",
            "--paths", str(ROOT), "--collect-submodules", "inpace", "--collect-submodules", "uvicorn",
            "--hidden-import", "_cffi_backend", "--collect-all", "nacl",
-           "--collect-submodules", "pygments"]
+           "--collect-submodules", "pygments",
+           "--exclude-module", "PIL", "--exclude-module", "tkinter", "--exclude-module", "numpy"]
     for d in data:
         cmd += ["--add-data", d]
     try:  # the app window library, when installed (Windows and Mac builds)
@@ -69,7 +70,50 @@ def main() -> None:
         with tarfile.open(out, "w:gz") as tf:
             tf.add(DIST / "inPace", arcname="inPace/inPace")
             tf.add(ROOT / "packaging" / "icon.png", arcname="inPace/icon.png")
+        if shutil.which("dpkg-deb"):
+            print(f"\nBuilt {build_deb()}")
     print(f"\nBuilt {out}")
+
+
+def build_deb() -> Path:
+    """Ubuntu / Debian package: installs to /opt/inpace, adds a menu entry and an `inpace` command."""
+    import re as _re
+    __version__ = _re.search(r'__version__ = "([^"]+)"', (PKG / "__init__.py").read_text()).group(1)
+
+    stage = DIST / "deb"
+    shutil.rmtree(stage, ignore_errors=True)
+    (stage / "DEBIAN").mkdir(parents=True)
+    (stage / "opt" / "inpace").mkdir(parents=True)
+    (stage / "usr" / "bin").mkdir(parents=True)
+    (stage / "usr" / "share" / "applications").mkdir(parents=True)
+    icons = stage / "usr" / "share" / "icons" / "hicolor"
+    shutil.copy2(DIST / "inPace", stage / "opt" / "inpace" / "inPace")
+    (stage / "opt" / "inpace" / "inPace").chmod(0o755)
+    (stage / "usr" / "bin" / "inpace").symlink_to("/opt/inpace/inPace")
+    from PIL import Image
+    src = Image.open(ROOT / "packaging" / "icon.png")
+    for px in (48, 128, 256, 512):
+        d = icons / f"{px}x{px}" / "apps"
+        d.mkdir(parents=True)
+        src.resize((px, px)).save(d / "inpace.png")
+    (stage / "usr" / "share" / "applications" / "inpace.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=inPace\n"
+        "Comment=Learn at your pace. Prove you kept it.\n"
+        "Exec=/opt/inpace/inPace\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
+        "Keywords=learning;study;course;accountability;\n", encoding="utf-8")
+    size_kb = sum(p.stat().st_size for p in stage.rglob("*") if p.is_file() and not p.is_symlink()) // 1024
+    (stage / "DEBIAN" / "control").write_text(
+        f"Package: inpace\nVersion: {__version__}\nSection: education\nPriority: optional\n"
+        f"Architecture: amd64\nInstalled-Size: {size_kb}\n"
+        "Maintainer: Mahmoud Saad <noreply@github.com>\n"
+        "Homepage: https://github.com/mahmoudyosrimahmoud13/inpace\n"
+        "Description: Learn at your pace. Prove you kept it.\n"
+        " A local, open-source learning app. Follow a course, save signed milestones,\n"
+        " and let someone you trust check your progress. Everything stays on your computer.\n",
+        encoding="utf-8")
+    out = DIST / "inPace-linux.deb"
+    run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(out)])
+    return out
 
 
 if __name__ == "__main__":

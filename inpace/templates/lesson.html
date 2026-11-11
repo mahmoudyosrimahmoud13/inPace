@@ -9,7 +9,7 @@
     <div class="row">
       <nav class="dots" aria-label="Lessons in this module">
         {% for l in mstate.lessons %}
-          <a href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}"><span class="sr">{{ l.title }}</span></a>
+          <a href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}" {{ 'aria-current="page"' if l.id == lesson.id }}>{{ '%02d'|format(loop.index) }}</a>
         {% endfor %}
       </nav>
       <span class="small muted">{{ _('Lesson %s of %s')|format(idx + 1, module.lessons|length) }}{% if lesson.minutes %} · about {{ lesson.minutes }} min{% endif %}</span>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.0
+
+- **Tempo, redrawn:** a detailed comic-style turtle with a plated shell, a yellow rim, the inPace logo on the shell, expressive eyes and eyebrows, little toes, and a polka-dot travelling scarf.
+- **Ubuntu / Debian package:** download the `.deb`, double-click to install, and open inPace from your apps menu.
+- **New logo:** a comic-style yellow tile with a bold outline, a hard shadow and a pink final milestone. Used in the app, the browser tab and the Windows, Mac and Linux app icons.
+- **Calmer dark mode:** a softer gold instead of bright yellow. Big panels go dark with gold outlines, so nothing glares.
+- **Polish:** numbered lesson boxes, square timeline markers, and page titles that end with a period.
+
 ## v1.2.0
 
 - **New look:** a bold comic-book style with thick outlines, hard shadows, sunny yellow panels and a cream header. Inspired by Basha Media.

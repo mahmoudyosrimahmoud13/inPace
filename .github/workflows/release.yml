@@ -29,8 +29,10 @@ jobs:
             extra: pywebview
           - os: ubuntu-22.04
             label: Linux
-            file: dist/inPace-linux.tar.gz
-            extra: ""
+            file: |
+              dist/inPace-linux.tar.gz
+              dist/inPace-linux.deb
+            extra: pillow
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -79,3 +81,4 @@ jobs:
             downloads/inPace-windows.zip
             downloads/inPace-mac.dmg
             downloads/inPace-linux.tar.gz
+            downloads/inPace-linux.deb

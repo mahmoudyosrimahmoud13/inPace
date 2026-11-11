@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}My courses{% endblock %}
 {% block main %}
-<div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}</h1></div>
+<div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}.</h1></div>
 <div class="grid">
   <a class="card tile" href="/open"><span class="ico">{{ icon('open') }}</span><span><b>{% trans trimmed %}Add a course file{% endtrans %}</b><span>{% trans trimmed %}Open a .lpack, .zip or .yaml someone gave you.{% endtrans %}</span></span></a>
   <a class="card tile" href="/ai"><span class="ico">{{ icon('spark') }}</span><span><b>{% trans trimmed %}Make a course with AI{% endtrans %}</b><span>{% trans trimmed %}Describe a topic, paste the AI's answer back.{% endtrans %}</span></span></a>

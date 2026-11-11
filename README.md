@@ -36,7 +36,8 @@ Go to the [Releases page](https://github.com/mahmoudyosrimahmoud13/inpace/releas
 
 - **Windows:** `inPace-windows.zip`. Unzip it, then double-click `inPace.exe`.
 - **Mac:** `inPace-mac.dmg`. Open it and drag inPace into Applications.
-- **Linux:** `inPace-linux.tar.gz`. Unpack it and run `inPace`.
+- **Ubuntu / Debian:** `inPace-linux.deb`. Double-click it to install (or run `sudo apt install ./inPace-linux.deb`), then open inPace from your apps.
+- **Other Linux:** `inPace-linux.tar.gz`. Unpack it and run `inPace`.
 
 inPace opens in its own window. Everything stays on your computer.
 

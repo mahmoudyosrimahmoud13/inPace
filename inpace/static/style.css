@@ -525,3 +525,63 @@ main > .page { flex: 1 0 auto; width: 100%; }
 @media (max-width: 640px) { .big-foot .tempo { display: none; } }
 @media (prefers-color-scheme: dark) { .big-foot { border-color: #F2EDE2; } }
 [dir="rtl"] .big-foot .word { text-align: right; }
+
+/* ---------- logo in the header ---------- */
+.brand img { border: 0; width: 34px; height: 34px; }
+.brand { gap: .6rem; }
+
+/* ---------- timeline and lesson numbers in the comic style ---------- */
+.tl-dot { border-radius: 0; border: 2.5px solid var(--black); background: var(--sun); box-shadow: none; width: 18px; height: 18px; }
+.tl-dot.good { background: var(--shell); } .tl-dot.bad { background: var(--pink); }
+.timeline li::after { width: 3px; background: var(--black); inset-inline-start: 7.5px; }
+.dots { gap: .35rem; }
+.dots a { width: 34px; height: 30px; display: grid; place-items: center; font-size: .78rem; font-weight: 700; color: var(--ink); text-decoration: none; border: 2px solid var(--black); background: var(--surface); }
+.dots a.done { background: var(--shell); color: #fff; }
+.dots a.here { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+
+/* =====================================================================
+   Dark mode: softer gold, big panels go dark with gold outlines
+   ===================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sun: #E2BD4C; --black: #CFC6B2; --gold-panel: #1E1B13; --gold-line: rgba(226, 189, 76, .10);
+    --hard: 5px 5px 0 #000; --hard-sm: 3px 3px 0 #000;
+    --line: #CFC6B2; --line-strong: #CFC6B2;
+  }
+  [dir="rtl"] { --hard: -5px 5px 0 #000; --hard-sm: -3px 3px 0 #000; }
+  .card { border-color: #4A4537; }
+  .card, .menu-box, .prose pre, .trail, .yay { box-shadow: 5px 5px 0 #000; }
+  .hello, .big-foot {
+    background-color: var(--gold-panel); color: var(--ink);
+    background-image: repeating-linear-gradient(60deg, var(--gold-line) 0 1px, transparent 1px 22px), repeating-linear-gradient(-60deg, var(--gold-line) 0 1px, transparent 1px 22px);
+    border-color: var(--sun); box-shadow: 5px 5px 0 #000; }
+  .hello h1 { color: #F2EDE2; }
+  .hello .bubble { background: #2A261B; color: #F2EDE2; border-color: var(--sun); }
+  .hello .bubble::before { background: #2A261B; border-color: var(--sun); }
+  .big-foot .word { color: var(--sun); } .big-foot .word span { color: #F2EDE2; }
+  .foot-top b { color: #F2EDE2; } .foot-top p { color: var(--muted); }
+  .foot-links a { background: transparent; color: #F2EDE2; border-color: #4A4537; box-shadow: 3px 3px 0 #000; }
+  .foot-links a:hover { background: var(--sun); color: #111; }
+  .side a.on { background: #3A3220; color: #F6DC8A; border-color: var(--sun); box-shadow: 3px 3px 0 #000; }
+  .side a:hover { background: #26231C; border-color: #4A4537; }
+  .btn { border-color: #4A4537; box-shadow: 3px 3px 0 #000; }
+  .btn:hover { background: #3A3220; color: #F6DC8A; border-color: var(--sun); }
+  .btn.primary { background: var(--sun); color: #16140E; border-color: var(--sun); box-shadow: 4px 4px 0 #000; }
+  [dir="rtl"] .btn.primary { box-shadow: -4px 4px 0 #000; }
+  .btn.primary:hover { background: #EBCB66; color: #16140E; }
+  .chip { box-shadow: none; border-color: #4A4537; }
+  .chip.warn { background: #3A3220; color: #F6DC8A; border-color: var(--sun); }
+  .stats { background: #4A4537; border-color: #4A4537; }
+  .bar { border-color: #4A4537; } .bar span { border-color: #4A4537; }
+  input, select, textarea, .choice, .drop-zone, .note, .howto li, .steps li, .course-link, .file, .pace-box { border-color: #4A4537; }
+  .choice:has(input:checked) { background: #3A3220; color: #F6DC8A; border-color: var(--sun); }
+  .drop-zone:hover, .drop-zone.over { background: #3A3220; color: #F6DC8A; }
+  .steps li.on, .tile .ico, .task .ico, .dots a.here { background: #3A3220; color: #F6DC8A; border-color: var(--sun); }
+  .next { background: #16252B; border-color: #2E4B57; }
+  .note.warn { background: #2A2416; }
+  .pace-box.warn { background: #3A3220; } .pace-box.warn b, .pace-box.warn span { color: #F6DC8A; }
+  .tl-dot { border-color: #CFC6B2; }
+  .timeline li::after { background: #4A4537; }
+  .stone.here .rock { background: var(--sun); }
+}
+@media (prefers-color-scheme: dark) { .tempo { filter: drop-shadow(0 0 .6px #F2EDE2) drop-shadow(0 0 .6px #F2EDE2); } }

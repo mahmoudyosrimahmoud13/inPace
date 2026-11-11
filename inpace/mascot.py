@@ -1,90 +1,132 @@
 """Tempo, the inPace turtle. Slow and steady wins the race.
 
-Drawn as inline SVG so it stays sharp, works offline and needs no image files.
-Its shell carries the inPace logo: three milestones joined by a line.
+Drawn as inline SVG in the app's comic-book style: thick black outlines, flat colours,
+a yellow shell rim, the inPace logo on the shell, and a pink travelling scarf.
+No image files, works offline, sharp at any size.
 """
 from __future__ import annotations
+
+import math
 
 from markupsafe import Markup
 
 MOODS = ("happy", "cheer", "sleepy", "think", "proud", "oops", "wave")
 
-SHELL = "#1F7A56"
-SHELL_DARK = "#17603F"
-SKIN = "#8FD3A8"
-SKIN_DARK = "#6DBB8B"
-INK = "#15191F"
-CHEEK = "#F4A6A6"
+INK = "#111111"
+SHELL = "#23A36E"
+SHELL_DARK = "#167A50"
+SHELL_LIGHT = "#5CC995"
+RIM = "#FFD43B"
+RIM_DARK = "#D9A90F"
+SKIN = "#9FDDB4"
+SKIN_DARK = "#6FBF8C"
+SCARF = "#E6007E"
+SCARF_DARK = "#A8005C"
+CHEEK = "#FF8FA8"
+O = f'stroke="{INK}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"'
+O2 = f'stroke="{INK}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"'
+
+
+def _leg(x: float, y: float) -> str:
+    """A stubby leg with three toes."""
+    return (f'<path d="M{x-10} {y-12} q0 14 -2 16 q12 4 24 0 q-2 -2 -2 -16 z" fill="{SKIN}" {O}/>'
+            f'<path d="M{x-7} {y+3} v-3 M{x+1} {y+4} v-4 M{x+9} {y+3} v-3" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>')
+
+
+def _arm_up() -> str:
+    """Front leg raised in a wave, drawn in front of the head."""
+    return (f'<path d="M146 98 q8 -16 17 -30 q4 -6 9 -2 q4 4 1 9 q-8 16 -16 30 z" fill="{SKIN}" {O}/>'
+            f'<path d="M165 66 l-1 -5 M170 66 l2 -4 M174 70 l3 -2" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>')
 
 
 def _eyes(mood: str) -> str:
+    lx, rx, y = 132, 147, 50
     if mood == "sleepy":
-        return ('<path d="M95 44 q4 3 8 0" stroke="{i}" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-                '<path d="M107 44 q4 3 8 0" stroke="{i}" stroke-width="2.2" fill="none" stroke-linecap="round"/>')
+        return (f'<path d="M{lx-6} {y+1} q6 5 12 0" fill="none" {O2}/><path d="M{rx-6} {y+1} q6 5 12 0" fill="none" {O2}/>'
+                f'<path d="M{lx-7} {y-6} l5 2 M{rx+7} {y-6} l-5 2" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>')
     if mood in ("cheer", "proud"):
-        return ('<path d="M95 45 q4 -5 8 0" stroke="{i}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-                '<path d="M107 45 q4 -5 8 0" stroke="{i}" stroke-width="2.4" fill="none" stroke-linecap="round"/>')
-    if mood == "think":
-        return ('<circle cx="99" cy="43" r="3.2" fill="{i}"/><circle cx="100.2" cy="41.8" r="1" fill="#fff"/>'
-                '<path d="M107 43 h7" stroke="{i}" stroke-width="2.4" stroke-linecap="round"/>')
-    return ('<circle cx="99" cy="43" r="3.4" fill="{i}"/><circle cx="111" cy="43" r="3.4" fill="{i}"/>'
-            '<circle cx="100.3" cy="41.7" r="1.1" fill="#fff"/><circle cx="112.3" cy="41.7" r="1.1" fill="#fff"/>')
+        return (f'<path d="M{lx-6} {y+2} q6 -8 12 0" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>'
+                f'<path d="M{rx-6} {y+2} q6 -8 12 0" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>')
+    look = {"think": (2, -2), "oops": (0, 1)}.get(mood, (1, 0))
+    brows = {
+        "think": f'<path d="M{lx-6} {y-11} l11 -2" {O2}/><path d="M{rx-5} {y-14} q6 -3 11 1" fill="none" {O2}/>',
+        "oops": f'<path d="M{lx-6} {y-10} l10 -4" {O2}/><path d="M{rx-4} {y-14} l10 4" {O2}/>',
+    }.get(mood, f'<path d="M{lx-5} {y-12} q5 -3 10 0" fill="none" {O2}/><path d="M{rx-5} {y-12} q5 -3 10 0" fill="none" {O2}/>')
+    eye = ""
+    for cx in (lx, rx):
+        eye += (f'<ellipse cx="{cx}" cy="{y}" rx="6.2" ry="7.4" fill="#fff" {O2}/>'
+                f'<circle cx="{cx + look[0]}" cy="{y + 1 + look[1]}" r="3.6" fill="{INK}"/>'
+                f'<circle cx="{cx + look[0] + 1.4}" cy="{y - 0.6 + look[1]}" r="1.3" fill="#fff"/>')
+    return eye + brows
 
 
 def _mouth(mood: str) -> str:
     return {
-        "happy": '<path d="M101 51 q4 4 8 0" stroke="{i}" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
-        "wave": '<path d="M101 51 q4 4 8 0" stroke="{i}" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
-        "cheer": '<path d="M100 50 q5 8 10 0 z" fill="{i}"/><path d="M102.5 53.5 q2.5 2 5 0" fill="#E86A6A"/>',
-        "proud": '<path d="M100 50 q5 7 10 0" stroke="{i}" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
-        "sleepy": '<ellipse cx="105" cy="52" rx="2" ry="1.6" fill="{i}"/>',
-        "think": '<path d="M101 52 h7" stroke="{i}" stroke-width="2.2" stroke-linecap="round"/>',
-        "oops": '<path d="M101 53 q4 -4 8 0" stroke="{i}" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+        "happy": f'<path d="M134 62 q6 6 12 0" fill="none" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>',
+        "wave": f'<path d="M133 61 q7 9 14 0 z" fill="{INK}"/><path d="M136 65 q4 3 8 0" fill="#FF6B7D"/>',
+        "cheer": f'<path d="M132 60 q8 13 16 0 z" fill="{INK}" {O2}/><path d="M135.5 65.5 q4.5 4 9 0" fill="#FF6B7D"/>',
+        "proud": f'<path d="M133 61 q7 7 14 0" fill="none" stroke="{INK}" stroke-width="2.8" stroke-linecap="round"/>',
+        "sleepy": f'<ellipse cx="140" cy="63" rx="2.6" ry="2.2" fill="{INK}"/>',
+        "think": f'<path d="M135 63 q5 -2 10 1" fill="none" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>',
+        "oops": f'<path d="M134 65 q6 -6 12 0" fill="none" stroke="{INK}" stroke-width="2.6" stroke-linecap="round"/>',
     }[mood]
+
+
+def _star(x: float, y: float, r: float, fill: str) -> str:
+    pts = []
+    for i in range(10):
+        a = math.pi / 2 + i * math.pi / 5
+        rr = r if i % 2 == 0 else r * 0.45
+        pts.append(f"{x + rr * math.cos(a):.1f},{y - rr * math.sin(a):.1f}")
+    return f'<polygon points="{" ".join(pts)}" fill="{fill}" {O2}/>'
 
 
 def _extras(mood: str) -> str:
     if mood == "sleepy":
-        return ('<text x="116" y="24" font-family="system-ui" font-weight="800" font-size="11" fill="#7FA6D6">z</text>'
-                '<text x="123" y="14" font-family="system-ui" font-weight="800" font-size="8" fill="#7FA6D6">z</text>')
+        return (f'<text x="158" y="28" font-family="system-ui,sans-serif" font-weight="900" font-size="15" fill="#fff" {O2} paint-order="stroke">z</text>'
+                f'<text x="167" y="14" font-family="system-ui,sans-serif" font-weight="900" font-size="11" fill="#fff" {O2} paint-order="stroke">z</text>')
     if mood == "cheer":
-        return ('<path d="M18 10 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#F2B84B"/>'
-                '<path d="M120 8 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5z" fill="#F2B84B"/>'
-                '<path d="M8 40 l1.2 2.8 2.8 1.2 -2.8 1.2 -1.2 2.8 -1.2 -2.8 -2.8 -1.2 2.8 -1.2z" fill="#7FB0F0"/>')
+        return _star(16, 18, 9, RIM) + _star(118, 12, 6, "#7FB0F0") + _star(6, 52, 5, SCARF)
     if mood == "proud":
-        return ('<circle cx="60" cy="14" r="8" fill="#F2B84B"/><path d="M60 9 l1.6 3.3 3.6 .5 -2.6 2.5 .6 3.6 -3.2 -1.7 '
-                '-3.2 1.7 .6 -3.6 -2.6 -2.5 3.6 -.5z" fill="#fff"/>')
+        return (f'<path d="M62 4 l-6 14 h12 z" fill="{SCARF}" {O2}/><path d="M86 4 l6 14 h-12 z" fill="#7FB0F0" {O2}/>'
+                f'<circle cx="74" cy="18" r="10" fill="{RIM}" {O}/>' + _star(74, 18, 6, "#fff"))
     if mood == "think":
-        return '<text x="117" y="24" font-family="system-ui" font-weight="800" font-size="16" fill="#7FA6D6">?</text>'
+        return f'<text x="160" y="28" font-family="system-ui,sans-serif" font-weight="900" font-size="22" fill="#fff" {O2} paint-order="stroke">?</text>'
     if mood == "oops":
-        return '<path d="M118 30 q2 4 0 6 q-2 -2 0 -6z" fill="#7FB0F0"/>'
-    return ""
-
-
-def _arm(mood: str) -> str:
-    # Front leg: waves or cheers when happy, rests otherwise.
-    if mood in ("cheer", "wave"):
-        return f'<ellipse cx="124" cy="60" rx="5" ry="10" transform="rotate(-30 124 60)" fill="{SKIN}" stroke="{SKIN_DARK}" stroke-width="1.5"/>'
+        return f'<path d="M162 34 q4 7 0 10 q-4 -3 0 -10 z" fill="#8EC5FF" {O2}/>'
     return ""
 
 
 def mascot(mood: str = "happy", size: int = 96, label: str = "Tempo the turtle") -> Markup:
     if mood not in MOODS:
         mood = "happy"
-    eyes, mouth = _eyes(mood).replace("{i}", INK), _mouth(mood).replace("{i}", INK)
-    svg = f'''<svg class="tempo tempo-{mood}" width="{int(size)}" height="{int(size * 0.8)}" viewBox="0 0 138 104" role="img" aria-label="{label}">
-<ellipse cx="62" cy="96" rx="44" ry="5" fill="currentColor" opacity=".08"/>
-<ellipse cx="32" cy="84" rx="8" ry="6" fill="{SKIN_DARK}"/>
-<ellipse cx="84" cy="84" rx="8" ry="6" fill="{SKIN_DARK}"/>
-<path d="M12 70 q-8 -2 -6 4 q6 3 12 0z" fill="{SKIN}"/>
-<path d="M14 72 Q16 26 58 22 Q98 24 100 70 Z" fill="{SHELL}"/>
-<path d="M14 72 Q16 26 58 22 Q98 24 100 70" fill="none" stroke="{SHELL_DARK}" stroke-width="3"/>
-<path d="M10 70 h94 q4 0 4 4 v1 q0 4 -4 4 h-94 q-4 0 -4 -4 v-1 q0 -4 4 -4z" fill="{SKIN_DARK}"/>
-<line x1="36" y1="58" x2="78" y2="36" stroke="#fff" stroke-width="3.2" stroke-linecap="round" opacity=".95"/>
-<circle cx="36" cy="58" r="6.5" fill="#fff"/><circle cx="57" cy="47" r="6.5" fill="#fff"/><circle cx="78" cy="36" r="7.5" fill="#9FF0C8"/>
-<path d="M92 66 q-4 -10 2 -18" stroke="{SKIN}" stroke-width="12" fill="none" stroke-linecap="round"/>
-<circle cx="105" cy="46" r="17" fill="{SKIN}"/>
-<circle cx="95" cy="50" r="2.6" fill="{CHEEK}" opacity=".8"/><circle cx="116" cy="50" r="2.6" fill="{CHEEK}" opacity=".8"/>
-{eyes}{mouth}{_arm(mood)}{_extras(mood)}
+    raised = mood in ("wave", "cheer")
+    svg = f'''<svg class="tempo tempo-{mood}" width="{int(size)}" height="{int(size * 0.72)}" viewBox="0 0 178 128" role="img" aria-label="{label}">
+<ellipse cx="80" cy="120" rx="64" ry="5.5" fill="#000" opacity=".14"/>
+<path d="M14 92 l-11 3 q4 7 15 3 z" fill="{SKIN}" {O}/>
+{_leg(34, 106)}{_leg(98, 106)}{_leg(120, 108) if raised else ""}
+<path d="M122 86 q-2 -16 8 -28" fill="none" stroke="{INK}" stroke-width="20" stroke-linecap="round"/>
+<path d="M122 86 q-2 -16 8 -28" fill="none" stroke="{SKIN}" stroke-width="13.6" stroke-linecap="round"/>
+<path d="M12 90 C12 44 40 22 68 22 C98 22 126 44 126 90 Z" fill="{SHELL}" {O}/>
+<path d="M30 86 C30 52 48 36 68 36 C90 36 108 52 108 86" fill="none" stroke="{SHELL_DARK}" stroke-width="2.6"/>
+<path d="M48 40 L40 62 M88 40 L96 62 M40 62 L30 86 M96 62 L108 86 M40 62 H96 M68 62 V88" fill="none" stroke="{SHELL_DARK}" stroke-width="2.6" stroke-linecap="round"/>
+<path d="M24 58 C26 42 40 30 56 27" fill="none" stroke="{SHELL_LIGHT}" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+<circle cx="22" cy="68" r="2.6" fill="{SHELL_LIGHT}"/>
+<line x1="52" y1="56" x2="84" y2="40" stroke="{INK}" stroke-width="3.2" stroke-linecap="round"/>
+<circle cx="52" cy="56" r="5.2" fill="#fff" {O2}/><circle cx="68" cy="48" r="5.2" fill="#fff" {O2}/><circle cx="84" cy="40" r="6" fill="{SCARF}" {O2}/>
+<path d="M6 88 H132 q5 0 5 5 v4 q0 5 -5 5 H6 q-5 0 -5 -5 v-4 q0 -5 5 -5 z" fill="{RIM}" {O}/>
+<path d="M24 89 v11 M44 89 v11 M64 89 v11 M84 89 v11 M104 89 v11" stroke="{RIM_DARK}" stroke-width="2.4" stroke-linecap="round"/>
+<circle cx="139" cy="52" r="24" fill="{SKIN}" {O}/>
+<path d="M124 36 q8 -8 20 -6" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" opacity=".55"/>
+<circle cx="126" cy="61" r="4" fill="{CHEEK}" opacity=".75"/><circle cx="153" cy="61" r="4" fill="{CHEEK}" opacity=".75"/>
+{_eyes(mood)}{_mouth(mood)}
+<path d="M128 82 q-6 8 -10 18 l7 2 q3 -9 6 -16 z" fill="{SCARF}" {O}/>
+<path d="M131 82 q5 8 6 18 l-7 1 q-1 -9 -3 -15 z" fill="{SCARF_DARK}" {O}/>
+<path d="M114 71 q14 8 32 -1 l2 9 q-18 9 -36 1 z" fill="{SCARF}" {O}/>
+<circle cx="120" cy="77" r="1.5" fill="#fff"/><circle cx="130" cy="79" r="1.5" fill="#fff"/><circle cx="140" cy="76" r="1.5" fill="#fff"/>
+<circle cx="122" cy="94" r="1.3" fill="#fff"/>
+<ellipse cx="129.5" cy="82" rx="5" ry="4.2" fill="{SCARF}" {O2}/>
+{_arm_up() if raised else _leg(132, 110)}
+{_extras(mood)}
 </svg>'''
     return Markup(svg)
