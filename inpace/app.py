@@ -15,7 +15,8 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, exchange, integrations, pace, races, record
+from . import ai, checks, editor, encourage, exchange, integrations, pace, races, record
+from .mascot import mascot
 from .canon import now_utc, short
 from .course import (Course, CourseError, course_to_pack, files_from_folder, files_from_zip, load_course,
                      strip_fences)
@@ -27,7 +28,23 @@ SAMPLES = HERE / "sample_courses"
 MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken", "reflection_saved",
               "review_done", "commitment_set", "pause_started", "pause_ended"}
 
-md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")
+def _highlight(code: str, lang: str, attrs: str) -> str:
+    """Colour code blocks on this computer (no internet needed)."""
+    from html import escape
+    from pygments import highlight
+    from pygments.formatters import HtmlFormatter
+    from pygments.lexers import get_lexer_by_name
+    from pygments.util import ClassNotFound
+    if not lang:
+        return escape(code)
+    try:
+        lexer = get_lexer_by_name(lang)
+    except ClassNotFound:
+        return escape(code)
+    return highlight(code, lexer, HtmlFormatter(nowrap=True))
+
+
+md = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight}).enable("table")
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
                   extensions=["jinja2.ext.i18n"])
 LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="utf-8"))}
@@ -40,6 +57,18 @@ def gettext(text: str) -> str:
 
 env.install_gettext_callables(gettext, lambda s, p, n: gettext(s if n == 1 else p), newstyle=False)
 env.globals["_"] = gettext
+env.globals["mascot"] = mascot
+
+
+def say(msg: str, values: list | tuple = ()) -> str:
+    text = gettext(msg)
+    try:
+        return text % tuple(values) if values else text.replace("%%", "%")
+    except (TypeError, ValueError):
+        return msg % tuple(values) if values else msg
+
+
+env.globals["say"] = say
 env.filters["short"] = short
 env.filters["date"] = lambda s: (s or "")[:10]
 env.globals["display_name"] = display_name
@@ -103,16 +132,21 @@ def create_app(vault: Vault) -> Starlette:
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
         CURRENT["lang"] = (V._meta("lang", "en") or "en") if V.is_set_up else "en"
         base = {"request": request, "msg": gettext(request.query_params.get("ok") or "") or None,
-                "err": gettext(request.query_params.get("err") or "") or None, "lang": CURRENT["lang"]}
+                "err": gettext(request.query_params.get("err") or "") or None, "lang": CURRENT["lang"],
+                "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
             base["checking"] = [
                 {**p, "waiting": V.waiting_count(p["id"])} for p in V.people() if p["i_check"]
             ]
             base["active_path"] = request.url.path
-        return HTMLResponse(env.get_template(name).render(**base, **ctx))
+        base.update(ctx)
+        return HTMLResponse(env.get_template(name).render(**base))
 
-    def go(url: str, ok: str | None = None, err: str | None = None) -> RedirectResponse:
+    def go(url: str, ok: str | None = None, err: str | None = None, yay: str | None = None) -> RedirectResponse:
+        if yay:
+            url = (url.split("#")[0] + ("&" if "?" in url else "?") + "yay=" + yay +
+                   ("#" + url.split("#")[1] if "#" in url else ""))
         if ok:
             url += ("&" if "?" in url else "?") + "ok=" + quote(ok)
         if err:
@@ -140,15 +174,18 @@ def create_app(vault: Vault) -> Starlette:
         waiting = [m for m in ms if not any(a["decision"] == "approved" for a in m["approvals"])]
         exams = checks.my_exams(V, j["id"])
         evs = V.events(j["id"])
+        card: dict
         wk = pace.weeks(evs, [m["body"]["created_at"] for m in ms])
         packed_at = V._meta(f"pack:{j['id']}", "") or ""
-        return {"journey": j, "progress": prog, "milestones": ms, "last_ok": last_ok, "waiting": waiting,
+        card = {"journey": j, "progress": prog, "milestones": ms, "last_ok": last_ok, "waiting": waiting,
                 "has_new": has_new(j["id"]), "chain_problems": V.check_my_chain(j["id"]),
                 "exams_waiting": [x for x in exams if not x["taken"]],
                 "requests": [r for r in checks.requests_for(V, j["id"]) if r["at"] > packed_at],
                 "pace": wk, "paused": pace.is_paused(evs),
                 "forecast": pace.forecast(j["started_at"], prog["percent"]),
                 "due": len(pace.due_cards(V, j["course_id"])) if prog["course"].has_answers else 0}
+        card["tempo"] = encourage.greeting(card)
+        return card
 
     # ---- setup ---------------------------------------------------------------
     async def setup(request: Request):
@@ -260,6 +297,10 @@ def create_app(vault: Vault) -> Starlette:
     def _module_state(prog: dict, module_id: str) -> dict | None:
         return next((m for m in prog["modules"] if m["id"] == module_id), None)
 
+    def _module_done(jid: str, mid: str) -> bool:
+        m = _module_state(V.progress(jid), mid)
+        return bool(m and m["status"] == "done")
+
     async def lesson(request: Request):
         j = journey_or_404(request.path_params["jid"])
         if not j:
@@ -315,7 +356,8 @@ def create_app(vault: Vault) -> Starlette:
             answers = {q["id"]: str(form.get(q["id"], "")) for q in exam["questions"]}
             V.add_event(j["id"], "exam_taken", {"exam": exam["id"], "req": exam["req"], "task": exam["task"],
                                                 "checker": exam["checker"]["id"], "answers": answers})
-            return page("quiz_result.html", request, j=j, module=module, verified=True, checker_name=checker_name)
+            return page("quiz_result.html", request, j=j, module=module, verified=True, checker_name=checker_name,
+                        yay=encourage.CELEBRATE["exam"])
         return page("quiz.html", request, j=j, module=module, req={"pass": exam["pass"]}, exam=exam["questions"],
                     seed="", verified=True, checker_name=checker_name)
 
@@ -331,13 +373,13 @@ def create_app(vault: Vault) -> Starlette:
         if action == "commit":
             n = max(1, min(int(form.get("per_week") or 2), 14))
             V.add_event(jid, "commitment_set", {"per_week": n})
-            return go(back, ok=f"Your goal: {n} milestone{'s' if n > 1 else ''} a week. Your checker will see it.")
+            return go(back, ok=f"Your goal: {n} milestone{'s' if n > 1 else ''} a week. Your checker will see it.", yay="goal")
         if action == "pause" and not pace.is_paused(evs):
             V.add_event(jid, "pause_started", {"reason": str(form.get("reason", "")).strip()[:200]})
             return go(back, ok="You're on a break. Weeks on a break don't count as missed.")
         if action == "resume" and pace.is_paused(evs):
             V.add_event(jid, "pause_ended", {})
-            return go(back, ok="Welcome back!")
+            return go(back, yay="back")
         if action == "reflect":
             data = {k: str(form.get(k, "")).strip()[:2000] for k in ("learned", "hard", "next")}
             if not any(data.values()):
@@ -375,12 +417,15 @@ def create_app(vault: Vault) -> Starlette:
         found = course.find_lesson(lid) if course else None
         if not found:
             return go("/", err="That lesson wasn't found.")
+        was_done = _module_done(jid, found[0]["id"])
         if not any(e["type"] == "lesson_done" and e["data"]["lesson"] == lid for e in V.events(jid)):
             V.add_event(jid, "lesson_done", {"lesson": lid, "title": found[1]["title"]})
+        if not was_done and _module_done(jid, found[0]["id"]):
+            return go(f"/learn/{jid}/module/{found[0]['id']}", yay="module")
         form = await request.form()
         target = form.get("next")
         if target:
-            return go(f"/learn/{jid}/lesson/{target}")
+            return go(f"/learn/{jid}/lesson/{target}", yay="lesson")
         return go(f"/learn/{jid}/module/{found[0]['id']}", ok="All lessons read. Now the tasks.")
 
     async def _req_ctx(request: Request):
@@ -407,7 +452,10 @@ def create_app(vault: Vault) -> Starlette:
             return go(back, err="That file is empty.")
         if len(data) > 100 * 1024 * 1024:
             return go(back, err="That file is over 100 MB. Try a smaller file or a screenshot.")
+        was_done = _module_done(j["id"], module["id"])
         V.save_evidence(j["id"], req["id"], up.filename, data, task=req["prompt"])
+        if not was_done and _module_done(j["id"], module["id"]):
+            return go(back, yay="module")
         return go(back, ok=f"Saved “{up.filename}” as your work.")
 
     async def add_git(request: Request):
@@ -433,7 +481,10 @@ def create_app(vault: Vault) -> Starlette:
         back = f"/learn/{j['id']}/module/{module['id']}#task-{req['id']}"
         if not text:
             return go(back, err="Write something first.")
+        was_done = _module_done(j["id"], module["id"])
         V.add_event(j["id"], "writeup_saved", {"req": req["id"], "task": req["prompt"], "text": text, "words": words})
+        if not was_done and _module_done(j["id"], module["id"]):
+            return go(back, yay="module")
         need = req.get("min_words", 40)
         if words < need:
             return go(back, ok=f"Saved. You have {words} words; this needs at least {need} to count.")
@@ -463,7 +514,9 @@ def create_app(vault: Vault) -> Starlette:
                                             "seed": seed, "answers": picked,
                                             "score": result["score"], "total": result["total"],
                                             "percent": result["percent"], "passed": passed})
-        return page("quiz_result.html", request, j=j, module=module, req=req, result=result, passed=passed)
+        done_now = _module_done(j["id"], module["id"])
+        return page("quiz_result.html", request, j=j, module=module, req=req, result=result, passed=passed,
+                    yay=encourage.CELEBRATE["module" if (passed and done_now) else "quiz"] if passed else None)
 
     # ---- milestones -----------------------------------------------------------
     async def milestones(request: Request):
@@ -477,7 +530,7 @@ def create_app(vault: Vault) -> Starlette:
         if not has_new(jid):
             return go("/milestones", err="Nothing new to save yet. Finish a lesson or task first.")
         m = V.create_milestone(jid)
-        return go("/milestones", ok=f"Milestone {m['seq']} saved. Now send your progress file to your checker.")
+        return go("/milestones", yay="milestone")
 
     async def export_progress(request: Request):
         jid = request.path_params["jid"]
@@ -755,7 +808,8 @@ def create_app(vault: Vault) -> Starlette:
                     note += " Your exam score is in."
                 if res.get("requests"):
                     note += f" They asked to see {res['requests']} file(s)."
-                return go("/milestones", ok=f"{res['name']} {word} {res['count']} milestone(s).{note}")
+                return go("/milestones", ok=f"{res['name']} {word} {res['count']} milestone(s).{note}",
+                          yay="approved" if res["decision"] == "approved" else None)
         except exchange.FileProblem as e:
             return go("/open", err=str(e))
         except (KeyError, TypeError, ValueError):

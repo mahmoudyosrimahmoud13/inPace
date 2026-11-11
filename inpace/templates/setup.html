@@ -4,7 +4,7 @@
 {% block main %}
 <section class="card" style="margin-block-start: 2rem; padding: 2.25rem">
   <div class="center">
-    <img src="/static/icon.svg" alt="" width="64" height="64">
+    {{ mascot('wave', 150) }}
     <h1 style="margin-block-start: 1rem">{% trans trimmed %}Welcome to inPace{% endtrans %}</h1>
     <p class="lead" style="margin-inline: auto">{% trans trimmed %}Learn at your own pace, and let someone you trust see that you kept it.{% endtrans %}</p>
   </div>

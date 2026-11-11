@@ -71,7 +71,8 @@
 {% endfor %}
 
 {% if mstate.status == 'done' %}
-<div class="next">
+<div class="next tempo-say">
+  {{ mascot('proud', 72) }}
   <p class="next-title">{% trans trimmed %}Module complete. Save a milestone so your checker can see it.{% endtrans %}</p>
   <a class="btn primary big" href="/milestones">{% trans trimmed %}Go to milestones{% endtrans %}</a>
 </div>

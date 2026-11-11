@@ -14,7 +14,7 @@
 </section>
 
 {% if not people %}
-<section class="card empty"><p>{% trans trimmed %}No one here yet. A checker can be a friend, a parent, a mentor or a study buddy. They don't need to know the subject.{% endtrans %}</p></section>
+<section class="card empty">{{ mascot('think', 110) }}<p>{% trans trimmed %}No one here yet. A checker can be a friend, a parent, a mentor or a study buddy. They don't need to know the subject.{% endtrans %}</p></section>
 {% endif %}
 
 {% if by_course and (by_course.values()|map('length')|sum) > 1 %}

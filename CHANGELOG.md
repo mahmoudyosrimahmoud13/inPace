@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.2.0
+
+- **New look:** a bold comic-book style with thick outlines, hard shadows, sunny yellow panels and a cream header. Inspired by Basha Media.
+- **Your course is a trail:** each lesson is a stepping stone on a map, and Tempo stands where you are.
+- **New font:** Readex Pro, made for both Arabic and English, so both languages look their best.
+- **Big footer** with the inPace wordmark and Tempo.
+
+## v1.1.0
+
+- **Meet Tempo:** a friendly turtle who cheers you on. Slow and steady wins the race. Tempo greets you with a message that fits where you are: starting out, close to finishing a module, on a streak, on a break, or done with the course.
+- **Celebrations:** finishing a module, passing a quiz, saving a milestone or getting approved now shows a small celebration with confetti.
+- **Code highlighting:** code in lessons is now colour-coded, shows its language, and has a Copy button. Works offline.
+- **Kinder results:** missed a quiz? Tempo reminds you that every mistake now is one you won't make later.
+
 ## v1.0.0
 
 **Keep going**

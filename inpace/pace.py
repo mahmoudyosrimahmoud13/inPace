@@ -100,7 +100,9 @@ def forecast(started_at: str, percent: int, now: datetime | None = None) -> str 
     if percent <= 0 or percent >= 100:
         return None
     now = now or _now()
-    days = max((now - _dt(started_at)).total_seconds() / 86400, 1)
+    days = (now - _dt(started_at)).total_seconds() / 86400
+    if days < 2:
+        return None  # too early to guess well
     remaining = days * (100 - percent) / percent
     d = (now + timedelta(days=remaining)).date()
     return f"{d:%b} {d.day}, {d.year}"

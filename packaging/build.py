@@ -33,7 +33,8 @@ def main() -> None:
     data = [f"{PKG / d}{SEP}inpace/{d}" for d in ("templates", "static", "sample_courses", "locales")]
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", "inPace",
            "--paths", str(ROOT), "--collect-submodules", "inpace", "--collect-submodules", "uvicorn",
-           "--hidden-import", "_cffi_backend", "--collect-all", "nacl"]
+           "--hidden-import", "_cffi_backend", "--collect-all", "nacl",
+           "--collect-submodules", "pygments"]
     for d in data:
         cmd += ["--add-data", d]
     try:  # the app window library, when installed (Windows and Mac builds)

@@ -28,6 +28,7 @@ def test_forecast():
     now = datetime(2026, 11, 11, tzinfo=timezone.utc)
     assert pace.forecast("2026-11-01T00:00:00Z", 50, now=now) == "Nov 21, 2026"
     assert pace.forecast("2026-11-01T00:00:00Z", 0, now=now) is None
+    assert pace.forecast("2026-11-10T12:00:00Z", 50, now=now) is None  # too early
 
 
 def test_leitner_boxes(tmp_path):
@@ -53,3 +54,13 @@ def test_backup_round_trip(tmp_path):
     again = Vault(tmp_path / "restored")
     assert again.me["name"] == "Omar" and again.identity.id == learner.identity.id
     assert len(again.milestones(j)) == 1 and again.get_course("python-basics")
+
+
+def test_tempo_says_something_fitting():
+    from inpace.encourage import greeting
+    base = {"progress": {"percent": 0, "finished": False, "current_module": None}, "pace": {}, "milestones": []}
+    assert greeting(base)[0] == "wave"
+    assert greeting({**base, "paused": {"start": "x"}})[0] == "sleepy"
+    assert greeting({**base, "progress": {"percent": 100, "finished": True, "current_module": None}})[0] == "proud"
+    mood, msg, vals = greeting({**base, "pace": {"streak": 3}})
+    assert mood == "cheer" and vals == [3]

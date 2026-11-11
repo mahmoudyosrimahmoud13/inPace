@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 <header class="top">
@@ -46,7 +46,28 @@
       {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
       {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
       {% block main %}{% endblock %}
+      {% if yay %}
+      <div class="yay" role="status" {{ 'data-confetti' if yay[0] in ('cheer', 'proud') }}>
+        {{ mascot(yay[0], 76) }}
+        <p>{{ _(yay[1]) }}</p>
+        <button type="button" class="yay-close" aria-label="Close">×</button>
+      </div>
+      {% endif %}
     </div>
+    {% if me %}
+    <footer class="big-foot">
+      <div class="foot-top">
+        <div><b>{{ _('Slow and steady wins the race.') }}</b><p>{{ _('Free and open source. Everything stays on this computer.') }}</p></div>
+        <nav class="foot-links" aria-label="More">
+          <a href="/courses">{{ _('My courses') }}</a><a href="/races">{{ _('Races') }}</a><a href="/people">{{ _('People') }}</a>
+          <a href="/settings">{{ _('Settings') }}</a>
+          <a href="https://github.com/mahmoudyosrimahmoud13/inpace" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+      </div>
+      <p class="word" aria-hidden="true"><span>in</span>Pace</p>
+      {{ mascot('happy', 120) }}
+    </footer>
+    {% endif %}
   </main>
 </div>
 <script src="/static/app.js?v=2"></script>

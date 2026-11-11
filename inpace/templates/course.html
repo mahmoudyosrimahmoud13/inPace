@@ -1,43 +1,59 @@
 {% extends "base.html" %}
 {% block title %}{{ prog.course.title }}{% endblock %}
 {% block main %}
+{% set xs = [28, 70, 38, 76, 24, 62] %}
+{% set step = 104 %}
 <div class="page-head">
-  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
-  <h1 dir="auto">{{ prog.course.title }}</h1>
-  <div class="row" style="margin-block-start: .75rem">
-    <div class="bar grow" style="max-width: 420px"><span style="width: {{ prog.percent }}%"></span></div>
-    <span class="muted small">{{ prog.percent }}%</span>
+  <p class="eyebrow"><a href="/courses">{{ _('My courses') }}</a></p>
+  <h1 dir="auto">{{ prog.course.title }}.</h1>
+  <div class="row" style="margin-block-start: .9rem">
+    <div class="bar grow" style="max-width: 460px"><span style="width: {{ prog.percent }}%"></span></div>
+    <b>{{ prog.percent }}%</b>
   </div>
 </div>
-<section class="card">
-<ol class="modules">
+
+{% set ns = namespace(here_given=false) %}
 {% for m in prog.modules %}
-  <li class="module {{ m.status }}">
-    <span class="num">{% if m.status == 'done' %}{{ icon('check', 18) }}{% elif m.status == 'locked' %}{{ icon('lock', 16) }}{% else %}{{ loop.index }}{% endif %}</span>
-    <div>
-      <div class="row between">
-        <h2 style="font-size: 1.25rem; margin: 0" dir="auto">{{ m.title }}</h2>
-        {% if m.status == 'done' %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>
-        {% elif m.status == 'open' %}<span class="chip">{% trans trimmed %}In progress{% endtrans %}</span>
-        {% else %}<span class="chip muted">{% trans trimmed %}Locked{% endtrans %}</span>{% endif %}
-      </div>
-      {% if m.status == 'locked' %}<p class="small muted" style="margin:.25rem 0 0">{% trans trimmed %}Opens when you finish the module before.{% endtrans %}</p>{% endif %}
-      <ul class="checks">
-        {% for l in m.lessons %}
-        <li class="{{ 'done' if l.done }}">
-          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{{ l.title }}</a>{% else %}<span dir="auto">{{ l.title }}</span>{% endif %}
-          {% if l.minutes %}<span class="muted small">{{ l.minutes }} min</span>{% endif %}
-        </li>
-        {% endfor %}
-        <li class="{{ 'done' if m.requires and m.requires|rejectattr('done')|list|length == 0 }}">
-          {% set tdone = m.requires|selectattr('done')|list|length %}
-          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/module/{{ m.id }}"><b>{% trans trimmed %}Module tasks{% endtrans %}</b></a>{% else %}<b>{% trans trimmed %}Module tasks{% endtrans %}</b>{% endif %}
-          <span class="muted small">{{ _('%s of %s done')|format(tdone, m.requires|length) }}</span>
-        </li>
-      </ul>
-    </div>
-  </li>
-{% endfor %}
-</ol>
+{% set tdone = m.requires|selectattr('done')|list|length %}
+{% set lessons_left = m.lessons|rejectattr('done')|list|length %}
+{% set count = m.lessons|length + 1 %}
+{% set h = count * step + 24 %}
+<section class="trail-module {{ m.status }}">
+  <div class="signpost">
+    <span class="row"><span class="num">{{ '%02d'|format(loop.index) }}</span><h2 dir="auto">{{ m.title }}.</h2></span>
+    {% if m.status == 'done' %}<span class="chip good">{{ _('Done') }}</span>
+    {% elif m.status == 'open' %}<span class="chip warn">{{ _('In progress') }}</span>
+    {% else %}<span class="chip muted">{{ _('Locked') }}</span>{% endif %}
+  </div>
+  {% if m.status == 'locked' %}<p class="small muted" style="margin:.4rem 0 0">{{ _('Opens when you finish the module before.') }}</p>{% endif %}
+
+  <div class="trail" style="height: {{ h }}px">
+    <svg class="path" viewBox="0 0 100 {{ h }}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="path-line" vector-effect="non-scaling-stroke" d="{% for i in range(count) %}{% set x = xs[i % 6] %}{% set y = i * step + step // 2 + 12 %}{% if loop.first %}M {{ x }} {{ y }}{% else %}{% set px = xs[(i - 1) % 6] %}{% set py = y - step %} C {{ px }} {{ py + step // 2 }} {{ x }} {{ y - step // 2 }} {{ x }} {{ y }}{% endif %}{% endfor %}"/>
+    </svg>
+
+    {% for l in m.lessons %}
+      {% set i = loop.index0 %}{% set x = xs[i % 6] %}{% set y = i * step + step // 2 + 12 %}
+      {% set is_here = m.status == 'open' and not l.done and not ns.here_given %}
+      {% if is_here %}{% set ns.here_given = true %}{% endif %}
+      <a class="stone {{ 'done' if l.done }} {{ 'here' if is_here }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
+         style="inset-inline-start: {{ x }}%; top: {{ y }}px" {% if m.status != 'locked' %}href="/learn/{{ j.id }}/lesson/{{ l.id }}"{% endif %}>
+        <span class="rock">{% if l.done %}{{ icon('check', 22) }}{% else %}{{ loop.index }}{% endif %}</span>
+        <span class="label" dir="auto">{{ l.title }}{% if l.minutes %}<small>{{ l.minutes }} min</small>{% endif %}</span>
+        {% if is_here %}<span class="walker">{{ mascot('wave', 64) }}</span>{% endif %}
+      </a>
+    {% endfor %}
+
+    {% set i = m.lessons|length %}{% set x = xs[i % 6] %}{% set y = i * step + step // 2 + 12 %}
+    {% set flag_here = m.status == 'open' and lessons_left == 0 and not ns.here_given %}
+    {% if flag_here %}{% set ns.here_given = true %}{% endif %}
+    <a class="stone flag {{ 'done' if m.status == 'done' }} {{ 'here' if flag_here }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
+       style="inset-inline-start: {{ x }}%; top: {{ y }}px" {% if m.status != 'locked' %}href="/learn/{{ j.id }}/module/{{ m.id }}"{% endif %}>
+      <span class="rock">{{ icon('check' if m.status == 'done' else 'flag', 22) }}</span>
+      <span class="label">{{ _('Module tasks') }}<small>{{ _('%s of %s done')|format(tdone, m.requires|length) }}</small></span>
+      {% if flag_here %}<span class="walker">{{ mascot('cheer', 64) }}</span>{% endif %}
+    </a>
+  </div>
 </section>
+{% endfor %}
 {% endblock %}

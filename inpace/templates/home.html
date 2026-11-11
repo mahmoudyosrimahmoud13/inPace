@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block main %}
-<div class="page-head">
-  <h1>{{ _('Hi %s')|format(me.name) }}</h1>
-  {% if cards %}<p class="muted">{% trans trimmed %}Here's where you are.{% endtrans %}</p>{% endif %}
+<div class="hello">
+  {% set t = cards[0].tempo if cards else ('wave', "Hi! I'm Tempo. Pick a course and we'll go one step at a time.", []) %}
+  {{ mascot(t[0], 104) }}
+  <div>
+    <h1>{{ _('Hi %s.')|format(me.name) }}</h1>
+    <p class="bubble">{{ say(t[1], t[2]) }}</p>
+  </div>
 </div>
 
 {% if not cards %}
@@ -58,7 +62,8 @@
       {% set tw = c.pace.this_week %}
       <div class="pace-box {{ 'good' if tw and tw.count >= c.pace.commitment.per_week else '' }}">
         <b>{{ tw.count if tw else 0 }} / {{ c.pace.commitment.per_week }}</b><span>{% trans trimmed %}milestones this week{% endtrans %}</span></div>
-      <div class="pace-box"><b>{{ c.pace.streak }}</b><span>{% trans trimmed %}on pace in a row{% endtrans %}</span></div>
+      {% if c.pace.streak %}<div class="pace-box"><b>{{ c.pace.streak }}</b><span>{% trans trimmed %}on pace in a row{% endtrans %}</span></div>
+      {% else %}<div class="pace-box"><b>{{ _('Start a streak') }}</b><span>{{ _('Hit your goal this week') }}</span></div>{% endif %}
     {% endif %}
     {% if c.forecast and not c.paused %}<div class="pace-box"><b>{{ c.forecast }}</b><span>{% trans trimmed %}finish date at this pace{% endtrans %}</span></div>{% endif %}
     {% if c.due %}<a class="pace-box link-box" href="/learn/{{ c.journey.id }}/practice"><b>{{ c.due }} to review</b><span>{% trans trimmed %}Quick review →{% endtrans %}</span></a>{% endif %}

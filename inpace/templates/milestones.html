@@ -7,7 +7,7 @@
 </div>
 
 {% if not cards %}
-<section class="card empty"><p>{% trans trimmed %}Start a course first.{% endtrans %}</p><div class="row"><a class="btn primary" href="/courses">{% trans trimmed %}Choose a course{% endtrans %}</a></div></section>
+<section class="card empty">{{ mascot('think', 110) }}<p>{% trans trimmed %}Start a course first.{% endtrans %}</p><div class="row"><a class="btn primary" href="/courses">{% trans trimmed %}Choose a course{% endtrans %}</a></div></section>
 {% endif %}
 
 {% for c in cards %}

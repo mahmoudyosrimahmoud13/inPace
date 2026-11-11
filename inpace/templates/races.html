@@ -16,7 +16,7 @@
   <p style="margin:0">{% trans trimmed %}You're in{% endtrans %} <b>place {{ me.place }}</b>{% if b.rows|length > 1 %} of {{ b.rows|length }}{% endif %}.</p>
 </a>
 {% else %}
-<section class="card empty"><h2>{% trans trimmed %}No races yet{% endtrans %}</h2><p class="muted">{% trans trimmed %}Start one below, or open a race invite a friend sent you with “Open a file”.{% endtrans %}</p></section>
+<section class="card empty">{{ mascot('think', 110) }}<h2>{% trans trimmed %}No races yet{% endtrans %}</h2><p class="muted">{% trans trimmed %}Start one below, or open a race invite a friend sent you with “Open a file”.{% endtrans %}</p></section>
 {% endfor %}
 
 {% if journeys %}

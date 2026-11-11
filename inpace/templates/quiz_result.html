@@ -13,7 +13,9 @@
   </div>
 </section>
 {% else %}
-<section class="card result {{ 'good' if passed else 'warn' }}">
+<section class="card result {{ 'good' if passed else 'warn' }} tempo-say">
+  {{ mascot('cheer' if passed and not review else ('happy' if review else 'think'), 110) }}
+  <div class="grow">
   <p class="eyebrow">{{ module.title }}</p>
   <h1>{{ result.score }} of {{ result.total }} · {{ result.percent }}%</h1>
   {% if review %}<p class="lead">{% trans trimmed %}Done for today. These questions will come back at the right time.{% endtrans %}</p>
@@ -25,6 +27,8 @@
     {% if not passed %}<a class="btn big" href="/learn/{{ j.id }}/task/{{ req.id }}/quiz">{% trans trimmed %}Try again{% endtrans %}</a>{% endif %}
   </div>
   {% endif %}
+  {% if not passed and not review %}<p class="small" style="margin:.6rem 0 0">{{ _("Every mistake now is one you won't make later. Try again when you're ready.") }}</p>{% endif %}
+  </div>
 </section>
 {% for d in result.details %}
 <div class="card flat answer {{ 'good' if d.ok else 'bad' }}">

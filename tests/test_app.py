@@ -68,7 +68,7 @@ def test_everything(tmp_path):
 
     # Milestone + progress file.
     r = learner.post(f"/milestones/{jid}/save")
-    assert "Milestone 1 saved" in r.text
+    assert "Milestone saved!" in r.text
     progress = learner.get(f"/milestones/{jid}/export")
     assert progress.headers["content-disposition"].startswith("attachment")
 
