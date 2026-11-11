@@ -1,16 +1,30 @@
 name: tests
 
+# Runs on normal pushes and pull requests. Version tags (v1.2.3) skip this, because the
+# release workflow already tests on every system before it builds the apps.
 on:
   push:
+    branches: ["**"]
+    paths-ignore: ["site/**", "*.md", "community-courses/**"]
   pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true   # a newer push replaces a test run that's still waiting
 
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.10", "3.12", "3.13"]
+        # Every Python version on Linux (fast and plentiful); one version on Windows and Mac.
+        # Free Mac machines on GitHub are few and often busy, so fewer Mac jobs means less waiting.
+        include:
+          - {os: ubuntu-latest, python: "3.10"}
+          - {os: ubuntu-latest, python: "3.12"}
+          - {os: ubuntu-latest, python: "3.13"}
+          - {os: windows-latest, python: "3.12"}
+          - {os: macos-latest, python: "3.12"}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
