@@ -23,8 +23,13 @@ document.querySelectorAll("[data-wordcount]").forEach((box) => {
   const out = box.form.querySelector("[data-wordcount-out]");
   const update = () => {
     const n = box.value.trim() ? box.value.trim().split(/\s+/).length : 0;
-    out.textContent = n >= need ? `${n} words ✓` : `${n} of at least ${need} words`;
+    const of = box.dataset.of || '%s of at least %s words', ok = box.dataset.ok || '%s words ✓';
+    out.textContent = n >= need ? ok.replace('%s', n) : of.replace('%s', n).replace('%s', need);
   };
   box.addEventListener("input", update);
   update();
+});
+
+document.querySelectorAll("[data-busy]").forEach((btn) => {
+  btn.form.addEventListener("submit", () => { btn.disabled = true; btn.textContent = btn.dataset.busy; });
 });

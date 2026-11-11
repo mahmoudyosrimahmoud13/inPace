@@ -1,11 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Verified exam' if verified else 'Quiz' }}{% endblock %}
+{% block title %}{{ _('Verified exam') if verified else (_('Review') if review else _('Quiz')) }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
 <div class="page-head">
-  <p class="eyebrow"><a href="/learn/{{ j.id }}/module/{{ module.id }}" dir="auto">{{ module.title }}</a></p>
-  <h1>{{ 'Verified exam' if verified else 'Practice quiz' }}</h1>
-  {% if verified %}
+  <p class="eyebrow">{% if module.id %}<a href="/learn/{{ j.id }}/module/{{ module.id }}" dir="auto">{{ module.title }}</a>{% else %}<a href="/learn/{{ j.id }}">{{ course.title }}</a>{% endif %}</p>
+  <h1>{{ _('Verified exam') if verified else (_('Review') if review else _('Practice quiz')) }}</h1>
+  {% if review %}
+    <p class="muted">{% trans trimmed %}Questions you've seen before come back over days and weeks, so they stick. Right answers come back later, wrong ones sooner.{% endtrans %}</p>
+  {% elif verified %}
     <p class="muted">From {{ checker_name }}. {{ exam|length }} questions. You can take it once, and you won't see the answers. {{ checker_name }} will see your score.</p>
   {% else %}
     <p class="muted">{{ exam|length }} questions · {{ req.pass }}% to pass. You'll see the answers at the end.</p>
@@ -13,6 +15,7 @@
 </div>
 <form method="post">
   <input type="hidden" name="seed" value="{{ seed }}">
+  {% if review %}<input type="hidden" name="qids" value="{{ qids }}">{% endif %}
   {% for q in exam %}
   <fieldset class="card question">
     <legend class="sr">Question {{ loop.index }}</legend>
@@ -25,6 +28,6 @@
     </div>
   </fieldset>
   {% endfor %}
-  <button class="btn primary big wide">{{ 'Submit my answers' if verified else 'Finish quiz' }}</button>
+  <button class="btn primary big wide">{{ _('Submit my answers') if verified else _('Finish quiz') }}</button>
 </form>
 {% endblock %}

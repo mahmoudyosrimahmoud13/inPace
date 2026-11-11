@@ -1,20 +1,39 @@
 {% extends "base.html" %}
 {% block title %}People{% endblock %}
 {% block main %}
-<div class="page-head"><h1>People</h1></div>
+<div class="page-head"><h1>{% trans trimmed %}People{% endtrans %}</h1></div>
 <section class="card row between">
   <div>
-    <h2>Connect with someone</h2>
-    <p>Swap contact cards: send yours, and open theirs. Then choose who checks whom.</p>
+    <h2>{% trans trimmed %}Connect with someone{% endtrans %}</h2>
+    <p>{% trans trimmed %}Swap contact cards: send yours, and open theirs. Then choose who checks whom.{% endtrans %}</p>
   </div>
   <div class="row">
-    <a class="btn primary big" href="/people/card">Download my contact card</a>
-    <a class="btn big" href="/open">Open their card</a>
+    <a class="btn primary big" href="/people/card">{% trans trimmed %}Download my contact card{% endtrans %}</a>
+    <a class="btn big" href="/open">{% trans trimmed %}Open their card{% endtrans %}</a>
   </div>
 </section>
 
 {% if not people %}
-<section class="card empty"><p>No one here yet. A checker can be a friend, a parent, a mentor or a study buddy. They don't need to know the subject.</p></section>
+<section class="card empty"><p>{% trans trimmed %}No one here yet. A checker can be a friend, a parent, a mentor or a study buddy. They don't need to know the subject.{% endtrans %}</p></section>
+{% endif %}
+
+{% if by_course and (by_course.values()|map('length')|sum) > 1 %}
+<section class="card">
+  <h2>{% trans trimmed %}By course{% endtrans %}</h2>
+  {% for course, items in by_course.items() %}
+  <h3 style="margin-top:1rem" dir="auto">{{ course }}</h3>
+  <ul class="events">
+    {% for it in items|sort(attribute='percent', reverse=True) %}
+    <li class="ev row between">
+      <span class="row">{{ avatar(it.person, 28) }} <b>{{ display_name(it.person) }}</b></span>
+      <span class="row"><span class="small muted">{{ it.percent }}%</span>
+        {% if it.person.waiting %}<span class="chip warn">{{ it.person.waiting }} waiting</span>{% endif %}
+        <a class="btn" href="/review/{{ it.person.id }}/{{ it.rec.journey }}">{% trans trimmed %}Review{% endtrans %}</a></span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</section>
 {% endif %}
 
 <div class="list">
@@ -38,7 +57,7 @@
     {% for r in p.journeys %}
       <a class="course-link" href="/review/{{ p.id }}/{{ r.journey }}">
         <span><b>{{ r.course }}</b> <span class="muted small">last file {{ r.received_at|date }}</span></span>
-        <span class="btn">Review</span>
+        <span class="btn">{% trans trimmed %}Review{% endtrans %}</span>
       </a>
     {% else %}
       <p class="muted small">When {{ display_name(p) }} sends a progress file, open it with “Open a file”.</p>
@@ -46,12 +65,12 @@
   {% endif %}
 
   <details class="more">
-    <summary>Edit</summary>
+    <summary>{% trans trimmed %}Edit{% endtrans %}</summary>
     <form method="post" action="/people/{{ p.id }}" class="stack">
-      <label>Nickname (only you see this)<input name="nickname" value="{{ p.nickname }}" placeholder="{{ p.name }}"></label>
-      <label class="check"><input type="checkbox" name="checks_me" value="1" {{ 'checked' if p.checks_me }}> They check my progress</label>
-      <label class="check"><input type="checkbox" name="i_check" value="1" {{ 'checked' if p.i_check }}> I check their progress</label>
-      <div class="row"><button class="btn">Save</button><button class="btn ghost danger" name="remove" value="1">Remove</button></div>
+      <label>{% trans trimmed %}Nickname (only you see this){% endtrans %}<input name="nickname" value="{{ p.nickname }}" placeholder="{{ p.name }}"></label>
+      <label class="check"><input type="checkbox" name="checks_me" value="1" {{ 'checked' if p.checks_me }}> {% trans trimmed %}They check my progress{% endtrans %}</label>
+      <label class="check"><input type="checkbox" name="i_check" value="1" {{ 'checked' if p.i_check }}> {% trans trimmed %}I check their progress{% endtrans %}</label>
+      <div class="row"><button class="btn">{% trans trimmed %}Save{% endtrans %}</button><button class="btn ghost danger" name="remove" value="1">{% trans trimmed %}Remove{% endtrans %}</button></div>
     </form>
   </details>
 </section>

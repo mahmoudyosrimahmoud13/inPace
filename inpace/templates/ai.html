@@ -1,73 +1,81 @@
 {% extends "base.html" %}
 {% block title %}Make a course with AI{% endblock %}
 {% block main %}
-<div class="page-head"><h1>Make a course with AI</h1></div>
+<div class="page-head"><h1>{% trans trimmed %}Make a course with AI{% endtrans %}</h1></div>
 <ol class="steps">
-  <li class="{{ 'on' if step == 1 }}">Describe it</li>
-  <li class="{{ 'on' if step == 2 }}">Copy to an AI chat</li>
-  <li class="{{ 'on' if step == 3 }}">Paste the answer</li>
+  <li class="{{ 'on' if step == 1 }}">{% trans trimmed %}Describe it{% endtrans %}</li>
+  <li class="{{ 'on' if step == 2 }}">{% trans trimmed %}Copy to an AI chat{% endtrans %}</li>
+  <li class="{{ 'on' if step == 3 }}">{% trans trimmed %}Paste the answer{% endtrans %}</li>
 </ol>
 
 {% if step == 1 %}
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="prompt">
-  <label>What do you want to learn?
+  <label>{% trans trimmed %}What do you want to learn?{% endtrans %}
     <input name="topic" required placeholder="For example: Excel for small business owners" value="{{ form.topic or '' }}">
   </label>
-  <label>Your level
+  <label>{% trans trimmed %}Your level{% endtrans %}
     <select name="level">
-      <option value="beginner">Complete beginner</option>
-      <option value="some">I know some basics</option>
-      <option value="advanced">Advanced</option>
+      <option value="beginner">{% trans trimmed %}Complete beginner{% endtrans %}</option>
+      <option value="some">{% trans trimmed %}I know some basics{% endtrans %}</option>
+      <option value="advanced">{% trans trimmed %}Advanced{% endtrans %}</option>
     </select>
   </label>
   <div class="row">
-    <label class="grow">How many weeks?<input type="number" name="weeks" min="1" max="52" value="4"></label>
-    <label class="grow">Hours per week<input type="number" name="hours" min="1" max="40" value="3"></label>
+    <label class="grow">{% trans trimmed %}How many weeks?{% endtrans %}<input type="number" name="weeks" min="1" max="52" value="4"></label>
+    <label class="grow">{% trans trimmed %}Hours per week{% endtrans %}<input type="number" name="hours" min="1" max="40" value="3"></label>
   </div>
-  <label>Course language
-    <select name="language"><option>English</option><option>Arabic</option></select>
+  <label>{% trans trimmed %}Course language{% endtrans %}
+    <select name="language"><option>{% trans trimmed %}English{% endtrans %}</option><option>{% trans trimmed %}Arabic{% endtrans %}</option></select>
   </label>
-  <label>Anything else? (optional)
+  <label>{% trans trimmed %}Anything else? (optional){% endtrans %}
     <input name="notes" placeholder="For example: use cooking examples">
   </label>
-  <button class="btn primary big">Make my AI prompt</button>
+  <button class="btn primary big">{% trans trimmed %}Make my AI prompt{% endtrans %}</button>
 </form>
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="check">
-  <label>Already have the course text? Paste it here
-    <textarea name="reply" rows="5" required placeholder="Paste the course YAML (or the whole AI answer)"></textarea>
+  <label>{% trans trimmed %}Already have the course text? Paste it here
+    {% endtrans %}<textarea name="reply" rows="5" required placeholder="Paste the course YAML (or the whole AI answer)"></textarea>
   </label>
-  <button class="btn">Check the course</button>
+  <button class="btn">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
 {% endif %}
 
 {% if step == 2 %}
 <section class="card stack">
-  <p class="lead">Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.</p>
+  <p class="lead">{% trans trimmed %}Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.{% endtrans %}</p>
   <textarea id="prompt" class="mono" rows="14" readonly>{{ prompt }}</textarea>
-  <div class="row"><button class="btn primary big" data-copy="#prompt">Copy prompt</button></div>
+  <div class="row"><button class="btn primary big" data-copy="#prompt">{% trans trimmed %}Copy prompt{% endtrans %}</button></div>
 </section>
+{% if ai_error %}<div class="note bad">{{ ai_error }}</div>{% endif %}
+{% if ai.provider %}
+<form method="post" class="card soft row between">
+  <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>
+  <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. This can take a few minutes.</span></span>
+  <button class="btn primary" data-busy="Making your course...">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
+</form>
+{% endif %}
 <form method="post" class="card stack">
   <input type="hidden" name="action" value="check">
-  <label>Paste the AI's answer here
-    <textarea name="reply" rows="10" required placeholder="Paste everything the AI wrote"></textarea>
+  <label>{% trans trimmed %}Paste the AI's answer here
+    {% endtrans %}<textarea name="reply" rows="10" required placeholder="Paste everything the AI wrote"></textarea>
   </label>
-  <button class="btn primary big">Check the course</button>
+  <button class="btn primary big">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
 {% endif %}
 
 {% if step == 3 %}
   {% if problems %}
   <section class="card">
-    <h2>A few things need fixing</h2>
+    <h2>{% trans trimmed %}A few things need fixing{% endtrans %}</h2>
     <ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
-    <p class="muted">Tip: copy these lines back to the AI and ask it to fix them, then paste the new answer below.</p>
+    <p class="muted">{% trans trimmed %}Tip: copy these lines back to the AI and ask it to fix them, then paste the new answer below.{% endtrans %}</p>
   </section>
   {% endif %}
   {% if preview %}
   <section class="card">
-    <p class="eyebrow">Preview</p>
+    <p class="eyebrow">{% trans trimmed %}Preview{% endtrans %}</p>
     <h2>{{ preview.title }}</h2>
     <p class="muted">{{ preview.description }}</p>
     <ol class="preview">
@@ -82,16 +90,16 @@
     <form method="post">
       <input type="hidden" name="action" value="save">
       <textarea name="reply" hidden>{{ reply }}</textarea>
-      <button class="btn primary big">Save course</button>
+      <button class="btn primary big">{% trans trimmed %}Save course{% endtrans %}</button>
     </form>
   </section>
   {% endif %}
   <form method="post" class="card stack">
     <input type="hidden" name="action" value="check">
-    <label>{{ 'Paste a fixed answer' if problems else 'Change something? Paste a new answer' }}
+    <label>{{ _('Paste a fixed answer') if problems else _('Change something? Paste a new answer') }}
       <textarea name="reply" rows="8">{{ reply if problems }}</textarea>
     </label>
-    <div class="row"><button class="btn">Check again</button> <a class="btn ghost" href="/ai">Start over</a></div>
+    <div class="row"><button class="btn">{% trans trimmed %}Check again{% endtrans %}</button> <a class="btn ghost" href="/ai">{% trans trimmed %}Start over{% endtrans %}</a></div>
   </form>
 {% endif %}
 {% endblock %}

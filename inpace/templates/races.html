@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Races{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Pace races{% endtrans %}</h1>
+  <p class="lead">{% trans trimmed %}Race friends to keep each other going. Only milestones your checker approved count, so it stays fair.{% endtrans %}</p>
+</div>
+
+{% for x in rows %}
+{% set b = x.b %}
+<a class="card tile" href="/races/{{ x.r.id }}" style="display:block">
+  <div class="row between"><h2 style="margin:0" dir="auto">{{ b.race.name }}</h2>
+    <span class="chip {{ 'muted' if b.finished else 'good' }}">{{ _('Finished') if b.finished else b.left ~ ' days left' }}</span></div>
+  <p class="muted small" style="margin:.3rem 0 .8rem">{{ kinds[b.race.kind] }} · {{ b.rows|length }} racer{{ 's' if b.rows|length != 1 }}</p>
+  {% set me = b.rows|selectattr('me')|first %}
+  <p style="margin:0">{% trans trimmed %}You're in{% endtrans %} <b>place {{ me.place }}</b>{% if b.rows|length > 1 %} of {{ b.rows|length }}{% endif %}.</p>
+</a>
+{% else %}
+<section class="card empty"><h2>{% trans trimmed %}No races yet{% endtrans %}</h2><p class="muted">{% trans trimmed %}Start one below, or open a race invite a friend sent you with “Open a file”.{% endtrans %}</p></section>
+{% endfor %}
+
+{% if journeys %}
+<form method="post" action="/races/new" class="card stack" style="max-width:680px">
+  <h2>{% trans trimmed %}Start a race{% endtrans %}</h2>
+  <label>{% trans trimmed %}Name{% endtrans %}<input name="name" required maxlength="60" placeholder="For example: November sprint" dir="auto"></label>
+  <fieldset class="stack"><legend>{% trans trimmed %}Race type{% endtrans %}</legend>
+    {% for k, label in kinds.items() %}
+    <label class="choice"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if loop.first }}><span>{{ label }}</span></label>
+    {% endfor %}
+  </fieldset>
+  <div class="row">
+    <label class="grow">{% trans trimmed %}How long (days){% endtrans %}<input type="number" name="days" min="3" max="90" value="28"></label>
+    <label class="grow">{% trans trimmed %}Your course{% endtrans %}<select name="journey">{% for j in journeys %}<option value="{{ j.id }}">{{ j.title }}</option>{% endfor %}</select></label>
+  </div>
+  <label>{% trans trimmed %}Shared folder (optional){% endtrans %}<input name="folder" placeholder="For example: C:\Users\you\Google Drive\inpace-race" dir="ltr"></label>
+  <p class="small muted" style="margin:0">{% trans trimmed %}With a shared folder (Google Drive, Dropbox, OneDrive), everyone's progress updates on its own. Without one, you swap update files by hand.{% endtrans %}</p>
+  <button class="btn primary big">{% trans trimmed %}Start race{% endtrans %}</button>
+</form>
+{% else %}
+<p class="note">{% trans trimmed %}Start a course first, then you can race.{% endtrans %}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}New course{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Make a course{% endtrans %}</h1>
+  <p class="muted">{% trans trimmed %}Start with a title and your first lesson. You can add modules, lessons, tasks and questions next.{% endtrans %}</p>
+</div>
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+<form method="post" class="card stack">
+  <label>{% trans trimmed %}Course title{% endtrans %}<input name="title" required dir="auto" value="{{ form.title or '' }}" placeholder="For example: Excel for beginners"></label>
+  <label>{% trans trimmed %}Short description (optional){% endtrans %}<input name="description" dir="auto" value="{{ form.description or '' }}"></label>
+  <label>{% trans trimmed %}First module title{% endtrans %}<input name="module_title" required dir="auto" value="{{ form.module_title or '' }}" placeholder="For example: Getting started"></label>
+  <label>{% trans trimmed %}First lesson title{% endtrans %}<input name="lesson_title" required dir="auto" value="{{ form.lesson_title or '' }}"></label>
+  <label>{% trans trimmed %}Lesson text{% endtrans %}<textarea name="content" rows="10" required dir="auto" placeholder="Write the lesson. Use # for a heading, - for a list, and ``` around code.">{{ form.content or '' }}</textarea></label>
+  <button class="btn primary big">{% trans trimmed %}Create course{% endtrans %}</button>
+</form>
+{% endblock %}

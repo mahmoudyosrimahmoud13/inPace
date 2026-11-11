@@ -1,6 +1,7 @@
 """The local web app. Runs only on this computer (127.0.0.1)."""
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -14,7 +15,7 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, exchange
+from . import ai, checks, editor, exchange, integrations, pace, races, record
 from .canon import now_utc, short
 from .course import (Course, CourseError, course_to_pack, files_from_folder, files_from_zip, load_course,
                      strip_fences)
@@ -23,10 +24,22 @@ from .vault import COLORS, Vault, display_name
 
 HERE = Path(__file__).parent
 SAMPLES = HERE / "sample_courses"
-MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken"}
+MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken", "reflection_saved",
+              "review_done", "commitment_set", "pause_started", "pause_ended"}
 
 md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")
-env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]))
+env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
+                  extensions=["jinja2.ext.i18n"])
+LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="utf-8"))}
+CURRENT = {"lang": "en"}
+
+
+def gettext(text: str) -> str:
+    return LOCALES.get(CURRENT["lang"], {}).get(text, text)
+
+
+env.install_gettext_callables(gettext, lambda s, p, n: gettext(s if n == 1 else p), newstyle=False)
+env.globals["_"] = gettext
 env.filters["short"] = short
 env.filters["date"] = lambda s: (s or "")[:10]
 env.globals["display_name"] = display_name
@@ -88,7 +101,9 @@ def create_app(vault: Vault) -> Starlette:
 
     # ---- helpers -------------------------------------------------------------
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
-        base = {"request": request, "msg": request.query_params.get("ok"), "err": request.query_params.get("err")}
+        CURRENT["lang"] = (V._meta("lang", "en") or "en") if V.is_set_up else "en"
+        base = {"request": request, "msg": gettext(request.query_params.get("ok") or "") or None,
+                "err": gettext(request.query_params.get("err") or "") or None, "lang": CURRENT["lang"]}
         if V.is_set_up:
             base["me"] = V.me
             base["checking"] = [
@@ -124,11 +139,16 @@ def create_app(vault: Vault) -> Starlette:
         last_ok = next((a for m in reversed(ms) for a in m["approvals"] if a["decision"] == "approved"), None)
         waiting = [m for m in ms if not any(a["decision"] == "approved" for a in m["approvals"])]
         exams = checks.my_exams(V, j["id"])
+        evs = V.events(j["id"])
+        wk = pace.weeks(evs, [m["body"]["created_at"] for m in ms])
         packed_at = V._meta(f"pack:{j['id']}", "") or ""
         return {"journey": j, "progress": prog, "milestones": ms, "last_ok": last_ok, "waiting": waiting,
                 "has_new": has_new(j["id"]), "chain_problems": V.check_my_chain(j["id"]),
                 "exams_waiting": [x for x in exams if not x["taken"]],
-                "requests": [r for r in checks.requests_for(V, j["id"]) if r["at"] > packed_at]}
+                "requests": [r for r in checks.requests_for(V, j["id"]) if r["at"] > packed_at],
+                "pace": wk, "paused": pace.is_paused(evs),
+                "forecast": pace.forecast(j["started_at"], prog["percent"]),
+                "due": len(pace.due_cards(V, j["course_id"])) if prog["course"].has_answers else 0}
 
     # ---- setup ---------------------------------------------------------------
     async def setup(request: Request):
@@ -198,6 +218,16 @@ def create_app(vault: Vault) -> Starlette:
             form = await request.form()
             action = form.get("action")
             ctx["form"] = dict(form)
+            if action == "auto":
+                from starlette.concurrency import run_in_threadpool
+                prompt = str(form.get("prompt", ""))
+                try:
+                    reply = await run_in_threadpool(integrations.ask_ai, V, prompt)
+                except RuntimeError as e:
+                    ctx.update(step=2, prompt=prompt, ai_error=str(e))
+                    return page("ai.html", request, ai=integrations.ai_settings(V), providers=integrations.PROVIDERS, **ctx)
+                action, form = "check", {"reply": reply}
+                ctx["form"] = {}
             if action == "prompt":
                 ctx["prompt"] = ai.build_prompt(str(form.get("topic", "")), str(form.get("level", "beginner")),
                                                 int(form.get("weeks") or 4), int(form.get("hours") or 3),
@@ -218,7 +248,7 @@ def create_app(vault: Vault) -> Starlette:
                         V.install_course(course)
                         return go("/courses", ok=f"Saved “{course.title}”. It's ready to start.")
                     ctx["preview"] = course
-        return page("ai.html", request, **ctx)
+        return page("ai.html", request, ai=integrations.ai_settings(V), providers=integrations.PROVIDERS, **ctx)
 
     # ---- learning ----------------------------------------------------------------
     async def course_overview(request: Request):
@@ -289,6 +319,55 @@ def create_app(vault: Vault) -> Starlette:
         return page("quiz.html", request, j=j, module=module, req={"pass": exam["pass"]}, exam=exam["questions"],
                     seed="", verified=True, checker_name=checker_name)
 
+    async def journey_action(request: Request):
+        jid, action = request.path_params["jid"], request.path_params["action"]
+        if not journey_or_404(jid):
+            return go("/", err="That course wasn't found.")
+        form = await request.form()
+        back = str(form.get("back") or "/")
+        if not back.startswith("/"):
+            back = "/"
+        evs = V.events(jid)
+        if action == "commit":
+            n = max(1, min(int(form.get("per_week") or 2), 14))
+            V.add_event(jid, "commitment_set", {"per_week": n})
+            return go(back, ok=f"Your goal: {n} milestone{'s' if n > 1 else ''} a week. Your checker will see it.")
+        if action == "pause" and not pace.is_paused(evs):
+            V.add_event(jid, "pause_started", {"reason": str(form.get("reason", "")).strip()[:200]})
+            return go(back, ok="You're on a break. Weeks on a break don't count as missed.")
+        if action == "resume" and pace.is_paused(evs):
+            V.add_event(jid, "pause_ended", {})
+            return go(back, ok="Welcome back!")
+        if action == "reflect":
+            data = {k: str(form.get(k, "")).strip()[:2000] for k in ("learned", "hard", "next")}
+            if not any(data.values()):
+                return go(back, err="Write at least one answer.")
+            V.add_event(jid, "reflection_saved", data)
+            return go(back, ok="Reflection saved.")
+        return go(back)
+
+    async def practice(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        if not j:
+            return go("/", err="That course wasn't found.")
+        course = V.get_course(j["course_id"])
+        if request.method == "GET":
+            due = pace.due_cards(V, course.id)[:10]
+            if not due:
+                return go("/", ok="Nothing to review today. Come back tomorrow.")
+            seed = new_seed()
+            exam = build_exam(course, due, seed)
+            return page("quiz.html", request, j=j, course=course, module={"id": "", "title": "Review"},
+                        req={"pass": 0}, exam=exam, seed=seed, review=True, qids=",".join(due))
+        form = await request.form()
+        seed, qids = str(form.get("seed", "")), [q for q in str(form.get("qids", "")).split(",") if q in course.questions]
+        exam = build_exam(course, qids, seed)
+        result = grade(course, exam, {it["id"]: str(form.get(it["id"], "")) for it in exam})
+        pace.update_cards(V, course.id, {it["id"]: d["ok"] for it, d in zip(exam, result["details"])})
+        V.add_event(j["id"], "review_done", {"count": result["total"], "right": result["score"]})
+        return page("quiz_result.html", request, j=j, module={"id": "", "title": "Review", "lessons": []},
+                    req={"pass": 0, "id": ""}, result=result, passed=True, review=True)
+
     async def lesson_done(request: Request):
         jid, lid = request.path_params["jid"], request.path_params["lid"]
         j = journey_or_404(jid)
@@ -331,6 +410,19 @@ def create_app(vault: Vault) -> Starlette:
         V.save_evidence(j["id"], req["id"], up.filename, data, task=req["prompt"])
         return go(back, ok=f"Saved “{up.filename}” as your work.")
 
+    async def add_git(request: Request):
+        j, course, module, req = await _req_ctx(request)
+        if not req:
+            return go("/", err="That task wasn't found.")
+        form = await request.form()
+        back = f"/learn/{j['id']}/module/{module['id']}#task-{req['id']}"
+        try:
+            name, data = integrations.git_summary(str(form.get("folder", "")))
+        except RuntimeError as e:
+            return go(back, err=str(e))
+        V.save_evidence(j["id"], req["id"], name, data, task=req["prompt"])
+        return go(back, ok="Saved your Git project's history as proof.")
+
     async def save_writeup(request: Request):
         j, course, module, req = await _req_ctx(request)
         if not req:
@@ -366,6 +458,7 @@ def create_app(vault: Vault) -> Starlette:
         picked = {item["id"]: str(form.get(item["id"], "")) for item in exam}
         result = grade(course, exam, picked)
         passed = result["percent"] >= req.get("pass", 70)
+        pace.update_cards(V, course.id, {d_id: d["ok"] for d_id, d in zip([it["id"] for it in exam], result["details"])})
         V.add_event(j["id"], "quiz_taken", {"req": req["id"], "task": module["title"], "mode": "practice",
                                             "seed": seed, "answers": picked,
                                             "score": result["score"], "total": result["total"],
@@ -406,13 +499,132 @@ def create_app(vault: Vault) -> Starlette:
         V._set_meta(f"pack:{jid}", now_utc())
         return download(data, f"{V.me['name']} - requested files - {now_utc()[:10]}.zip", "application/zip")
 
+    async def learning_record(request: Request):
+        jid = request.path_params["jid"]
+        if not journey_or_404(jid) or not V.milestones(jid):
+            return go("/milestones", err="Save a milestone first.")
+        j = V.journey(jid)
+        title = V.get_course(j["course_id"]).title
+        return download(record.build_record(V, jid).encode("utf-8"), f"{V.me['name']} - {title} - learning record.html",
+                        "text/html")
+
+    # ---- races ------------------------------------------------------------------
+    async def races_page(request: Request):
+        rows = []
+        for r in races.my_races(V):
+            b = races.board(V, r["id"])
+            rows.append({"r": r, "b": b})
+        return page("races.html", request, rows=rows, kinds=races.KINDS, journeys=[
+            {**j, "title": (V.get_course(j["course_id"]).title if V.get_course(j["course_id"]) else j["course_id"])}
+            for j in V.journeys()])
+
+    async def race_new(request: Request):
+        form = await request.form()
+        try:
+            race = races.create_race(V, str(form.get("name", "")), str(form.get("kind", "")), int(form.get("days") or 14))
+            races.join_race(V, race, str(form.get("journey", "")), str(form.get("folder", "")))
+        except (ValueError, exchange.FileProblem) as e:
+            return go("/races", err=str(e))
+        return go(f"/races/{race['id']}", ok="Race created. Send the invite to your friends.")
+
+    async def race_join(request: Request):
+        form = await request.form()
+        import json as _json
+        try:
+            race = _json.loads(str(form.get("race", "")))
+            races.join_race(V, race, str(form.get("journey", "")), str(form.get("folder", "")))
+        except (ValueError, exchange.FileProblem) as e:
+            return go("/races", err=str(e))
+        return go(f"/races/{race['id']}", ok=f"You joined “{race['name']}”.")
+
+    async def race_page(request: Request):
+        rid = request.path_params["rid"]
+        r = races.get_race(V, rid)
+        if not r:
+            return go("/races", err="That race wasn't found.")
+        sync_msg = None
+        if r["folder"]:
+            try:
+                n = races.sync_folder(V, rid)
+                sync_msg = f"Shared folder synced · {n} other racer{'s' if n != 1 else ''}"
+            except exchange.FileProblem as e:
+                sync_msg = str(e)
+        return page("race.html", request, b=races.board(V, rid), rid=rid, sync_msg=sync_msg, cheers=races.CHEERS)
+
+    async def race_action(request: Request):
+        rid, action = request.path_params["rid"], request.path_params["action"]
+        r = races.get_race(V, rid)
+        if not r:
+            return go("/races", err="That race wasn't found.")
+        if action == "invite":
+            return download(exchange.dump(r["race"]), f"Race invite - {r['race']['name']}.inpace", "application/json")
+        if action == "update":
+            return download(exchange.dump(races.make_update(V, rid)),
+                            f"Race update - {V.me['name']} - {now_utc()[:10]}.inpace", "application/json")
+        form = await request.form()
+        if action == "cheer":
+            races.send_cheer(V, rid, str(form.get("to", "")), str(form.get("text", "")))
+            return go(f"/races/{rid}", ok="Cheer added. It goes out with your next update.")
+        if action == "folder":
+            V.db.execute("UPDATE races SET folder=? WHERE id=?", (str(form.get("folder", "")).strip(), rid))
+            V.db.commit()
+            return go(f"/races/{rid}", ok="Saved.")
+        if action == "leave":
+            races.leave_race(V, rid)
+            return go("/races", ok="You left the race.")
+        return go(f"/races/{rid}")
+
+    # ---- course editor ---------------------------------------------------------
+    async def edit_new(request: Request):
+        if request.method == "POST":
+            f = await request.form()
+            try:
+                c = editor.new_course(V, str(f.get("title", "")), str(f.get("description", "")),
+                                      str(f.get("module_title", "")), str(f.get("lesson_title", "")),
+                                      str(f.get("content", "")))
+            except CourseError as e:
+                return page("edit_new.html", request, problems=e.problems, form=dict(f))
+            return go(f"/edit/{c.id}", ok="Course created. Add more lessons, tasks and questions.")
+        return page("edit_new.html", request, form={})
+
+    async def edit_course(request: Request):
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        if request.method == "POST":
+            f = await request.form()
+            data = {k: str(v) for k, v in f.items()}
+            data["questions"] = [str(x) for x in f.getlist("questions")]
+            try:
+                editor.edit(V, cid, data.get("action", ""), data)
+            except CourseError as e:
+                return page("edit_course.html", request, c=c, problems=e.problems, started=bool(V.journey_for_course(cid)))
+            anchor = f"#{data['module']}" if data.get("module") else ""
+            return go(f"/edit/{cid}{anchor}", ok="Saved.")
+        return page("edit_course.html", request, c=c, started=bool(V.journey_for_course(cid)))
+
+    async def edit_lesson(request: Request):
+        cid, lid = request.path_params["cid"], request.path_params["lid"]
+        c = V.get_course(cid)
+        found = c.find_lesson(lid) if c else None
+        if not found:
+            return go(f"/edit/{cid}", err="That lesson wasn't found.")
+        return page("edit_lesson.html", request, c=c, module=found[0], lesson=found[1])
+
     # ---- people ---------------------------------------------------------------
     async def people(request: Request):
         rows = []
         for p in V.people():
             rows.append({**p, "waiting": V.waiting_count(p["id"]) if p["i_check"] else 0,
                          "journeys": V.received(p["id"]) if p["i_check"] else []})
-        return page("people.html", request, people=rows)
+        by_course: dict[str, list] = {}
+        for p in rows:
+            for r in p["journeys"]:
+                by_course.setdefault(r["course"], []).append({"person": p, "rec": r,
+                                                              "percent": (r["data"]["milestones"][-1]["body"]["summary"]["percent"]
+                                                                          if r["data"]["milestones"] else 0)})
+        return page("people.html", request, people=rows, by_course=by_course)
 
     async def my_card(request: Request):
         return download(exchange.dump(exchange.make_contact_card(V)), f"{V.me['name']} - contact card.inpace",
@@ -520,6 +732,17 @@ def create_app(vault: Vault) -> Starlette:
                                 then=f"/review/{learner}/{data['journey']['id']}")
                 V.store_received(data)
                 return go(f"/review/{learner}/{data['journey']['id']}")
+            if kind == "race":
+                races.check_race(data)
+                if races.get_race(V, data["id"]):
+                    return go(f"/races/{data['id']}")
+                import json as _json
+                js = [{**j, "title": V.get_course(j["course_id"]).title} for j in V.journeys() if V.get_course(j["course_id"])]
+                return page("join_race.html", request, race=data, race_json=_json.dumps(data), journeys=js,
+                            kinds=races.KINDS)
+            if kind == "race_update":
+                name = races.import_update(V, data)
+                return go(f"/races/{data['race']}", ok=f"Got {name}'s race update.")
             if kind == "exam":
                 res = checks.import_exam(V, data)
                 return go(f"/learn/{data['journey']}/exam/{data['id']}",
@@ -618,7 +841,9 @@ def create_app(vault: Vault) -> Starlette:
                         quizzes.append({"id": r["id"], "module": m["title"]})
         diffs = checks.outline_differences(course, rec["data"].get("outline"),
                                            rec["data"]["journey"]["course"]["hash"]) if course else []
-        return page("review.html", request, person=person, rec=rec, report=report, names=names,
+        all_events = [e for m in report["milestones"] for e in m["body"]["events"]]
+        weekly = pace.weeks(all_events, [m["body"]["created_at"] for m in report["milestones"]])
+        return page("review.html", request, person=person, rec=rec, report=report, names=names, weekly=weekly,
                     reply_file=request.query_params.get("file"), receipts=V.receipts(lid, jid),
                     graded=graded, have_files=checks.has_received_files(V), course=course, quizzes=quizzes,
                     sent=checks.sent_exams(V, lid, jid), course_diffs=diffs,
@@ -670,12 +895,48 @@ def create_app(vault: Vault) -> Starlette:
             return go("/people", err="That file is gone. Review again to make a new one.")
         return download(p.read_bytes(), name, "application/json")
 
+    async def backup(request: Request):
+        form = await request.form()
+        try:
+            data = pace.make_backup(V, str(form.get("password", "")))
+        except ValueError as e:
+            return go("/settings", err=str(e))
+        return download(data, f"inPace backup - {V.me['name']} - {now_utc()[:10]}.inpace-backup")
+
+    async def restore(request: Request):
+        form = await request.form()
+        up = form.get("file")
+        if not up or not getattr(up, "filename", ""):
+            return go("/settings", err="Choose your backup file first.")
+        raw = await up.read()
+        try:
+            pace.open_backup(raw, str(form.get("password", "")))
+        except ValueError as e:
+            return go("/settings", err=str(e))
+        except Exception:
+            return go("/settings", err="This backup couldn't be read.")
+        pace.restore_backup(V, raw, str(form.get("password", "")))
+        import os
+        import threading
+        threading.Timer(0.8, lambda: os._exit(0)).start()
+        return HTMLResponse('<!doctype html><meta charset="utf-8"><title>Restored</title>'
+                            '<body style="font-family:system-ui;padding:3rem"><h1>Backup restored</h1>'
+                            '<p>inPace closed itself so the restore takes effect. Open inPace again.</p></body>')
+
+    async def ai_settings(request: Request):
+        form = await request.form()
+        integrations.save_ai_settings(V, str(form.get("provider", "")), str(form.get("model", "")),
+                                      str(form.get("base_url", "")), str(form.get("key", "")))
+        return go("/settings#ai", ok="AI settings saved.")
+
     async def settings(request: Request):
         if request.method == "POST":
             form = await request.form()
             V.rename(str(form.get("name", "")).strip() or V.me["name"], str(form.get("color", COLORS[0])))
+            V._set_meta("lang", "ar" if form.get("lang") == "ar" else "en")
             return go("/settings", ok="Saved.")
-        return page("settings.html", request, colors=COLORS, home=str(V.home))
+        return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
+                    providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
     async def quit_app(request: Request):
         import os
@@ -705,14 +966,26 @@ def create_app(vault: Vault) -> Starlette:
         Route("/learn/{jid}/lesson/{lid}", needs_setup(lesson)),
         Route("/learn/{jid}/module/{mid}", needs_setup(module_page)),
         Route("/learn/{jid}/exam/{eid}", needs_setup(take_exam), methods=["GET", "POST"]),
+        Route("/learn/{jid}/do/{action}", needs_setup(journey_action), methods=["POST"]),
+        Route("/learn/{jid}/practice", needs_setup(practice), methods=["GET", "POST"]),
         Route("/learn/{jid}/lesson/{lid}/done", needs_setup(lesson_done), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/evidence", needs_setup(add_evidence), methods=["POST"]),
+        Route("/learn/{jid}/task/{rid}/git", needs_setup(add_git), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/writeup", needs_setup(save_writeup), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/quiz", needs_setup(quiz), methods=["GET", "POST"]),
         Route("/milestones", needs_setup(milestones)),
         Route("/milestones/{jid}/save", needs_setup(save_milestone), methods=["POST"]),
         Route("/milestones/{jid}/export", needs_setup(export_progress)),
         Route("/milestones/{jid}/files", needs_setup(file_pack)),
+        Route("/milestones/{jid}/record", needs_setup(learning_record)),
+        Route("/races", needs_setup(races_page)),
+        Route("/races/new", needs_setup(race_new), methods=["POST"]),
+        Route("/races/join", needs_setup(race_join), methods=["POST"]),
+        Route("/races/{rid}", needs_setup(race_page)),
+        Route("/races/{rid}/{action}", needs_setup(race_action), methods=["GET", "POST"]),
+        Route("/edit/new", needs_setup(edit_new), methods=["GET", "POST"]),
+        Route("/edit/{cid}", needs_setup(edit_course), methods=["GET", "POST"]),
+        Route("/edit/{cid}/lesson/{lid}", needs_setup(edit_lesson)),
         Route("/people", needs_setup(people)),
         Route("/people/card", needs_setup(my_card)),
         Route("/people/add", needs_setup(add_person), methods=["POST"]),
@@ -725,6 +998,9 @@ def create_app(vault: Vault) -> Starlette:
         Route("/outbox/{name}", needs_setup(outbox)),
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
+        Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
+        Route("/settings/backup", needs_setup(backup), methods=["POST"]),
+        Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     return Starlette(routes=routes)

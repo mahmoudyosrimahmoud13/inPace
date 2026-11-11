@@ -10,33 +10,33 @@
 
 {% if exam_file %}
 <section class="card result good">
-  <h2>The exam is ready</h2>
+  <h2>{% trans trimmed %}The exam is ready{% endtrans %}</h2>
   <p>Send this file to {{ display_name(person) }}. They open it with “Open a file”.</p>
-  <a class="btn primary big" href="/outbox/{{ exam_file|urlencode }}">{{ icon('send', 18) }}Download exam file</a>
+  <a class="btn primary big" href="/outbox/{{ exam_file|urlencode }}">{{ icon('send', 18) }}{{ _("Download exam file") }}</a>
 </section>
 {% else %}
 <form method="post" class="card stack">
   <input type="hidden" name="action" value="make">
-  <label class="check"><input type="checkbox" name="surprise" value="1" {{ 'disabled' if not has_earlier }} checked> Add a surprise question from an earlier module{% if not has_earlier %} <span class="muted">(this is the first module)</span>{% endif %}</label>
+  <label class="check"><input type="checkbox" name="surprise" value="1" {{ 'disabled' if not has_earlier }} checked> {% trans trimmed %}Add a surprise question from an earlier module{% endtrans %}{% if not has_earlier %} <span class="muted">{% trans trimmed %}(this is the first module){% endtrans %}</span>{% endif %}</label>
   {% if private %}
   <fieldset class="stack">
-    <legend>Your own questions</legend>
+    <legend>{% trans trimmed %}Your own questions{% endtrans %}</legend>
     {% for q in private %}
     <label class="check"><input type="checkbox" name="private" value="{{ q.id }}" checked> <span dir="auto">{{ q.text }} <span class="muted small">(right: {{ q.right }})</span></span></label>
     {% endfor %}
   </fieldset>
   {% endif %}
-  <button class="btn primary big">Make the exam</button>
+  <button class="btn primary big">{% trans trimmed %}Make the exam{% endtrans %}</button>
 </form>
 
 <details class="card flat" {{ 'open' if not private }}>
-  <summary><b>Add your own question</b> <span class="muted small">(only you have it, so it can't be looked up)</span></summary>
+  <summary><b>{% trans trimmed %}Add your own question{% endtrans %}</b> <span class="muted small">{% trans trimmed %}(only you have it, so it can't be looked up){% endtrans %}</span></summary>
   <form method="post" class="stack" style="margin-block-start:1rem">
     <input type="hidden" name="action" value="add_question">
-    <label>Question<input name="text" required dir="auto" placeholder="For example: What did you build in Module 1, in one sentence?"></label>
-    <label>Right answer<input name="right" required dir="auto"></label>
-    <label>Wrong answers (one per line, at least one)<textarea name="wrong" rows="3" required dir="auto"></textarea></label>
-    <button class="btn">Save question</button>
+    <label>{% trans trimmed %}Question{% endtrans %}<input name="text" required dir="auto" placeholder="For example: What did you build in Module 1, in one sentence?"></label>
+    <label>{% trans trimmed %}Right answer{% endtrans %}<input name="right" required dir="auto"></label>
+    <label>{% trans trimmed %}Wrong answers (one per line, at least one){% endtrans %}<textarea name="wrong" rows="3" required dir="auto"></textarea></label>
+    <button class="btn">{% trans trimmed %}Save question{% endtrans %}</button>
   </form>
 </details>
 {% endif %}

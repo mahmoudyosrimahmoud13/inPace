@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Join {{ race.name }}{% endblock %}
+{% block main %}
+<section class="card stack" style="max-width:620px">
+  <p class="eyebrow">Race invite from {{ race.creator.name }}</p>
+  <h1 dir="auto" style="margin:0">{{ race.name }}</h1>
+  <p class="muted" style="margin:0">{{ kinds[race.kind] }} · ends {{ race.ends|date }}</p>
+  {% if journeys %}
+  <form method="post" action="/races/join" class="stack">
+    <textarea name="race" hidden>{{ race_json }}</textarea>
+    <label>{% trans trimmed %}Race with which course?{% endtrans %}<select name="journey">{% for j in journeys %}<option value="{{ j.id }}">{{ j.title }}</option>{% endfor %}</select></label>
+    <label>{% trans trimmed %}Shared folder (optional){% endtrans %}<input name="folder" dir="ltr" placeholder="Same folder the others use, if any"></label>
+    <button class="btn primary big">{% trans trimmed %}Join the race{% endtrans %}</button>
+  </form>
+  {% else %}<p class="note warn">{% trans trimmed %}Start a course first, then open this invite again.{% endtrans %}</p>{% endif %}
+</section>
+{% endblock %}

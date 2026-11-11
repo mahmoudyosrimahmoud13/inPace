@@ -30,12 +30,17 @@ def run(cmd: list[str]) -> None:
 
 def main() -> None:
     system = platform.system()
-    data = [f"{PKG / d}{SEP}inpace/{d}" for d in ("templates", "static", "sample_courses")]
+    data = [f"{PKG / d}{SEP}inpace/{d}" for d in ("templates", "static", "sample_courses", "locales")]
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", "inPace",
            "--paths", str(ROOT), "--collect-submodules", "inpace", "--collect-submodules", "uvicorn",
            "--hidden-import", "_cffi_backend", "--collect-all", "nacl"]
     for d in data:
         cmd += ["--add-data", d]
+    try:  # the app window library, when installed (Windows and Mac builds)
+        import webview  # noqa: F401
+        cmd += ["--collect-all", "webview"]
+    except Exception:
+        pass
     if system == "Windows":
         cmd += ["--onefile", "--windowed", "--icon", str(ROOT / "packaging" / "icon.ico")]
     elif system == "Darwin":

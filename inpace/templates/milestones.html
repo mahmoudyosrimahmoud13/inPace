@@ -2,49 +2,52 @@
 {% block title %}Milestones{% endblock %}
 {% block main %}
 <div class="page-head">
-  <h1>Milestones</h1>
-  <p class="lead">A milestone saves your progress. Send it to your checker, and they send back their approval.</p>
+  <h1>{% trans trimmed %}Milestones{% endtrans %}</h1>
+  <p class="lead">{% trans trimmed %}A milestone saves your progress. Send it to your checker, and they send back their approval.{% endtrans %}</p>
 </div>
 
 {% if not cards %}
-<section class="card empty"><p>Start a course first.</p><div class="row"><a class="btn primary" href="/courses">Choose a course</a></div></section>
+<section class="card empty"><p>{% trans trimmed %}Start a course first.{% endtrans %}</p><div class="row"><a class="btn primary" href="/courses">{% trans trimmed %}Choose a course{% endtrans %}</a></div></section>
 {% endif %}
 
 {% for c in cards %}
 <section class="card">
   <div class="hero">
     <h2 dir="auto">{{ c.progress.course.title }}</h2>
-    {% if c.chain_problems %}<span class="chip bad">Problem with your record</span>
-    {% else %}<span class="chip good">Your record is safe</span>{% endif %}
+    {% if c.chain_problems %}<span class="chip bad">{% trans trimmed %}Problem with your record{% endtrans %}</span>
+    {% else %}<span class="chip good">{% trans trimmed %}Your record is safe{% endtrans %}</span>{% endif %}
   </div>
   {% for p in c.chain_problems %}<div class="note bad">{{ p }}</div>{% endfor %}
 
   <ol class="howto">
     <li class="{{ 'done' if c.milestones and not c.has_new }}">
-      <div><b>Save a milestone</b><br><span class="muted small">{{ 'You have new progress to save.' if c.has_new else ('Up to date.' if c.milestones else 'Do a lesson or task first.') }}</span></div>
+      <div><b>{% trans trimmed %}Save a milestone{% endtrans %}</b><br><span class="muted small">{{ _('You have new progress to save.') if c.has_new else (_('Up to date.') if c.milestones else _('Do a lesson or task first.')) }}</span></div>
       {% if c.has_new %}<form method="post" action="/milestones/{{ c.journey.id }}/save"><button class="btn primary">Save milestone {{ c.milestones|length + 1 }}</button></form>{% else %}<span></span>{% endif %}
     </li>
     <li>
-      <div><b>Send your progress file</b><br><span class="muted small">To {{ checkers|map(attribute='name')|join(' or ') or 'your checker' }}, by WhatsApp, email or USB.</span></div>
-      {% if c.milestones %}<a class="btn" href="/milestones/{{ c.journey.id }}/export">{{ icon('send', 18) }}Download</a>{% else %}<span class="muted small">After your first milestone</span>{% endif %}
+      <div><b>{% trans trimmed %}Send your progress file{% endtrans %}</b><br><span class="muted small">To {{ checkers|map(attribute='name')|join(' or ') or 'your checker' }}, by WhatsApp, email or USB.</span></div>
+      {% if c.milestones %}<a class="btn" href="/milestones/{{ c.journey.id }}/export">{{ icon('send', 18) }}{{ _("Download") }}</a>{% else %}<span class="muted small">{% trans trimmed %}After your first milestone{% endtrans %}</span>{% endif %}
     </li>
     <li>
-      <div><b>Open their reply</b><br><span class="muted small">Their approval, an exam, or a question.</span></div>
-      <a class="btn" href="/open">{{ icon('open', 18) }}Open a file</a>
+      <div><b>{% trans trimmed %}Open their reply{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Their approval, an exam, or a question.{% endtrans %}</span></div>
+      <a class="btn" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </li>
   </ol>
-  {% if not checkers %}<p class="note warn">You haven't added a checker yet. <a href="/people">Add one</a> so someone can approve your milestones.</p>{% endif %}
+  {% if not checkers %}<p class="note warn">{% trans trimmed %}You haven't added a checker yet.{% endtrans %} <a href="/people">{% trans trimmed %}Add one{% endtrans %}</a> {% trans trimmed %}so someone can approve your milestones.{% endtrans %}</p>{% endif %}
 
   {% if c.requests %}
   <div class="note warn">
-    <p style="margin:0 0 .5rem"><b>{{ c.requests[0].checker_name }}</b> asked to see:
+    <p style="margin:0 0 .5rem"><b>{{ c.requests[0].checker_name }}</b> {% trans trimmed %}asked to see:{% endtrans %}
       {% for r in c.requests %}<span class="file">{{ r.name }}</span>{% endfor %}</p>
-    <a class="btn" href="/milestones/{{ c.journey.id }}/files">{{ icon('send', 18) }}Download file pack to send</a>
+    <a class="btn" href="/milestones/{{ c.journey.id }}/files">{{ icon('send', 18) }}{{ _("Download file pack to send") }}</a>
   </div>
   {% endif %}
 
   {% if c.milestones %}
-  <h3 style="margin-block-start: 1.5rem">History</h3>
+  <div class="row between" style="margin-block-start: 1.5rem">
+    <h3 style="margin:0">{% trans trimmed %}History{% endtrans %}</h3>
+    <a class="btn" href="/milestones/{{ c.journey.id }}/record" title="A web page anyone can open to check your record">{% trans trimmed %}Share my learning record{% endtrans %}</a>
+  </div>
   <ol class="timeline">
     {% for m in c.milestones|reverse %}
     {% set b = m.body %}
@@ -62,9 +65,9 @@
             {% if a.note %}<span dir="auto"> “{{ a.note }}”</span>{% endif %}
           </p>
         {% else %}
-          <p class="small muted" style="margin:.35rem 0 0">Waiting for your checker</p>
+          <p class="small muted" style="margin:.35rem 0 0">{% trans trimmed %}Waiting for your checker{% endtrans %}</p>
         {% endfor %}
-        <details class="more"><summary>Show details</summary><p class="small muted">Fingerprint <code>{{ m.hash|short(16) }}</code>, connected to <code>{{ b.prev|short(16) or 'the start' }}</code></p></details>
+        <details class="more"><summary>{% trans trimmed %}Show details{% endtrans %}</summary><p class="small muted">{% trans trimmed %}Fingerprint {% endtrans %}<code>{{ m.hash|short(16) }}</code>, connected to <code>{{ b.prev|short(16) or 'the start' }}</code></p></details>
       </div>
     </li>
     {% endfor %}

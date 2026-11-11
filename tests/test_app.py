@@ -171,3 +171,78 @@ questions:
     assert "Added the course" in r.text and cv.get_course("python-basics").has_answers  # kept the answers it had
     _, third = client(tmp_path, "Lina")
     assert "practice quizzes are off" in upload(third, "course.lpack", pack).text
+
+
+def test_phase_d_screens(tmp_path):
+    lv, learner = client(tmp_path, "Omar")
+    learner.post("/courses/sample/python-basics")
+    learner.post("/courses/python-basics/start")
+    jid = lv.journeys()[0]["id"]
+    assert "Weekly goal" not in learner.get("/").text and "Set a weekly goal" in learner.get("/").text
+    r = learner.post(f"/learn/{jid}/do/commit", data={"per_week": "3"})
+    assert "Your goal: 3 milestones a week" in r.text and "0 / 3" in r.text
+    r = learner.post(f"/learn/{jid}/do/pause", data={"reason": "exams"})
+    assert "On a break" in r.text and "I'm back" in r.text
+    r = learner.post(f"/learn/{jid}/do/resume")
+    assert "Welcome back" in r.text
+    r = learner.post(f"/learn/{jid}/do/reflect", data={"learned": "print", "hard": "", "next": "lists"})
+    assert "Reflection saved" in r.text
+    # A practice quiz fills the review deck; wrong answers are due tomorrow, not today.
+    for l in ("m1-l1", "m1-l2"):
+        learner.post(f"/learn/{jid}/lesson/{l}/done", data={})
+    r = learner.get(f"/learn/{jid}/task/m1-quiz/quiz")
+    seed = re.search(r'name="seed" value="([0-9a-f]+)"', r.text).group(1)
+    learner.post(f"/learn/{jid}/task/m1-quiz/quiz", data={"seed": seed})
+    from inpace import pace
+    assert pace.card_count(lv, "python-basics") == 3
+    # Backup download works and needs a password.
+    assert "at least 6" in learner.post("/settings/backup", data={"password": "123"}).text
+    b = learner.post("/settings/backup", data={"password": "longpassword"})
+    assert b.content.startswith(b"INPACEBK1")
+
+
+def test_phase_e_screens(tmp_path):
+    lv, learner = client(tmp_path, "Omar")
+    learner.post("/courses/sample/python-basics")
+    learner.post("/courses/python-basics/start")
+    jid = lv.journeys()[0]["id"]
+    assert "Start a race" in learner.get("/races").text
+    r = learner.post("/races/new", data={"name": "Sprint", "kind": "points", "days": "14", "journey": jid})
+    assert "Race created" in r.text and "Omar (you)" in r.text
+    rid = lv.db.execute("SELECT id FROM races").fetchone()["id"]
+    invite = learner.get(f"/races/{rid}/invite").content
+    _, lina = client(tmp_path, "Lina")
+    lina.post("/courses/sample/python-basics")
+    lina.post("/courses/python-basics/start")
+    r = upload(lina, "invite.inpace", invite)
+    assert "Join the race" in r.text
+    race_json = re.search(r'<textarea name="race" hidden>(.*?)</textarea>', r.text, re.S).group(1)
+    import html as _h
+    lj = re.search(r'<option value="([0-9a-f]+)"', r.text).group(1)
+    r = lina.post("/races/join", data={"race": _h.unescape(race_json), "journey": lj})
+    assert "You joined" in r.text
+    r = upload(learner, "u.inpace", lina.get(f"/races/{rid}/update").content)
+    assert "Got Lina" in r.text and "Lina" in r.text
+
+    # Learning record and course editor pages.
+    for l in ("m1-l1",):
+        learner.post(f"/learn/{jid}/lesson/{l}/done", data={})
+    learner.post(f"/milestones/{jid}/save")
+    rec = learner.get(f"/milestones/{jid}/record")
+    assert rec.headers["content-type"].startswith("text/html") and b"Verify this record" in rec.content
+    r = learner.post("/edit/new", data={"title": "Baking", "module_title": "Bread", "lesson_title": "Flour",
+                                         "content": "Use strong flour."})
+    assert "Course created" in r.text and "Question bank" in r.text
+    r = learner.post("/edit/baking", data={"action": "add_question", "text": "Best flour?", "right": "Strong flour",
+                                            "wrong": "Sand\nSugar\nSalt"})
+    assert "Saved" in r.text and "Best flour?" in r.text
+    assert "Edit lesson" in learner.get("/edit/baking/lesson/m1-l1").text
+
+
+def test_arabic_interface(tmp_path):
+    lv, c = client(tmp_path, "Omar")
+    c.post("/settings", data={"name": "Omar", "color": "#1F7A56", "lang": "ar"})
+    r = c.get("/")
+    assert 'dir="rtl"' in r.text and "الرئيسية" in r.text and "أهلًا Omar" in r.text
+    c.post("/settings", data={"name": "Omar", "color": "#1F7A56", "lang": "en"})
+    assert 'dir="ltr"' in c.get("/").text

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Open a file{% endblock %}
 {% block main %}
-<div class="page-head"><h1>Open a file</h1></div>
-<p class="lead">Drop any inPace file here: a course, a contact card, a progress file, or a checker's reply. inPace figures out what it is.</p>
+<div class="page-head"><h1>{% trans trimmed %}Open a file{% endtrans %}</h1></div>
+<p class="lead">{% trans trimmed %}Drop any inPace file here: a course, a contact card, a progress file, or a checker's reply. inPace figures out what it is.{% endtrans %}</p>
 {% if problems %}
 <section class="card">
   <h2>“{{ filename }}” has a few problems</h2>
@@ -12,12 +12,12 @@
 <form method="post" enctype="multipart/form-data" class="drop">
   <label class="drop-zone big">
     <input type="file" name="file" required data-autosubmit accept=".inpace,.lpack,.zip,.json,.yaml,.yml">
-    <span><b>Drop the file here</b><br>or click to choose it</span>
+    <span><b>{% trans trimmed %}Drop the file here{% endtrans %}</b><br>{% trans trimmed %}or click to choose it{% endtrans %}</span>
   </label>
 </form>
 <div class="grid small">
-  <div class="card flat"><b>.lpack, .zip or .yaml</b><p class="muted">A course</p></div>
-  <div class="card flat"><b>contact card</b><p class="muted">Someone you want to connect with</p></div>
-  <div class="card flat"><b>progress / reply</b><p class="muted">Milestones to review, or your checker's answer</p></div>
+  <div class="card flat"><b>{% trans trimmed %}.lpack, .zip or .yaml{% endtrans %}</b><p class="muted">{% trans trimmed %}A course{% endtrans %}</p></div>
+  <div class="card flat"><b>{% trans trimmed %}contact card{% endtrans %}</b><p class="muted">{% trans trimmed %}Someone you want to connect with{% endtrans %}</p></div>
+  <div class="card flat"><b>{% trans trimmed %}progress / reply{% endtrans %}</b><p class="muted">{% trans trimmed %}Milestones to review, or your checker's answer{% endtrans %}</p></div>
 </div>
 {% endblock %}

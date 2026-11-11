@@ -2,11 +2,11 @@
 {% block title %}{{ prog.course.title }}{% endblock %}
 {% block main %}
 <div class="page-head">
-  <p class="eyebrow"><a href="/courses">My courses</a></p>
+  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
   <h1 dir="auto">{{ prog.course.title }}</h1>
   <div class="row" style="margin-block-start: .75rem">
     <div class="bar grow" style="max-width: 420px"><span style="width: {{ prog.percent }}%"></span></div>
-    <span class="muted small">{{ prog.percent }}% done</span>
+    <span class="muted small">{{ prog.percent }}%</span>
   </div>
 </div>
 <section class="card">
@@ -17,11 +17,11 @@
     <div>
       <div class="row between">
         <h2 style="font-size: 1.25rem; margin: 0" dir="auto">{{ m.title }}</h2>
-        {% if m.status == 'done' %}<span class="chip good">Done</span>
-        {% elif m.status == 'open' %}<span class="chip">In progress</span>
-        {% else %}<span class="chip muted">Locked</span>{% endif %}
+        {% if m.status == 'done' %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>
+        {% elif m.status == 'open' %}<span class="chip">{% trans trimmed %}In progress{% endtrans %}</span>
+        {% else %}<span class="chip muted">{% trans trimmed %}Locked{% endtrans %}</span>{% endif %}
       </div>
-      {% if m.status == 'locked' %}<p class="small muted" style="margin:.25rem 0 0">Opens when you finish the module before.</p>{% endif %}
+      {% if m.status == 'locked' %}<p class="small muted" style="margin:.25rem 0 0">{% trans trimmed %}Opens when you finish the module before.{% endtrans %}</p>{% endif %}
       <ul class="checks">
         {% for l in m.lessons %}
         <li class="{{ 'done' if l.done }}">
@@ -31,8 +31,8 @@
         {% endfor %}
         <li class="{{ 'done' if m.requires and m.requires|rejectattr('done')|list|length == 0 }}">
           {% set tdone = m.requires|selectattr('done')|list|length %}
-          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/module/{{ m.id }}"><b>Module tasks</b></a>{% else %}<b>Module tasks</b>{% endif %}
-          <span class="muted small">{{ tdone }} of {{ m.requires|length }} done</span>
+          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/module/{{ m.id }}"><b>{% trans trimmed %}Module tasks{% endtrans %}</b></a>{% else %}<b>{% trans trimmed %}Module tasks{% endtrans %}</b>{% endif %}
+          <span class="muted small">{{ _('%s of %s done')|format(tdone, m.requires|length) }}</span>
         </li>
       </ul>
     </div>

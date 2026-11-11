@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ c.title }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a> {% trans trimmed %}· Editing{% endtrans %}</p>
+  <h1 dir="auto">{{ c.title }}</h1>
+  <p class="muted small" style="margin:0">Version {{ c.version }} · every change is checked, then saved as a new version.</p>
+</div>
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+{% if started %}<p class="note warn">{% trans trimmed %}You've started this course. Your progress is kept, but your checker will see that the course changed.{% endtrans %}</p>{% endif %}
+
+<details class="card flat">
+  <summary><b>{% trans trimmed %}Course details{% endtrans %}</b></summary>
+  <form method="post" class="stack" style="margin-top:1rem">
+    <input type="hidden" name="action" value="info">
+    <label>{% trans trimmed %}Title{% endtrans %}<input name="title" value="{{ c.title }}" dir="auto"></label>
+    <label>{% trans trimmed %}Description{% endtrans %}<input name="description" value="{{ c.description }}" dir="auto"></label>
+    <label>{% trans trimmed %}Lesson language{% endtrans %}<select name="language"><option value="en" {{ 'selected' if c.language != 'ar' }}>{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar" {{ 'selected' if c.language == 'ar' }}>{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
+    <button class="btn">{% trans trimmed %}Save details{% endtrans %}</button>
+  </form>
+</details>
+
+{% for m in c.modules %}
+<section class="card" id="{{ m.id }}">
+  <div class="row between">
+    <h2 dir="auto" style="margin:0">{{ loop.index }}. {{ m.title }}</h2>
+    <details class="menu"><summary class="btn ghost">{% trans trimmed %}Module options{% endtrans %}</summary>
+      <div class="menu-box" style="padding:.75rem">
+        <form method="post" class="stack"><input type="hidden" name="action" value="rename_module"><input type="hidden" name="module" value="{{ m.id }}">
+          <label>{% trans trimmed %}New title{% endtrans %}<input name="title" value="{{ m.title }}" dir="auto"></label><button class="btn">{% trans trimmed %}Rename{% endtrans %}</button></form>
+        {% if c.modules|length > 1 %}<form method="post" style="margin-top:.5rem"><input type="hidden" name="action" value="delete_module"><input type="hidden" name="module" value="{{ m.id }}"><button class="btn danger wide">{% trans trimmed %}Delete module{% endtrans %}</button></form>{% endif %}
+      </div></details>
+  </div>
+
+  <h3 style="margin-top:1rem">{% trans trimmed %}Lessons{% endtrans %}</h3>
+  <ul class="events">
+    {% for l in m.lessons %}
+    <li class="ev row between"><span dir="auto">{{ l.title }}</span>
+      <span class="row"><a class="btn" href="/edit/{{ c.id }}/lesson/{{ l.id }}">{% trans trimmed %}Edit{% endtrans %}</a>
+      {% if m.lessons|length > 1 %}<form method="post"><input type="hidden" name="action" value="delete_lesson"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="lesson" value="{{ l.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+  <details class="more"><summary>{% trans trimmed %}Add a lesson{% endtrans %}</summary>
+    <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_lesson"><input type="hidden" name="module" value="{{ m.id }}">
+      <label>{% trans trimmed %}Title{% endtrans %}<input name="title" required dir="auto"></label>
+      <label>{% trans trimmed %}Text{% endtrans %}<textarea name="content" rows="8" required dir="auto"></textarea></label>
+      <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" style="max-width:8rem"></label>
+      <button class="btn primary">{% trans trimmed %}Add lesson{% endtrans %}</button></form>
+  </details>
+
+  <h3 style="margin-top:1.25rem">{% trans trimmed %}Tasks{% endtrans %}</h3>
+  <ul class="events">
+    {% for r in m.requires %}
+    <li class="ev row between"><span><span class="chip plain">{{ _(TASK_LABEL[r.type]) }}</span> <span dir="auto">{{ r.prompt }}</span></span>
+      <form method="post"><input type="hidden" name="action" value="delete_task"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="task" value="{{ r.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></li>
+    {% else %}<li class="ev muted small">{% trans trimmed %}No tasks yet. Without tasks, the module is done once every lesson is read.{% endtrans %}</li>{% endfor %}
+  </ul>
+  <details class="more"><summary>{% trans trimmed %}Add a task{% endtrans %}</summary>
+    <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_task"><input type="hidden" name="module" value="{{ m.id }}">
+      <label>{% trans trimmed %}Type{% endtrans %}<select name="type">
+        <option value="practical">{% trans trimmed %}Your work: upload a file as proof{% endtrans %}</option>
+        <option value="explain">{% trans trimmed %}Explain it: write in your own words{% endtrans %}</option>
+        <option value="quiz" {{ 'disabled' if not c.questions }}>Quiz: questions from the question bank{{ ' (add questions first)' if not c.questions }}</option></select></label>
+      <label>{% trans trimmed %}What should the learner do? (for quizzes, a short title){% endtrans %}<input name="prompt" dir="auto"></label>
+      {% if c.questions %}
+      <fieldset class="stack"><legend>{% trans trimmed %}Questions (quizzes only){% endtrans %}</legend>
+        {% for qid, q in c.questions.items() %}<label class="check"><input type="checkbox" name="questions" value="{{ qid }}"> <span dir="auto">{{ q.text }}</span></label>{% endfor %}
+      </fieldset>{% endif %}
+      <button class="btn primary">{% trans trimmed %}Add task{% endtrans %}</button></form>
+  </details>
+</section>
+{% endfor %}
+
+<details class="card flat">
+  <summary><b>{% trans trimmed %}Add a module{% endtrans %}</b></summary>
+  <form method="post" class="stack" style="margin-top:1rem"><input type="hidden" name="action" value="add_module">
+    <label>{% trans trimmed %}Module title{% endtrans %}<input name="title" required dir="auto"></label>
+    <label>{% trans trimmed %}First lesson title{% endtrans %}<input name="lesson_title" required dir="auto"></label>
+    <label>{% trans trimmed %}First lesson text{% endtrans %}<textarea name="content" rows="6" required dir="auto"></textarea></label>
+    <button class="btn primary">{% trans trimmed %}Add module{% endtrans %}</button></form>
+</details>
+
+<section class="card" id="questions">
+  <h2>{% trans trimmed %}Question bank{% endtrans %}</h2>
+  <p class="muted small">{% trans trimmed %}Each question has several right answers and several wrong ones. A quiz shows one right answer mixed with wrong ones, in a new order each time. The answers are kept in a separate file.{% endtrans %}</p>
+  <ul class="events">
+  {% for qid, q in c.questions.items() %}
+    {% set right = (c.answers or {}).get(qid, {}).get('right', []) %}
+    <li class="ev row between"><span><b dir="auto">{{ q.text }}</b><br><span class="small muted">{{ right|length }} right · {{ q.options|length - right|length }} wrong · shows {{ q.show }}</span></span>
+      <form method="post"><input type="hidden" name="action" value="delete_question"><input type="hidden" name="question" value="{{ qid }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></li>
+  {% else %}<li class="ev muted small">{% trans trimmed %}No questions yet.{% endtrans %}</li>{% endfor %}
+  </ul>
+  <details class="more" {{ 'open' if not c.questions }}><summary>{% trans trimmed %}Add a question{% endtrans %}</summary>
+    <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_question">
+      <label>{% trans trimmed %}Question{% endtrans %}<input name="text" required dir="auto"></label>
+      <div class="split">
+        <label>{% trans trimmed %}Right answers (one per line){% endtrans %}<textarea name="right" rows="3" required dir="auto"></textarea></label>
+        <label>{% trans trimmed %}Wrong answers (one per line){% endtrans %}<textarea name="wrong" rows="3" required dir="auto"></textarea></label>
+      </div>
+      <label>{% trans trimmed %}Why is it right? (optional, shown after practice){% endtrans %}<input name="why" dir="auto"></label>
+      <label>{% trans trimmed %}Choices to show{% endtrans %}<input type="number" name="show" min="2" max="8" value="4" style="max-width:8rem"></label>
+      <button class="btn primary">{% trans trimmed %}Add question{% endtrans %}</button></form>
+  </details>
+</section>
+{% endblock %}

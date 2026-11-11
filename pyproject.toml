@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inpace"
-version = "0.2.0"
+version = "1.0.0"
 description = "Learn at your pace. Prove you kept it. A local, open-source learning accountability app."
 readme = "README.md"
 license = { text = "MIT" }
@@ -29,4 +29,4 @@ inpace = "inpace.__main__:main"
 include = ["inpace*"]
 
 [tool.setuptools.package-data]
-inpace = ["templates/*.html", "static/*", "static/fonts/*", "sample_courses/**/*"]
+inpace = ["templates/*.html", "static/*", "static/fonts/*", "sample_courses/**/*", "locales/*.json"]

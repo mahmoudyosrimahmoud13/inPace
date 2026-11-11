@@ -2,12 +2,12 @@
 {% block title %}Add {{ card.name }}{% endblock %}
 {% block main %}
 <section class="card stack" style="max-width:620px">
-  <div class="person-head">{{ avatar(card, 52) }}<div><p class="eyebrow">{{ 'Progress file from' if from_progress else 'Contact card' }}</p><h1>{{ card.name }}</h1></div></div>
+  <div class="person-head">{{ avatar(card, 52) }}<div><p class="eyebrow">{{ _('Progress file from') if from_progress else _('Contact card') }}</p><h1>{{ card.name }}</h1></div></div>
   {% if from_progress %}
     <p>You don't check {{ card.name }}'s progress yet. Add them to review this file.</p>
     <form method="post" action="/people/add-learner" class="stack">
       <textarea name="progress" hidden>{{ progress_json }}</textarea>
-      <label>Nickname (optional, only you see it)<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
+      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
       <button class="btn primary big">Add {{ card.name }} and review</button>
     </form>
   {% else %}
@@ -16,12 +16,12 @@
       <textarea name="card" hidden>{{ card_json }}</textarea>
       <input type="hidden" name="then" value="{{ then }}">
       <fieldset class="stack">
-        <legend>How are you connected?</legend>
-        <label class="choice"><input type="radio" name="relationship" value="checks_me" required><span><b>They check my progress</b><br><span class="muted small">{{ card.name }} approves your milestones</span></span></label>
-        <label class="choice"><input type="radio" name="relationship" value="i_check"><span><b>I check their progress</b><br><span class="muted small">You approve {{ card.name }}'s milestones</span></span></label>
-        <label class="choice"><input type="radio" name="relationship" value="buddies"><span><b>We check each other</b><br><span class="muted small">Study buddies</span></span></label>
+        <legend>{% trans trimmed %}How are you connected?{% endtrans %}</legend>
+        <label class="choice"><input type="radio" name="relationship" value="checks_me" required><span><b>{% trans trimmed %}They check my progress{% endtrans %}</b><br><span class="muted small">{{ card.name }} approves your milestones</span></span></label>
+        <label class="choice"><input type="radio" name="relationship" value="i_check"><span><b>{% trans trimmed %}I check their progress{% endtrans %}</b><br><span class="muted small">You approve {{ card.name }}'s milestones</span></span></label>
+        <label class="choice"><input type="radio" name="relationship" value="buddies"><span><b>{% trans trimmed %}We check each other{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Study buddies{% endtrans %}</span></span></label>
       </fieldset>
-      <label>Nickname (optional, only you see it)<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
+      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
       <button class="btn primary big">Add {{ card.name }}</button>
     </form>
   {% endif %}

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}inPace{% endblock %} · inPace</title>
+<title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
@@ -11,9 +11,9 @@
 <header class="top">
   <a class="brand" href="/">
     <img src="/static/icon.svg" alt="" width="30" height="30">
-    <span><span class="in">in</span><b>Pace</b></span>
+    <span><span class="in">{% trans trimmed %}in{% endtrans %}</span><b>{% trans trimmed %}Pace{% endtrans %}</b></span>
   </a>
-  <span class="pill" title="Nothing leaves this computer unless you send a file yourself"><i class="dot"></i>Offline · on this computer</span>
+  <span class="pill" title="Nothing leaves this computer unless you send a file yourself"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
   {% if me %}
   <a class="me" href="/settings" title="Settings">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
   {% endif %}
@@ -22,21 +22,22 @@
   {% if me %}
   {% set p = active_path %}
   <nav class="side" aria-label="Main">
-    <p class="side-h">My learning</p>
-    <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}Home</a>
-    <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}My courses</a>
-    <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('flag') }}Milestones</a>
-    <a href="/ai" class="{{ 'on' if p.startswith('/ai') }}">{{ icon('spark') }}Make a course</a>
-    <p class="side-h">People I check on</p>
+    <p class="side-h">{% trans trimmed %}My learning{% endtrans %}</p>
+    <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}{{ _("Home") }}</a>
+    <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}{{ _("My courses") }}</a>
+    <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield') }}{{ _("Milestones") }}</a>
+    <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag') }}{{ _("Races") }}</a>
+    <a href="/ai" class="{{ 'on' if p.startswith('/ai') or p.startswith('/edit') }}">{{ icon('spark') }}{{ _("Make a course") }}</a>
+    <p class="side-h">{% trans trimmed %}People I check on{% endtrans %}</p>
     {% for x in checking %}
       <a href="/people#p-{{ x.id[:12] }}" class="person-link">{{ avatar(x, 24) }}<span>{{ display_name(x) }}</span>{% if x.waiting %}<em class="badge">{{ x.waiting }}</em>{% endif %}</a>
     {% else %}
-      <p class="side-empty">Nobody yet</p>
+      <p class="side-empty">{% trans trimmed %}Nobody yet{% endtrans %}</p>
     {% endfor %}
-    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users') }}People</a>
-    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings') }}Settings</a>
+    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users') }}{{ _("People") }}</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings') }}{{ _("Settings") }}</a>
     <div class="side-bottom">
-      <a class="btn primary wide" href="/open">{{ icon('open', 18) }}Open a file</a>
+      <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </div>
   </nav>
   {% endif %}

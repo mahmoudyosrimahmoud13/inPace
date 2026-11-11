@@ -49,6 +49,11 @@ CREATE TABLE IF NOT EXISTS file_requests (
   journey TEXT, sha256 TEXT, name TEXT, checker TEXT, at TEXT, PRIMARY KEY (journey, sha256, checker));
 CREATE TABLE IF NOT EXISTS received_files (
   sha256 TEXT PRIMARY KEY, learner TEXT, name TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS review_cards (
+  course TEXT, qid TEXT, box INTEGER, due TEXT, PRIMARY KEY (course, qid));
+CREATE TABLE IF NOT EXISTS races (id TEXT PRIMARY KEY, data TEXT, journey TEXT, folder TEXT, joined_at TEXT);
+CREATE TABLE IF NOT EXISTS race_updates (race TEXT, racer TEXT, data TEXT, at TEXT, PRIMARY KEY (race, racer));
+CREATE TABLE IF NOT EXISTS race_cheers (race TEXT, to_id TEXT, text TEXT, at TEXT);
 CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events
   BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events

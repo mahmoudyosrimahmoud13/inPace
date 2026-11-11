@@ -12,30 +12,30 @@
           <a href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}"><span class="sr">{{ l.title }}</span></a>
         {% endfor %}
       </nav>
-      <span class="small muted">Lesson {{ idx + 1 }} of {{ module.lessons|length }}{% if lesson.minutes %} · about {{ lesson.minutes }} min{% endif %}</span>
+      <span class="small muted">{{ _('Lesson %s of %s')|format(idx + 1, module.lessons|length) }}{% if lesson.minutes %} · about {{ lesson.minutes }} min{% endif %}</span>
     </div>
   </div>
   {% set tdone = mstate.requires|selectattr('done')|list|length %}
-  <a class="btn" href="/learn/{{ j.id }}/module/{{ module.id }}">Module tasks · {{ tdone }}/{{ mstate.requires|length }}</a>
+  <a class="btn" href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ mstate.requires|length }}</a>
 </div>
 
 <article class="card" style="padding: clamp(1.25rem, 4vw, 2.5rem)">
   <div class="row between" style="margin-block-end: .5rem">
     <h1 dir="auto" style="margin:0">{{ lesson.title }}</h1>
-    {% if lstate.done %}<span class="chip good">Done</span>{% endif %}
+    {% if lstate.done %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% endif %}
   </div>
   <div class="prose" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
   <div class="lesson-foot">
-    {% if prev_id %}<a class="btn ghost" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">Previous</a>{% else %}<span></span>{% endif %}
+    {% if prev_id %}<a class="btn ghost" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">{% trans trimmed %}Previous{% endtrans %}</a>{% else %}<span></span>{% endif %}
     {% if not lstate.done %}
       <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done">
         <input type="hidden" name="next" value="{{ next_id or '' }}">
-        <button class="btn primary big">{{ 'Done, next lesson' if next_id else 'Done, go to tasks' }} {{ icon('arrow', 18) }}</button>
+        <button class="btn primary big">{{ _('Done, next lesson') if next_id else _('Done, go to tasks') }} {{ icon('arrow', 18) }}</button>
       </form>
     {% elif next_id %}
-      <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ next_id }}">Next lesson {{ icon('arrow', 18) }}</a>
+      <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ next_id }}">{{ _("Next lesson") }} {{ icon('arrow', 18) }}</a>
     {% else %}
-      <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">Go to module tasks {{ icon('arrow', 18) }}</a>
+      <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _("Go to module tasks") }} {{ icon('arrow', 18) }}</a>
     {% endif %}
   </div>
 </article>

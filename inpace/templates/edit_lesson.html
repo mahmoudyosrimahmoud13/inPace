@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ lesson.title }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/edit/{{ c.id }}#{{ module.id }}">{{ c.title }} › {{ module.title }}</a></p>
+  <h1>{% trans trimmed %}Edit lesson{% endtrans %}</h1>
+</div>
+<form method="post" action="/edit/{{ c.id }}" class="card stack">
+  <input type="hidden" name="action" value="edit_lesson"><input type="hidden" name="lesson" value="{{ lesson.id }}"><input type="hidden" name="module" value="{{ module.id }}">
+  <label>{% trans trimmed %}Title{% endtrans %}<input name="title" value="{{ lesson.title }}" required dir="auto"></label>
+  <label>{% trans trimmed %}Text{% endtrans %}<textarea name="content" rows="22" class="mono" dir="auto">{{ lesson.content }}</textarea></label>
+  <p class="small muted" style="margin:0">{% trans trimmed %}# Heading · **bold** · - list item · ``` around code{% endtrans %}</p>
+  <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" value="{{ lesson.minutes or '' }}" style="max-width:8rem"></label>
+  <button class="btn primary big">{% trans trimmed %}Save lesson{% endtrans %}</button>
+</form>
+{% endblock %}

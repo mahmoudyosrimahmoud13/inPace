@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block title %}My courses{% endblock %}
 {% block main %}
-<div class="page-head"><h1>My courses</h1></div>
+<div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}</h1></div>
 <div class="grid">
-  <a class="card tile" href="/open"><span class="ico">{{ icon('open') }}</span><span><b>Add a course file</b><span>Open a .lpack, .zip or .yaml someone gave you.</span></span></a>
-  <a class="card tile" href="/ai"><span class="ico">{{ icon('spark') }}</span><span><b>Make a course with AI</b><span>Describe a topic, paste the AI's answer back.</span></span></a>
-  <div class="card tile off"><span class="ico">{{ icon('pen') }}</span><span><b>Make one by hand</b><span>Course editor coming soon.</span></span></div>
+  <a class="card tile" href="/open"><span class="ico">{{ icon('open') }}</span><span><b>{% trans trimmed %}Add a course file{% endtrans %}</b><span>{% trans trimmed %}Open a .lpack, .zip or .yaml someone gave you.{% endtrans %}</span></span></a>
+  <a class="card tile" href="/ai"><span class="ico">{{ icon('spark') }}</span><span><b>{% trans trimmed %}Make a course with AI{% endtrans %}</b><span>{% trans trimmed %}Describe a topic, paste the AI's answer back.{% endtrans %}</span></span></a>
+  <a class="card tile" href="/edit/new"><span class="ico">{{ icon('pen') }}</span><span><b>{% trans trimmed %}Make one by hand{% endtrans %}</b><span>{% trans trimmed %}Simple forms, no code.{% endtrans %}</span></span></a>
 </div>
 
 {% if rows %}
 <div class="section">
-<h2>Installed</h2>
+<h2>{% trans trimmed %}Installed{% endtrans %}</h2>
 {% for r in rows %}
 {% set c = r.course %}
 <article class="card course-row">
@@ -19,22 +19,23 @@
     {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
     <div class="row small muted">
       <span>{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</span>
-      {% if not c.has_answers %}<span class="chip warn">No answers included</span>{% endif %}
+      {% if not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
     </div>
   </div>
   <div class="row">
     {% if r.journey %}
-      <a class="btn primary" href="/learn/{{ r.journey }}">Open</a>
+      <a class="btn primary" href="/learn/{{ r.journey }}">{% trans trimmed %}Open{% endtrans %}</a>
     {% else %}
-      <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">Start</button></form>
+      <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">{% trans trimmed %}Start{% endtrans %}</button></form>
     {% endif %}
     <details class="menu">
-      <summary class="btn">Share</summary>
+      <summary class="btn">{% trans trimmed %}Share{% endtrans %}</summary>
       <div class="menu-box">
-        <a href="/courses/{{ c.id }}/export">For learners (no answers)</a>
-        {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">For checkers and teachers (with answers)</a>{% endif %}
+        <a href="/edit/{{ c.id }}">{% trans trimmed %}Edit course{% endtrans %}</a>
+        <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
+        {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
         {% if not r.journey %}
-        <form method="post" action="/courses/{{ c.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">Remove course</button></form>
+        <form method="post" action="/courses/{{ c.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">{% trans trimmed %}Remove course{% endtrans %}</button></form>
         {% endif %}
       </div>
     </details>
@@ -44,9 +45,14 @@
 </div>
 {% endif %}
 
+<section class="card soft row between" style="margin-top:1.5rem">
+  <span><b>{% trans trimmed %}Community course library{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Free courses made by other learners. Download one, then add it with “Add a course file”.{% endtrans %}</span></span>
+  <a class="btn" href="https://github.com/mahmoudyosrimahmoud13/inpace/tree/main/community-courses" target="_blank" rel="noopener">{% trans trimmed %}Browse the library{% endtrans %}</a>
+</section>
+
 {% if samples %}
 <div class="section">
-<h2>Sample courses</h2>
+<h2>{% trans trimmed %}Sample courses{% endtrans %}</h2>
 {% for c in samples %}
 <article class="card course-row flat">
   <div class="grow">
@@ -54,7 +60,7 @@
     <p class="muted">{{ c.description }}</p>
     <p class="small muted">{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</p>
   </div>
-  <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">Add to my courses</button></form>
+  <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">{% trans trimmed %}Add to my courses{% endtrans %}</button></form>
 </article>
 {% endfor %}
 </div>

@@ -5,22 +5,22 @@
 <section class="card" style="margin-block-start: 2rem; padding: 2.25rem">
   <div class="center">
     <img src="/static/icon.svg" alt="" width="64" height="64">
-    <h1 style="margin-block-start: 1rem">Welcome to inPace</h1>
-    <p class="lead" style="margin-inline: auto">Learn at your own pace, and let someone you trust see that you kept it.</p>
+    <h1 style="margin-block-start: 1rem">{% trans trimmed %}Welcome to inPace{% endtrans %}</h1>
+    <p class="lead" style="margin-inline: auto">{% trans trimmed %}Learn at your own pace, and let someone you trust see that you kept it.{% endtrans %}</p>
   </div>
   <form method="post" class="stack" style="margin-block-start: 1.5rem">
     {% if error %}<div class="note bad">{{ error }}</div>{% endif %}
-    <label>What should we call you?
+    <label>{% trans trimmed %}What should we call you?{% endtrans %}
       <input name="name" required maxlength="40" placeholder="For example: Omar" autofocus>
     </label>
     <fieldset class="colors">
-      <legend>Pick your color</legend>
+      <legend>{% trans trimmed %}Pick your color{% endtrans %}</legend>
       {% for c in colors %}
       <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span></span><span class="sr">Color {{ loop.index }}</span></label>
       {% endfor %}
     </fieldset>
-    <p class="muted small">Everything stays on this computer. inPace makes a private key for you that proves your work is yours.</p>
-    <button class="btn primary big">Get started</button>
+    <p class="muted small">{% trans trimmed %}Everything stays on this computer. inPace makes a private key for you that proves your work is yours.{% endtrans %}</p>
+    <button class="btn primary big">{% trans trimmed %}Get started{% endtrans %}</button>
   </form>
 </section>
 {% endblock %}
