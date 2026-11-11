@@ -41,7 +41,7 @@ Your data stays on your computer. Updating is safe: just download the new versio
 {changes_for(version)}
 
 ---
-Need help or found a bug? [Open an issue](https://github.com/{repo}/issues/new).
+Website: https://mahmoudyosrimahmoud13.github.io/inpace/ · Need help or found a bug? [Open an issue](https://github.com/{repo}/issues/new).
 """)
 
 

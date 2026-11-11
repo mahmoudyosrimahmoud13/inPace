@@ -3,6 +3,7 @@
 <h1 align="center">inPace</h1>
 <p align="center"><b>Learn at your pace. Prove you kept it.</b><br>
 A free, open-source app that helps you follow a course and lets someone you trust check that you're really keeping up. Everything stays on your computer.</p>
+<p align="center"><a href="https://mahmoudyosrimahmoud13.github.io/inpace/"><b>Website</b></a> · <a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><b>Download</b></a></p>
 
 ---
 
