@@ -325,6 +325,8 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     v.addEventListener("progress", draw);
     v.addEventListener("play", state); v.addEventListener("pause", state);
     v.addEventListener("ended", () => { state(); say(L.lEnded); const done = document.querySelector(".lesson-actions, .lesson-foot"); done && done.scrollIntoView({ behavior: "smooth", block: "center" }); });
+    // Keep the keyboard keys working after a click (the big button disappears once it's pressed).
+    box.addEventListener("click", (e) => { if (e.target.tagName !== "INPUT") box.focus({ preventScroll: true }); });
     v.addEventListener("click", toggle);
     v.addEventListener("dblclick", () => $(".pl-full").click());
     big.addEventListener("click", toggle);

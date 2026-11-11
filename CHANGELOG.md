@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.8.1
+
+- **Fixed:** the big play button now disappears while the video plays, and comes back when you pause.
+- **Fixed:** keyboard keys (Space, K, J, L, F, M) keep working after you click the video.
+
 ## v1.8.0
 
 - **A new video player:** a big play button, a bar you can drag to jump around, back and forward 10 seconds, volume, speed (0.5× to 2×), picture in picture and full screen. It works with the keyboard too: Space or K to play and pause, J and L for 10 seconds, the arrow keys for 5 seconds and volume, F for full screen, M to mute.
