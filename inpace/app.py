@@ -11,7 +11,7 @@ from markupsafe import Markup
 from markdown_it import MarkdownIt
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -1093,6 +1093,11 @@ def create_app(vault: Vault) -> Starlette:
         return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
+    async def ping(request: Request):
+        """Lets a newly started inPace find and replace an older one using the same data folder."""
+        from . import __version__
+        return JSONResponse({"app": "inpace", "version": __version__, "home": str(V.home.resolve())})
+
     async def set_theme(request: Request):
         form = await request.form()
         theme = str(form.get("theme", ""))
@@ -1162,6 +1167,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
         Route("/theme", set_theme, methods=["POST"]),
+        Route("/ping", ping),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),

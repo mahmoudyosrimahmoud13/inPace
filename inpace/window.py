@@ -97,6 +97,10 @@ view = WebKit2.WebView()
 s = view.get_settings()
 s.set_enable_developer_extras(False)
 s.set_javascript_can_access_clipboard(True)
+try:  # draw on the CPU: avoids blank windows and busy fans with some graphics drivers
+    s.set_hardware_acceleration_policy(WebKit2.HardwareAccelerationPolicy.NEVER)
+except Exception:
+    pass
 
 def outside(uri):
     return not uri.startswith(("http://127.0.0.1", "about:", "data:", "blob:"))
@@ -172,8 +176,27 @@ GLib.timeout_add_seconds(1, parent_alive)
 win.connect("destroy", Gtk.main_quit)
 win.add(view)
 view.load_uri(url)
+state = {"ready": False}
+
+def on_load(v, event):
+    if event == WebKit2.LoadEvent.FINISHED and not state["ready"]:
+        state["ready"] = True
+        print("READY", flush=True)
+
+def on_crash(*a):
+    print("CRASH", flush=True)
+    os._exit(4)
+
+def too_slow():
+    if not state["ready"]:
+        print("SLOW", flush=True)
+        os._exit(5)
+    return False
+
+view.connect("load-changed", on_load)
+view.connect("web-process-terminated", on_crash)
+GLib.timeout_add_seconds(20, too_slow)
 win.show_all()
-print("READY", flush=True)
 Gtk.main()
 '''
 
@@ -184,8 +207,12 @@ def _linux_gtk(url: str) -> bool:
     py = shutil.which("python3", path="/usr/bin:/bin") or "/usr/bin/python3"
     if not os.path.exists(py):
         return False
+    env = _clean_env()
+    # Known fixes for blank WebKit windows on some graphics drivers (NVIDIA, Wayland, VMs).
+    env.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+    env.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
     try:
-        p = subprocess.Popen([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid())], env=_clean_env(),
+        p = subprocess.Popen([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid())], env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     except Exception:
         return False
@@ -202,10 +229,12 @@ def _linux_gtk(url: str) -> bool:
         ready.set()  # stream closed
 
     threading.Thread(target=watch, daemon=True).start()
-    ready.wait(30)
-    if p.poll() is not None and p.returncode != 0:
+    ready.wait(40)
+    if p.poll() is None and not ready.is_set():
+        p.kill()
+    if p.wait() != 0 and p.returncode not in (-15,):  # didn't load, or crashed: try the next way
+        print(f"GTK window didn't work (code {p.returncode}); trying another way.")
         return False
-    p.wait()
     return True
 
 
@@ -282,4 +311,11 @@ def which() -> str:
 
 def open_window(url: str, home: Path) -> bool:
     """Show inPace in a window and wait until it's closed. False means: use a browser tab."""
+    choice = os.environ.get("INPACE_WINDOW", "").lower()  # gtk, app, pywebview or browser
+    if choice == "browser":
+        return False
+    if choice == "app":
+        return _app_mode(url, home)
+    if choice == "gtk":
+        return _linux_gtk(url) or _app_mode(url, home)
     return _pywebview(url) or _linux_gtk(url) or _app_mode(url, home)

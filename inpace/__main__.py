@@ -50,6 +50,35 @@ def _wait_until_up(port: int, timeout: float = 15) -> None:
         time.sleep(0.1)
 
 
+def _stop_old_copy(home: Path) -> None:
+    """If inPace is already running with this data folder (maybe an older version), close it first."""
+    import json
+    import urllib.request
+    try:
+        port = int(json.loads((home / "running.json").read_text(encoding="utf-8"))["port"])
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/ping", timeout=2) as r:
+            info = json.loads(r.read().decode("utf-8"))
+        if info.get("app") != "inpace" or Path(info.get("home", "")).resolve() != home.resolve():
+            return
+        urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{port}/quit", data=b"", method="POST"),
+                               timeout=3).read()
+    except Exception:
+        return
+    for _ in range(30):  # wait until it has let go of the port
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                return
+        time.sleep(0.2)
+
+
+def _remember_port(home: Path, port: int) -> None:
+    import json
+    try:
+        (home / "running.json").write_text(json.dumps({"port": port, "pid": os.getpid()}), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="inpace", description="inPace: learn at your pace, prove you kept it.")
     ap.add_argument("--home", type=Path, default=None, help=f"data folder (default: {default_home()})")
@@ -70,7 +99,9 @@ def main() -> None:
 
     vault = Vault(args.home)
     _quiet_streams(vault.home)
+    _stop_old_copy(vault.home)
     port = free_port(args.port)
+    _remember_port(vault.home, port)
     url = f"http://127.0.0.1:{port}/"
 
     # 127.0.0.1 means only this computer can reach it.

@@ -74,3 +74,9 @@ def test_arabic_sample_course_listed_first(tmp_path):
     v._set_meta("lang", "ar")
     page = c.get("/courses").text
     assert page.index("أساسيات بايثون") < page.index("Python Basics")
+
+
+def test_ping_says_which_folder(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    info = c.get("/ping").json()
+    assert info["app"] == "inpace" and info["home"] == str(v.home.resolve())
