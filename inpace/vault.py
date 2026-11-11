@@ -192,9 +192,13 @@ class Vault:
         ref = local_ref(ref)
         if not ref or not media_kind(ref):
             return None
+        want_dir = ref.endswith("/")
+
+        def ok(p: Path) -> bool:
+            return p.is_dir() if want_dir else p.is_file()
         if is_full_path(ref):
             p = Path(ref).expanduser()
-            if p.is_file():
+            if ok(p):
                 return p
         parts = [x for x in ref.split("/") if x and not re.match(r"^[A-Za-z]:$", x) and x != "~"]
         for root in (self.media_dir(course_id), self.media_root(course_id)):
@@ -207,7 +211,7 @@ class Vault:
                     p.relative_to(base)  # stays inside the folder
                 except (ValueError, OSError):
                     continue
-                if p.is_file():
+                if ok(p):
                     return p
         return None
 

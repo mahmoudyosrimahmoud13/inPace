@@ -34,7 +34,13 @@ AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac", "
 HTML_EXT = (".html", ".htm")
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
 DOC_EXT = (".pdf",)
-MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT
+CODE_EXT = (".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".java", ".kt", ".c", ".h", ".cpp", ".hpp", ".cc",
+            ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".scala", ".dart", ".lua", ".r", ".jl", ".sh", ".bash",
+            ".zsh", ".ps1", ".bat", ".sql", ".css", ".scss", ".less", ".vue", ".svelte", ".json", ".yaml", ".yml",
+            ".toml", ".ini", ".cfg", ".conf", ".xml", ".env", ".txt", ".ipynb", ".tf", ".gradle", ".dockerignore",
+            ".gitignore", ".csv", ".log", ".proto", ".graphql")
+CODE_NAMES = ("dockerfile", "makefile", "procfile", "jenkinsfile", "vagrantfile", "gemfile", "rakefile")
+MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT + CODE_EXT
 _YT = re.compile(r"^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,15})")
 _VIMEO = re.compile(r"^https?://(?:www\.)?(?:player\.)?vimeo\.com/(?:video/)?(\d{5,12})")
 
@@ -55,7 +61,14 @@ def media_kind(ref: str) -> str:
                        ("pdf", DOC_EXT)):
         if low.endswith(exts):
             return kind
-    return "link" if is_url(ref) else ""
+    if is_url(ref):
+        return "link"
+    if low.endswith("/"):
+        return "folder"  # a project folder: its code files are shown one under the other
+    name = low.rsplit("/", 1)[-1]
+    if low.endswith(CODE_EXT) or name in CODE_NAMES or name.startswith("dockerfile") or name.startswith("docker-compose"):
+        return "code"
+    return ""
 
 
 def embed_id(ref: str) -> str:
@@ -81,7 +94,8 @@ def local_ref(ref: str) -> str | None:
         return None
     if ref.startswith(("/", "~/")) or re.match(r"^[A-Za-z]:/", ref):
         return None if ".." in ref.split("/") else ref
-    return safe_media_path(ref)
+    rel = safe_media_path(ref)
+    return rel + "/" if rel and ref.endswith("/") else rel
 
 
 def is_full_path(ref: str) -> bool:
@@ -539,6 +553,7 @@ def _nice_title(name: str) -> str:
 
 
 LESSON_EXT = MEDIA_EXT + (".md",)
+SKIP_DIRS = {"node_modules", "__pycache__", "venv", ".venv", ".git", "dist", "build", ".idea", ".vscode"}
 
 
 def course_from_folder(folder: Path, title: str = "") -> Course:
@@ -548,21 +563,34 @@ def course_from_folder(folder: Path, title: str = "") -> Course:
     if not folder.is_dir():
         raise CourseError(["That folder wasn't found. Copy its full path and paste it here."])
 
+    def usable(p: Path) -> bool:
+        if not p.is_file() or p.name.startswith(".") or p.name in ("course.yaml", "questions.yaml", "answers.yaml"):
+            return False
+        return p.suffix.lower() == ".md" or media_kind(p.name) not in ("", "folder", "link")
+
     def lessons_in(d: Path) -> list[Path]:
-        files = [p for p in d.iterdir() if p.is_file() and p.suffix.lower() in LESSON_EXT and not p.name.startswith(".")]
-        return sorted(files, key=lambda p: _natural(p.name))
+        return sorted((p for p in d.iterdir() if usable(p)), key=lambda p: _natural(p.name))
 
     groups: list[tuple[str, list[Path]]] = []
     top = lessons_in(folder)
     if top:
         groups.append((title or _nice_title(folder.name), top))
     for sub in sorted((p for p in folder.iterdir() if p.is_dir() and not p.name.startswith(".")), key=lambda p: _natural(p.name)):
-        found = [p for p in sorted(sub.rglob("*"), key=lambda p: _natural(str(p.relative_to(sub))))
-                 if p.is_file() and p.suffix.lower() in LESSON_EXT and not p.name.startswith(".")]
+        found: list = []
+        for item in sorted(sub.iterdir(), key=lambda p: _natural(p.name)):
+            if item.is_file() and usable(item):
+                found.append(item)
+            elif item.is_dir() and not item.name.startswith(".") and item.name not in SKIP_DIRS:
+                inner = [p for p in item.rglob("*") if usable(p)
+                         and not any(x.startswith(".") or x in SKIP_DIRS for x in p.relative_to(item).parts[:-1])]
+                if any(media_kind(p.name) in ("video", "audio") for p in inner):
+                    found += sorted(inner, key=lambda p: _natural(str(p.relative_to(item))))
+                elif inner:
+                    found.append(item)  # a project folder with code: one lesson that shows all its files
         if found:
             groups.append((_nice_title(sub.name), found))
     if not groups:
-        raise CourseError(["That folder has no videos, audio, web pages, PDFs or notes inside."])
+        raise CourseError(["That folder has no videos, audio, web pages, PDFs, code or notes inside."])
 
     modules, index = [], {}
     for mi, (mtitle, files) in enumerate(groups, start=1):
@@ -570,6 +598,10 @@ def course_from_folder(folder: Path, title: str = "") -> Course:
         for li, f in enumerate(files, start=1):
             rel = f.relative_to(folder).as_posix()
             les = {"id": f"m{mi}-l{li}", "title": _nice_title(f.name), "content": "", "minutes": 0}
+            if f.is_dir():
+                les["media"] = rel + "/"
+                lessons.append(les)
+                continue
             if f.suffix.lower() == ".md":
                 les["content"] = f.read_text(encoding="utf-8", errors="replace")
                 les["title"] = _first_heading(les["content"]) or les["title"]

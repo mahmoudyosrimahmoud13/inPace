@@ -336,6 +336,38 @@ def create_app(vault: Vault) -> Starlette:
                                 background=BackgroundTask(lambda: Path(tmp).unlink(missing_ok=True)))
         return download(course_to_pack(c, with_answers), f"{c.title}{suffix}.lpack")
 
+    def _course_files_view(cid: str):
+        def resume(key: str) -> float:
+            try:
+                return float(V._meta(f"pos:{key}", "0") or 0)
+            except ValueError:
+                return 0.0
+        try:
+            speed = float(V._meta("video_speed", "1") or 1)
+        except ValueError:
+            speed = 1.0
+        return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed)
+
+    async def media_position(request: Request):
+        """The video player reports where you are every few seconds, so it can continue from there next time."""
+        form = await request.form()
+        key = str(form.get("key", ""))[:600]
+        try:
+            t = max(0.0, float(form.get("t") or 0))
+            d = float(form.get("d") or 0)
+        except ValueError:
+            return Response(status_code=400)
+        if form.get("speed"):
+            try:
+                V._set_meta("video_speed", str(min(3.0, max(0.25, float(form.get("speed"))))))
+            except ValueError:
+                pass
+        if key and "|" in key:
+            # Near the end counts as finished: next time it starts from the beginning.
+            done = d > 0 and t > d - max(10.0, d * 0.03)
+            V._set_meta(f"pos:{key}", "0" if done else f"{t:.1f}")
+        return Response(status_code=204)
+
     def _course_files(c: Course) -> dict:
         """Every file of the course that's on this computer, by its path inside the course."""
         out = {}
@@ -343,14 +375,19 @@ def create_app(vault: Vault) -> Starlette:
             for les in m["lessons"]:
                 for ref in media_mod.media_refs(les):
                     p = V.find_media(c.id, ref)
-                    if p:
+                    if p and p.is_dir():
+                        for f in p.rglob("*"):
+                            if f.is_file() and not any(x in media_mod.SKIP_DIRS or x.startswith(".")
+                                                       for x in f.relative_to(p).parts):
+                                out[(ref.rstrip("/") + "/" + f.relative_to(p).as_posix()).lstrip("/").replace(":", "")] = f
+                    elif p:
                         out[ref.lstrip("/").replace(":", "")] = p
         return out
 
     async def media_file(request: Request):
         """A course's video, audio, page or picture, straight from where it lives on this computer."""
         p = V.find_media(request.path_params["cid"], request.path_params["path"])
-        if not p:
+        if not p or p.is_dir():
             return Response("Not found", status_code=404)
         headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"}
         if p.suffix.lower() in HTML_EXT + (".svg",):
@@ -358,6 +395,9 @@ def create_app(vault: Vault) -> Starlette:
             headers["Content-Security-Policy"] = (
                 "sandbox allow-scripts allow-popups; default-src 'self' http://127.0.0.1:* 'unsafe-inline' "
                 "'unsafe-eval' data: blob:; connect-src 'none'; form-action 'none'")
+        if request.query_params.get("view") == "1" and p.stat().st_size < 5_000_000:
+            # "Open it" for a code file: show it as plain text instead of running or downloading it.
+            return Response(p.read_bytes(), media_type="text/plain; charset=utf-8", headers=headers)
         return FileResponse(p, headers=headers)
 
     async def course_from_folder_route(request: Request):
@@ -493,7 +533,7 @@ def create_app(vault: Vault) -> Starlette:
         prv = module["lessons"][idx - 1]["id"] if idx > 0 else None
         return page("lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
                     lstate=lstate, html=media_mod.lesson_html(course.id, les, md.render(_drop_title(les["content"], les["title"])),
-                                                       lambda r: V.find_media(course.id, r) is not None, gettext),
+                                                       _course_files_view(course.id), gettext),
                     next_id=nxt, prev_id=prv,
                     has_answers=course.has_answers, prog=prog)
 
@@ -1368,6 +1408,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/media-folder", needs_setup(set_media_folder), methods=["POST"]),
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
+        Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/evidence/{sha}", needs_setup(my_evidence)),
         Route("/courses/{cid}/start", needs_setup(start_course), methods=["POST"]),
         Route("/courses/{cid}/export", needs_setup(export_course)),

@@ -122,7 +122,8 @@ https://youtu.be/...              <- a YouTube or Vimeo link alone on a line bec
 ```
 
 Kinds: video (`.mp4 .webm .m4v .mov .ogv .mkv`), audio (`.mp3 .m4a .aac .ogg .oga .opus .wav .flac .weba`),
-web page (`.html .htm`), picture, PDF, YouTube, Vimeo, and any other link.
+web page (`.html .htm`), picture, PDF, code (`.py .js .ts .java .go .sql .yaml .json .ipynb Dockerfile` and more,
+shown with colours), a project folder (a path ending in `/`: all its code files), YouTube, Vimeo, and any other link.
 
 **Files stay where they are.** inPace never copies a course's files unless asked. Paths are looked up, in order:
 the file itself (full paths), the course's own small files (`<home>/media/<course>/`, added in the editor or

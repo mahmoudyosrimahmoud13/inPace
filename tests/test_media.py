@@ -175,3 +175,48 @@ def test_old_courses_keep_their_fingerprint():
     files = {"course.yaml": "title: T\nmodules:\n  - title: M\n    lessons:\n      - title: L\n        content: hi\n"}
     a = load_course(files)
     assert "media" not in a.modules[0]["lessons"][0]
+
+
+def test_code_files_and_project_folders(tmp_path):
+    root = tmp_path / "Docker course"
+    (root / "01 Basics" / "demo-app" / "node_modules" / "x").mkdir(parents=True)
+    (root / "01 Basics" / "01 - Intro.mp4").write_bytes(b"\x00\x00\x00\x18ftyp")
+    (root / "01 Basics" / "Dockerfile").write_text("FROM node:20\nCOPY . .\n")
+    (root / "01 Basics" / "demo-app" / "server.js").write_text("const x = require('express');\n")
+    (root / "01 Basics" / "demo-app" / "package.json").write_text('{"name": "demo"}')
+    (root / "01 Basics" / "demo-app" / "node_modules" / "x" / "junk.js").write_text("junk")
+    v, c = client(tmp_path, "Omar")
+    c.post("/courses/from-folder", data={"folder": str(root)})
+    course = v.courses()[0]
+    titles = [(les["title"], les.get("media")) for les in course.modules[0]["lessons"]]
+    assert ("demo-app", "01 Basics/demo-app/") in titles  # a project folder is one lesson
+    assert ("Dockerfile", "01 Basics/Dockerfile") in titles
+    assert not any("junk" in str(m) for _, m in titles)
+    c.post(f"/courses/{course.id}/start")
+    jid = v.journeys()[0]["id"]
+    ids = {les["title"]: les["id"] for les in course.modules[0]["lessons"]}
+    page = c.get(f"/learn/{jid}/lesson/{ids['Dockerfile']}").text
+    assert 'class="language-docker"' in page and "FROM" in page
+    page = c.get(f"/learn/{jid}/lesson/{ids['demo-app']}").text
+    assert "server.js" in page and "package.json" in page and "require" in page and "junk" not in page
+    raw = c.get(f"/m/{course.id}/01%20Basics/demo-app/server.js?view=1")
+    assert raw.headers["content-type"].startswith("text/plain") and b"express" in raw.content
+    # Pages inside a project still get the right type, so their scripts run.
+    assert "javascript" in c.get(f"/m/{course.id}/01%20Basics/demo-app/server.js").headers["content-type"]
+
+
+def test_video_remembers_where_you_stopped(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    folder = make_folder(tmp_path / "Course")
+    c.post("/courses/from-folder", data={"folder": str(folder)})
+    course = v.courses()[0]
+    c.post(f"/courses/{course.id}/start")
+    jid = v.journeys()[0]["id"]
+    page = c.get(f"/learn/{jid}/lesson/m1-l1").text
+    assert "data-player" in page and 'data-resume="0.0"' in page
+    key = f"{course.id}|01 Intro/01 - Welcome.mp4"
+    assert c.post("/media-pos", data={"key": key, "t": "754.2", "d": "1800", "speed": "1.5"}).status_code == 204
+    page = html.unescape(c.get(f"/learn/{jid}/lesson/m1-l1").text)
+    assert 'data-resume="754.2"' in page and 'data-speed="1.5"' in page and "You stopped at 12:34" in page
+    c.post("/media-pos", data={"key": key, "t": "1795", "d": "1800"})  # watched to the end
+    assert 'data-resume="0.0"' in c.get(f"/learn/{jid}/lesson/m1-l1").text
