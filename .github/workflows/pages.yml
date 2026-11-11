@@ -1,7 +1,7 @@
 name: website
 
 # Publishes the inPace website (the site/ folder) to GitHub Pages:
-#   https://mahmoudyosrimahmoud13.github.io/inpace/
+#   https://mahmoudyosrimahmoud13.github.io/inPace/
 # Runs whenever something in site/ changes on main, or with the "Run workflow" button.
 on:
   push:

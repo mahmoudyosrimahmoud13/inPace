@@ -2,7 +2,7 @@
 
 ## v1.5.1
 
-- **New website:** mahmoudyosrimahmoud13.github.io/inpace, in English and Arabic, with download buttons that always point to the newest version.
+- **New website:** mahmoudyosrimahmoud13.github.io/inPace, in English and Arabic, with download buttons that always point to the newest version.
 - **Fixed a blank app window on some Linux computers** (and the busy fans that came with it). The window now draws without the graphics card. If it still can't show the page within 20 seconds, inPace closes it and opens in Edge or Chrome as an app window instead.
 - **No more leftover copies:** starting inPace closes any copy that's already running with your data, including after an update, so you always get the newest version.
 - **Choose the window yourself if you ever need to:** start inPace with `INPACE_WINDOW=app` (Edge or Chrome window) or `INPACE_WINDOW=browser` (a normal tab).
