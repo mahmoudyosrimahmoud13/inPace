@@ -36,7 +36,7 @@
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="check">
   <label>{% trans trimmed %}Already have the course text? Paste it here
-    {% endtrans %}<textarea name="reply" rows="5" required placeholder="{{ _('Paste the course YAML (or the whole AI answer)') }}"></textarea>
+    {% endtrans %}<textarea name="reply" rows="5" required dir="ltr" placeholder="{{ _('Paste the course YAML (or the whole AI answer)') }}"></textarea>
   </label>
   <button class="btn">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
@@ -45,7 +45,7 @@
 {% if step == 2 %}
 <section class="card stack">
   <p class="lead">{% trans trimmed %}Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.{% endtrans %}</p>
-  <textarea id="prompt" class="mono" rows="14" readonly>{{ prompt }}</textarea>
+  <textarea id="prompt" class="mono" rows="14" readonly dir="ltr">{{ prompt }}</textarea>
   <div class="row"><button class="btn primary big" data-copy="#prompt">{% trans trimmed %}Copy prompt{% endtrans %}</button></div>
 </section>
 {% if ai_error %}<div class="note bad">{{ ai_error }}</div>{% endif %}
@@ -59,7 +59,7 @@
 <form method="post" class="card stack">
   <input type="hidden" name="action" value="check">
   <label>{% trans trimmed %}Paste the AI's answer here
-    {% endtrans %}<textarea name="reply" rows="10" required placeholder="{{ _('Paste everything the AI wrote') }}"></textarea>
+    {% endtrans %}<textarea name="reply" rows="10" required dir="ltr" placeholder="{{ _('Paste everything the AI wrote') }}"></textarea>
   </label>
   <button class="btn primary big">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
@@ -97,7 +97,7 @@
   <form method="post" class="card stack">
     <input type="hidden" name="action" value="check">
     <label>{{ _('Paste a fixed answer') if problems else _('Change something? Paste a new answer') }}
-      <textarea name="reply" rows="8">{{ reply if problems }}</textarea>
+      <textarea name="reply" rows="8" dir="ltr">{{ reply if problems }}</textarea>
     </label>
     <div class="row"><button class="btn">{% trans trimmed %}Check again{% endtrans %}</button> <a class="btn ghost" href="/ai">{% trans trimmed %}Start over{% endtrans %}</a></div>
   </form>

@@ -83,6 +83,8 @@ jobs:
         with:
           path: downloads
           merge-multiple: true
+      - name: Write the checksums (the app's auto-update checks every download against these)
+        run: cd downloads && sha256sum inPace-windows.zip inPace-mac.dmg inPace-linux.tar.gz inPace-linux.deb > SHA256SUMS && cat SHA256SUMS
       - name: Write the release notes
         run: python packaging/release_notes.py "${GITHUB_REF_NAME}" "${GITHUB_REPOSITORY}" > notes.md
       - uses: softprops/action-gh-release@v2
@@ -94,3 +96,4 @@ jobs:
             downloads/inPace-mac.dmg
             downloads/inPace-linux.tar.gz
             downloads/inPace-linux.deb
+            downloads/SHA256SUMS

@@ -46,6 +46,25 @@
   {% endif %}
   <main>
     <div class="page {% block width %}{% endblock %}">
+      {% if update and update.kind != 'source' %}
+        {% if not update.setting %}
+        <form class="update-bar" method="post" action="/updates/setting">
+          <span>{% trans trimmed %}Keep inPace up to date automatically? It checks once a day and installs new versions for you. Nothing else leaves your computer.{% endtrans %}</span>
+          <span class="row"><button class="btn primary" name="choice" value="auto">{% trans trimmed %}Yes, keep it updated{% endtrans %}</button>
+          <button class="btn" name="choice" value="off">{% trans trimmed %}Not now{% endtrans %}</button></span>
+        </form>
+        {% elif update.status.state == 'installed' %}
+        <form class="update-bar" method="post" action="/updates/restart">
+          <span>{{ T('inPace {v} is installed. Restart to use it.', v=update.status.version) }}</span>
+          <button class="btn primary">{% trans trimmed %}Restart now{% endtrans %}</button>
+        </form>
+        {% elif update.status.state == 'ready' %}
+        <form class="update-bar" method="post" action="/updates/install">
+          <span>{{ T('inPace {v} is ready. Your computer will ask for your password to install it.', v=update.status.version) }}</span>
+          <button class="btn primary">{% trans trimmed %}Install and restart{% endtrans %}</button>
+        </form>
+        {% endif %}
+      {% endif %}
       {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
       {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
       {% block main %}{% endblock %}

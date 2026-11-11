@@ -71,6 +71,22 @@ def _stop_old_copy(home: Path) -> None:
         time.sleep(0.2)
 
 
+def _start_updates(vault: Vault) -> None:
+    """Installed apps: tidy up after the last update, then check for new versions once a day (if you said yes)."""
+    from . import updater
+    updater.clean_old_copies()
+    if updater.install_kind() == "source":
+        return
+
+    def loop() -> None:
+        while True:
+            if vault.is_set_up and (vault._meta("updates", "") or "") == "auto":
+                updater.run(vault)
+            time.sleep(3600)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
 def _remember_port(home: Path, port: int) -> None:
     import json
     try:
@@ -100,6 +116,7 @@ def main() -> None:
     vault = Vault(args.home)
     _quiet_streams(vault.home)
     _stop_old_copy(vault.home)
+    _start_updates(vault)
     port = free_port(args.port)
     _remember_port(vault.home, port)
     url = f"http://127.0.0.1:{port}/"

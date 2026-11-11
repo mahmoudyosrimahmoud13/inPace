@@ -730,3 +730,7 @@ main > .page { flex: 1 0 auto; width: 100%; }
 .small-video { max-width: 280px; max-height: 160px; }
 .recorder { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-block: .6rem; }
 .rec-btn.recording { background: #E6007E; color: #fff; border-color: #111; }
+
+/* Update notice */
+.update-bar { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; justify-content: space-between;
+  background: var(--sky); color: var(--ink); border: 3px solid var(--line); padding: .8rem 1rem; margin-block-end: 1rem; font-weight: 600; }

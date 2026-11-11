@@ -16,7 +16,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, integrations, pace, races, record
+from . import ai, checks, editor, encourage, exchange, integrations, pace, races, record, updater
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -210,6 +210,7 @@ def create_app(vault: Vault) -> Starlette:
         base = {"request": request, "msg": tr_lines(request.query_params.get("ok")) or None,
                 "err": tr_lines(request.query_params.get("err")) or None, "lang": CURRENT["lang"],
                 "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
+                "update": _update_info() if V.is_set_up else None,
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
@@ -1277,6 +1278,64 @@ def create_app(vault: Vault) -> Starlette:
         from . import __version__
         return JSONResponse({"app": "inpace", "version": __version__, "home": str(V.home.resolve())})
 
+    def _update_info() -> dict:
+        kind = updater.install_kind()
+        try:
+            status = json.loads(V._meta("update_status", "{}") or "{}")
+        except ValueError:
+            status = {}
+        if status.get("version") and not updater.newer(status["version"]):
+            status = {}  # already running that version
+        return {"kind": kind, "setting": V._meta("updates", "") or "", "status": status,
+                "version": updater.__version__}
+
+    async def update_setting(request: Request):
+        form = await request.form()
+        choice = "auto" if form.get("choice") == "auto" else "off"
+        V._set_meta("updates", choice)
+        if choice == "auto" and updater.install_kind() != "source":
+            import threading
+            threading.Thread(target=updater.run, args=(V,), kwargs={"force": True}, daemon=True).start()
+            return go(_back(request), ok="Automatic updates are on. inPace checks once a day.")
+        return go(_back(request), ok="Automatic updates are off. You can turn them on in Settings.")
+
+    def _back(request: Request) -> str:
+        from urllib.parse import urlsplit
+        ref = urlsplit(request.headers.get("referer") or "/")
+        return ref.path if ref.path.startswith("/") else "/"
+
+    async def update_check(request: Request):
+        import anyio
+        status = await anyio.to_thread.run_sync(lambda: updater.run(V, force=True))
+        msg = {"current": ("ok", "You have the newest version."),
+               "installed": ("ok", "The new version is installed. Restart inPace to use it."),
+               "ready": ("ok", "The new version is downloaded and ready to install."),
+               "none": ("ok", "This copy runs from its code folder. Update it with git pull."),
+               }.get(status.get("state"), ("err", "Couldn't check for updates right now. Are you online?"))
+        return go("/settings#updates", **{msg[0]: msg[1]})
+
+    async def update_install(request: Request):
+        import anyio
+        status = json.loads(V._meta("update_status", "{}") or "{}")
+        if status.get("state") != "ready" or not status.get("file"):
+            return go(_back(request), err="There's no update waiting to be installed.")
+        try:
+            await anyio.to_thread.run_sync(lambda: updater.install("deb", Path(status["file"])))
+        except Exception as e:
+            return go(_back(request), err=str(e))
+        V._set_meta("update_status", json.dumps({"state": "installed", "version": status.get("version", "")}))
+        return _restarting()
+
+    async def update_restart(request: Request):
+        return _restarting()
+
+    def _restarting():
+        import threading
+        threading.Timer(0.6, updater.restart).start()
+        return HTMLResponse('<!doctype html><meta charset="utf-8"><title>inPace</title>'
+                            '<body style="font-family:system-ui;padding:3rem;background:#F7F3EA;color:#111">'
+                            '<h1>Restarting inPace…</h1><p>The new version opens in a moment.</p></body>')
+
     async def set_theme(request: Request):
         form = await request.form()
         theme = str(form.get("theme", ""))
@@ -1353,6 +1412,10 @@ def create_app(vault: Vault) -> Starlette:
         Route("/quit", quit_app, methods=["POST"]),
         Route("/theme", set_theme, methods=["POST"]),
         Route("/ping", ping),
+        Route("/updates/setting", needs_setup(update_setting), methods=["POST"]),
+        Route("/updates/check", needs_setup(update_check), methods=["POST"]),
+        Route("/updates/install", needs_setup(update_install), methods=["POST"]),
+        Route("/updates/restart", needs_setup(update_restart), methods=["POST"]),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
