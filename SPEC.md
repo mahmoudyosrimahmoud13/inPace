@@ -138,6 +138,17 @@ When files are missing, inPace asks for the folder where they are now. `media_in
 **Course fingerprint** = fingerprint of `{id, title, version, description, language, modules, questions}`
 with lesson text inlined. Answers are not included, so a copy with or without answers has the same fingerprint.
 
+**Course updates.** A course is matched by its `id`. When a course arrives whose `id` is already installed but
+whose content fingerprint differs, the app keeps it in `<home>/pending/<id>/` (`course/` plus any `files/`) and lets
+the learner choose: *update* (replace the course; the version before goes to `<home>/course_history/<id>/` for Undo;
+progress is kept because events refer to lesson and task ids), *separate* (install under a new id `<id>-2`, `-3`, …)
+or *keep* (throw the pending copy away). A course made from a folder can be refreshed: lessons whose `media` is not
+yet in the course are added, and existing modules, lessons, tasks and ids are never changed.
+
+**Deleting a course.** The course folder and `<home>/media/<id>/` are removed. Journeys of that course are marked
+archived rather than erased, because milestones are append-only and a checker may already hold them. The linked
+folder on the computer is never touched.
+
 ## 7. Building an exam from a seed
 
 `rank(parts...) = sha256(join(parts, "\x1f"))` as hex. For a seed `s`:

@@ -9,7 +9,7 @@
 <meta property="og:description" content="A free, offline learning app with a turtle who cheers you on. Windows, Mac and Linux.">
 <meta property="og:image" content="assets/shots/home.jpg">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 <script>
   // Pick Arabic for Arabic-speaking visitors, or whatever they chose last time.
   (function () {
@@ -91,6 +91,20 @@
       <p><span class="en">Send the file to someone you trust. They open it in their inPace, see exactly what you did, and send back their approval.</span><span class="ar">أرسل الملف لشخص تثق به. يفتحه في inPace عنده، ويرى ما فعلته بالضبط، ثم يرسل لك موافقته.</span></p>
     </li>
   </ol>
+  <div class="hood">
+    <h3><span class="en">What happens behind the scenes</span><span class="ar">ما يحدث خلف الكواليس</span></h3>
+    <dl>
+      <div><dt><span class="en">It's a tiny website on your computer</span><span class="ar">موقع صغير على جهازك</span></dt>
+        <dd><span class="en">inPace starts a small server that only your own computer can reach, and shows it in its own app window. No account, no cloud.</span><span class="ar">يشغّل inPace خادمًا صغيرًا لا يصل إليه إلا جهازك، ويعرضه في نافذة التطبيق الخاصة به. بدون حساب وبدون سحابة.</span></dd></div>
+      <div><dt><span class="en">Everything lives in one folder</span><span class="ar">كل شيء في مجلد واحد</span></dt>
+        <dd><span class="en">Your history, courses, uploaded work and settings are saved in <code>Documents/inPace</code>. Your own video folders stay where they are and are never copied.</span><span class="ar">سجلك ودوراتك وأعمالك المرفوعة وإعداداتك محفوظة في <code>Documents/inPace</code>. ومجلدات الفيديو عندك تبقى في مكانها ولا تُنسخ أبدًا.</span></dd></div>
+      <div><dt><span class="en">Your milestones are signed</span><span class="ar">محطاتك موقّعة</span></dt>
+        <dd><span class="en">Each one is signed with a key that never leaves your computer and linked to the one before. Change anything later and the signatures stop matching.</span><span class="ar">كل محطة موقّعة بمفتاح لا يغادر جهازك، ومرتبطة بالتي قبلها. وأي تغيير لاحق يجعل التوقيعات لا تتطابق.</span></dd></div>
+      <div><dt><span class="en">Checking is just swapping files</span><span class="ar">المتابعة مجرد تبادل ملفات</span></dt>
+        <dd><span class="en">You send a progress file, your checker's app verifies every signature, and they send back a small approval file. Nothing goes through us.</span><span class="ar">ترسل ملف تقدّمك، فيتحقق تطبيق متابِعك من كل توقيع، ثم يرسل لك ملف موافقة صغيرًا. لا يمر شيء عبرنا.</span></dd></div>
+    </dl>
+    <p><a href="https://github.com/mahmoudyosrimahmoud13/inpace/blob/HEAD/docs/HOW-IT-WORKS.md"><span class="en">Read the full explanation of how inPace works</span><span class="ar">اقرأ الشرح الكامل لطريقة عمل inPace (بالإنجليزية)</span></a></p>
+  </div>
   <p class="cta"><a class="btn" href="guide.html"><span class="en">The full guide, step by step</span><span class="ar">الدليل الكامل خطوة بخطوة</span></a></p>
 </section>
 
@@ -130,6 +144,22 @@
     <figure class="frame"><img src="assets/shots/lesson.jpg" width="1920" height="1230" loading="lazy" alt="A lesson about printing in Python, in dark mode, with highlighted code."></figure>
   </div>
 
+  <div class="feature wide">
+    <div class="feature-text">
+      <h3><span class="en">PDFs open right in the lesson</span><span class="ar">ملفات PDF تفتح داخل الدرس</span></h3>
+      <p><span class="en">Books, slides and notes open in the built-in reader, with zoom, full screen and page buttons. It works offline and remembers the page you stopped on.</span><span class="ar">الكتب والشرائح والملاحظات تفتح في القارئ المدمج، مع التكبير وملء الشاشة وأزرار الصفحات. يعمل بدون إنترنت ويتذكر الصفحة التي توقفت عندها.</span></p>
+    </div>
+    <figure class="frame"><img src="assets/shots/pdf.jpg" width="1920" height="1230" loading="lazy" alt="A PDF chapter open inside a lesson, with the course outline above it and page and zoom buttons."></figure>
+  </div>
+
+  <div class="feature wide flip">
+    <div class="feature-text">
+      <h3><span class="en">Jump anywhere in a second</span><span class="ar">انتقل لأي مكان في ثانية</span></h3>
+      <p><span class="en">Press Ctrl+K and type a few letters to open any lesson, course, task or person. The Continue card takes you back to where you were, and every lesson shows the whole course outline.</span><span class="ar">اضغط Ctrl+K واكتب بضعة أحرف لتفتح أي درس أو دورة أو مهمة أو شخص. وبطاقة "تابع" تعيدك حيث كنت، وكل درس يعرض مخطط الدورة كاملًا.</span></p>
+    </div>
+    <figure class="frame"><img src="assets/shots/search.jpg" width="1920" height="1230" loading="lazy" alt="The search box open over the home page, finding the lesson Printing and simple math, in the Ocean colors."></figure>
+  </div>
+
   <ul class="grid">
     <li class="card">
       <h3><span class="en">Friend codes</span><span class="ar">أكواد الأصدقاء</span></h3>
@@ -145,7 +175,7 @@
     </li>
     <li class="card">
       <h3><span class="en">Videos, audio and more</span><span class="ar">فيديو وصوت والمزيد</span></h3>
-      <p><span class="en">Lessons play your videos and audio, show PDFs, run interactive pages, and play YouTube links. Turn a folder of videos you already have into a course without copying anything.</span><span class="ar">الدروس تشغّل فيديوهاتك وصوتياتك، وتعرض ملفات PDF، وتشغّل صفحات تفاعلية وروابط يوتيوب. حوّل مجلد فيديوهات عندك إلى دورة بدون نسخ أي شيء.</span></p>
+      <p><span class="en">Lessons play your videos and audio, show code in colour, run interactive pages, and play YouTube links. Turn a folder of videos you already have into a course without copying anything.</span><span class="ar">الدروس تشغّل فيديوهاتك وصوتياتك، وتعرض الكود ملوّنًا، وتشغّل صفحات تفاعلية وروابط يوتيوب. حوّل مجلد فيديوهات عندك إلى دورة بدون نسخ أي شيء.</span></p>
     </li>
     <li class="card">
       <h3><span class="en">Make a course with AI</span><span class="ar">اصنع دورة بالذكاء الاصطناعي</span></h3>
@@ -158,6 +188,14 @@
     <li class="card">
       <h3><span class="en">A record anyone can check</span><span class="ar">سجل يمكن لأي شخص التحقق منه</span></h3>
       <p><span class="en">Share one web page with your whole learning history. It checks its own signatures, right in the browser.</span><span class="ar">شارك صفحة ويب واحدة فيها كل رحلة تعلّمك. تفحص توقيعاتها بنفسها داخل المتصفح.</span></p>
+    </li>
+    <li class="card">
+      <h3><span class="en">Courses that stay up to date</span><span class="ar">دورات تبقى محدّثة</span></h3>
+      <p><span class="en">Got a newer version of a course? See what changed and update it without losing your progress. Added videos to a folder? Refresh it. Done with a course? Delete it.</span><span class="ar">وصلتك نسخة أحدث من دورة؟ شاهد ما تغيّر وحدّثها دون أن تفقد تقدّمك. أضفت فيديوهات لمجلد؟ حدّثه. انتهيت من دورة؟ احذفها.</span></p>
+    </li>
+    <li class="card">
+      <h3><span class="en">Your colors</span><span class="ar">ألوانك</span></h3>
+      <p><span class="en">Pick one of seven color profiles for the whole app, from sunny yellow to Nile teal. Each has its own light and dark shades.</span><span class="ar">اختر واحدًا من سبعة أنماط ألوان للتطبيق كله، من الأصفر المشمس إلى أزرق النيل. ولكل نمط درجاته الفاتحة والداكنة.</span></p>
     </li>
   </ul>
 

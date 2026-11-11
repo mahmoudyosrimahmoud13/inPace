@@ -100,6 +100,14 @@ main > .hero { max-width: none; background: var(--sun) var(--lattice); border-bo
 .step h3 { font-size: 1.4rem; margin-block-end: .5rem; }
 .step p { margin: 0; color: var(--muted); }
 @media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+.hood { margin-block: 3rem 1rem; max-width: 72rem; }
+.hood h3 { font-size: 1.5rem; margin-block-end: 1.2rem; }
+.hood dl { margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem 2.5rem; }
+.hood dl > div { border-inline-start: 4px solid var(--sun); padding-inline-start: 1rem; }
+.hood dt { font-weight: 700; font-size: 1.1rem; margin-block-end: .3rem; }
+.hood dd { margin: 0; color: var(--muted); max-width: 34rem; }
+.hood p { margin-block: 1.4rem 0; font-weight: 700; }
+@media (max-width: 760px) { .hood dl { grid-template-columns: 1fr; } }
 
 /* Features */
 .feature { display: grid; grid-template-columns: .8fr 1.2fr; gap: clamp(24px, 4vw, 56px); align-items: center; margin-block: 3rem 4.5rem; }

@@ -11,16 +11,21 @@ A free, open-source app that helps you follow a course and lets someone you trus
 
 **Learn**
 - **Follow a course step by step.** Lessons, then tasks: upload your work, explain it in your own words, take a quiz. The next module unlocks when you finish.
-- **Make courses four ways:** with any AI chat (copy, paste), with simple forms, by opening a course file someone shared, or from a folder of videos you already have (nothing is copied).
-- **Videos, audio, web pages and more.** Lessons play videos and audio, show PDFs, run interactive pages safely, and play YouTube or Vimeo links (only when you press play). Record a voice note as proof for a task.
+- **Add courses five ways:** with any AI chat (from a topic, a book, a playlist, a course you're taking, a project, your notes or an exam), with the course builder, by opening a course file someone shared, from a list of YouTube links, or from a folder of videos you already have (nothing is copied, even for a 60 GB course).
+- **Videos, audio, PDFs, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
+**Find your way**
+- **Search anything** with **Ctrl+K** (or `/`): lessons, courses, tasks, people and pages.
+- **Continue** where you left off from the sidebar, see the **course outline** on every lesson, and use **Alt+← / Alt+→** to move between lessons.
+- **Keep courses tidy:** update a course when a newer file arrives (your progress is kept), refresh a folder course when you add videos, or delete a course you don't need.
+
 **Stay on track**
 - **Milestones.** Each one is signed by you and linked to the one before it, so your history can't be quietly rewritten.
-- **A checker you trust.** Send your progress file to a friend, parent or mentor. They see what you did and approve it. They don't need to know the subject.
+- **A checker you trust.** Send your friend code on Telegram or WhatsApp, then send your progress file. Your friend, parent or mentor sees what you did and approves it. They don't need to know the subject.
 - **Weekly goals and breaks.** Set a pace, see your streak and finish date. Planned breaks don't count against you.
-- **Pace races.** Race friends. Only approved milestones count, so it stays fair.
+- **Races.** Race friends. Only approved milestones count, so it stays fair.
 
 **Proof that holds up**
 - **Verified exams.** Your checker's app makes the exam and keeps the answers. You take it once, offline, and their app grades it.
@@ -28,9 +33,15 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Learning record.** One web page you can share or link from a résumé. Anyone can click "Verify" to check it.
 
 **Yours**
-- **Private by design.** No accounts, no internet, no tracking. Files only leave your computer when you send them.
-- **English and Arabic** (Arabic in beta), light and dark mode, and small screens too.
-- **Encrypted backups** you can restore on any computer.
+- **Private by design.** No accounts and no tracking. inPace only goes online for things you turn on, and files only leave your computer when you send them.
+- **Make it look your way:** seven color profiles, light and dark mode, English and Arabic (right to left), and a welcome tour with Tempo the turtle that you can replay any time.
+- **Updates itself** if you allow it, and **encrypted backups** you can restore on any computer.
+
+## How it works
+
+inPace is a small website that only lives on your computer. When you open it, it starts a tiny server that only your computer can reach, and shows it in its own app window. Everything is saved in one folder (`Documents/inPace`). Your milestones are signed with a key that never leaves that folder, and checking happens by swapping files with people you choose. No server, no account, no cloud.
+
+**Read the full explanation in [How inPace works](docs/HOW-IT-WORKS.md).** It covers the app window, the data folder, courses and media, updating and deleting courses, milestones and checking, updates, and when inPace goes online.
 
 ## Download
 
@@ -54,7 +65,7 @@ inPace opens in its own window. Everything stays on your computer.
 
 ## How the checking works
 
-1. You and your checker swap **contact cards** (People → Download my contact card).
+1. You and your checker connect: in **People**, send your **friend code** on Telegram or WhatsApp and they paste it in (swapping contact-card files works too).
 2. You learn, then **save a milestone** and **download your progress file**.
 3. You send it to your checker any way you like: WhatsApp, email, USB.
 4. Your checker opens it. inPace tells them if anything was changed since they last checked.
@@ -86,7 +97,7 @@ questions.yaml   the questions and all possible answers
 answers.yaml     which answers are right (left out when sharing with learners)
 ```
 
-See [SPEC.md](SPEC.md) for the full format. A sample course, *Python Basics*, is built in. More free courses are in the [community course library](community-courses).
+A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. A sample course, *Python Basics*, is built in. More free courses are in the [community course library](community-courses).
 
 ## For developers
 
@@ -97,12 +108,14 @@ pip install -e ".[test]"
 pytest
 ```
 
-Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push.
+Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#10-for-developers-where-the-code-is) has a map of the code.
 
-**Making a release:** push a version tag (`git tag v0.2.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release.
+**Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. The website in `site/` deploys on every push.
 
 **Translations:** interface text lives in `inpace/locales/`. Add a language by copying `ar.json`.
 
 ## License
 
 MIT. Free to use, change and share.
+
+The PDF reader uses Mozilla's [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), included in `inpace/static/pdfjs/` with its license.
