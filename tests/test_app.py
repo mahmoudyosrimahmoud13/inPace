@@ -118,6 +118,13 @@ questions:
     r = learner.post("/ai", data={"action": "check", "reply": "title: X\nmodules: []"})
     assert "at least one module" in r.text
 
+    # A single .yaml course file through "Open a file".
+    yaml_course = reply_text.replace("Budgeting", "Saving money").encode()
+    r = upload(checker, "saving.yaml", yaml_course)
+    assert "Added the course “Saving money”" in r.text
+    r = upload(checker, "split.yaml", b"title: Split\nmodules:\n  - title: A\n    lessons:\n      - file: lessons/a.md\n")
+    assert "Put course.yaml and the lessons folder together in a zip" in r.text
+
     # Course export without answers, re-import elsewhere.
     pack = learner.get("/courses/python-basics/export").content
     r = upload(checker, "course.lpack", pack)

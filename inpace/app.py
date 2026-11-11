@@ -377,6 +377,25 @@ def create_app(vault: Vault) -> Starlette:
                 return page("open.html", request, problems=e.problems, filename=up.filename)
             extra = "" if c.has_answers else " It came without answers, so practice quizzes are off."
             return go("/courses", ok=f"Added the course “{c.title}”.{extra}")
+        if up.filename.lower().endswith((".yaml", ".yml")) or not raw.lstrip()[:1] == b"{":
+            # A single-file course (the all-in-one format, e.g. saved from an AI chat).
+            try:
+                text = raw.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                return go("/open", err="This file isn't text inPace can read.")
+            try:
+                course = load_course({"course.yaml": strip_fences(text)})
+            except CourseError as e:
+                hint = []
+                if any("is missing" in p and "lessons/" in p for p in e.problems):
+                    hint = ["This course keeps its lessons in separate files. Put course.yaml and the lessons "
+                            "folder together in a zip file, then open the zip."]
+                return page("open.html", request, problems=hint + e.problems, filename=up.filename)
+            if V.get_course(course.id) and V.journey_for_course(course.id):
+                course.id = f"{course.id}-{now_utc()[:10]}"
+            c = V.install_course(course)
+            extra = "" if c.has_answers else " It has no answers, so practice quizzes are off."
+            return go("/courses", ok=f"Added the course “{c.title}”.{extra}")
         try:
             data = exchange.read_inpace_file(raw)
         except exchange.FileProblem as e:
