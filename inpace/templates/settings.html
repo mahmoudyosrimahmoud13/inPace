@@ -13,6 +13,11 @@
   <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option></select></label>
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
+<section class="card tour-card" style="max-width:620px">
+  <div class="row">{{ mascot('wave', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}The welcome tour{% endtrans %}</h2>
+    <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Tempo shows you around inPace again.{% endtrans %}</p></div>
+    <form method="post" action="/tour/again"><button class="btn primary">{% trans trimmed %}Show the tour again{% endtrans %}</button></form></div>
+</section>
 <section class="card" style="max-width:620px" id="updates">
   <h2>{% trans trimmed %}Updates{% endtrans %}</h2>
   <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>

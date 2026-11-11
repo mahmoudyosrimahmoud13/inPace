@@ -163,3 +163,35 @@ html[lang=ar] .os.yours::before { content: "جهازك"; }
 .word .in { font-weight: 300; color: #F2EDE2; }
 .foot .small { max-width: 1240px; margin: 0 auto; font-size: .95rem; color: #CFC7B6; }
 .foot { border-top: 3px solid var(--line); }
+
+/* Guide page */
+.guide-head { display: flex; align-items: center; gap: clamp(16px, 4vw, 48px); max-width: 1240px; margin: 0 auto;
+  padding: clamp(40px, 7vw, 80px) clamp(16px, 4vw, 40px) 1rem; }
+.guide-head img { width: clamp(140px, 18vw, 220px); flex: none; }
+[dir=rtl] .guide-head img { transform: scaleX(-1); }
+.guide-head h1 { font-size: clamp(2.4rem, 6vw, 4.4rem); }
+.toc { max-width: 1240px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+.toc ol { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .5rem; counter-reset: toc; }
+.toc li { counter-increment: toc; }
+.toc a { display: inline-flex; gap: .4rem; text-decoration: none; font-weight: 700; padding: .4rem .8rem; border: 3px solid var(--line); background: var(--surface); }
+.toc a::before { content: counter(toc, decimal-leading-zero); color: var(--muted); }
+.toc a:hover { background: var(--sun); color: #111; }
+main > .chapter { display: grid; grid-template-columns: auto 1fr 1.1fr; gap: clamp(16px, 3vw, 40px); align-items: start;
+  padding-block: clamp(40px, 6vw, 72px); border-bottom: 3px solid var(--line); scroll-margin-top: 80px; }
+.chapter .num { display: inline-grid; place-items: center; width: 60px; height: 60px; font-weight: 700; font-size: 1.3rem;
+  background: var(--sun); color: #111; border: 3px solid var(--line); box-shadow: var(--hard-sm) var(--line); }
+[dir=rtl] .chapter .num { box-shadow: -4px 4px 0 var(--line); }
+.chapter h2 { margin-block-end: 1rem; font-size: clamp(1.8rem, 3.6vw, 2.6rem); }
+.chapter ul, .chapter ol { margin: 0; padding-inline-start: 1.2rem; display: grid; gap: .7rem; }
+.chapter li { color: var(--muted); }
+.chapter li b { color: var(--ink); }
+.chapter code { font-family: "JetBrains Mono", monospace; font-size: .9em; background: var(--cream); padding: 0 .3rem; }
+.chapter .frame img { width: 100%; }
+.chapter-tempo { width: 220px; justify-self: center; }
+@media (max-width: 960px) {
+  main > .chapter { grid-template-columns: auto 1fr; }
+  .chapter .frame, .chapter-tempo { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) { main > .chapter { grid-template-columns: 1fr; } .guide-head { flex-direction: column; align-items: flex-start; } }
+main > .chapter { max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
+main > .chapter:last-child { border-bottom: 0; }

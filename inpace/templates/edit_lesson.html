@@ -4,13 +4,34 @@
 {% block main %}
 <div class="page-head">
   <p class="eyebrow"><a href="/edit/{{ c.id }}#{{ module.id }}">{{ c.title }} › {{ module.title }}</a></p>
-  <h1>{% trans trimmed %}Edit lesson{% endtrans %}</h1>
+  <h1 dir="auto">{% trans trimmed %}Edit lesson{% endtrans %}</h1>
 </div>
-<form method="post" action="/edit/{{ c.id }}" class="card stack">
+<form method="post" action="/edit/{{ c.id }}" class="card stack" data-lesson-editor data-preview="/edit/{{ c.id }}/preview">
   <input type="hidden" name="action" value="edit_lesson"><input type="hidden" name="lesson" value="{{ lesson.id }}"><input type="hidden" name="module" value="{{ module.id }}">
   <label>{% trans trimmed %}Title{% endtrans %}<input name="title" value="{{ lesson.title }}" required dir="auto"></label>
-  <label>{% trans trimmed %}Text{% endtrans %}<textarea name="content" rows="22" class="mono" dir="auto">{{ lesson.content }}</textarea></label>
-  <p class="small muted" style="margin:0">{% trans trimmed %}# Heading · **bold** · - list item · ``` around code{% endtrans %}</p>
+  <label>{% trans trimmed %}Main video, link or file (optional, shown at the top){% endtrans %}
+    <input name="media" value="{{ lesson.media or '' }}" dir="ltr" placeholder="https://youtu.be/…  ·  /home/you/Videos/intro.mp4  ·  folder/demo-app/"></label>
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab on" data-tab="write">{% trans trimmed %}Write{% endtrans %}</button>
+    <button type="button" class="tab" data-tab="preview">{% trans trimmed %}Preview{% endtrans %}</button>
+  </div>
+  <div data-pane="write" class="stack">
+    <div class="md-bar" role="toolbar" aria-label="{{ _('Formatting') }}">
+      <button type="button" class="btn" data-md="## " title="{{ _('Heading') }}">H</button>
+      <button type="button" class="btn" data-md-wrap="**" title="{{ _('Bold') }}"><b>B</b></button>
+      <button type="button" class="btn" data-md-wrap="*" title="{{ _('Italic') }}"><i>I</i></button>
+      <button type="button" class="btn" data-md="- " title="{{ _('List') }}">•</button>
+      <button type="button" class="btn" data-md="1. " title="{{ _('Numbered list') }}">1.</button>
+      <button type="button" class="btn" data-md-wrap="`" title="{{ _('Code') }}">&lt;/&gt;</button>
+      <button type="button" class="btn" data-md-block="```" title="{{ _('Code block') }}">{ }</button>
+      <button type="button" class="btn" data-md-link title="{{ _('Link') }}">{{ icon('link', 16) }}</button>
+      <button type="button" class="btn" data-md-video title="{{ _('Video or file') }}">{{ icon('play', 16) }}</button>
+      <button type="button" class="btn" data-md="> " title="{{ _('Note') }}">❝</button>
+    </div>
+    <textarea name="content" rows="20" class="mono" dir="auto" data-md-target>{{ lesson.content }}</textarea>
+    <p class="small muted" style="margin:0">{% trans trimmed %}# Heading · **bold** · - list item · ``` around code{% endtrans %}</p>
+  </div>
+  <div data-pane="preview" hidden><div class="prose preview-box" dir="{{ 'rtl' if c.language == 'ar' else 'auto' }}"></div></div>
   <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" value="{{ lesson.minutes or '' }}" style="max-width:8rem"></label>
   <button class="btn primary big">{% trans trimmed %}Save lesson{% endtrans %}</button>
 </form>
@@ -27,6 +48,5 @@
     <label>{% trans trimmed %}Caption (optional){% endtrans %}<input name="label" dir="auto"></label>
     <button class="btn primary">{% trans trimmed %}Add to lesson{% endtrans %}</button>
   </form>
-  <p class="small muted" style="margin:0" dir="ltr">![Caption](media/intro.mp4) · ![](https://youtu.be/…) · ![Try it](sims/page.html)</p>
 </section>
 {% endblock %}

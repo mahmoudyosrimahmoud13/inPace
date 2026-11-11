@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=11">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 <header class="top">
@@ -92,6 +92,10 @@
     {% endif %}
   </main>
 </div>
-<script src="/static/app.js?v=7"></script>
+{% if tour %}
+<script type="application/json" id="tour-data">{{ {"steps": tour, "next": _("Next"), "back": _("Back"), "skip": _("Skip the tour"), "done": _("Let's go!")}|tojson }}</script>
+{% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
+{% endif %}
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>

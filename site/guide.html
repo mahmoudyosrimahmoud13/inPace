@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>inPace guide · How it works, step by step</title>
+<meta name="description" content="How to use inPace: add a course, learn with videos and code, save milestones, get checked by someone you trust, race friends and make your own courses.">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script>
+  (function () {
+    var lang = null;
+    try { lang = localStorage.getItem("inpace-site-lang"); } catch (e) {}
+    if (!lang) lang = (navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en";
+    if (location.hash === "#ar") lang = "ar";
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  })();
+</script>
+</head>
+<body class="guide">
+
+<header class="top">
+  <a class="brand" href="./">
+    <img src="assets/icon.svg" alt="" width="36" height="36">
+    <span><span class="in">in</span><b>Pace</b></span>
+  </a>
+  <nav class="links" aria-label="Page">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a>
+    <a href="./#download"><span class="en">Download</span><span class="ar">التحميل</span></a>
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a>
+  </nav>
+  <button class="lang" type="button" id="lang"><span class="en">عربي</span><span class="ar">English</span></button>
+</header>
+
+<main>
+<section class="guide-head">
+  <img src="assets/tempo-wave.svg" width="300" height="216" alt="">
+  <div>
+    <h1><span class="en">The inPace guide.</span><span class="ar">دليل inPace.</span></h1>
+    <p class="lead"><span class="en">Everything inPace does, in the order you'll use it. Tempo also gives you a short tour inside the app the first time you open it, and you can replay it from Settings.</span><span class="ar">كل ما يفعله inPace، بالترتيب الذي ستستخدمه به. ويأخذك Tempo أيضًا في جولة قصيرة داخل التطبيق أول مرة تفتحه، ويمكنك إعادتها من الإعدادات.</span></p>
+  </div>
+</section>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#start"><span class="en">Get started</span><span class="ar">ابدأ</span></a></li>
+    <li><a href="#add"><span class="en">Add a course</span><span class="ar">أضف دورة</span></a></li>
+    <li><a href="#learn"><span class="en">Learn</span><span class="ar">تعلّم</span></a></li>
+    <li><a href="#track"><span class="en">Stay on track</span><span class="ar">حافظ على الإيقاع</span></a></li>
+    <li><a href="#check"><span class="en">Get checked</span><span class="ar">المتابعة</span></a></li>
+    <li><a href="#race"><span class="en">Race friends</span><span class="ar">سابق أصدقاءك</span></a></li>
+    <li><a href="#make"><span class="en">Make your own course</span><span class="ar">اصنع دورتك</span></a></li>
+    <li><a href="#data"><span class="en">Your data</span><span class="ar">بياناتك</span></a></li>
+  </ol>
+</nav>
+
+<article class="chapter" id="start">
+  <span class="num">01</span>
+  <div class="chapter-body">
+    <h2><span class="en">Get started</span><span class="ar">ابدأ</span></h2>
+    <ul>
+      <li><span class="en"><b>Download</b> inPace for Windows, Mac or Linux from the <a href="./#download">download section</a> and open it. It opens in its own window.</span><span class="ar"><b>حمّل</b> inPace لويندوز أو ماك أو لينكس من <a href="./#download">قسم التحميل</a> وافتحه. يفتح في نافذته الخاصة.</span></li>
+      <li><span class="en"><b>Type your name and pick a colour.</b> inPace makes a private key for you on your computer. It's how your milestones prove they're yours. No account, no email.</span><span class="ar"><b>اكتب اسمك واختر لونًا.</b> يصنع inPace مفتاحًا خاصًا لك على جهازك، وبه تثبت محطاتك أنها لك. بدون حساب أو بريد.</span></li>
+      <li><span class="en"><b>Meet Tempo.</b> The turtle walks you through the app in about a minute. Replay it any time from <b>Settings → Show the tour again</b>.</span><span class="ar"><b>تعرّف على Tempo.</b> السلحفاة تأخذك في جولة في التطبيق خلال دقيقة تقريبًا. أعدها متى شئت من <b>الإعدادات ← اعرض الجولة مرة أخرى</b>.</span></li>
+      <li><span class="en"><b>Updates:</b> the app asks once if it may keep itself up to date. Say yes and new versions install by themselves.</span><span class="ar"><b>التحديثات:</b> يسألك التطبيق مرة واحدة إن كان يمكنه تحديث نفسه. وافق وستُثبَّت الإصدارات الجديدة تلقائيًا.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/tour.jpg" width="1920" height="1230" loading="lazy" alt="Tempo the turtle explaining the Make a course button during the welcome tour."></figure>
+</article>
+
+<article class="chapter" id="add">
+  <span class="num">02</span>
+  <div class="chapter-body">
+    <h2><span class="en">Add a course</span><span class="ar">أضف دورة</span></h2>
+    <p><span class="en">Go to <b>My courses</b>. There are several ways in:</span><span class="ar">اذهب إلى <b>دوراتي</b>. هناك عدة طرق:</span></p>
+    <ul>
+      <li><span class="en"><b>A sample course</b> to try things out, in English or Arabic.</span><span class="ar"><b>دورة تجريبية</b> للتجربة، بالعربية أو الإنجليزية.</span></li>
+      <li><span class="en"><b>A course file</b> someone shared (<code>.lpack</code>, <code>.zip</code> or <code>.yaml</code>). Use <b>Open a file</b>.</span><span class="ar"><b>ملف دورة</b> شاركه أحد معك (<code>.lpack</code> أو <code>.zip</code> أو <code>.yaml</code>). استخدم <b>افتح ملفًا</b>.</span></li>
+      <li><span class="en"><b>A folder of videos</b> you already downloaded. Each sub-folder becomes a module and each video a lesson. Nothing is copied, so even a 60 GB course adds in seconds. If the folder moves, inPace asks where it went.</span><span class="ar"><b>مجلد فيديوهات</b> حمّلته من قبل. كل مجلد فرعي يصبح وحدة وكل فيديو درسًا. لا يُنسخ شيء، لذلك تُضاف حتى دورة بحجم 60 جيجابايت في ثوانٍ. وإذا نُقل المجلد، يسألك inPace عن مكانه الجديد.</span></li>
+      <li><span class="en"><b>A list of YouTube links</b>, one per line. Each link becomes a lesson, and a line starting with <code>#</code> starts a new module.</span><span class="ar"><b>قائمة روابط يوتيوب</b>، رابط في كل سطر. كل رابط يصبح درسًا، والسطر الذي يبدأ بـ <code>#</code> يبدأ وحدة جديدة.</span></li>
+      <li><span class="en"><b>With AI</b>, from a topic, a book, a YouTube playlist, a course you're taking, a project, your own notes, or an exam. inPace writes the prompt, you paste it into any AI chat, then paste the answer back.</span><span class="ar"><b>بالذكاء الاصطناعي</b>، من موضوع أو كتاب أو قائمة تشغيل يوتيوب أو دورة تدرسها أو مشروع أو ملاحظاتك أو امتحان. يكتب inPace الطلب، فتلصقه في أي محادثة ذكاء اصطناعي، ثم تلصق الرد.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/ai.jpg" width="1920" height="1230" loading="lazy" alt="The AI course maker with options: a topic, a book, a YouTube playlist, a course I'm taking, a project, my notes, an exam."></figure>
+</article>
+
+<article class="chapter" id="learn">
+  <span class="num">03</span>
+  <div class="chapter-body">
+    <h2><span class="en">Learn</span><span class="ar">تعلّم</span></h2>
+    <ul>
+      <li><span class="en"><b>Your course is a trail.</b> Each lesson is a stone, and Tempo stands where you are. The next module opens when you finish the one before.</span><span class="ar"><b>دورتك طريق.</b> كل درس حجر، ويقف Tempo حيث أنت. تُفتح الوحدة التالية عندما تنهي التي قبلها.</span></li>
+      <li><span class="en"><b>Videos remember where you stopped,</b> to the second, even after you close the app. Speed, ±10 seconds, full screen and keyboard keys (Space, J, L, F, M) are all there.</span><span class="ar"><b>الفيديوهات تتذكر أين توقفت</b> بالثانية، حتى بعد إغلاق التطبيق. والسرعة، والتقديم والرجوع 10 ثوانٍ، وملء الشاشة، ومفاتيح لوحة المفاتيح (Space وJ وL وF وM) كلها موجودة.</span></li>
+      <li><span class="en"><b>Code files show with colours</b> and a Copy button. A project folder becomes one lesson with all its files.</span><span class="ar"><b>ملفات الكود تظهر ملوّنة</b> مع زر نسخ. ومجلد المشروع يصبح درسًا واحدًا فيه كل ملفاته.</span></li>
+      <li><span class="en"><b>Each module ends with tasks:</b> upload your work or record a voice note, explain an idea in your own words, or take a quiz whose choices change every time.</span><span class="ar"><b>كل وحدة تنتهي بمهام:</b> ارفع عملك أو سجّل رسالة صوتية، أو اشرح فكرة بكلماتك، أو أدِّ اختبارًا تتغير خياراته كل مرة.</span></li>
+      <li><span class="en"><b>Daily review</b> brings old questions back after 1, 3, 7, 14 and 30 days, so they stick.</span><span class="ar"><b>المراجعة اليومية</b> تعيد الأسئلة القديمة بعد 1 و3 و7 و14 و30 يومًا، لتثبت في ذهنك.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/player.jpg" width="1920" height="1230" loading="lazy" alt="The inPace video player with a yellow progress bar, speed, picture in picture and full screen buttons."></figure>
+</article>
+
+<article class="chapter" id="track">
+  <span class="num">04</span>
+  <div class="chapter-body">
+    <h2><span class="en">Stay on track</span><span class="ar">حافظ على الإيقاع</span></h2>
+    <ul>
+      <li><span class="en"><b>Set a weekly goal:</b> how many milestones you'll save each week. Home shows this week's count and your streak.</span><span class="ar"><b>حدّد هدفًا أسبوعيًا:</b> كم محطة ستحفظ كل أسبوع. تعرض الرئيسية عدد هذا الأسبوع وسلسلتك.</span></li>
+      <li><span class="en"><b>Take a break</b> when life happens. Weeks on a break don't count as missed, and your streak survives.</span><span class="ar"><b>خذ استراحة</b> عندما تنشغل. أسابيع الاستراحة لا تُحسب فائتة، وتبقى سلسلتك.</span></li>
+      <li><span class="en"><b>See your finish date</b> at your current pace, and a short reflection after each module.</span><span class="ar"><b>اعرف موعد إنهائك</b> بإيقاعك الحالي، مع تأمل قصير بعد كل وحدة.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/home.jpg" width="1920" height="1230" loading="lazy" alt="The Home page with Tempo, course progress, the weekly goal and the next lesson."></figure>
+</article>
+
+<article class="chapter" id="check">
+  <span class="num">05</span>
+  <div class="chapter-body">
+    <h2><span class="en">Get checked by someone you trust</span><span class="ar">متابعة من شخص تثق به</span></h2>
+    <ol class="steps-mini">
+      <li><span class="en"><b>Connect.</b> In <b>People</b>, send your friend code on Telegram or WhatsApp. Your checker pastes it into their inPace. A checker can be a friend, a parent or a mentor. They don't need to know the subject.</span><span class="ar"><b>اتصلا.</b> من <b>الأشخاص</b>، أرسل كود صداقتك على تيليجرام أو واتساب، فيلصقه متابِعك في inPace عنده. المتابِع قد يكون صديقًا أو أحد الوالدين أو مرشدًا، ولا يحتاج أن يعرف المادة.</span></li>
+      <li><span class="en"><b>Save a milestone</b> when you finish part of the course. It's signed and linked to the one before, so the history can't be quietly rewritten.</span><span class="ar"><b>احفظ محطة</b> عندما تنهي جزءًا من الدورة. إنها موقّعة ومرتبطة بالتي قبلها، فلا يمكن تغيير السجل في الخفاء.</span></li>
+      <li><span class="en"><b>Send your progress file.</b> Your checker sees exactly what you did: lessons, files, answers and scores.</span><span class="ar"><b>أرسل ملف تقدّمك.</b> يرى متابِعك ما فعلته بالضبط: الدروس والملفات والإجابات والدرجات.</span></li>
+      <li><span class="en"><b>They approve, ask a question, or flag a problem,</b> and can send a verified exam that only their app can grade, or ask to see your files.</span><span class="ar"><b>يوافق أو يسأل أو يبلغ عن مشكلة،</b> ويمكنه إرسال اختبار موثّق لا يصحّحه إلا تطبيقه، أو طلب رؤية ملفاتك.</span></li>
+      <li><span class="en"><b>Share your learning record:</b> one web page that checks its own signatures, for a CV or a class.</span><span class="ar"><b>شارك سجل تعلّمك:</b> صفحة ويب واحدة تفحص توقيعاتها بنفسها، لسيرة ذاتية أو فصل دراسي.</span></li>
+    </ol>
+  </div>
+  <figure class="frame"><img src="assets/shots/people.jpg" width="1920" height="1230" loading="lazy" alt="The People page with a friend code and Send on Telegram and Send on WhatsApp buttons."></figure>
+</article>
+
+<article class="chapter" id="race">
+  <span class="num">06</span>
+  <div class="chapter-body">
+    <h2><span class="en">Race friends</span><span class="ar">سابق أصدقاءك</span></h2>
+    <ul>
+      <li><span class="en"><b>A pace race</b> rewards the most weeks on target. <b>A points race</b> rewards the most of your course finished during the race.</span><span class="ar"><b>سباق الوتيرة</b> يكافئ أكثر أسابيع تحقق فيها هدفك. و<b>سباق النقاط</b> يكافئ أكبر جزء تنهيه من دورتك خلال السباق.</span></li>
+      <li><span class="en"><b>Only approved milestones count,</b> so nobody can fake their way to first place.</span><span class="ar"><b>تُحسب فقط المحطات الموافق عليها،</b> فلا يستطيع أحد الغش للوصول للمركز الأول.</span></li>
+      <li><span class="en"><b>Invite friends with a code,</b> send cheers, and earn badges along the way.</span><span class="ar"><b>ادعُ أصدقاءك بكود،</b> وأرسل تشجيعًا، واكسب شارات في الطريق.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/trail.jpg" width="1920" height="1230" loading="lazy" alt="A course shown as a trail of lesson stones."></figure>
+</article>
+
+<article class="chapter" id="make">
+  <span class="num">07</span>
+  <div class="chapter-body">
+    <h2><span class="en">Make your own course</span><span class="ar">اصنع دورتك</span></h2>
+    <ul>
+      <li><span class="en"><b>Start with just a title,</b> or paste a list of videos and get a lesson for each.</span><span class="ar"><b>ابدأ بعنوان فقط،</b> أو الصق قائمة فيديوهات لتحصل على درس لكل واحد.</span></li>
+      <li><span class="en"><b>Move anything:</b> modules, lessons and tasks go up and down, and lessons can move to another module.</span><span class="ar"><b>انقل أي شيء:</b> الوحدات والدروس والمهام تتحرك لأعلى ولأسفل، والدروس تنتقل لوحدة أخرى.</span></li>
+      <li><span class="en"><b>Write lessons with a toolbar</b> (headings, bold, lists, code, links, videos) and a live preview.</span><span class="ar"><b>اكتب الدروس بشريط أدوات</b> (عناوين، عريض، قوائم، كود، روابط، فيديوهات) مع معاينة مباشرة.</span></li>
+      <li><span class="en"><b>Quizzes with many right answers:</b> each quiz shows one right answer mixed with wrong ones. Change questions and tasks any time.</span><span class="ar"><b>اختبارات بأكثر من إجابة صحيحة:</b> يُظهر كل اختبار إجابة صحيحة واحدة بين الخاطئة. وغيّر الأسئلة والمهام متى شئت.</span></li>
+      <li><span class="en"><b>Undo</b> brings back the version before any change, and <b>Edit as one file</b> shows the whole course as text for quick big edits.</span><span class="ar"><b>التراجع</b> يعيد النسخة السابقة لأي تغيير، و<b>التعديل كملف واحد</b> يعرض الدورة كلها نصًا لتعديلات كبيرة سريعة.</span></li>
+      <li><span class="en"><b>Share it</b> without answers for learners, with answers for checkers, or with its videos inside for small courses.</span><span class="ar"><b>شاركها</b> بدون إجابات للمتعلمين، أو مع الإجابات للمتابِعين، أو مع فيديوهاتها داخلها للدورات الصغيرة.</span></li>
+    </ul>
+  </div>
+  <figure class="frame"><img src="assets/shots/builder.jpg" width="1920" height="1230" loading="lazy" alt="The course builder with move up and down buttons, Move to module, Edit and Delete for each lesson."></figure>
+</article>
+
+<article class="chapter" id="data">
+  <span class="num">08</span>
+  <div class="chapter-body">
+    <h2><span class="en">Your data</span><span class="ar">بياناتك</span></h2>
+    <ul>
+      <li><span class="en"><b>Everything stays on your computer.</b> Files only go to other people when you send them yourself.</span><span class="ar"><b>كل شيء يبقى على جهازك.</b> ولا تصل الملفات لأحد إلا إذا أرسلتها بنفسك.</span></li>
+      <li><span class="en"><b>inPace only goes online for things you turn on:</b> automatic updates, the AI course maker, YouTube titles, or an online video you press play on.</span><span class="ar"><b>لا يتصل inPace بالإنترنت إلا لما تفعّله:</b> التحديثات التلقائية، أو صانع الدورات بالذكاء الاصطناعي، أو عناوين يوتيوب، أو فيديو على الإنترنت تضغط تشغيله.</span></li>
+      <li><span class="en"><b>Back up</b> everything into one password-protected file from <b>Settings</b>, and restore it on any computer.</span><span class="ar"><b>انسخ احتياطيًا</b> كل شيء في ملف واحد محمي بكلمة مرور من <b>الإعدادات</b>، واستعده على أي جهاز.</span></li>
+    </ul>
+    <p class="cta"><a class="btn primary big" href="./#download"><span class="en">Download inPace</span><span class="ar">حمّل inPace</span></a></p>
+  </div>
+  <img class="chapter-tempo" src="assets/tempo-proud.svg" width="300" height="216" alt="">
+</article>
+</main>
+
+<footer class="foot">
+  <div class="foot-top">
+    <img src="assets/tempo-cheer.svg" width="300" height="216" alt="">
+    <p><span class="en">Slow and steady wins the race.</span><span class="ar">ببطء وثبات تفوز بالسباق.</span></p>
+  </div>
+  <p class="word"><span class="in">in</span>Pace</p>
+  <p class="small">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a> ·
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a> ·
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace/issues/new"><span class="en">Report a problem</span><span class="ar">أبلغ عن مشكلة</span></a>
+  </p>
+</footer>
+<script>
+  document.getElementById("lang").addEventListener("click", function () {
+    var next = document.documentElement.lang === "ar" ? "en" : "ar";
+    document.documentElement.lang = next;
+    document.documentElement.dir = next === "ar" ? "rtl" : "ltr";
+    try { localStorage.setItem("inpace-site-lang", next); } catch (e) {}
+  });
+</script>
+</body>
+</html>

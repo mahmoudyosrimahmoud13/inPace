@@ -4,16 +4,35 @@
 {% block main %}
 <div class="page-head">
   <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
-  <h1>{% trans trimmed %}Make a course{% endtrans %}</h1>
-  <p class="muted">{% trans trimmed %}Start with a title and your first lesson. You can add modules, lessons, tasks and questions next.{% endtrans %}</p>
+  <h1>{% trans trimmed %}Make a course{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Only a title is needed. You can add modules, lessons, videos, tasks and questions next.{% endtrans %}</p>
 </div>
 {% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
+{% set start = form.start or 'blank' %}
 <form method="post" class="card stack">
-  <label>{% trans trimmed %}Course title{% endtrans %}<input name="title" required dir="auto" value="{{ form.title or '' }}" placeholder="{{ _('For example: Excel for beginners') }}"></label>
+  <label>{% trans trimmed %}Course title{% endtrans %}<input name="title" required dir="auto" value="{{ form.title or '' }}" placeholder="{{ _('For example: Excel for beginners') }}" autofocus></label>
   <label>{% trans trimmed %}Short description (optional){% endtrans %}<input name="description" dir="auto" value="{{ form.description or '' }}"></label>
-  <label>{% trans trimmed %}First module title{% endtrans %}<input name="module_title" required dir="auto" value="{{ form.module_title or '' }}" placeholder="{{ _('For example: Getting started') }}"></label>
-  <label>{% trans trimmed %}First lesson title{% endtrans %}<input name="lesson_title" required dir="auto" value="{{ form.lesson_title or '' }}"></label>
-  <label>{% trans trimmed %}Lesson text{% endtrans %}<textarea name="content" rows="10" required dir="auto" placeholder="{{ _('Write the lesson. Use # for a heading, - for a list, and ``` around code.') }}">{{ form.content or '' }}</textarea></label>
+  <label>{% trans trimmed %}Lesson language{% endtrans %}<select name="language"><option value="en">{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar" {{ 'selected' if form.language == 'ar' or lang == 'ar' }}>{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
+
+  <fieldset class="source-pick">
+    <legend>{% trans trimmed %}How do you want to start?{% endtrans %}</legend>
+    <label class="choice"><input type="radio" name="start" value="blank" {{ 'checked' if start == 'blank' }}><span><b>{% trans trimmed %}With a first lesson{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Write it now or later{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="start" value="links" {{ 'checked' if start == 'links' }}><span><b>{% trans trimmed %}From a list of videos or links{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}YouTube links or files on this computer, one per line{% endtrans %}</span></span></label>
+    <a class="choice" href="/courses#import-folder"><span><b>{% trans trimmed %}From a folder of videos{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}A course you already downloaded{% endtrans %}</span></span></a>
+    <a class="choice" href="/ai"><span><b>{% trans trimmed %}With AI{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}From a topic, a book, a playlist and more{% endtrans %}</span></span></a>
+  </fieldset>
+
+  <div class="stack" data-for-start="blank">
+    <label>{% trans trimmed %}First module title (optional){% endtrans %}<input name="module_title" dir="auto" value="{{ form.module_title or '' }}" placeholder="{{ _('For example: Getting started') }}"></label>
+    <label>{% trans trimmed %}First lesson title (optional){% endtrans %}<input name="lesson_title" dir="auto" value="{{ form.lesson_title or '' }}"></label>
+    <label>{% trans trimmed %}Lesson text (optional){% endtrans %}<textarea name="content" rows="8" dir="auto" placeholder="{{ _('Write the lesson. Use # for a heading, - for a list, and ``` around code.') }}">{{ form.content or '' }}</textarea></label>
+  </div>
+  <div class="stack" data-for-start="links">
+    <label>{% trans trimmed %}One video or link per line{% endtrans %}
+      <textarea name="links" rows="9" dir="ltr" placeholder="# Module 1: Basics&#10;https://www.youtube.com/watch?v=...&#10;Installing Docker | https://youtu.be/...&#10;/home/you/Videos/03 - Images.mp4&#10;# Module 2: Compose&#10;https://youtu.be/...">{{ form.links or '' }}</textarea></label>
+    <p class="small muted" style="margin:0">{% trans trimmed %}A line starting with # starts a new module. Write "Title | link" to name a lesson yourself.{% endtrans %}</p>
+    <label class="check"><input type="checkbox" name="fetch_titles" value="1" {{ 'checked' if form.fetch_titles }}> <span>{% trans trimmed %}Get the video titles from YouTube (this goes online){% endtrans %}</span></label>
+  </div>
   <button class="btn primary big">{% trans trimmed %}Create course{% endtrans %}</button>
 </form>
 {% endblock %}

@@ -178,6 +178,12 @@ _ICONS = {
     "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
     "file": '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/>',
     "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+    "up": '<path d="m6 15 6-6 6 6"/>',
+    "down": '<path d="m6 9 6 6 6-6"/>',
+    "undo": '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+    "play": '<path d="M7 4.5v15l13-7.5z"/>',
+    "code": '<path d="m8 7-5 5 5 5"/><path d="m16 7 5 5-5 5"/>',
+    "link": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 }
 
 
@@ -189,6 +195,8 @@ def icon(name: str, size: int = 20) -> Markup:
 
 
 env.globals["icon"] = icon
+from .course import media_kind as _media_kind
+env.globals["media_kind"] = _media_kind
 env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
 env.globals["TASK_ICON"] = {"practical": "upload", "explain": "pen", "quiz": "quiz"}
 
@@ -280,7 +288,33 @@ def create_app(vault: Vault) -> Starlette:
         if not V.is_set_up:
             return go("/setup")
         cards = [journey_card(j) for j in V.journeys()]
-        return page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses())
+        show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
+        return page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
+                    tour=_tour_steps() if show_tour else None)
+
+    def _tour_steps() -> list:
+        """Tempo's welcome tour. Each step points at something on the screen (or nothing, for the middle of the screen)."""
+        steps = [
+            (None, "wave", "Hi, I'm Tempo!", "I'll show you around inPace. It takes about a minute. Slow and steady, like me."),
+            ('.side a[href="/courses"]', "happy", "Your courses", "Everything you're learning lives here. Add a course from a file, a folder of videos you already have, a list of YouTube links, or try a sample course."),
+            ('.side a[href="/ai"]', "think", "Make a course", "Build your own course with simple forms, or let any AI chat write one from a topic, a book, a YouTube playlist, an exam, or your own notes."),
+            ('.side a[href="/milestones"]', "proud", "Milestones", "When you finish part of a course, save a milestone. It's a signed snapshot of your progress that nobody can quietly change."),
+            ('.side a[href="/people"]', "cheer", "Your checker", "Learning sticks when someone has your back. Add a friend, a parent or a mentor. Send them your milestone and they approve it. Swap friend codes on Telegram or WhatsApp."),
+            ('.side a[href="/races"]', "cheer", "Races", "Race your friends to keep each other going. Only approved milestones count, so it stays fair."),
+            (".side-bottom a", "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
+            (".theme-toggle", "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
+            ('.side a[href="/settings"]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
+            (None, "proud", "You're all set!", "Start with a course and take the first step today. I'll be on your Home page, cheering you on."),
+        ]
+        return [{"target": tgt, "mood": mood, "title": say(title), "text": say(text)} for tgt, mood, title, text in steps]
+
+    async def tour_done(request: Request):
+        V._set_meta("tour_done", now_utc())
+        return Response(status_code=204)
+
+    async def tour_again(request: Request):
+        V._set_meta("tour_done", "")
+        return go("/?tour=1")
 
     # ---- courses ---------------------------------------------------------------
     async def courses(request: Request):
@@ -458,6 +492,18 @@ def create_app(vault: Vault) -> Starlette:
         return go("/courses", ok="Course removed.")
 
     # ---- AI course maker -----------------------------------------------------
+    def _titled_videos(text: str) -> str:
+        out = []
+        for line in text.splitlines()[:200]:
+            line = line.strip()
+            if not line:
+                continue
+            if "|" not in line and line.startswith("http"):
+                title = editor.youtube_title(line)
+                line = f"{title} | {line}" if title else line
+            out.append(line)
+        return "\n".join(out)
+
     async def ai_page(request: Request):
         ctx: dict = {"step": 1, "form": {}}
         if request.method == "POST":
@@ -475,9 +521,17 @@ def create_app(vault: Vault) -> Starlette:
                 action, form = "check", {"reply": reply}
                 ctx["form"] = {}
             if action == "prompt":
+                extra = {k: str(form.get(k, "")) for k in ("book_title", "book_author", "chapters", "material", "exam",
+                                                           "playlist", "videos", "course_name", "platform",
+                                                           "course_outline", "project")}
+                if form.get("source") == "playlist" and extra["videos"].strip() and form.get("fetch_titles"):
+                    # Fill in missing video titles from YouTube (only because you ticked the box: this goes online).
+                    from starlette.concurrency import run_in_threadpool
+                    extra["videos"] = await run_in_threadpool(_titled_videos, extra["videos"])
                 ctx["prompt"] = ai.build_prompt(str(form.get("topic", "")), str(form.get("level", "beginner")),
                                                 int(form.get("weeks") or 4), int(form.get("hours") or 3),
-                                                str(form.get("language", "English")), str(form.get("notes", "")))
+                                                str(form.get("language", "English")), str(form.get("notes", "")),
+                                                source=str(form.get("source", "topic")), **extra)
                 ctx["step"] = 2
             elif action in ("check", "save"):
                 text = strip_fences(str(form.get("reply", "")))
@@ -856,9 +910,14 @@ def create_app(vault: Vault) -> Starlette:
         if request.method == "POST":
             f = await request.form()
             try:
-                c = editor.new_course(V, str(f.get("title", "")), str(f.get("description", "")),
-                                      str(f.get("module_title", "")), str(f.get("lesson_title", "")),
-                                      str(f.get("content", "")))
+                links = str(f.get("links", "")) if f.get("start") == "links" else ""
+                if f.get("start") == "links" and not links.strip():
+                    raise CourseError(["Paste at least one link or file path."])
+                from starlette.concurrency import run_in_threadpool
+                c = await run_in_threadpool(
+                    editor.new_course, V, str(f.get("title", "")), str(f.get("description", "")),
+                    str(f.get("module_title", "")), str(f.get("lesson_title", "")), str(f.get("content", "")),
+                    links, str(f.get("language", "en")), bool(f.get("fetch_titles")))
             except CourseError as e:
                 return page("edit_new.html", request, problems=e.problems, form=dict(f))
             return go(f"/edit/{c.id}", ok="Course created. Add more lessons, tasks and questions.")
@@ -874,12 +933,43 @@ def create_app(vault: Vault) -> Starlette:
             data = {k: str(v) for k, v in f.items()}
             data["questions"] = [str(x) for x in f.getlist("questions")]
             try:
-                editor.edit(V, cid, data.get("action", ""), data)
+                if data.get("action") == "undo":
+                    editor.undo(V, cid)
+                    return go(f"/edit/{cid}", ok="Undone. The course is back to how it was before your last change.")
+                if data.get("action") in ("add_links", "add_lesson") and data.get("fetch_titles"):
+                    from starlette.concurrency import run_in_threadpool
+                    await run_in_threadpool(editor.edit, V, cid, data["action"], data)
+                else:
+                    editor.edit(V, cid, data.get("action", ""), data)
             except CourseError as e:
-                return page("edit_course.html", request, c=c, problems=e.problems, started=bool(V.journey_for_course(cid)))
+                return page("edit_course.html", request, c=c, problems=e.problems, started=bool(V.journey_for_course(cid)),
+                            can_undo=editor.can_undo(V, cid), journey=V.journey_for_course(cid))
             anchor = f"#{data['module']}" if data.get("module") else ""
             return go(f"/edit/{cid}{anchor}", ok="Saved.")
-        return page("edit_course.html", request, c=c, started=bool(V.journey_for_course(cid)))
+        return page("edit_course.html", request, c=c, started=bool(V.journey_for_course(cid)),
+                    can_undo=editor.can_undo(V, cid), journey=V.journey_for_course(cid))
+
+    async def edit_yaml(request: Request):
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        if request.method == "POST":
+            text = str((await request.form()).get("yaml", ""))
+            try:
+                editor.save_yaml(V, cid, text)
+            except CourseError as e:
+                return page("edit_yaml.html", request, c=c, text=text, problems=e.problems)
+            return go(f"/edit/{cid}", ok="Saved.")
+        return page("edit_yaml.html", request, c=c, text=editor.course_to_yaml(c))
+
+    async def lesson_preview(request: Request):
+        """What the lesson will look like, for the Preview tab in the lesson editor."""
+        cid = request.path_params["cid"]
+        f = await request.form()
+        les = {"title": str(f.get("title", "")), "content": str(f.get("content", "")), "media": str(f.get("media", "")).strip()}
+        body = md.render(_drop_title(les["content"], les["title"]))
+        return HTMLResponse(media_mod.lesson_html(cid, les, body, _course_files_view(cid), gettext))
 
     async def edit_lesson_media(request: Request):
         cid, lid = request.path_params["cid"], request.path_params["lid"]
@@ -1439,6 +1529,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/edit/{cid}", needs_setup(edit_course), methods=["GET", "POST"]),
         Route("/edit/{cid}/lesson/{lid}", needs_setup(edit_lesson)),
         Route("/edit/{cid}/lesson/{lid}/media", needs_setup(edit_lesson_media), methods=["POST"]),
+        Route("/edit/{cid}/yaml", needs_setup(edit_yaml), methods=["GET", "POST"]),
+        Route("/edit/{cid}/preview", needs_setup(lesson_preview), methods=["POST"]),
         Route("/people", needs_setup(people)),
         Route("/people/card", needs_setup(my_card)),
         Route("/people/add", needs_setup(add_person), methods=["POST"]),
@@ -1452,6 +1544,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
         Route("/theme", set_theme, methods=["POST"]),
+        Route("/tour/done", needs_setup(tour_done), methods=["POST"]),
+        Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),
         Route("/updates/setting", needs_setup(update_setting), methods=["POST"]),
         Route("/updates/check", needs_setup(update_check), methods=["POST"]),

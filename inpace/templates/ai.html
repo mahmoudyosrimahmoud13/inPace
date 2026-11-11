@@ -11,9 +11,48 @@
 {% if step == 1 %}
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="prompt">
-  <label>{% trans trimmed %}What do you want to learn?{% endtrans %}
-    <input name="topic" required placeholder="{{ _('For example: Excel for small business owners') }}" value="{{ form.topic or '' }}">
-  </label>
+  {% set src = form.source or 'topic' %}
+  <fieldset class="source-pick">
+    <legend>{% trans trimmed %}Start from{% endtrans %}</legend>
+    <label class="choice"><input type="radio" name="source" value="topic" {{ 'checked' if src == 'topic' }}><span><b>{% trans trimmed %}A topic{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Anything you want to learn{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="book" {{ 'checked' if src == 'book' }}><span><b>{% trans trimmed %}A book{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}A course that follows a book, chapter by chapter{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="playlist" {{ 'checked' if src == 'playlist' }}><span><b>{% trans trimmed %}A YouTube playlist{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Each video becomes a lesson, with notes, tasks and quizzes{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="course" {{ 'checked' if src == 'course' }}><span><b>{% trans trimmed %}A course I'm taking{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Udemy, Coursera, university: study notes, practice and quizzes alongside it{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="project" {{ 'checked' if src == 'project' }}><span><b>{% trans trimmed %}A project to build{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Learn by building something real, one piece per module{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="material" {{ 'checked' if src == 'material' }}><span><b>{% trans trimmed %}My notes or a syllabus{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Paste a table of contents, notes or a course outline{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="source" value="exam" {{ 'checked' if src == 'exam' }}><span><b>{% trans trimmed %}An exam or certificate{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Prepare for a test, with exam-style questions{% endtrans %}</span></span></label>
+  </fieldset>
+  <div class="stack" data-for-source="topic">
+    <label>{% trans trimmed %}What do you want to learn?{% endtrans %}
+      <input name="topic" placeholder="{{ _('For example: Excel for small business owners') }}" value="{{ form.topic or '' }}" data-required>
+    </label>
+  </div>
+  <div class="stack" data-for-source="book">
+    <label>{% trans trimmed %}Book title{% endtrans %}<input name="book_title" dir="auto" value="{{ form.book_title or '' }}" placeholder="{{ _('For example: Atomic Habits') }}" data-required></label>
+    <label>{% trans trimmed %}Author (optional){% endtrans %}<input name="book_author" dir="auto" value="{{ form.book_author or '' }}" placeholder="{{ _('For example: James Clear') }}"></label>
+    <label>{% trans trimmed %}Only some chapters? (optional){% endtrans %}<input name="chapters" dir="auto" value="{{ form.chapters or '' }}" placeholder="{{ _('For example: chapters 1 to 6') }}"></label>
+    <p class="small muted" style="margin:0">{% trans trimmed %}The AI explains the book's ideas in its own words and tells you which chapter to read for each lesson. Have the book with you.{% endtrans %}</p>
+  </div>
+  <div class="stack" data-for-source="playlist">
+    <label>{% trans trimmed %}Playlist name{% endtrans %}<input name="playlist" dir="auto" value="{{ form.playlist or '' }}" placeholder="{{ _('For example: Docker Tutorial for Beginners') }}" data-required></label>
+    <label>{% trans trimmed %}The videos, one link per line (recommended){% endtrans %}<textarea name="videos" rows="6" dir="ltr" placeholder="https://www.youtube.com/watch?v=...&#10;Title | https://youtu.be/...">{{ form.videos or '' }}</textarea></label>
+    <label class="check"><input type="checkbox" name="fetch_titles" value="1" {{ 'checked' if form.fetch_titles }}> <span>{% trans trimmed %}Get the video titles from YouTube (this goes online){% endtrans %}</span></label>
+    <p class="small muted" style="margin:0">{% trans trimmed %}With the links, every video becomes a lesson that plays right in inPace. Without them, the AI writes lessons by topic, because AI chats often make up links.{% endtrans %}</p>
+  </div>
+  <div class="stack" data-for-source="course">
+    <label>{% trans trimmed %}Course name{% endtrans %}<input name="course_name" dir="auto" value="{{ form.course_name or '' }}" placeholder="{{ _('For example: Docker & Kubernetes: The Practical Guide') }}" data-required></label>
+    <label>{% trans trimmed %}Where? (optional){% endtrans %}<input name="platform" dir="auto" value="{{ form.platform or '' }}" placeholder="{{ _('For example: Udemy') }}"></label>
+    <label>{% trans trimmed %}Its sections (optional, but it helps a lot){% endtrans %}<textarea name="course_outline" rows="5" dir="auto" placeholder="{{ _('Paste the list of sections from the course page') }}">{{ form.course_outline or '' }}</textarea></label>
+  </div>
+  <div class="stack" data-for-source="project">
+    <label>{% trans trimmed %}What do you want to build?{% endtrans %}<input name="project" dir="auto" value="{{ form.project or '' }}" placeholder="{{ _('For example: a to-do app with Python and a database') }}" data-required></label>
+  </div>
+  <div class="stack" data-for-source="material">
+    <label>{% trans trimmed %}Paste your material{% endtrans %}<textarea name="material" rows="8" dir="auto" data-required placeholder="{{ _('For example: a table of contents, your class notes, or a course outline') }}">{{ form.material or '' }}</textarea></label>
+  </div>
+  <div class="stack" data-for-source="exam">
+    <label>{% trans trimmed %}Which exam or certificate?{% endtrans %}<input name="exam" dir="auto" value="{{ form.exam or '' }}" placeholder="{{ _('For example: AWS Certified Cloud Practitioner') }}" data-required></label>
+  </div>
   <label>{% trans trimmed %}Your level{% endtrans %}
     <select name="level">
       <option value="beginner">{% trans trimmed %}Complete beginner{% endtrans %}</option>

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ T('Edit {name}', name=c.title) }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/edit/{{ c.id }}">{{ c.title }}</a> {% trans trimmed %}· Edit as one file{% endtrans %}</p>
+  <h1>{% trans trimmed %}The whole course, as one file{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}For people who like typing: every module, lesson, task and question is here. Keep the ids (id: …) so progress stays connected. Everything is checked before it's saved, and Undo brings back the version before.{% endtrans %}</p>
+</div>
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
+<form method="post" class="card stack">
+  <textarea name="yaml" rows="30" class="mono yaml-edit" dir="ltr" spellcheck="false">{{ text }}</textarea>
+  <div class="row between">
+    <span class="small muted" dir="ltr">media: https://youtu.be/… · ![Caption](video.mp4) · right: […] wrong: […]</span>
+    <span class="row"><a class="btn" href="/edit/{{ c.id }}">{% trans trimmed %}Cancel{% endtrans %}</a><button class="btn primary">{% trans trimmed %}Check and save{% endtrans %}</button></span>
+  </div>
+</form>
+{% endblock %}

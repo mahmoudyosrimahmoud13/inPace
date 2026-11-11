@@ -5,6 +5,7 @@ import copy
 import re
 
 from .course import Course, CourseError, course_to_files, load_course
+import yaml
 from .vault import Vault
 
 
@@ -28,22 +29,147 @@ def all_ids(c: Course) -> set[str]:
     return ids
 
 
+HISTORY_KEEP = 30
+
+
+def _history(v: Vault, course_id: str):
+    return v.home / "course_history" / course_id
+
+
 def save(v: Vault, c: Course) -> Course:
-    """Round-trip through the normal loader so every rule is checked."""
+    """Round-trip through the normal loader so every rule is checked. The version before is kept for Undo."""
     fresh = load_course(course_to_files(c))
+    fresh.extra.update({k: val for k, val in c.extra.items() if k not in fresh.extra})
+    old_folder = v.home / "courses" / c.id
+    if old_folder.exists():
+        import shutil
+        import time
+        hist = _history(v, c.id)
+        hist.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(old_folder, hist / f"{time.time_ns()}")
+        for extra in sorted(hist.iterdir())[:-HISTORY_KEEP]:
+            shutil.rmtree(extra, ignore_errors=True)
     return v.install_course(fresh)
 
 
-def new_course(v: Vault, title: str, description: str, module_title: str, lesson_title: str, content: str) -> Course:
+def can_undo(v: Vault, course_id: str) -> bool:
+    h = _history(v, course_id)
+    return h.exists() and any(h.iterdir())
+
+
+def undo(v: Vault, course_id: str) -> Course:
+    """Go back to the course as it was before the last change."""
+    import shutil
+    from .course import files_from_folder
+    h = _history(v, course_id)
+    snaps = sorted(h.iterdir()) if h.exists() else []
+    if not snaps:
+        raise CourseError(["There's nothing to undo."])
+    last = snaps[-1]
+    c = load_course(files_from_folder(last))
+    c.id = course_id
+    shutil.rmtree(last)
+    return v.install_course(c)
+
+
+def new_course(v: Vault, title: str, description: str, module_title: str = "", lesson_title: str = "",
+               content: str = "", links: str = "", language: str = "en", fetch_titles: bool = False) -> Course:
+    """A new course from just a title. Optionally a first lesson, or a list of links that become lessons."""
+    title = title.strip()
+    if not title:
+        raise CourseError(["The course needs a title."])
     cid = _slug(title)
     while v.get_course(cid):
         cid = _unique(cid + "-", set(p.name for p in (v.home / "courses").iterdir()))
-    c = Course(id=cid, title=title.strip(), version="1", description=description.strip(), language="en",
-               modules=[{"id": "m1", "title": module_title.strip() or "Module 1",
-                         "lessons": [{"id": "m1-l1", "title": lesson_title.strip(), "content": content, "minutes": 0}],
-                         "requires": []}],
-               questions={}, answers={})
+    if links.strip():
+        modules = modules_from_links(links, fetch_titles, first_title=module_title.strip() or "Module 1")
+    else:
+        lesson = {"id": "m1-l1", "title": lesson_title.strip() or "Welcome",
+                  "content": content.strip() or f"# {lesson_title.strip() or 'Welcome'}\n\nWrite this lesson in the editor.",
+                  "minutes": 0}
+        modules = [{"id": "m1", "title": module_title.strip() or "Module 1", "lessons": [lesson], "requires": []}]
+    c = Course(id=cid, title=title, version="1", description=description.strip(),
+               language="ar" if language == "ar" else "en", modules=modules, questions={}, answers={})
     return save(v, c)
+
+
+# ---------- many lessons at once, from a list of links or file paths -------
+
+def youtube_title(url: str) -> str:
+    """The video's title from YouTube (only when you ask for it: this goes online)."""
+    import json
+    import urllib.parse
+    import urllib.request
+    try:
+        q = "https://www.youtube.com/oembed?format=json&url=" + urllib.parse.quote(url, safe="")
+        with urllib.request.urlopen(urllib.request.Request(q, headers={"User-Agent": "inPace"}), timeout=8) as r:
+            return str(json.loads(r.read().decode("utf-8")).get("title") or "")[:150]
+    except Exception:
+        return ""
+
+
+def parse_link_lines(text: str, fetch_titles: bool = False) -> list:
+    """One lesson per line:  link   or   Title | link   or   a file path.
+    A line starting with '#' starts a new module:  # Module title
+    Returns [(module title or None, [lesson, ...]), ...]."""
+    from .course import is_url, local_ref, media_kind
+    groups: list = [[None, []]]
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            groups.append([line.lstrip("#").strip() or "Module", []])
+            continue
+        title, _, ref = line.rpartition("|") if "|" in line else ("", "", line)
+        ref, title = ref.strip().strip('"').strip("<>"), title.strip()
+        if not (is_url(ref) or (local_ref(ref) and media_kind(ref))):
+            raise CourseError([f"This line isn't a link or a file inPace can show: {line[:80]}"])
+        if not title:
+            if fetch_titles and media_kind(ref) in ("youtube", "vimeo"):
+                title = youtube_title(ref) if media_kind(ref) == "youtube" else ""
+            if not title:
+                from .course import _nice_title
+                title = _nice_title(ref.rstrip("/").rsplit("/", 1)[-1]) if not is_url(ref) else ""
+        groups[-1][1].append({"title": title, "media": ref.replace("\\", "/")})
+    return [g for g in groups if g[1]]
+
+
+def modules_from_links(text: str, fetch_titles: bool, first_title: str = "Module 1", start: int = 1) -> list:
+    out = []
+    for gi, (mtitle, lessons) in enumerate(parse_link_lines(text, fetch_titles)):
+        mid = f"m{start + gi}"
+        les = []
+        for li, l in enumerate(lessons, start=1):
+            les.append({"id": f"{mid}-l{li}", "title": l["title"] or f"Video {li}", "content": "", "minutes": 0,
+                        "media": l["media"]})
+        out.append({"id": mid, "title": mtitle or (first_title if gi == 0 else f"Module {start + gi}"),
+                    "lessons": les, "requires": []})
+    if not out:
+        raise CourseError(["Paste at least one link or file path."])
+    return out
+
+
+def _move(items: list, idx: int, step: int) -> None:
+    j = idx + step
+    if 0 <= idx < len(items) and 0 <= j < len(items):
+        items[idx], items[j] = items[j], items[idx]
+
+
+def _find_lesson(c: Course, lid: str):
+    for m in c.modules:
+        for i, les in enumerate(m["lessons"]):
+            if les["id"] == lid:
+                return m, i, les
+    return None, -1, None
+
+
+def _lesson_media(f: dict) -> str:
+    from .course import is_url, local_ref, media_kind
+    ref = (f.get("media") or "").strip().strip('"').strip("<>").replace("\\", "/")
+    if ref and not (is_url(ref) or (local_ref(ref) and media_kind(ref))):
+        raise CourseError(["That isn't a video, audio, web page, PDF or picture inPace can show."])
+    return ref
 
 
 def bump(c: Course) -> None:
@@ -74,8 +200,72 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
                                        "content": f.get("content", ""), "minutes": 0}], "requires": []})
     elif action == "add_lesson" and mod:
         lid = _unique(f"{mod['id']}-l", ids)
-        mod["lessons"].append({"id": lid, "title": f.get("title", "").strip(), "content": f.get("content", ""),
-                               "minutes": int(f.get("minutes") or 0)})
+        media = _lesson_media(f)
+        title = f.get("title", "").strip()
+        if not title and media:
+            from .course import _nice_title, is_url, media_kind
+            if media_kind(media) == "youtube" and f.get("fetch_titles"):
+                title = youtube_title(media)
+            title = title or (_nice_title(media.rstrip("/").rsplit("/", 1)[-1]) if not is_url(media) else "Video")
+        les = {"id": lid, "title": title or "New lesson", "content": f.get("content", ""),
+               "minutes": int(f.get("minutes") or 0)}
+        if media:
+            les["media"] = media
+        mod["lessons"].append(les)
+    elif action == "add_links" and mod:
+        for l in parse_link_lines(f.get("links", ""), bool(f.get("fetch_titles"))):
+            for item in l[1]:
+                lid = _unique(f"{mod['id']}-l", ids)
+                ids.add(lid)
+                mod["lessons"].append({"id": lid, "title": item["title"] or "Video", "content": "", "minutes": 0,
+                                       "media": item["media"]})
+    elif action == "move_module":
+        idx = next((i for i, m in enumerate(c.modules) if m["id"] == f.get("module")), -1)
+        _move(c.modules, idx, -1 if f.get("dir") == "up" else 1)
+    elif action == "move_lesson":
+        m, idx, les = _find_lesson(c, f.get("lesson", ""))
+        if not les:
+            raise CourseError(["That lesson wasn't found."])
+        target = f.get("to_module")
+        if target and target != m["id"]:
+            dest = next((x for x in c.modules if x["id"] == target), None)
+            if not dest:
+                raise CourseError(["That module wasn't found."])
+            if len(m["lessons"]) <= 1:
+                raise CourseError(["A module needs at least one lesson. Delete the module instead."])
+            m["lessons"].pop(idx)
+            dest["lessons"].append(les)
+        else:
+            _move(m["lessons"], idx, -1 if f.get("dir") == "up" else 1)
+    elif action == "move_task" and mod:
+        idx = next((i for i, r in enumerate(mod["requires"]) if r["id"] == f.get("task")), -1)
+        _move(mod["requires"], idx, -1 if f.get("dir") == "up" else 1)
+    elif action == "edit_task" and mod:
+        task = next((r for r in mod["requires"] if r["id"] == f.get("task")), None)
+        if not task:
+            raise CourseError(["That task wasn't found."])
+        task["prompt"] = f.get("prompt", "").strip() or task["prompt"]
+        if task["type"] == "explain":
+            task["min_words"] = int(f.get("min_words") or task.get("min_words") or 40)
+        if task["type"] == "quiz":
+            task["questions"] = [q for q in f.get("questions", []) if q in c.questions] or task["questions"]
+            task["pass"] = int(f.get("pass") or task.get("pass") or 70)
+    elif action == "edit_question":
+        qid = f.get("question")
+        if qid not in c.questions:
+            raise CourseError(["That question wasn't found."])
+        right = [x.strip() for x in f.get("right", "").splitlines() if x.strip()]
+        wrong = [x.strip() for x in f.get("wrong", "").splitlines() if x.strip()]
+        if not right or not wrong:
+            raise CourseError(["A question needs text, one right answer and at least one wrong answer."])
+        from .canon import sha256_hex
+        texts = right + wrong
+        keys = sorted(texts, key=lambda t: sha256_hex(f"{qid}{t}".encode()))
+        options = {f"o{i}": t for i, t in enumerate(keys, start=1)}
+        back = {t: k for k, t in options.items()}
+        c.questions[qid] = {"text": f.get("text", "").strip() or c.questions[qid]["text"], "options": options,
+                            "show": max(2, min(int(f.get("show") or 4), len(options)))}
+        c.answers[qid] = {"right": [back[t] for t in right], "why": f.get("why", "").strip()}
     elif action == "edit_lesson":
         for m in c.modules:
             for les in m["lessons"]:
@@ -83,6 +273,12 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
                     les["title"] = f.get("title", "").strip() or les["title"]
                     les["content"] = f.get("content", "")
                     les["minutes"] = int(f.get("minutes") or 0)
+                    if "media" in f:
+                        media = _lesson_media(f)
+                        if media:
+                            les["media"] = media
+                        else:
+                            les.pop("media", None)
     elif action == "add_media":
         ref = f.get("ref", "").strip()
         target = (f"<{ref}>" if " " in ref else ref)
@@ -136,4 +332,59 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
     else:
         raise CourseError(["That change isn't possible."])
     bump(c)
+    return save(v, c)
+
+
+# ---------- the whole course as one text file (for people who like that) ----
+
+def course_to_yaml(c: Course) -> str:
+    """Everything in one YAML: lessons with their text, tasks, and questions as right/wrong lists."""
+    modules = []
+    for m in c.modules:
+        lessons = []
+        for les in m["lessons"]:
+            e = {"id": les["id"], "title": les["title"]}
+            if les.get("media"):
+                e["media"] = les["media"]
+            if les.get("minutes"):
+                e["minutes"] = les["minutes"]
+            if les.get("content", "").strip():
+                e["content"] = les["content"].rstrip() + "\n"
+            lessons.append(e)
+        mod = {"id": m["id"], "title": m["title"], "lessons": lessons}
+        if m["requires"]:
+            mod["requires"] = m["requires"]
+        modules.append(mod)
+    head = {"id": c.id, "title": c.title, "version": c.version, "description": c.description,
+            "language": c.language, "modules": modules}
+    if c.questions:
+        qs = {}
+        ans = c.answers or {}
+        for qid, q in c.questions.items():
+            right_ids = ans.get(qid, {}).get("right", [])
+            qs[qid] = {"text": q["text"], "right": [q["options"][o] for o in right_ids if o in q["options"]],
+                       "wrong": [t for o, t in q["options"].items() if o not in right_ids], "show": q["show"]}
+            if ans.get(qid, {}).get("why"):
+                qs[qid]["why"] = ans[qid]["why"]
+        head["questions"] = qs
+
+    class _Dumper(yaml.SafeDumper):
+        pass
+
+    def _str(dumper, data):
+        style = "|" if "\n" in data else None
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+    _Dumper.add_representer(str, _str)
+    return yaml.dump(head, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110)
+
+
+def save_yaml(v: Vault, course_id: str, text: str) -> Course:
+    """Save the whole course from its YAML text. Checked like any course file; the id stays the same."""
+    c = load_course({"course.yaml": text})
+    c.id = course_id
+    old = v.get_course(course_id)
+    if old:
+        c.extra.update(old.extra)
+        if c.answers is None and old.answers:
+            c.answers = old.answers
     return save(v, c)

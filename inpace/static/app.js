@@ -363,3 +363,163 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     state(); draw(); volState(); wake();
   });
 })();
+
+// AI course maker: show only the fields for the chosen starting point.
+(() => {
+  const radios = document.querySelectorAll('input[name="source"]');
+  if (!radios.length) return;
+  const show = () => {
+    const v = (document.querySelector('input[name="source"]:checked') || {}).value || "topic";
+    document.querySelectorAll("[data-for-source]").forEach((box) => {
+      const on = box.dataset.forSource === v;
+      box.hidden = !on;
+      box.querySelectorAll("[data-required]").forEach((el) => (el.required = on));
+    });
+  };
+  radios.forEach((r) => r.addEventListener("change", show));
+  show();
+})();
+
+// "Make a course": show the fields for the chosen way to start.
+(() => {
+  const radios = document.querySelectorAll('input[name="start"]');
+  if (!radios.length) return;
+  const show = () => {
+    const v = (document.querySelector('input[name="start"]:checked') || {}).value || "blank";
+    document.querySelectorAll("[data-for-start]").forEach((box) => (box.hidden = box.dataset.forStart !== v));
+  };
+  radios.forEach((r) => r.addEventListener("change", show));
+  show();
+})();
+
+// Lesson editor: formatting buttons and a live preview.
+document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
+  const ta = form.querySelector("[data-md-target]");
+  const edit = (fn) => {
+    const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+    const [text, a, b] = fn(v.slice(s, e), v, s, e);
+    ta.setRangeText(text, s, e, "end");
+    ta.focus();
+    if (a !== undefined) ta.setSelectionRange(s + a, s + b);
+    ta.dispatchEvent(new Event("input"));
+  };
+  form.querySelectorAll("[data-md]").forEach((b) => b.addEventListener("click", () => {
+    const p = b.dataset.md;
+    edit((sel, v, s) => {
+      const atLineStart = s === 0 || v[s - 1] === "\n";
+      const lines = (sel || "").split("\n").map((l) => p + l).join("\n") || p;
+      return [(atLineStart ? "" : "\n") + lines];
+    });
+  }));
+  form.querySelectorAll("[data-md-wrap]").forEach((b) => b.addEventListener("click", () => {
+    const w = b.dataset.mdWrap;
+    edit((sel) => [w + (sel || "text") + w, w.length, w.length + (sel || "text").length]);
+  }));
+  form.querySelectorAll("[data-md-block]").forEach((b) => b.addEventListener("click", () => {
+    edit((sel) => ["\n```\n" + (sel || "code") + "\n```\n", 5, 5 + (sel || "code").length]);
+  }));
+  form.querySelectorAll("[data-md-link]").forEach((b) => b.addEventListener("click", () => {
+    const url = prompt("Link (https://…)", "https://");
+    if (url) edit((sel) => [`[${sel || url}](${url})`]);
+  }));
+  form.querySelectorAll("[data-md-video]").forEach((b) => b.addEventListener("click", () => {
+    const ref = prompt("YouTube link, or a file path (video, audio, PDF, page, code)", "https://");
+    if (ref) edit(() => [`\n![](${/\s/.test(ref) ? "<" + ref + ">" : ref})\n`]);
+  }));
+  // Write / Preview tabs
+  const preview = form.querySelector(".preview-box");
+  form.querySelectorAll("[data-tab]").forEach((tab) => tab.addEventListener("click", async () => {
+    form.querySelectorAll("[data-tab]").forEach((t) => t.classList.toggle("on", t === tab));
+    form.querySelectorAll("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== tab.dataset.tab));
+    if (tab.dataset.tab === "preview") {
+      const body = new FormData();
+      ["title", "content", "media"].forEach((k) => body.append(k, form.elements[k].value));
+      preview.innerHTML = "…";
+      const r = await fetch(form.dataset.preview, { method: "POST", body });
+      preview.innerHTML = await r.text();
+    }
+  }));
+});
+
+// "Move to…" and other selects that save on change.
+document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventListener("change", () => s.value && s.form.submit()));
+
+// Tempo's welcome tour: a spotlight on each part of inPace, with Tempo explaining it.
+(() => {
+  const data = document.getElementById("tour-data");
+  if (!data) return;
+  const T = JSON.parse(data.textContent);
+  const steps = T.steps;
+  let i = 0;
+  const shade = document.createElement("div");
+  shade.className = "tour-shade";
+  const spot = document.createElement("div");
+  spot.className = "tour-spot";
+  const card = document.createElement("div");
+  card.className = "tour-card-pop";
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.setAttribute("aria-live", "polite");
+  document.body.append(shade, spot, card);
+  const visible = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
+  const finish = () => {
+    fetch("/tour/done", { method: "POST" }).catch(() => {});
+    [shade, spot, card].forEach((x) => x.remove());
+    document.removeEventListener("keydown", keys);
+    if (location.search.includes("tour=1")) history.replaceState(null, "", location.pathname);
+  };
+  const place = () => {
+    const s = steps[i];
+    const el = s.target && document.querySelector(s.target);
+    card.classList.remove("center");
+    if (visible(el)) {
+      el.scrollIntoView({ block: "nearest" });
+      const r = el.getBoundingClientRect(), pad = 6;
+      Object.assign(spot.style, { display: "block", top: r.top - pad + "px", left: r.left - pad + "px",
+        width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
+      shade.classList.add("clear");
+      const cw = Math.min(380, innerWidth - 32), ch = card.offsetHeight;
+      let left = r.right + 18, top = Math.max(16, Math.min(r.top - 20, innerHeight - ch - 16));
+      if (left + cw > innerWidth - 16) left = r.left - cw - 18;              // no room on the right
+      if (left < 16) { left = Math.max(16, Math.min(r.left, innerWidth - cw - 16)); top = r.bottom + 14; } // below
+      if (top + ch > innerHeight - 16) top = Math.max(16, r.top - ch - 14);   // above
+      Object.assign(card.style, { left: left + "px", top: top + "px", width: cw + "px" });
+    } else {
+      spot.style.display = "none";
+      shade.classList.remove("clear");
+      card.classList.add("center");
+      Object.assign(card.style, { left: "", top: "", width: "" });
+    }
+  };
+  const draw = () => {
+    const s = steps[i], last = i === steps.length - 1;
+    const tempo = document.getElementById("tour-tempo-" + s.mood) || document.getElementById("tour-tempo-happy");
+    card.innerHTML = `
+      <div class="tour-tempo">${tempo ? tempo.innerHTML : ""}</div>
+      <div class="tour-body">
+        <p class="tour-count">${i + 1} / ${steps.length}</p>
+        <h3></h3><p class="tour-text"></p>
+        <div class="tour-actions">
+          ${i > 0 ? `<button type="button" class="btn" data-t="back">${T.back}</button>` : `<button type="button" class="btn ghost" data-t="skip">${T.skip}</button>`}
+          <button type="button" class="btn primary" data-t="next">${last ? T.done : T.next}</button>
+        </div>
+      </div>`;
+    card.querySelector("h3").textContent = s.title;
+    card.querySelector(".tour-text").textContent = s.text;
+    card.querySelector('[data-t="next"]').addEventListener("click", () => (last ? finish() : go(1)));
+    const b = card.querySelector('[data-t="back"]'); b && b.addEventListener("click", () => go(-1));
+    const k = card.querySelector('[data-t="skip"]'); k && k.addEventListener("click", finish);
+    place();
+    card.querySelector('[data-t="next"]').focus({ preventScroll: true });
+  };
+  const go = (d) => { i = Math.max(0, Math.min(steps.length - 1, i + d)); draw(); };
+  const keys = (e) => {
+    if (e.key === "Escape") finish();
+    else if (e.key === "ArrowRight" && document.dir !== "rtl" || e.key === "ArrowLeft" && document.dir === "rtl") go(1);
+    else if (e.key === "ArrowLeft" && document.dir !== "rtl" || e.key === "ArrowRight" && document.dir === "rtl") go(-1);
+  };
+  document.addEventListener("keydown", keys);
+  addEventListener("resize", place);
+  shade.addEventListener("click", () => {});
+  draw();
+})();

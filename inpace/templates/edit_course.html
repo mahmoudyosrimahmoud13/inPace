@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 {% block title %}{{ T('Edit {name}', name=c.title) }}{% endblock %}
+{% macro move(action, field, value, extra='', first=false, last=false) -%}
+  <span class="move">
+    <form method="post"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="{{ field }}" value="{{ value }}">{{ extra|safe }}<input type="hidden" name="dir" value="up"><button class="btn icon-btn" title="{{ _('Move up') }}" aria-label="{{ _('Move up') }}" {{ 'disabled' if first }}>{{ icon('up', 16) }}</button></form>
+    <form method="post"><input type="hidden" name="action" value="{{ action }}"><input type="hidden" name="{{ field }}" value="{{ value }}">{{ extra|safe }}<input type="hidden" name="dir" value="down"><button class="btn icon-btn" title="{{ _('Move down') }}" aria-label="{{ _('Move down') }}" {{ 'disabled' if last }}>{{ icon('down', 16) }}</button></form>
+  </span>
+{%- endmacro %}
 {% block main %}
 <div class="page-head">
   <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a> {% trans trimmed %}· Editing{% endtrans %}</p>
-  <h1 dir="auto">{{ c.title }}</h1>
+  <h1 dir="auto">{{ c.title }}.</h1>
   <p class="muted small" style="margin:0">{{ T('Version {n} · every change is checked, then saved as a new version.', n=c.version) }}</p>
+  <div class="row builder-tools">
+    {% if can_undo %}<form method="post"><input type="hidden" name="action" value="undo"><button class="btn">{{ icon('undo', 18) }}{% trans trimmed %}Undo last change{% endtrans %}</button></form>{% endif %}
+    <a class="btn" href="/edit/{{ c.id }}/yaml">{{ icon('code', 18) }}{% trans trimmed %}Edit as one file{% endtrans %}</a>
+    {% if journey %}<a class="btn" href="/learn/{{ journey }}">{{ icon('play', 18) }}{% trans trimmed %}Open as a learner{% endtrans %}</a>{% endif %}
+  </div>
 </div>
 {% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
 {% if started %}<p class="note warn">{% trans trimmed %}You've started this course. Your progress is kept, but your checker will see that the course changed.{% endtrans %}</p>{% endif %}
@@ -21,38 +32,87 @@
 </details>
 
 {% for m in c.modules %}
-<section class="card" id="{{ m.id }}">
+{% set mloop = loop %}
+<section class="card builder-module" id="{{ m.id }}">
   <div class="row between">
-    <h2 dir="auto" style="margin:0">{{ loop.index }}. {{ m.title }}</h2>
-    <details class="menu"><summary class="btn ghost">{% trans trimmed %}Module options{% endtrans %}</summary>
-      <div class="menu-box" style="padding:.75rem">
-        <form method="post" class="stack"><input type="hidden" name="action" value="rename_module"><input type="hidden" name="module" value="{{ m.id }}">
-          <label>{% trans trimmed %}New title{% endtrans %}<input name="title" value="{{ m.title }}" dir="auto"></label><button class="btn">{% trans trimmed %}Rename{% endtrans %}</button></form>
-        {% if c.modules|length > 1 %}<form method="post" style="margin-top:.5rem"><input type="hidden" name="action" value="delete_module"><input type="hidden" name="module" value="{{ m.id }}"><button class="btn danger wide">{% trans trimmed %}Delete module{% endtrans %}</button></form>{% endif %}
-      </div></details>
+    <span class="row"><span class="num">{{ '%02d'|format(loop.index) }}</span><h2 dir="auto" style="margin:0">{{ m.title }}</h2></span>
+    <span class="row">
+      {{ move('move_module', 'module', m.id, first=loop.first, last=loop.last) }}
+      <details class="menu"><summary class="btn ghost">{% trans trimmed %}Module options{% endtrans %}</summary>
+        <div class="menu-box" style="padding:.75rem">
+          <form method="post" class="stack"><input type="hidden" name="action" value="rename_module"><input type="hidden" name="module" value="{{ m.id }}">
+            <label>{% trans trimmed %}New title{% endtrans %}<input name="title" value="{{ m.title }}" dir="auto"></label><button class="btn">{% trans trimmed %}Rename{% endtrans %}</button></form>
+          {% if c.modules|length > 1 %}<form method="post" style="margin-top:.5rem"><input type="hidden" name="action" value="delete_module"><input type="hidden" name="module" value="{{ m.id }}"><button class="btn danger wide">{% trans trimmed %}Delete module{% endtrans %}</button></form>{% endif %}
+        </div></details>
+    </span>
   </div>
 
   <h3 style="margin-top:1rem">{% trans trimmed %}Lessons{% endtrans %}</h3>
-  <ul class="events">
+  <ul class="events builder-list">
     {% for l in m.lessons %}
-    <li class="ev row between"><span dir="auto">{{ l.title }}</span>
-      <span class="row"><a class="btn" href="/edit/{{ c.id }}/lesson/{{ l.id }}">{% trans trimmed %}Edit{% endtrans %}</a>
-      {% if m.lessons|length > 1 %}<form method="post"><input type="hidden" name="action" value="delete_lesson"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="lesson" value="{{ l.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form>{% endif %}</span></li>
+    {% set kind = media_kind(l.media) if l.media else '' %}
+    <li class="ev row between">
+      <span class="row grow">
+        {% if kind in ('youtube', 'vimeo', 'video', 'audio') %}<span class="kind-chip">{{ icon('play', 14) }}</span>
+        {% elif kind in ('code', 'folder') %}<span class="kind-chip">{{ icon('code', 14) }}</span>
+        {% elif kind %}<span class="kind-chip">{{ icon('link', 14) }}</span>{% endif %}
+        <a href="/edit/{{ c.id }}/lesson/{{ l.id }}" dir="auto"><b>{{ l.title }}</b></a>
+      </span>
+      <span class="row">
+        {{ move('move_lesson', 'lesson', l.id, first=loop.first, last=loop.last) }}
+        {% if c.modules|length > 1 and m.lessons|length > 1 %}
+        <form method="post" class="row move-to"><input type="hidden" name="action" value="move_lesson"><input type="hidden" name="lesson" value="{{ l.id }}">
+          <select name="to_module" aria-label="{{ _('Move to module') }}" data-autosubmit>
+            <option value="">{% trans trimmed %}Move to…{% endtrans %}</option>
+            {% for other in c.modules if other.id != m.id %}<option value="{{ other.id }}">{{ loop.index }}. {{ other.title }}</option>{% endfor %}
+          </select></form>
+        {% endif %}
+        <a class="btn" href="/edit/{{ c.id }}/lesson/{{ l.id }}">{% trans trimmed %}Edit{% endtrans %}</a>
+        {% if m.lessons|length > 1 %}<form method="post"><input type="hidden" name="action" value="delete_lesson"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="lesson" value="{{ l.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form>{% endif %}
+      </span></li>
     {% endfor %}
   </ul>
-  <details class="more"><summary>{% trans trimmed %}Add a lesson{% endtrans %}</summary>
-    <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_lesson"><input type="hidden" name="module" value="{{ m.id }}">
-      <label>{% trans trimmed %}Title{% endtrans %}<input name="title" required dir="auto"></label>
-      <label>{% trans trimmed %}Text{% endtrans %}<textarea name="content" rows="8" required dir="auto"></textarea></label>
-      <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" style="max-width:8rem"></label>
-      <button class="btn primary">{% trans trimmed %}Add lesson{% endtrans %}</button></form>
-  </details>
+  <div class="row builder-adds">
+    <details class="more"><summary>{% trans trimmed %}Add a lesson{% endtrans %}</summary>
+      <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_lesson"><input type="hidden" name="module" value="{{ m.id }}">
+        <label>{% trans trimmed %}Title{% endtrans %}<input name="title" dir="auto" placeholder="{{ _('Leave empty to use the video or file name') }}"></label>
+        <label>{% trans trimmed %}Video, link or file (optional){% endtrans %}<input name="media" dir="ltr" placeholder="https://youtu.be/…  ·  /home/you/Videos/intro.mp4"></label>
+        <label>{% trans trimmed %}Text (optional){% endtrans %}<textarea name="content" rows="6" dir="auto"></textarea></label>
+        <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" style="max-width:8rem"></label>
+        <button class="btn primary">{% trans trimmed %}Add lesson{% endtrans %}</button></form>
+    </details>
+    <details class="more"><summary>{% trans trimmed %}Add many videos at once{% endtrans %}</summary>
+      <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="add_links"><input type="hidden" name="module" value="{{ m.id }}">
+        <label>{% trans trimmed %}One video or link per line{% endtrans %}<textarea name="links" rows="6" dir="ltr" required placeholder="https://www.youtube.com/watch?v=...&#10;Title | https://youtu.be/...&#10;/home/you/Videos/lesson.mp4"></textarea></label>
+        <label class="check"><input type="checkbox" name="fetch_titles" value="1"> <span>{% trans trimmed %}Get the video titles from YouTube (this goes online){% endtrans %}</span></label>
+        <button class="btn primary">{% trans trimmed %}Add them{% endtrans %}</button></form>
+    </details>
+  </div>
 
   <h3 style="margin-top:1.25rem">{% trans trimmed %}Tasks{% endtrans %}</h3>
-  <ul class="events">
+  <ul class="events builder-list">
     {% for r in m.requires %}
-    <li class="ev row between"><span><span class="chip plain">{{ _(TASK_LABEL[r.type]) }}</span> <span dir="auto">{{ r.prompt }}</span></span>
-      <form method="post"><input type="hidden" name="action" value="delete_task"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="task" value="{{ r.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></li>
+    <li class="ev">
+      <div class="row between">
+        <span class="grow"><span class="chip plain">{{ _(TASK_LABEL[r.type]) }}</span> <span dir="auto">{{ r.prompt }}</span></span>
+        <span class="row">
+          {{ move('move_task', 'task', r.id, '<input type="hidden" name="module" value="' ~ m.id ~ '">', first=loop.first, last=loop.last) }}
+          <form method="post"><input type="hidden" name="action" value="delete_task"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="task" value="{{ r.id }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form>
+        </span>
+      </div>
+      <details class="more"><summary>{% trans trimmed %}Change{% endtrans %}</summary>
+        <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="edit_task"><input type="hidden" name="module" value="{{ m.id }}"><input type="hidden" name="task" value="{{ r.id }}">
+          <label>{% trans trimmed %}What should the learner do? (for quizzes, a short title){% endtrans %}<input name="prompt" value="{{ r.prompt }}" dir="auto"></label>
+          {% if r.type == 'explain' %}<label>{% trans trimmed %}At least how many words?{% endtrans %}<input type="number" name="min_words" min="5" max="2000" value="{{ r.min_words }}" style="max-width:8rem"></label>{% endif %}
+          {% if r.type == 'quiz' %}
+            <label>{% trans trimmed %}Pass mark (%){% endtrans %}<input type="number" name="pass" min="10" max="100" value="{{ r.pass }}" style="max-width:8rem"></label>
+            <fieldset class="stack"><legend>{% trans trimmed %}Questions{% endtrans %}</legend>
+              {% for qid, q in c.questions.items() %}<label class="check"><input type="checkbox" name="questions" value="{{ qid }}" {{ 'checked' if qid in r.questions }}> <span dir="auto">{{ q.text }}</span></label>{% endfor %}
+            </fieldset>
+          {% endif %}
+          <button class="btn primary">{% trans trimmed %}Save task{% endtrans %}</button></form>
+      </details>
+    </li>
     {% else %}<li class="ev muted small">{% trans trimmed %}No tasks yet. Without tasks, the module is done once every lesson is read.{% endtrans %}</li>{% endfor %}
   </ul>
   <details class="more"><summary>{% trans trimmed %}Add a task{% endtrans %}</summary>
@@ -86,8 +146,23 @@
   <ul class="events">
   {% for qid, q in c.questions.items() %}
     {% set right = (c.answers or {}).get(qid, {}).get('right', []) %}
-    <li class="ev row between"><span><b dir="auto">{{ q.text }}</b><br><span class="small muted">{{ T('{a} right · {b} wrong · shows {c}', a=right|length, b=q.options|length - right|length, c=q.show) }}</span></span>
-      <form method="post"><input type="hidden" name="action" value="delete_question"><input type="hidden" name="question" value="{{ qid }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></li>
+    <li class="ev">
+      <div class="row between"><span><b dir="auto">{{ q.text }}</b><br><span class="small muted">{{ T('{a} right · {b} wrong · shows {c}', a=right|length, b=q.options|length - right|length, c=q.show) }}</span></span>
+        <form method="post"><input type="hidden" name="action" value="delete_question"><input type="hidden" name="question" value="{{ qid }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></div>
+      <details class="more"><summary>{% trans trimmed %}Change{% endtrans %}</summary>
+        <form method="post" class="stack" style="margin-top:.6rem"><input type="hidden" name="action" value="edit_question"><input type="hidden" name="question" value="{{ qid }}">
+          <label>{% trans trimmed %}Question{% endtrans %}<input name="text" required dir="auto" value="{{ q.text }}"></label>
+          <div class="split">
+            <label>{% trans trimmed %}Right answers (one per line){% endtrans %}<textarea name="right" rows="3" required dir="auto">{% for o in right %}{{ q.options[o] }}
+{% endfor %}</textarea></label>
+            <label>{% trans trimmed %}Wrong answers (one per line){% endtrans %}<textarea name="wrong" rows="3" required dir="auto">{% for o, t in q.options.items() if o not in right %}{{ t }}
+{% endfor %}</textarea></label>
+          </div>
+          <label>{% trans trimmed %}Why is it right? (optional, shown after practice){% endtrans %}<input name="why" dir="auto" value="{{ (c.answers or {}).get(qid, {}).get('why', '') }}"></label>
+          <label>{% trans trimmed %}Choices to show{% endtrans %}<input type="number" name="show" min="2" max="8" value="{{ q.show }}" style="max-width:8rem"></label>
+          <button class="btn primary">{% trans trimmed %}Save question{% endtrans %}</button></form>
+      </details>
+    </li>
   {% else %}<li class="ev muted small">{% trans trimmed %}No questions yet.{% endtrans %}</li>{% endfor %}
   </ul>
   <details class="more" {{ 'open' if not c.questions }}><summary>{% trans trimmed %}Add a question{% endtrans %}</summary>

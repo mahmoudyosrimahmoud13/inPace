@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.9.0
+
+- **Meet Tempo's tour:** the first time you open inPace, Tempo shows you around in about a minute, pointing at each part of the app. Watch it again any time from Settings → Show the tour again.
+- **AI courses from more places:** besides a topic, the AI course maker can now start from a book (chapter by chapter, telling you what to read), a YouTube playlist (each video becomes a lesson), a course you're taking on Udemy or Coursera, a project to build, your own notes or a syllabus, or an exam.
+- **An easier course builder:**
+  - Start a new course with just a title, or paste a list of YouTube links or video files and get one lesson for each. A line starting with `#` starts a new module, and inPace can fetch the video titles from YouTube if you tick the box.
+  - Move modules, lessons and tasks up and down, and move a lesson to another module.
+  - Change tasks and quiz questions after you make them.
+  - Add many videos to a module at once.
+  - Write lessons with a toolbar (headings, bold, lists, code, links, videos) and a live Preview tab.
+  - **Undo** any change, one step at a time.
+  - **Edit as one file:** the whole course as text, checked before it's saved.
+- **New guide on the website:** a step-by-step guide to everything inPace does, in English and Arabic.
+
 ## v1.8.1
 
 - **Fixed:** the big play button now disappears while the video plays, and comes back when you pause.
