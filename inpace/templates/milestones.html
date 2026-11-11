@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Milestones{% endblock %}
+{% block main %}
+<h1>Milestones</h1>
+<p class="lead">A milestone saves your progress so far. Send it to your checker, and they send back their approval.</p>
+
+{% if not cards %}
+<section class="card empty"><p>Start a course first. <a href="/courses">Choose a course</a></p></section>
+{% endif %}
+
+{% for c in cards %}
+<section class="card">
+  <div class="journey-head">
+    <h2>{{ c.progress.course.title }}</h2>
+    {% if c.chain_problems %}<span class="chip bad">Problem with your record</span>
+    {% else %}<span class="chip good">Your record is safe</span>{% endif %}
+  </div>
+  {% for p in c.chain_problems %}<div class="note bad">{{ p }}</div>{% endfor %}
+
+  <ol class="howto">
+    <li class="{{ 'done' if c.milestones and not c.has_new }}">
+      <b>Save a milestone</b>
+      {% if c.has_new %}
+        <form method="post" action="/milestones/{{ c.journey.id }}/save"><button class="btn primary">Save milestone {{ c.milestones|length + 1 }}</button></form>
+      {% else %}<span class="muted small">{{ 'Up to date' if c.milestones else 'Do a lesson or task first' }}</span>{% endif %}
+    </li>
+    <li>
+      <b>Send your progress file</b>
+      {% if c.milestones %}
+        <a class="btn" href="/milestones/{{ c.journey.id }}/export">Download progress file</a>
+        <span class="muted small">Send it to {{ checkers|map(attribute='name')|join(' or ') or 'your checker' }} by WhatsApp, email or USB.</span>
+      {% else %}<span class="muted small">After your first milestone</span>{% endif %}
+    </li>
+    <li>
+      <b>Open their reply</b>
+      <a class="btn" href="/open">Open a file</a>
+    </li>
+  </ol>
+  {% if not checkers %}<p class="note warn">You haven't added a checker yet. <a href="/people">Add one</a> so someone can approve your milestones.</p>{% endif %}
+
+  {% if c.milestones %}
+  <ol class="timeline">
+    {% for m in c.milestones|reverse %}
+    {% set b = m.body %}
+    <li>
+      <div class="tl-dot {{ 'good' if m.approvals and m.approvals[-1].decision == 'approved' else ('bad' if m.approvals and m.approvals[-1].decision == 'flag' else 'warn') }}"></div>
+      <div class="tl-body">
+        <div class="row between">
+          <b>Milestone {{ b.seq }}</b>
+          <span class="muted small">{{ b.created_at|date }}</span>
+        </div>
+        <p class="small">{{ b.summary.percent }}% of the course · {{ b.summary.lessons_done }} lessons done</p>
+        {% for a in m.approvals %}
+          <p class="small">
+            {% if a.decision == 'approved' %}<span class="chip good">Approved by {{ a.checker_name }}</span>
+            {% elif a.decision == 'question' %}<span class="chip warn">{{ a.checker_name }} has a question</span>
+            {% else %}<span class="chip bad">Flagged by {{ a.checker_name }}</span>{% endif %}
+            {% if a.note %}“{{ a.note }}”{% endif %}
+          </p>
+        {% else %}
+          <p class="small muted">Waiting for your checker</p>
+        {% endfor %}
+        <details class="small muted"><summary>Show details</summary>Fingerprint: <code>{{ m.hash|short(16) }}</code> · connects to <code>{{ b.prev|short(16) or 'start' }}</code></details>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

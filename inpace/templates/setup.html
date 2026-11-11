@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block main %}
+<section class="card narrow center-page">
+  <img src="/static/icon.svg" alt="" width="64" height="64">
+  <h1>Welcome to inPace</h1>
+  <p class="lead">Learn at your own pace, and let someone you trust see that you kept it.</p>
+  <form method="post" class="stack">
+    {% if error %}<div class="note bad">{{ error }}</div>{% endif %}
+    <label>Your name
+      <input name="name" required maxlength="40" placeholder="For example: Omar" autofocus>
+    </label>
+    <fieldset class="colors">
+      <legend>Pick your color</legend>
+      {% for c in colors %}
+      <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span></span><span class="sr">{{ c }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <p class="muted small">Everything stays on this computer. inPace creates a private key for you that proves your work is yours. Keep the inPace folder in your backups.</p>
+    <button class="btn primary big">Get started</button>
+  </form>
+</section>
+{% endblock %}

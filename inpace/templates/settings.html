@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block main %}
+<h1>Settings</h1>
+<form method="post" class="card stack narrow">
+  <label>Your name<input name="name" value="{{ me.name }}" maxlength="40"></label>
+  <fieldset class="colors">
+    <legend>Your color</legend>
+    {% for c in colors %}
+    <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if c == me.color }}><span></span><span class="sr">{{ c }}</span></label>
+    {% endfor %}
+  </fieldset>
+  <button class="btn primary">Save</button>
+</form>
+<section class="card narrow">
+  <h2>Where your data lives</h2>
+  <p>Everything is in this folder on your computer:</p>
+  <p><code>{{ home }}</code></p>
+  <p class="muted small">Back up this whole folder to keep your progress safe. The file <b>identity.key</b> is your private key: never send it to anyone.</p>
+  <details class="small muted"><summary>Show details</summary>Your public id: <code>{{ me.id }}</code></details>
+</section>
+{% endblock %}

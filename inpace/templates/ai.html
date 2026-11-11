@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Make a course with AI{% endblock %}
+{% block main %}
+<h1>Make a course with AI</h1>
+<ol class="steps">
+  <li class="{{ 'on' if step == 1 }}">Describe it</li>
+  <li class="{{ 'on' if step == 2 }}">Copy to an AI chat</li>
+  <li class="{{ 'on' if step == 3 }}">Paste the answer</li>
+</ol>
+
+{% if step == 1 %}
+<form method="post" class="card stack narrow">
+  <input type="hidden" name="action" value="prompt">
+  <label>What do you want to learn?
+    <input name="topic" required placeholder="For example: Excel for small business owners" value="{{ form.topic or '' }}">
+  </label>
+  <label>Your level
+    <select name="level">
+      <option value="beginner">Complete beginner</option>
+      <option value="some">I know some basics</option>
+      <option value="advanced">Advanced</option>
+    </select>
+  </label>
+  <div class="row">
+    <label class="grow">How many weeks?<input type="number" name="weeks" min="1" max="52" value="4"></label>
+    <label class="grow">Hours per week<input type="number" name="hours" min="1" max="40" value="3"></label>
+  </div>
+  <label>Course language
+    <select name="language"><option>English</option><option>Arabic</option></select>
+  </label>
+  <label>Anything else? (optional)
+    <input name="notes" placeholder="For example: use cooking examples">
+  </label>
+  <button class="btn primary big">Make my AI prompt</button>
+</form>
+{% endif %}
+
+{% if step == 2 %}
+<section class="card stack">
+  <p class="lead">Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.</p>
+  <textarea id="prompt" class="mono" rows="14" readonly>{{ prompt }}</textarea>
+  <div class="row"><button class="btn primary big" data-copy="#prompt">Copy prompt</button></div>
+</section>
+<form method="post" class="card stack">
+  <input type="hidden" name="action" value="check">
+  <label>Paste the AI's answer here
+    <textarea name="reply" rows="10" required placeholder="Paste everything the AI wrote"></textarea>
+  </label>
+  <button class="btn primary big">Check the course</button>
+</form>
+{% endif %}
+
+{% if step == 3 %}
+  {% if problems %}
+  <section class="card">
+    <h2>A few things need fixing</h2>
+    <ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
+    <p class="muted">Tip: copy these lines back to the AI and ask it to fix them, then paste the new answer below.</p>
+  </section>
+  {% endif %}
+  {% if preview %}
+  <section class="card">
+    <p class="eyebrow">Preview</p>
+    <h2>{{ preview.title }}</h2>
+    <p class="muted">{{ preview.description }}</p>
+    <ol class="preview">
+      {% for m in preview.modules %}
+      <li><b>{{ m.title }}</b>
+        <span class="muted small">{{ m.lessons|length }} lessons · {{ m.requires|length }} tasks</span>
+        <ul>{% for l in m.lessons %}<li>{{ l.title }}</li>{% endfor %}</ul>
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="small muted">{{ preview.questions|length }} questions. Answers are kept in a separate file.</p>
+    <form method="post">
+      <input type="hidden" name="action" value="save">
+      <textarea name="reply" hidden>{{ reply }}</textarea>
+      <button class="btn primary big">Save course</button>
+    </form>
+  </section>
+  {% endif %}
+  <form method="post" class="card stack">
+    <input type="hidden" name="action" value="check">
+    <label>{{ 'Paste a fixed answer' if problems else 'Change something? Paste a new answer' }}
+      <textarea name="reply" rows="8">{{ reply if problems }}</textarea>
+    </label>
+    <div class="row"><button class="btn">Check again</button> <a class="btn ghost" href="/ai">Start over</a></div>
+  </form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Review {{ display_name(person) }}{% endblock %}
+{% macro event_line(e) -%}
+  {%- set d = e.data -%}
+  {%- if e.type == 'lesson_done' -%}<li class="ev done">Finished lesson: <b>{{ d.title or names.get(d.lesson, d.lesson) }}</b></li>
+  {%- elif e.type == 'evidence_added' -%}<li class="ev work">Added work: <b>{{ d.name }}</b><br><span class="muted small">Task: {{ d.task or names.get(d.req, d.req) }}</span>
+      <details class="small muted"><summary>Show details</summary>File fingerprint <code>{{ d.sha256|short(16) }}</code>. Ask {{ display_name(person) }} for the file if you want to see it.</details></li>
+  {%- elif e.type == 'writeup_saved' -%}<li class="ev write">Explained in their own words <span class="muted small">({{ d.words }} words)</span><br><span class="muted small">Question: {{ d.task or names.get(d.req, d.req) }}</span><blockquote>{{ d.text }}</blockquote></li>
+  {%- elif e.type == 'quiz_taken' -%}<li class="ev quiz">Practice quiz{% if d.task %} ({{ d.task }}){% endif %}: <b>{{ d.score }} of {{ d.total }} ({{ d.percent }}%)</b> {{ '· passed' if d.passed else '· not passed' }}</li>
+  {%- endif -%}
+{%- endmacro %}
+{% block main %}
+<section class="card person-head-card">
+  <div class="person-head">
+    {{ avatar(person, 52) }}
+    <div class="grow">
+      <p class="eyebrow">Reviewing</p>
+      <h1>{{ display_name(person) }} · {{ report.journey.course.title }}</h1>
+      <p class="muted small">File received {{ rec.received_at|date }}{% if report.last_reviewed %} · you last reviewed on {{ report.last_reviewed|date }}{% endif %}</p>
+    </div>
+  </div>
+</section>
+
+{% if reply_file %}
+<section class="card result good">
+  <h2>Your reply is ready</h2>
+  <p>Download it and send it back to {{ display_name(person) }} the same way they sent theirs.</p>
+  <a class="btn primary big" href="/outbox/{{ reply_file|urlencode }}">Download reply file</a>
+</section>
+{% endif %}
+
+{% if report.history_ok %}
+<section class="card verdict good">
+  <h2>Nothing was changed since you last checked</h2>
+  <p class="muted">Every milestone is signed by {{ display_name(person) }} and connects to the one before it.{% if receipts %} The ones you already reviewed are exactly as you saw them.{% endif %}</p>
+</section>
+{% else %}
+<section class="card verdict bad">
+  <h2>Something's wrong with this history</h2>
+  <ul class="problems">{% for p in report.problems %}<li>{{ p }}</li>{% endfor %}</ul>
+  <p>Don't approve this. Ask {{ display_name(person) }} what happened, and for a fresh progress file.</p>
+</section>
+{% endif %}
+
+{% for c in report.course_changes %}<div class="note warn">{{ c }}</div>{% endfor %}
+
+<h2>{{ report.new|length }} new milestone{{ '' if report.new|length == 1 else 's' }} to review</h2>
+{% if not report.new %}<p class="muted">You've already approved everything in this file.</p>{% endif %}
+{% for m in report.new %}
+{% set b = m.body %}
+<section class="card milestone">
+  <div class="row between">
+    <h3>Milestone {{ b.seq }}</h3>
+    <span class="muted small">{{ b.created_at|date }}</span>
+  </div>
+  <div class="stats">
+    <div><b>{{ b.summary.percent }}%</b><span>of the course</span></div>
+    <div><b>{{ b.summary.lessons_done }} / {{ b.summary.lessons_total }}</b><span>lessons</span></div>
+    <div><b>{{ b.summary.modules_done }} / {{ b.summary.modules_total }}</b><span>modules</span></div>
+    <div><b>{{ b.summary.minutes }} min</b><span>time (their own count)</span></div>
+  </div>
+  <ul class="events">
+    {% for e in b.events %}{{ event_line(e) }}{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+
+{% if not reply_file %}
+<form method="post" class="card stack decide">
+  <h2>Your decision</h2>
+  <label>Note for {{ display_name(person) }} (optional)<textarea name="note" rows="3" placeholder="For example: Great progress! Can you show me your notes next time?"></textarea></label>
+  <div class="row">
+    <button class="btn primary big" name="decision" value="approved" {{ 'disabled' if not report.history_ok }}>Approve</button>
+    <button class="btn big" name="decision" value="question">Ask a question</button>
+    <button class="btn big danger" name="decision" value="flag">Flag a problem</button>
+  </div>
+  <p class="muted small">You're checking that the steps were followed and the work exists. You don't need to know the subject.</p>
+</form>
+{% endif %}
+
+{% if report.old %}
+<details class="card">
+  <summary>Already approved ({{ report.old|length }})</summary>
+  <ul>{% for m in report.old %}<li>Milestone {{ m.body.seq }} · {{ m.body.summary.percent }}% · {{ m.body.created_at|date }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endblock %}

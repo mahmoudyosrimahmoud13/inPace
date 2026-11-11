@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Quiz{% endblock %}
+{% block main %}
+<p class="eyebrow"><a href="/learn/{{ j.id }}">{{ course.title }}</a> › {{ module.title }}</p>
+<div class="quiz-head">
+  <h1>Quiz</h1>
+  <span class="chip">Practice · you'll see the answers at the end</span>
+</div>
+<p class="muted">{{ exam|length }} questions. You need {{ req.pass }}% to pass. Each time you take it, the choices change.</p>
+<form method="post" class="stack">
+  <input type="hidden" name="seed" value="{{ seed }}">
+  {% for q in exam %}
+  <fieldset class="card question">
+    <legend><span class="muted small">Question {{ loop.index }} of {{ exam|length }}</span><b>{{ q.text }}</b></legend>
+    <div class="choices">
+      {% for c in q.choices %}
+      <label class="choice"><input type="radio" name="{{ q.id }}" value="{{ c.id }}" required><span>{{ c.text }}</span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+  <button class="btn primary big">Finish quiz</button>
+</form>
+{% endblock %}

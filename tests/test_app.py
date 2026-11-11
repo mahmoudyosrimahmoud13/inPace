@@ -1,0 +1,124 @@
+"""Two people, two vaults, the whole loop through the real web pages."""
+import re
+
+from starlette.testclient import TestClient
+
+from inpace.app import create_app
+from inpace.vault import Vault
+
+
+def client(tmp_path, name):
+    v = Vault(tmp_path / name)
+    c = TestClient(create_app(v))
+    r = c.post("/setup", data={"name": name, "color": "#1F7A56"})
+    assert r.status_code == 200 and f"Hi {name}" in r.text
+    return v, c
+
+
+def upload(c, filename, data):
+    return c.post("/open", files={"file": (filename, data)})
+
+
+def test_everything(tmp_path):
+    lv, learner = client(tmp_path, "Omar")
+    cv, checker = client(tmp_path, "Sara")
+
+    # Every page loads.
+    for path in ["/", "/courses", "/milestones", "/people", "/open", "/ai", "/settings"]:
+        assert learner.get(path).status_code == 200, path
+
+    # Swap contact cards.
+    omar_card = learner.get("/people/card").content
+    sara_card = checker.get("/people/card").content
+    r = upload(learner, "sara.inpace", sara_card)
+    assert "How are you connected?" in r.text
+    card_json = re.search(r'<textarea name="card" hidden>(.*?)</textarea>', r.text, re.S).group(1)
+    import html
+    learner.post("/people/add", data={"card": html.unescape(card_json), "relationship": "checks_me"})
+    assert lv.my_checkers()[0]["name"] == "Sara"
+
+    # Learner adds the sample course and starts it.
+    learner.post("/courses/sample/python-basics")
+    r = learner.post("/courses/python-basics/start")
+    jid = lv.journeys()[0]["id"]
+    assert "Your first Python" in r.text
+
+    # Lessons, locked module, tasks.
+    assert learner.get(f"/learn/{jid}/lesson/m2-l1").url.path == f"/learn/{jid}"  # locked
+    r = learner.get(f"/learn/{jid}/lesson/m1-l1")
+    assert "What is Python?" in r.text and "<script" not in r.text.split('class="prose"')[1].split("</article>")[0]
+    learner.post(f"/learn/{jid}/lesson/m1-l1/done", data={"next": "m1-l2"})
+    learner.post(f"/learn/{jid}/lesson/m1-l2/done", data={})
+    learner.post(f"/learn/{jid}/task/m1-practical/evidence", files={"file": ("hello.py", b"print('Omar', 7*6)")})
+    learner.post(f"/learn/{jid}/task/m1-explain/writeup", data={"text": "print shows things on the screen " * 8})
+
+    # Quiz: read the page, answer everything correctly using the course answers.
+    r = learner.get(f"/learn/{jid}/task/m1-quiz/quiz")
+    seed = re.search(r'name="seed" value="([0-9a-f]+)"', r.text).group(1)
+    course = lv.get_course("python-basics")
+    from inpace.exam import build_exam
+    exam = build_exam(course, ["q1", "q2", "q3"], seed)
+    answers = {q["id"]: next(c["id"] for c in q["choices"] if c["id"] in course.answers[q["id"]]["right"]) for q in exam}
+    r = learner.post(f"/learn/{jid}/task/m1-quiz/quiz", data={"seed": seed, **answers})
+    assert "You passed" in r.text
+    assert lv.progress(jid)["modules"][0]["status"] == "done"
+
+    # Milestone + progress file.
+    r = learner.post(f"/milestones/{jid}/save")
+    assert "Milestone 1 saved" in r.text
+    progress = learner.get(f"/milestones/{jid}/export")
+    assert progress.headers["content-disposition"].startswith("attachment")
+
+    # Checker opens the progress file from someone unknown -> adds them -> reviews.
+    r = upload(checker, "omar.inpace", progress.content)
+    assert "You don't check Omar" in r.text
+    pj = re.search(r'<textarea name="progress" hidden>(.*?)</textarea>', r.text, re.S).group(1)
+    r = checker.post("/people/add-learner", data={"progress": html.unescape(pj), "nickname": "Omar (cousin)"})
+    assert "Nothing was changed since you last checked" in r.text
+    assert "Finished lesson" in r.text and "hello.py" in r.text and "Omar (cousin)" in r.text
+    assert "What is Python?" in r.text  # names show even though the checker doesn't have the course
+
+    # Approve -> reply file.
+    learner_id = lv.identity.id
+    r = checker.post(f"/review/{learner_id}/{jid}", data={"decision": "approved", "note": "Great start!"})
+    reply_name = re.search(r'href="/outbox/([^"]+)"', r.text).group(1)
+    reply = checker.get(f"/outbox/{reply_name}").content
+
+    # Learner opens the reply.
+    r = upload(learner, "reply.inpace", reply)
+    assert "Sara approved 1 milestone" in r.text and "Great start!" in r.text
+    assert "Approved by Sara" in learner.get("/").text
+
+    # AI course maker: prompt + paste + save.
+    r = learner.post("/ai", data={"action": "prompt", "topic": "Budgeting", "level": "beginner", "weeks": "2",
+                                  "hours": "2", "language": "English"})
+    assert "Budgeting" in r.text and "Copy prompt" in r.text
+    reply_text = """```yaml
+title: Budgeting
+modules:
+  - title: Basics
+    lessons:
+      - title: Why budget
+        content: "## Why budget\\nKnow where money goes."
+    requires:
+      - type: quiz
+        questions: [q1]
+questions:
+  q1:
+    text: What is a budget?
+    right: [A plan for your money, A spending plan]
+    wrong: [A bank, A loan, A tax, A bill]
+```"""
+    r = learner.post("/ai", data={"action": "check", "reply": reply_text})
+    assert "Preview" in r.text and "Why budget" in r.text
+    r = learner.post("/ai", data={"action": "save", "reply": reply_text})
+    assert "Saved “Budgeting”" in r.text
+
+    # Bad AI answer gives plain-language problems.
+    r = learner.post("/ai", data={"action": "check", "reply": "title: X\nmodules: []"})
+    assert "at least one module" in r.text
+
+    # Course export without answers, re-import elsewhere.
+    pack = learner.get("/courses/python-basics/export").content
+    r = upload(checker, "course.lpack", pack)
+    assert "practice quizzes are off" in r.text

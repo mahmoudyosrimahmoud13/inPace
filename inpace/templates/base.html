@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}inPace{% endblock %} · inPace</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <img src="/static/icon.svg" alt="" width="30" height="30">
+    <span><span class="in">in</span><b>Pace</b></span>
+  </a>
+  <span class="pill" title="Nothing leaves this computer unless you send a file yourself"><i class="dot"></i>Offline · on this computer</span>
+  {% if me %}
+  <a class="me" href="/settings">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
+  {% endif %}
+</header>
+<div class="shell">
+  {% if me %}
+  <nav class="side" aria-label="Main">
+    <p class="side-h">My learning</p>
+    <a href="/" class="{{ 'on' if active_path == '/' }}">Home</a>
+    <a href="/courses" class="{{ 'on' if active_path.startswith('/courses') or active_path.startswith('/learn') }}">My courses</a>
+    <a href="/milestones" class="{{ 'on' if active_path.startswith('/milestones') }}">Milestones</a>
+    <a href="/ai" class="{{ 'on' if active_path.startswith('/ai') }}">Make a course with AI</a>
+    <p class="side-h">People I check on</p>
+    {% for p in checking %}
+      <a href="/people#p-{{ p.id[:12] }}" class="person-link">{{ avatar(p, 24) }}<span>{{ display_name(p) }}</span>{% if p.waiting %}<em class="badge">{{ p.waiting }} waiting</em>{% endif %}</a>
+    {% else %}
+      <p class="side-empty">Nobody yet</p>
+    {% endfor %}
+    <a href="/people" class="{{ 'on' if active_path.startswith('/people') or active_path.startswith('/review') }}">All people</a>
+    <div class="side-bottom">
+      <a class="btn wide" href="/open">Open a file</a>
+    </div>
+  </nav>
+  {% endif %}
+  <main>
+    {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
+    {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
+    {% block main %}{% endblock %}
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

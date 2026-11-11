@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}People{% endblock %}
+{% block main %}
+<h1>People</h1>
+<section class="card connect">
+  <div>
+    <h2>Connect with someone</h2>
+    <p>Swap contact cards: send yours, and open theirs. Then choose who checks whom.</p>
+  </div>
+  <div class="row">
+    <a class="btn primary big" href="/people/card">Download my contact card</a>
+    <a class="btn big" href="/open">Open their card</a>
+  </div>
+</section>
+
+{% if not people %}
+<section class="card empty"><p>No one here yet. A checker can be a friend, a parent, a mentor or a study buddy. They don't need to know the subject.</p></section>
+{% endif %}
+
+<div class="list">
+{% for p in people %}
+<section class="card person" id="p-{{ p.id[:12] }}">
+  <div class="person-head">
+    {{ avatar(p, 44) }}
+    <div class="grow">
+      <h2>{{ display_name(p) }}</h2>
+      <p class="muted small">
+        {% if p.checks_me and p.i_check %}Study buddies: you check each other
+        {% elif p.checks_me %}Checks your progress
+        {% else %}You check their progress{% endif %}
+        {% if p.nickname %} · real name: {{ p.name }}{% endif %}
+      </p>
+    </div>
+    {% if p.waiting %}<span class="chip warn">{{ p.waiting }} waiting</span>{% endif %}
+  </div>
+
+  {% if p.i_check %}
+    {% for r in p.journeys %}
+      <a class="course-link" href="/review/{{ p.id }}/{{ r.journey }}">
+        <span><b>{{ r.course }}</b> <span class="muted small">last file {{ r.received_at|date }}</span></span>
+        <span class="btn">Review</span>
+      </a>
+    {% else %}
+      <p class="muted small">When {{ display_name(p) }} sends a progress file, open it with “Open a file”.</p>
+    {% endfor %}
+  {% endif %}
+
+  <details class="small">
+    <summary>Edit</summary>
+    <form method="post" action="/people/{{ p.id }}" class="stack">
+      <label>Nickname (only you see this)<input name="nickname" value="{{ p.nickname }}" placeholder="{{ p.name }}"></label>
+      <label class="check"><input type="checkbox" name="checks_me" value="1" {{ 'checked' if p.checks_me }}> They check my progress</label>
+      <label class="check"><input type="checkbox" name="i_check" value="1" {{ 'checked' if p.i_check }}> I check their progress</label>
+      <div class="row"><button class="btn">Save</button><button class="btn ghost danger" name="remove" value="1">Remove</button></div>
+    </form>
+  </details>
+</section>
+{% endfor %}
+</div>
+{% endblock %}

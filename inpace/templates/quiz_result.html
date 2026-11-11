@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Quiz result{% endblock %}
+{% block main %}
+<section class="card result {{ 'good' if passed else 'warn' }}">
+  <p class="eyebrow">{{ module.title }}</p>
+  <h1>{{ result.score }} of {{ result.total }} · {{ result.percent }}%</h1>
+  <p class="lead">{{ 'You passed! Nice work.' if passed else 'Not quite yet. You need ' ~ req.pass ~ '%. Read the explanations and try again: the choices will be different.' }}</p>
+  <div class="row">
+    <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ module.lessons[-1].id }}#tasks">Back to the module</a>
+    {% if not passed %}<a class="btn" href="/learn/{{ j.id }}/task/{{ req.id }}/quiz">Try again</a>{% endif %}
+  </div>
+</section>
+<div class="list">
+  {% for d in result.details %}
+  <div class="card answer {{ 'good' if d.ok else 'bad' }}">
+    <p><b>{{ d.text }}</b></p>
+    <p>Your answer: {{ d.chosen }} {{ '✓' if d.ok else '✗' }}</p>
+    {% if not d.ok %}<p>Right answer: <b>{{ d.right }}</b></p>{% endif %}
+    {% if d.why %}<p class="muted small">{{ d.why }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
