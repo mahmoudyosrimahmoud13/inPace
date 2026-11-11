@@ -96,9 +96,18 @@ def _yaml(text: str, name: str, problems: list[str]) -> Any:
 
 
 def strip_fences(text: str) -> str:
-    """AI chats often wrap the answer in ``` fences or add a sentence before it."""
-    m = re.search(r"```(?:ya?ml)?\s*\n(.*?)```", text, re.S)
-    return m.group(1) if m else text
+    """AI chats often wrap the answer in ``` fences or add a sentence before it.
+
+    Only fences at the start of a line count. Code blocks inside lesson text are
+    indented, so they are never mistaken for the wrapper."""
+    m = re.search(r"^```ya?ml[ \t]*\n(.*?)^```[ \t]*$", text, re.S | re.M | re.I)
+    if m:
+        return m.group(1)
+    if text.lstrip().startswith("```"):
+        m = re.search(r"^```[^\n]*\n(.*?)^```[ \t]*$", text, re.S | re.M)
+        if m:
+            return m.group(1)
+    return text
 
 
 def files_from_zip(data: bytes) -> dict[str, str]:

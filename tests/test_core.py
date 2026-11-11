@@ -84,6 +84,30 @@ Enjoy!"""
     assert sorted(c.questions["q1"]["options"]) == list(c.questions["q1"]["options"])
 
 
+def test_code_blocks_inside_lessons_are_not_mistaken_for_the_wrapper():
+    text = """title: Code
+modules:
+  - title: A
+    lessons:
+      - title: L
+        content: |
+          ```python
+          print("hi")
+          ```
+    requires:
+      - type: quiz
+        questions: [q1]
+questions:
+  q1:
+    text: Q?
+    right: [a, b]
+    wrong: [c, d, e, f]
+"""
+    assert load_course({"course.yaml": strip_fences(text)}).title == "Code"
+    wrapped = "Here it is:\n```yaml\n" + text + "```\nDone."
+    assert load_course({"course.yaml": strip_fences(wrapped)}).title == "Code"
+
+
 # ---- exams ------------------------------------------------------------------
 
 def test_exam_one_right_answer_and_reproducible():
