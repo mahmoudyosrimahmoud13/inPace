@@ -97,6 +97,12 @@ view = WebKit2.WebView()
 s = view.get_settings()
 s.set_enable_developer_extras(False)
 s.set_javascript_can_access_clipboard(True)
+for _name in ("set_enable_media_stream", "set_enable_mediasource", "set_enable_encrypted_media",
+              "set_enable_fullscreen", "set_media_playback_requires_user_gesture"):
+    try:
+        getattr(s, _name)(_name != "set_media_playback_requires_user_gesture")
+    except Exception:
+        pass
 try:  # draw on the CPU: avoids blank windows and busy fans with some graphics drivers
     s.set_hardware_acceleration_policy(WebKit2.HardwareAccelerationPolicy.NEVER)
 except Exception:
@@ -114,8 +120,11 @@ def open_outside(uri):
 def on_policy(v, decision, kind):
     T = WebKit2.PolicyDecisionType
     if kind in (T.NAVIGATION_ACTION, T.NEW_WINDOW_ACTION):
-        uri = decision.get_navigation_action().get_request().get_uri()
-        if outside(uri):
+        action = decision.get_navigation_action()
+        uri = action.get_request().get_uri()
+        clicked = action.get_navigation_type() in (WebKit2.NavigationType.LINK_CLICKED, WebKit2.NavigationType.FORM_SUBMITTED)
+        # Videos from YouTube or Vimeo load inside the lesson; only links you click open in your browser.
+        if outside(uri) and (clicked or kind == T.NEW_WINDOW_ACTION):
             decision.ignore(); open_outside(uri); return True
         if kind == T.NEW_WINDOW_ACTION:
             decision.ignore(); v.load_uri(uri); return True
@@ -159,6 +168,14 @@ def on_download(ctx, dl):
     dl.connect("decide-destination", decide)
     dl.connect("finished", lambda d: toast("Saved to Downloads: " + os.path.basename(getattr(d, "_path", ""))))
 
+def on_permission(v, request):
+    # The microphone is only used when you press "Record a voice note".
+    if isinstance(request, (getattr(WebKit2, "UserMediaPermissionRequest", ()), )) or \
+            type(request).__name__ in ("UserMediaPermissionRequest", "MediaKeySystemPermissionRequest"):
+        request.allow(); return True
+    request.deny(); return True
+
+view.connect("permission-request", on_permission)
 view.connect("decide-policy", on_policy)
 view.get_context().connect("download-started", on_download)
 view.connect("create", lambda v, a: (open_outside(a.get_request().get_uri()) if outside(a.get_request().get_uri()) else v.load_uri(a.get_request().get_uri())) and None)

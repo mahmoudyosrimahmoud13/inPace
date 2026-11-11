@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import re
 import os
 import sqlite3
 from pathlib import Path
@@ -163,7 +164,60 @@ class Vault:
         folder = self.home / "courses" / course_id
         if folder.exists():
             shutil.rmtree(folder)
+        if self.media_dir(course_id).exists():
+            shutil.rmtree(self.media_dir(course_id))
+        self._set_meta(f"media_root:{course_id}", "")
         self._courses.pop(course_id, None)
+
+    # ---- the course's own files (videos, audio, pages) -----------------------
+    # Two places are checked, in this order:
+    #   1. files that came inside the course pack or were added in the editor: <home>/media/<course>/
+    #   2. a folder on this computer the person pointed inPace to (big courses are never copied)
+    def media_dir(self, course_id: str) -> Path:
+        return self.home / "media" / course_id
+
+    def media_root(self, course_id: str) -> Path | None:
+        root = self._meta(f"media_root:{course_id}", "") or ""
+        return Path(root) if root else None
+
+    def set_media_root(self, course_id: str, folder: str) -> None:
+        self._set_meta(f"media_root:{course_id}", str(Path(folder).expanduser()) if folder.strip() else "")
+
+    def find_media(self, course_id: str, ref: str) -> Path | None:
+        """Where a course file is on this computer, or None.
+
+        Full paths are tried as they are. Then each folder is searched for the path, and for shorter
+        and shorter endings of it, so a course still works after its folder was moved or renamed."""
+        from .course import is_full_path, local_ref, media_kind
+        ref = local_ref(ref)
+        if not ref or not media_kind(ref):
+            return None
+        if is_full_path(ref):
+            p = Path(ref).expanduser()
+            if p.is_file():
+                return p
+        parts = [x for x in ref.split("/") if x and not re.match(r"^[A-Za-z]:$", x) and x != "~"]
+        for root in (self.media_dir(course_id), self.media_root(course_id)):
+            if not root or not root.is_dir():
+                continue
+            base = root.resolve()
+            for i in range(len(parts)):
+                try:
+                    p = base.joinpath(*parts[i:]).resolve()
+                    p.relative_to(base)  # stays inside the folder
+                except (ValueError, OSError):
+                    continue
+                if p.is_file():
+                    return p
+        return None
+
+    def missing_media(self, course) -> list[str]:
+        from .media import media_refs
+        refs = set()
+        for m in course.modules:
+            for les in m["lessons"]:
+                refs |= media_refs(les)
+        return sorted(r for r in refs if not self.find_media(course.id, r))
 
     # ---- journeys ----------------------------------------------------------
     def start_journey(self, course_id: str) -> str:

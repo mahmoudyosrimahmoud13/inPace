@@ -99,3 +99,38 @@ def git_summary(folder: str, limit: int = 30) -> tuple[str, bytes]:
     text = (f"Git project: {name}\nLatest commit: {head}\n" + (f"Remote: {remote}\n" if remote else "") +
             f"\nLast {limit} commits (commit | date | author | message):\n{log}\n")
     return f"git-{name}-{head[:8]}.txt", text.encode("utf-8")
+
+
+def pick_folder(title: str = "Choose a folder") -> str:
+    """Open this computer's own "choose folder" window and return the folder, or "" if cancelled.
+    inPace runs on the same computer as the person, so the window opens right in front of them."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from .window import _clean_env
+    env = _clean_env()
+    try:
+        if sys.platform == "win32":
+            ps = ("Add-Type -AssemblyName System.Windows.Forms;"
+                  "$f = New-Object System.Windows.Forms.FolderBrowserDialog;"
+                  f"$f.Description = '{title.replace(chr(39), '')}';"
+                  "$f.ShowNewFolderButton = $false;"
+                  "$w = New-Object System.Windows.Forms.Form; $w.TopMost = $true;"
+                  "if ($f.ShowDialog($w) -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; $f.SelectedPath }")
+            r = subprocess.run(["powershell", "-NoProfile", "-STA", "-Command", ps], capture_output=True, text=True,
+                               encoding="utf-8", timeout=600, env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        elif sys.platform == "darwin":
+            script = f'POSIX path of (choose folder with prompt "{title.replace(chr(34), "")}")'
+            r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=600, env=env)
+        else:
+            if shutil.which("zenity"):
+                cmd = ["zenity", "--file-selection", "--directory", f"--title={title}"]
+            elif shutil.which("kdialog"):
+                cmd = ["kdialog", "--getexistingdirectory", os.path.expanduser("~"), "--title", title]
+            else:
+                return ""
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return (r.stdout or "").strip().rstrip("/\\") if r.returncode == 0 else ""

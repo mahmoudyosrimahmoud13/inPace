@@ -112,3 +112,93 @@ document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
     fetch("/theme", { method: "POST", body }).catch(() => {});
   });
 });
+
+// Online videos load only when you press play (nothing reaches the internet before that).
+document.querySelectorAll(".embed-box").forEach((box) => {
+  const btn = box.querySelector(".play");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    let el;
+    if (box.dataset.embed) {
+      el = document.createElement("iframe");
+      el.src = box.dataset.embed;
+      el.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      el.allowFullscreen = true;
+      el.referrerPolicy = "strict-origin-when-cross-origin";
+      el.title = btn.textContent.trim();
+    } else {
+      const tag = box.dataset.embedVideo ? "video" : "audio";
+      el = document.createElement(tag);
+      el.src = box.dataset.embedVideo || box.dataset.embedAudio;
+      el.controls = true;
+      el.autoplay = true;
+    }
+    const wrap = document.createElement("div");
+    wrap.className = el.tagName === "IFRAME" ? "frame-wrap video-ratio" : "";
+    wrap.appendChild(el);
+    box.replaceWith(wrap);
+  });
+});
+
+// Web pages in lessons can go full screen.
+document.querySelectorAll("[data-fullscreen]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const frame = btn.closest("figure").querySelector("iframe");
+    if (frame && frame.requestFullscreen) frame.requestFullscreen().catch(() => {});
+  });
+});
+
+// "Choose folder": opens your computer's own folder window and fills in the path.
+document.querySelectorAll("[data-pick-folder]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const input = document.querySelector(btn.dataset.pickFolder);
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const r = await fetch("/pick-folder", { method: "POST" });
+      const d = await r.json();
+      if (d.folder && input) { input.value = d.folder; input.dispatchEvent(new Event("input")); }
+      else if (input) input.focus();
+    } catch (e) { if (input) input.focus(); }
+    btn.disabled = false;
+    btn.textContent = label;
+  });
+});
+
+// Voice notes as proof for a task: record, stop, and it's saved like any other file.
+document.querySelectorAll("[data-recorder]").forEach((box) => {
+  const btn = box.querySelector(".rec-btn");
+  const time = box.querySelector(".rec-time");
+  const L = box.dataset;
+  let rec = null, chunks = [], started = 0, timer = null;
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  btn.addEventListener("click", async () => {
+    if (rec && rec.state === "recording") { rec.stop(); return; }
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e) { time.textContent = L.lNomic; return; }
+    const type = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+    rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.onstop = async () => {
+      clearInterval(timer);
+      stream.getTracks().forEach((t) => t.stop());
+      btn.disabled = true;
+      btn.textContent = L.lSaving;
+      const mime = rec.mimeType || type || "audio/webm";
+      const ext = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "m4a" : "webm";
+      const stamp = new Date().toISOString().slice(0, 16).replace("T", " ").replace(":", "-");
+      const body = new FormData();
+      body.append("file", new Blob(chunks, { type: mime }), `voice note ${stamp}.${ext}`);
+      const r = await fetch(box.dataset.upload, { method: "POST", body });
+      location.href = r.url || location.href;
+    };
+    rec.start(1000);
+    started = Date.now();
+    btn.classList.add("recording");
+    btn.textContent = "■ " + L.lStop;
+    timer = setInterval(() => (time.textContent = fmt(Math.round((Date.now() - started) / 1000))), 500);
+  });
+});

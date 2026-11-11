@@ -11,15 +11,17 @@ from markupsafe import Markup
 from markdown_it import MarkdownIt
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from . import ai, checks, editor, encourage, exchange, integrations, pace, races, record
 from .mascot import mascot
 from .canon import now_utc, short
-from .course import (Course, CourseError, course_to_pack, files_from_folder, files_from_zip, load_course,
-                     strip_fences)
+from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
+                     files_from_folder, files_from_zip, load_course, media_in_zip, strip_fences, write_pack_with_media)
+from . import media as media_mod
 from .exam import NoAnswers, build_exam, grade, new_seed
 from .vault import COLORS, Vault, display_name
 
@@ -292,7 +294,9 @@ def create_app(vault: Vault) -> Starlette:
                     pass
         lang = V._meta("lang", "en") or "en"
         samples.sort(key=lambda c: c.language != lang)  # courses in your language first
-        rows = [{"course": c, "journey": V.journey_for_course(c.id)} for c in installed]
+        rows = [{"course": c, "journey": V.journey_for_course(c.id),
+                 "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"])}
+                for c in installed]
         return page("courses.html", request, rows=rows, samples=samples)
 
     async def add_sample(request: Request):
@@ -316,7 +320,94 @@ def create_app(vault: Vault) -> Starlette:
             return go("/courses", err="That course isn't installed.")
         with_answers = request.query_params.get("answers") == "1"
         suffix = " (with answers)" if with_answers else ""
+        if request.query_params.get("files") == "1":
+            files = _course_files(c)
+            total = sum(p.stat().st_size for p in files.values())
+            if total > MAX_MEDIA_PACK_BYTES:
+                return go("/courses", err="This course's files are too big to put in one file. Share the course without files, and send the folder another way.")
+            import tempfile
+            fd, tmp = tempfile.mkstemp(suffix=".lpack")
+            import os as _os
+            _os.close(fd)
+            write_pack_with_media(c, with_answers, files, Path(tmp))
+            safe = re.sub(r"[^\w .,()-]+", "", f"{c.title}{suffix} (with files).lpack", flags=re.UNICODE).strip()
+            return FileResponse(tmp, filename=safe, media_type="application/zip",
+                                background=BackgroundTask(lambda: Path(tmp).unlink(missing_ok=True)))
         return download(course_to_pack(c, with_answers), f"{c.title}{suffix}.lpack")
+
+    def _course_files(c: Course) -> dict:
+        """Every file of the course that's on this computer, by its path inside the course."""
+        out = {}
+        for m in c.modules:
+            for les in m["lessons"]:
+                for ref in media_mod.media_refs(les):
+                    p = V.find_media(c.id, ref)
+                    if p:
+                        out[ref.lstrip("/").replace(":", "")] = p
+        return out
+
+    async def media_file(request: Request):
+        """A course's video, audio, page or picture, straight from where it lives on this computer."""
+        p = V.find_media(request.path_params["cid"], request.path_params["path"])
+        if not p:
+            return Response("Not found", status_code=404)
+        headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"}
+        if p.suffix.lower() in HTML_EXT + (".svg",):
+            # Pages run sealed off: their own scripts work, but they can't reach inPace, your data, or the internet.
+            headers["Content-Security-Policy"] = (
+                "sandbox allow-scripts allow-popups; default-src 'self' http://127.0.0.1:* 'unsafe-inline' "
+                "'unsafe-eval' data: blob:; connect-src 'none'; form-action 'none'")
+        return FileResponse(p, headers=headers)
+
+    async def course_from_folder_route(request: Request):
+        form = await request.form()
+        folder = str(form.get("folder", "")).strip().strip('"')
+        if not folder:
+            return go("/courses", err="Choose a folder first.")
+        try:
+            c = course_from_folder(Path(folder).expanduser(), str(form.get("title", "")))
+        except CourseError as e:
+            return go("/courses", err=e.problems[0])
+        base, n = c.id, 1
+        while V.get_course(c.id):
+            n += 1
+            c.id = f"{base}-{n}"
+        V.set_media_root(c.id, str(Path(folder).expanduser()))
+        V.install_course(c)
+        return go("/courses", ok=f"Added “{c.title}” from your folder. The files stay where they are.")
+
+    async def set_media_folder(request: Request):
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        form = await request.form()
+        back = request.headers.get("referer") or "/courses"
+        if not back.startswith(("http://127.0.0.1", "http://localhost", "/")):
+            back = "/courses"
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        folder = str(form.get("folder", "")).strip().strip('"')
+        if not folder or not Path(folder).expanduser().is_dir():
+            return RedirectResponse(_with_msg(back, err="That folder wasn't found. Copy its full path and paste it here."), 303)
+        V.set_media_root(cid, folder)
+        left = V.missing_media(c)
+        if left:
+            return RedirectResponse(_with_msg(back, err=f"Found the folder, but {len(left)} file(s) are still missing."), 303)
+        return RedirectResponse(_with_msg(back, ok="Found all the course files."), 303)
+
+    def _with_msg(url: str, ok: str = "", err: str = "") -> str:
+        from urllib.parse import urlsplit
+        u = urlsplit(url)
+        path = u.path or "/"
+        if u.query:
+            keep = "&".join(x for x in u.query.split("&") if not x.startswith(("ok=", "err=", "yay=")))
+            path += ("?" + keep) if keep else ""
+        return go(path, ok=ok or None, err=err or None).headers["location"]
+
+    async def pick_folder_route(request: Request):
+        title = say("Choose the course folder")
+        import anyio
+        folder = await anyio.to_thread.run_sync(lambda: integrations.pick_folder(title))
+        return JSONResponse({"folder": folder})
 
     async def remove_course(request: Request):
         cid = request.path_params["cid"]
@@ -369,7 +460,10 @@ def create_app(vault: Vault) -> Starlette:
         j = journey_or_404(request.path_params["jid"])
         if not j:
             return go("/", err="That course wasn't found.")
-        return page("course.html", request, j=j, prog=V.progress(j["id"]))
+        course = V.get_course(j["course_id"])
+        return page("course.html", request, j=j, prog=V.progress(j["id"]),
+                    missing=V.missing_media(course) if course else [],
+                    media_root=V.media_root(j["course_id"]) if course else None)
 
     def _module_state(prog: dict, module_id: str) -> dict | None:
         return next((m for m in prog["modules"] if m["id"] == module_id), None)
@@ -397,7 +491,9 @@ def create_app(vault: Vault) -> Starlette:
         nxt = module["lessons"][idx + 1]["id"] if idx + 1 < len(module["lessons"]) else None
         prv = module["lessons"][idx - 1]["id"] if idx > 0 else None
         return page("lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
-                    lstate=lstate, html=md.render(_drop_title(les["content"], les["title"])), next_id=nxt, prev_id=prv,
+                    lstate=lstate, html=media_mod.lesson_html(course.id, les, md.render(_drop_title(les["content"], les["title"])),
+                                                       lambda r: V.find_media(course.id, r) is not None, gettext),
+                    next_id=nxt, prev_id=prv,
                     has_answers=course.has_answers, prog=prog)
 
     async def module_page(request: Request):
@@ -744,6 +840,36 @@ def create_app(vault: Vault) -> Starlette:
             return go(f"/edit/{cid}{anchor}", ok="Saved.")
         return page("edit_course.html", request, c=c, started=bool(V.journey_for_course(cid)))
 
+    async def edit_lesson_media(request: Request):
+        cid, lid = request.path_params["cid"], request.path_params["lid"]
+        c = V.get_course(cid)
+        if not c or not c.find_lesson(lid):
+            return go(f"/edit/{cid}", err="That lesson wasn't found.")
+        form = await request.form()
+        back = f"/edit/{cid}/lesson/{lid}"
+        label = str(form.get("label", "")).strip()
+        ref = (str(form.get("ref", "")).strip() or str(form.get("ref_path", "")).strip()).strip('"')
+        up = form.get("file")
+        if up is not None and getattr(up, "filename", ""):
+            # A small file added here is kept with the course, so it travels when you share it with files.
+            name = re.sub(r"[^\w .()-]+", "", Path(up.filename).name, flags=re.UNICODE).strip() or "file"
+            dest = V.media_dir(cid) / "media"
+            dest.mkdir(parents=True, exist_ok=True)
+            import shutil
+            with open(dest / name, "wb") as out:
+                shutil.copyfileobj(up.file, out, 1024 * 1024)
+            ref = f"media/{name}"
+        if not ref:
+            return go(back, err="Add a file, a link or a path first.")
+        from .course import is_url, local_ref, media_kind
+        if not is_url(ref) and not (local_ref(ref) and media_kind(ref)):
+            return go(back, err="That isn't a video, audio, web page, PDF or picture inPace can show.")
+        try:
+            editor.edit(V, cid, "add_media", {"lesson": lid, "ref": ref, "label": label})
+        except CourseError as e:
+            return go(back, err=e.problems[0])
+        return go(back, ok="Added to the lesson.")
+
     async def edit_lesson(request: Request):
         cid, lid = request.path_params["cid"], request.path_params["lid"]
         c = V.get_course(cid)
@@ -807,6 +933,36 @@ def create_app(vault: Vault) -> Starlette:
         return go("/people", ok="Saved.")
 
     # ---- one place to open any file ------------------------------------------
+    def _install_pack(request: Request, fileobj, fname: str):
+        import shutil
+        import zipfile
+        try:
+            zf = zipfile.ZipFile(fileobj)
+            c = load_course(files_from_zip(fileobj))
+        except zipfile.BadZipFile:
+            return go("/open", err="This doesn't look like a course file.")
+        except CourseError as e:
+            return page("open.html", request, problems=e.problems, filename=fname)
+        c = V.install_course(c)
+        inside = media_in_zip(zf)
+        if inside:
+            dest = V.media_dir(c.id).resolve()
+            for info, rel in inside:
+                target = (dest / rel).resolve()
+                try:
+                    target.relative_to(dest)
+                except ValueError:
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, open(target, "wb") as out:
+                    shutil.copyfileobj(src, out, 1024 * 1024)
+        lines = [f"Added the course “{c.title}”."]
+        if not c.has_answers:
+            lines.append("It came without answers, so practice quizzes are off.")
+        if not inside and V.missing_media(c):
+            lines.append("Its videos and other files aren't inside. Choose their folder on the course page.")
+        return go("/courses", ok="\n".join(lines))
+
     async def open_file(request: Request):
         if request.method == "GET":
             return page("open.html", request)
@@ -822,8 +978,15 @@ def create_app(vault: Vault) -> Starlette:
             up = form.get("file")
             if not up or not getattr(up, "filename", ""):
                 return go("/open", err="Choose a file first.")
-            raw = await up.read()
             fname = up.filename
+            up.file.seek(0, 2)
+            size = up.file.tell()
+            up.file.seek(0)
+            if size > 40 * 1024 * 1024 and up.file.read(2) == b"PK":
+                up.file.seek(0)  # a big course pack that carries its own videos: read it from disk, not memory
+                return _install_pack(request, up.file, fname)
+            up.file.seek(0)
+            raw = await up.read()
         if raw[:2] == b"PK" and checks.is_file_pack(raw):
             try:
                 res = checks.import_file_pack(V, raw)
@@ -831,12 +994,8 @@ def create_app(vault: Vault) -> Starlette:
                 return go("/open", err=str(e) if isinstance(e, exchange.FileProblem) else "This file pack is damaged.")
             return go(f"/review/{res['learner']}/{res['journey']}", ok=f"Got {res['count']} file(s) from {res['name']}.")
         if raw[:2] == b"PK":  # a course pack (zip)
-            try:
-                c = V.install_course(load_course(files_from_zip(raw)))
-            except CourseError as e:
-                return page("open.html", request, problems=e.problems, filename=fname)
-            extra = "" if c.has_answers else " It came without answers, so practice quizzes are off."
-            return go("/courses", ok=f"Added the course “{c.title}”.{extra}")
+            import io as _io
+            return _install_pack(request, _io.BytesIO(raw), fname)
         if fname.lower().endswith((".yaml", ".yml")) or not raw.lstrip()[:1] == b"{":
             # A single-file course (the all-in-one format, e.g. saved from an AI chat).
             try:
@@ -1037,10 +1196,30 @@ def create_app(vault: Vault) -> Starlette:
             return page("make_exam.html", request, exam_file=fname, **ctx)
         return page("make_exam.html", request, private=checks.private_questions(V, course.id), **ctx)
 
+    async def my_evidence(request: Request):
+        """Play back your own saved work (a voice note or video) right on the task page."""
+        sha = request.path_params["sha"]
+        if not re.fullmatch(r"[0-9a-f]{64}", sha):
+            return Response("Not found", status_code=404)
+        p = V.home / "evidence" / sha[:2] / sha
+        if not p.exists():
+            return Response("Not found", status_code=404)
+        name = Path(request.query_params.get("name") or "file").name
+        import mimetypes
+        mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        if not mime.startswith(("audio/", "video/", "image/")):
+            return download(p.read_bytes(), name)
+        return FileResponse(p, media_type=mime, headers={"X-Content-Type-Options": "nosniff"})
+
     async def received_file(request: Request):
         got = checks.received_file(V, request.path_params["sha"])
         if not got:
             return go("/people", err="That file isn't here.")
+        if request.query_params.get("play") == "1":
+            import mimetypes
+            mime = mimetypes.guess_type(got[1])[0] or ""
+            if mime.startswith(("audio/", "video/")):
+                return Response(got[0], media_type=mime, headers={"X-Content-Type-Options": "nosniff"})
         return download(got[0], got[1])
 
     async def outbox(request: Request):
@@ -1126,6 +1305,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/", needs_setup(home)),
         Route("/courses", needs_setup(courses)),
         Route("/courses/sample/{cid}", needs_setup(add_sample), methods=["POST"]),
+        Route("/courses/from-folder", needs_setup(course_from_folder_route), methods=["POST"]),
+        Route("/courses/{cid}/media-folder", needs_setup(set_media_folder), methods=["POST"]),
+        Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
+        Route("/m/{cid}/{path:path}", needs_setup(media_file)),
+        Route("/evidence/{sha}", needs_setup(my_evidence)),
         Route("/courses/{cid}/start", needs_setup(start_course), methods=["POST"]),
         Route("/courses/{cid}/export", needs_setup(export_course)),
         Route("/courses/{cid}/remove", needs_setup(remove_course), methods=["POST"]),
@@ -1154,6 +1338,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/edit/new", needs_setup(edit_new), methods=["GET", "POST"]),
         Route("/edit/{cid}", needs_setup(edit_course), methods=["GET", "POST"]),
         Route("/edit/{cid}/lesson/{lid}", needs_setup(edit_lesson)),
+        Route("/edit/{cid}/lesson/{lid}/media", needs_setup(edit_lesson_media), methods=["POST"]),
         Route("/people", needs_setup(people)),
         Route("/people/card", needs_setup(my_card)),
         Route("/people/add", needs_setup(add_person), methods=["POST"]),

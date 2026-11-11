@@ -20,8 +20,72 @@ import yaml
 from .canon import fingerprint, sha256_hex
 
 MAX_PACK_BYTES = 50 * 1024 * 1024
+MAX_MEDIA_PACK_BYTES = 2 * 1024 * 1024 * 1024  # packs that carry their own videos can be big
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 REQ_TYPES = ("practical", "explain", "quiz")
+
+
+# ---------------------------------------------------------------------------
+# Media: videos, audio, web pages, pictures and online videos inside lessons
+# ---------------------------------------------------------------------------
+
+VIDEO_EXT = (".mp4", ".webm", ".m4v", ".mov", ".ogv", ".mkv")
+AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac", ".weba")
+HTML_EXT = (".html", ".htm")
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+DOC_EXT = (".pdf",)
+MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT
+_YT = re.compile(r"^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,15})")
+_VIMEO = re.compile(r"^https?://(?:www\.)?(?:player\.)?vimeo\.com/(?:video/)?(\d{5,12})")
+
+
+def is_url(ref: str) -> bool:
+    return bool(re.match(r"^https?://", ref or "", re.I))
+
+
+def media_kind(ref: str) -> str:
+    """video, audio, html, image, pdf, youtube, vimeo, link, or '' for anything else."""
+    ref = (ref or "").strip()
+    if _YT.match(ref):
+        return "youtube"
+    if _VIMEO.match(ref):
+        return "vimeo"
+    low = ref.lower().split("?")[0].split("#")[0]
+    for kind, exts in (("video", VIDEO_EXT), ("audio", AUDIO_EXT), ("html", HTML_EXT), ("image", IMAGE_EXT),
+                       ("pdf", DOC_EXT)):
+        if low.endswith(exts):
+            return kind
+    return "link" if is_url(ref) else ""
+
+
+def embed_id(ref: str) -> str:
+    m = _YT.match(ref) or _VIMEO.match(ref)
+    return m.group(1) if m else ""
+
+
+def safe_media_path(ref: str) -> str | None:
+    """A file path inside the course (no going up a folder, no drive letters). None if it's not safe."""
+    ref = (ref or "").strip().replace("\\", "/")
+    if not ref or is_url(ref) or ref.startswith("/") or re.match(r"^[A-Za-z]:", ref):
+        return None
+    parts = [x for x in ref.split("/") if x not in ("", ".")]
+    if not parts or ".." in parts:
+        return None
+    return "/".join(parts)
+
+
+def local_ref(ref: str) -> str | None:
+    """A file on this computer: a path inside the course folder, or a full path the course points to."""
+    ref = (ref or "").strip().replace("\\", "/")
+    if not ref or is_url(ref):
+        return None
+    if ref.startswith(("/", "~/")) or re.match(r"^[A-Za-z]:/", ref):
+        return None if ".." in ref.split("/") else ref
+    return safe_media_path(ref)
+
+
+def is_full_path(ref: str) -> bool:
+    return bool(ref) and (ref.startswith(("/", "~/")) or bool(re.match(r"^[A-Za-z]:/", ref)))
 
 
 class CourseError(Exception):
@@ -110,11 +174,12 @@ def strip_fences(text: str) -> str:
     return text
 
 
-def files_from_zip(data: bytes) -> dict[str, str]:
-    if len(data) > MAX_PACK_BYTES:
+def files_from_zip(data) -> dict[str, str]:
+    """data: the pack's bytes, or an open file (for big packs that carry videos)."""
+    if isinstance(data, (bytes, bytearray)) and len(data) > MAX_PACK_BYTES:
         raise CourseError(["This course file is too big (over 50 MB)."])
     try:
-        zf = zipfile.ZipFile(io.BytesIO(data))
+        zf = zipfile.ZipFile(io.BytesIO(data) if isinstance(data, (bytes, bytearray)) else data)
     except zipfile.BadZipFile:
         raise CourseError(["This doesn't look like a course file."])
     files: dict[str, str] = {}
@@ -123,7 +188,7 @@ def files_from_zip(data: bytes) -> dict[str, str]:
         parts = name.split("/")
         if info.is_dir() or ".." in parts or name.startswith("/"):
             continue
-        if name.endswith((".yaml", ".yml", ".md")):
+        if name.endswith((".yaml", ".yml", ".md")) and "/files/" not in "/" + name and info.file_size < 20_000_000:
             files[name] = zf.read(info).decode("utf-8", errors="replace")
     # Remove a single shared top-level folder if present.
     tops = {n.split("/")[0] for n in files if "/" in n}
@@ -136,7 +201,7 @@ def files_from_zip(data: bytes) -> dict[str, str]:
 def files_from_folder(folder: Path) -> dict[str, str]:
     files = {}
     for p in folder.rglob("*"):
-        if p.is_file() and p.suffix in (".yaml", ".yml", ".md"):
+        if p.is_file() and p.suffix in (".yaml", ".yml", ".md") and "files" not in p.relative_to(folder).parts[:1]:
             files[p.relative_to(folder).as_posix()] = p.read_text(encoding="utf-8")
     return files
 
@@ -215,6 +280,12 @@ def load_course(files: dict[str, str]) -> Course:
                 problems.append(f"Module {mi}, lesson {li} is not written correctly.")
                 continue
             lid = str(rl.get("id") or f"{mid}-l{li}")
+            media = str(rl.get("media") or rl.get("video") or rl.get("audio") or rl.get("url") or "").strip()
+            if media and not is_url(media) and not local_ref(media):
+                problems.append(f"Lesson {li} in module {mi}: the media '{media}' must be a web link or a file path.")
+                media = ""
+            elif media and not is_url(media):
+                media = local_ref(media) or ""
             content = rl.get("content")
             if content is None and rl.get("file"):
                 fname = str(rl["file"]).replace("\\", "/")
@@ -224,9 +295,12 @@ def load_course(files: dict[str, str]) -> Course:
                     content = ""
             content = str(content or "")
             ltitle = str(rl.get("title") or _first_heading(content) or f"Lesson {li}")
-            if not content.strip():
+            if not content.strip() and not media:
                 problems.append(f"Lesson '{ltitle}' (module {mi}) has no content.")
-            lessons.append({"id": lid, "title": ltitle, "content": content, "minutes": _int(rl.get("minutes"), 0)})
+            les = {"id": lid, "title": ltitle, "content": content, "minutes": _int(rl.get("minutes"), 0)}
+            if media:
+                les["media"] = media  # only present when used, so older courses keep the same fingerprint
+            lessons.append(les)
             _dup(lid, seen, problems)
         if not lessons:
             problems.append(f"Module {mi} ('{mtitle}') has no lessons.")
@@ -278,6 +352,9 @@ def load_course(files: dict[str, str]) -> Course:
         questions=questions,
         answers=answers or None,
     )
+    index = raw.get("media_index")
+    if isinstance(index, dict):
+        course.extra["media_index"] = {str(k): _int(v, 0) for k, v in index.items() if safe_media_path(str(k))}
     course.hash = fingerprint(course.public_dict())
     return course
 
@@ -372,9 +449,13 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
     for m in course.modules:
         lessons = []
         for les in m["lessons"]:
-            path = f"lessons/{les['id']}.md"
-            files[path] = les["content"]
-            entry = {"id": les["id"], "title": les["title"], "file": path}
+            entry = {"id": les["id"], "title": les["title"]}
+            if les.get("content", "").strip() or not les.get("media"):
+                path = f"lessons/{les['id']}.md"
+                files[path] = les["content"]
+                entry["file"] = path
+            if les.get("media"):
+                entry["media"] = les["media"]
             if les.get("minutes"):
                 entry["minutes"] = les["minutes"]
             lessons.append(entry)
@@ -387,6 +468,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
         "language": course.language,
         "modules": modules,
     }
+    if course.extra.get("media_index"):
+        head["media_index"] = course.extra["media_index"]
     files["course.yaml"] = yaml.safe_dump(head, sort_keys=False, allow_unicode=True, width=100)
     if course.questions:
         files["questions.yaml"] = yaml.safe_dump(course.questions, sort_keys=False, allow_unicode=True, width=100)
@@ -409,3 +492,95 @@ def course_to_pack(course: Course, include_answers: bool) -> bytes:
         for name, text in course_to_files(course, include_answers).items():
             zf.writestr(name, text)
     return buf.getvalue()
+
+
+def write_pack_with_media(course: Course, include_answers: bool, media: dict[str, Path], out: Path) -> None:
+    """Like course_to_pack, but written to a file on disk and carrying the course's own files."""
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, text in course_to_files(course, include_answers).items():
+            zf.writestr(name, text)
+        for rel, src in media.items():
+            # Videos and audio are already compressed; storing them is much faster.
+            kind = zipfile.ZIP_DEFLATED if rel.lower().endswith(HTML_EXT + (".svg",)) else zipfile.ZIP_STORED
+            zf.write(src, f"files/{rel}", compress_type=kind)
+
+
+def media_in_zip(zf: zipfile.ZipFile) -> list[tuple[zipfile.ZipInfo, str]]:
+    """The course's own files inside a pack: (zip entry, path inside the course)."""
+    out = []
+    names = [i.filename.replace("\\", "/") for i in zf.infolist()]
+    tops = {n.split("/")[0] for n in names if "/" in n}
+    strip = ""
+    if "course.yaml" not in names and len(tops) == 1:
+        strip = next(iter(tops)) + "/"
+    for info in zf.infolist():
+        name = info.filename.replace("\\", "/")
+        if info.is_dir() or not name.startswith(strip + "files/"):
+            continue
+        rel = safe_media_path(name[len(strip + "files/"):])
+        if rel:
+            out.append((info, rel))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# A folder of videos (or any lesson files) already on this computer -> a course
+# ---------------------------------------------------------------------------
+
+def _natural(s: str) -> list:
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
+
+
+def _nice_title(name: str) -> str:
+    stem = re.sub(r"\.[A-Za-z0-9]{1,5}$", "", name)
+    stem = re.sub(r"^\s*(?:\d+[\s._)\]-]+)+", "", stem)  # "01 - ", "3. ", "02_"
+    stem = re.sub(r"[_]+", " ", stem).strip(" -.")
+    return stem or name
+
+
+LESSON_EXT = MEDIA_EXT + (".md",)
+
+
+def course_from_folder(folder: Path, title: str = "") -> Course:
+    """Each sub-folder becomes a module and each video, audio, page or note inside it a lesson.
+    Nothing is copied: the course points to the files where they are."""
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise CourseError(["That folder wasn't found. Copy its full path and paste it here."])
+
+    def lessons_in(d: Path) -> list[Path]:
+        files = [p for p in d.iterdir() if p.is_file() and p.suffix.lower() in LESSON_EXT and not p.name.startswith(".")]
+        return sorted(files, key=lambda p: _natural(p.name))
+
+    groups: list[tuple[str, list[Path]]] = []
+    top = lessons_in(folder)
+    if top:
+        groups.append((title or _nice_title(folder.name), top))
+    for sub in sorted((p for p in folder.iterdir() if p.is_dir() and not p.name.startswith(".")), key=lambda p: _natural(p.name)):
+        found = [p for p in sorted(sub.rglob("*"), key=lambda p: _natural(str(p.relative_to(sub))))
+                 if p.is_file() and p.suffix.lower() in LESSON_EXT and not p.name.startswith(".")]
+        if found:
+            groups.append((_nice_title(sub.name), found))
+    if not groups:
+        raise CourseError(["That folder has no videos, audio, web pages, PDFs or notes inside."])
+
+    modules, index = [], {}
+    for mi, (mtitle, files) in enumerate(groups, start=1):
+        lessons = []
+        for li, f in enumerate(files, start=1):
+            rel = f.relative_to(folder).as_posix()
+            les = {"id": f"m{mi}-l{li}", "title": _nice_title(f.name), "content": "", "minutes": 0}
+            if f.suffix.lower() == ".md":
+                les["content"] = f.read_text(encoding="utf-8", errors="replace")
+                les["title"] = _first_heading(les["content"]) or les["title"]
+            else:
+                les["media"] = rel
+                index[rel] = f.stat().st_size
+            lessons.append(les)
+        modules.append({"id": f"m{mi}", "title": mtitle, "lessons": lessons, "requires": []})
+    name = title.strip() or _nice_title(folder.name)
+    c = Course(id=_slug(name) or "course", title=name, version="1", description="", language="en",
+               modules=modules, questions={}, answers=None)
+    c.extra["media_index"] = index
+    c.hash = fingerprint(c.public_dict())
+    return c

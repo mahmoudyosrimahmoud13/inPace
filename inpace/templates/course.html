@@ -12,6 +12,28 @@
   </div>
 </div>
 
+{% if missing %}
+<section class="card note-card warn-card">
+  <h2>{% trans trimmed %}Where are this course's files?{% endtrans %}</h2>
+  <p>{{ T('inPace can not find {n} of its videos or files. If they moved, or this course came from someone else, choose the folder where they are now.', n=missing|length) }}</p>
+  <form method="post" action="/courses/{{ j.course_id }}/media-folder" class="row pick-row">
+    <input name="folder" id="course-folder" required dir="ltr" value="{{ media_root or '' }}" placeholder="{{ _('Full path of the course folder') }}">
+    <button type="button" class="btn" data-pick-folder="#course-folder">{% trans trimmed %}Choose folder{% endtrans %}</button>
+    <button class="btn primary">{% trans trimmed %}Use this folder{% endtrans %}</button>
+  </form>
+  <details class="more"><summary>{% trans trimmed %}Which files?{% endtrans %}</summary>
+    <ul class="small" dir="ltr">{% for f in missing[:12] %}<li><code>{{ f }}</code></li>{% endfor %}{% if missing|length > 12 %}<li>…</li>{% endif %}</ul></details>
+</section>
+{% elif media_root %}
+<p class="small muted">{% trans trimmed %}Course files:{% endtrans %} <code dir="ltr">{{ media_root }}</code>
+  <details class="inline-more"><summary>{% trans trimmed %}Change{% endtrans %}</summary>
+  <form method="post" action="/courses/{{ j.course_id }}/media-folder" class="row pick-row">
+    <input name="folder" id="course-folder" required dir="ltr" value="{{ media_root }}">
+    <button type="button" class="btn" data-pick-folder="#course-folder">{% trans trimmed %}Choose folder{% endtrans %}</button>
+    <button class="btn primary">{% trans trimmed %}Use this folder{% endtrans %}</button>
+  </form></details></p>
+{% endif %}
+
 {% set ns = namespace(here_given=false) %}
 {% for m in prog.modules %}
 {% set tdone = m.requires|selectattr('done')|list|length %}

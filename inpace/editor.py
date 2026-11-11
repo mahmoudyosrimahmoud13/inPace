@@ -83,6 +83,14 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
                     les["title"] = f.get("title", "").strip() or les["title"]
                     les["content"] = f.get("content", "")
                     les["minutes"] = int(f.get("minutes") or 0)
+    elif action == "add_media":
+        ref = f.get("ref", "").strip()
+        target = (f"<{ref}>" if " " in ref else ref)
+        for m in c.modules:
+            for les in m["lessons"]:
+                if les["id"] == f.get("lesson"):
+                    line = f"![{f.get('label', '').strip()}]({target})"
+                    les["content"] = (les["content"].rstrip() + "\n\n" + line + "\n").lstrip()
     elif action == "delete_lesson" and mod:
         if len(mod["lessons"]) <= 1:
             raise CourseError(["A module needs at least one lesson. Delete the module instead."])

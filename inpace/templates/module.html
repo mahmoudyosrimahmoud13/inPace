@@ -27,11 +27,24 @@
     {% if r.type != 'quiz' %}<p class="task-prompt" dir="auto">{{ r.prompt }}</p>{% endif %}
 
     {% if r.type == 'practical' %}
-      <div>{% for e in r.evidence %}<span class="file">{{ icon('file', 16) }}{{ e.name }}</span>{% endfor %}</div>
+      <div class="evidence-list">{% for e in r.evidence %}
+        {% set low = e.name|lower %}
+        {% if low.endswith(('.webm', '.ogg', '.mp3', '.m4a', '.wav', '.opus', '.aac')) %}
+          <figure class="media audio small-media"><audio controls preload="none" src="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}"></audio><figcaption>{{ e.name }}</figcaption></figure>
+        {% elif low.endswith(('.mp4', '.mov', '.m4v')) %}
+          <figure class="media video small-media"><video controls preload="metadata" src="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}"></video><figcaption>{{ e.name }}</figcaption></figure>
+        {% else %}<span class="file">{{ icon('file', 16) }}{{ e.name }}</span>{% endif %}
+      {% endfor %}</div>
+      <div class="recorder" data-recorder data-upload="/learn/{{ j.id }}/task/{{ r.id }}/evidence"
+           data-l-start="{{ _('Record a voice note') }}" data-l-stop="{{ _('Stop and save') }}" data-l-saving="{{ _('Saving…') }}"
+           data-l-nomic="{{ _('inPace can not use a microphone here. You can record on your phone and add the file instead.') }}">
+        <button type="button" class="btn rec-btn">● {{ _('Record a voice note') }}</button>
+        <span class="small muted rec-time"></span>
+      </div>
       <form method="post" enctype="multipart/form-data" action="/learn/{{ j.id }}/task/{{ r.id }}/evidence">
         <label class="drop-zone">
           <input type="file" name="file" required data-autosubmit>
-          <span>{{ icon('upload') }}<br>{{ _('Add another file') if r.evidence else _('Drop your file here, or click to choose') }}<br><span class="small muted" style="font-weight:400">{% trans trimmed %}Projects: zip the folder first{% endtrans %}</span></span>
+          <span>{{ icon('upload') }}<br>{{ _('Add another file') if r.evidence else _('Drop your file here, or click to choose') }}<br><span class="small muted" style="font-weight:400">{% trans trimmed %}Projects: zip the folder first. Videos and voice notes work too.{% endtrans %}</span></span>
         </label>
       </form>
       <details class="more"><summary>{% trans trimmed %}Or use a Git project as proof{% endtrans %}</summary>

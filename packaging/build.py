@@ -69,6 +69,15 @@ def main() -> None:
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.write(DIST / "inPace.exe", "inPace.exe")
     elif system == "Darwin":
+        import plistlib
+        plist_path = DIST / "inPace.app" / "Contents" / "Info.plist"
+        with open(plist_path, "rb") as f:
+            info = plistlib.load(f)
+        info["NSMicrophoneUsageDescription"] = "inPace uses the microphone only when you record a voice note for a task."
+        with open(plist_path, "wb") as f:
+            plistlib.dump(info, f)
+        # Changing Info.plist breaks the app's built-in signature; sign it again (ad hoc) so it still opens.
+        run(["codesign", "--force", "--deep", "--sign", "-", str(DIST / "inPace.app")])
         out = DIST / "inPace-mac.dmg"
         stage = DIST / "dmg"
         shutil.rmtree(stage, ignore_errors=True)

@@ -105,6 +105,35 @@ q1: {right: [a, b], why: print() displays text on the screen.}
 lesson, and questions written as `right: [...]` and `wrong: [...]` lists. inPace converts it to the split
 format, giving options neutral ids from `"o" + sha256(qid + "\x1f" + text)[:6]`.
 
+**Media in lessons.** A lesson can have one main `media:` item shown at the top (`video:`, `audio:` and
+`url:` mean the same), and its text can embed more, written like a Markdown picture:
+
+```yaml
+lessons:
+  - {title: Welcome, media: "01 Intro/01 - Welcome.mp4"}        # a file next to the course
+  - {title: Talk, media: "https://www.youtube.com/watch?v=..."} # YouTube or Vimeo: loads only on play
+  - {title: Lab, media: "/home/sara/Videos/lab.mp4"}            # a full path also works
+```
+
+```markdown
+![Pendulum](sims/pendulum.html)   <- a web page, run in a sealed box (no internet, no access to inPace)
+![](<media/my clip.mp4>)          <- use <...> when the path has spaces
+https://youtu.be/...              <- a YouTube or Vimeo link alone on a line becomes a player
+```
+
+Kinds: video (`.mp4 .webm .m4v .mov .ogv .mkv`), audio (`.mp3 .m4a .aac .ogg .oga .opus .wav .flac .weba`),
+web page (`.html .htm`), picture, PDF, YouTube, Vimeo, and any other link.
+
+**Files stay where they are.** inPace never copies a course's files unless asked. Paths are looked up, in order:
+the file itself (full paths), the course's own small files (`<home>/media/<course>/`, added in the editor or
+carried inside a pack), then the folder this computer was pointed to for that course. Each folder is searched
+for the whole path and then for shorter and shorter endings of it, so a moved or renamed folder still works.
+When files are missing, inPace asks for the folder where they are now. `media_index: {path: size}` in
+`course.yaml` lists the course's files (made automatically when a folder becomes a course).
+
+**Pack with files:** an optional `files/` folder inside the `.lpack` carries the course's files
+(`files/<path inside the course>`), extracted to `<home>/media/<course>/` on install.
+
 **Course fingerprint** = fingerprint of `{id, title, version, description, language, modules, questions}`
 with lesson text inlined. Answers are not included, so a copy with or without answers has the same fingerprint.
 

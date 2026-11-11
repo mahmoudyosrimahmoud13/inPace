@@ -8,6 +8,18 @@
   <a class="card tile" href="/edit/new"><span class="ico">{{ icon('pen') }}</span><span><b>{% trans trimmed %}Make one by hand{% endtrans %}</b><span>{% trans trimmed %}Simple forms, no code.{% endtrans %}</span></span></a>
 </div>
 
+<details class="card folder-import"{% if not rows %} open{% endif %}>
+  <summary><span class="ico">{{ icon('book') }}</span><span><b>{% trans trimmed %}Use a folder of videos on this computer{% endtrans %}</b><br>
+    <span class="small muted">{% trans trimmed %}Already downloaded a course? Each sub-folder becomes a module and each video, audio, PDF or web page a lesson. Nothing is copied, so even very big courses add in seconds.{% endtrans %}</span></span></summary>
+  <form method="post" action="/courses/from-folder" class="stack" style="margin-block-start:1rem">
+    <label>{% trans trimmed %}Folder{% endtrans %}
+      <span class="row pick-row"><input name="folder" id="import-folder" required dir="ltr" placeholder="{{ _('Full path of the course folder') }}">
+      <button type="button" class="btn" data-pick-folder="#import-folder">{% trans trimmed %}Choose folder{% endtrans %}</button></span></label>
+    <label>{% trans trimmed %}Course name (optional){% endtrans %}<input name="title" dir="auto" placeholder="{{ _('Leave empty to use the folder name') }}"></label>
+    <button class="btn primary">{% trans trimmed %}Add course{% endtrans %}</button>
+  </form>
+</details>
+
 {% if rows %}
 <div class="section">
 <h2>{% trans trimmed %}Installed{% endtrans %}</h2>
@@ -34,6 +46,7 @@
         <a href="/edit/{{ c.id }}">{% trans trimmed %}Edit course{% endtrans %}</a>
         <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
         {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
+        {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
         {% if not r.journey %}
         <form method="post" action="/courses/{{ c.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">{% trans trimmed %}Remove course{% endtrans %}</button></form>
         {% endif %}

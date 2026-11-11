@@ -14,4 +14,19 @@
   <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" value="{{ lesson.minutes or '' }}" style="max-width:8rem"></label>
   <button class="btn primary big">{% trans trimmed %}Save lesson{% endtrans %}</button>
 </form>
+
+<section class="card stack" id="media">
+  <h2>{% trans trimmed %}Add a video, audio, page or link{% endtrans %}</h2>
+  <p class="small muted" style="margin:0">{% trans trimmed %}It's added to the end of the lesson text. You can move the line it adds anywhere in the text.{% endtrans %}</p>
+  <form method="post" action="/edit/{{ c.id }}/lesson/{{ lesson.id }}/media" enctype="multipart/form-data" class="stack">
+    <label>{% trans trimmed %}A link (YouTube, Vimeo or any web page){% endtrans %}<input name="ref" dir="ltr" placeholder="https://www.youtube.com/watch?v=..."></label>
+    <details class="more"><summary>{% trans trimmed %}Or a file on this computer{% endtrans %}</summary>
+      <label style="margin-block-start:.6rem">{% trans trimmed %}Full path (the file stays where it is){% endtrans %}<input name="ref_path" dir="ltr" placeholder="/home/you/Videos/lesson-1.mp4"></label>
+      <label>{% trans trimmed %}Or add a small file to the course itself{% endtrans %}<input type="file" name="file" accept="video/*,audio/*,image/*,.html,.htm,.pdf"></label>
+    </details>
+    <label>{% trans trimmed %}Caption (optional){% endtrans %}<input name="label" dir="auto"></label>
+    <button class="btn primary">{% trans trimmed %}Add to lesson{% endtrans %}</button>
+  </form>
+  <p class="small muted" style="margin:0" dir="ltr">![Caption](media/intro.mp4) · ![](https://youtu.be/…) · ![Try it](sims/page.html)</p>
+</section>
 {% endblock %}

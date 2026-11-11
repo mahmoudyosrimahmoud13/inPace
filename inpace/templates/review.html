@@ -111,6 +111,10 @@
   {% for sha, f in all_files.items() %}
     <li class="ev row between">
       <span><b>{{ f.name }}</b><br><span class="meta" dir="auto">{{ f.task }}</span></span>
+      {% set low = f.name|lower %}
+      {% if sha in have_files and low.endswith(('.webm', '.ogg', '.mp3', '.m4a', '.wav', '.opus', '.aac')) %}<audio controls preload="none" src="/files/{{ sha }}?play=1"></audio>
+      {% elif sha in have_files and low.endswith(('.mp4', '.mov', '.m4v')) %}<video controls preload="metadata" class="small-video" src="/files/{{ sha }}?play=1"></video>
+      {% endif %}
       {% if sha in have_files %}<a class="btn" href="/files/{{ sha }}">{{ icon('file', 16) }}{{ _("Open") }}</a>
       {% elif not reply_file %}<label class="check"><input type="checkbox" name="request" value="{{ sha }}|{{ f.name }}" form="decide"> {% trans trimmed %}Ask for it{% endtrans %}</label>
       {% else %}<span class="chip muted">{% trans trimmed %}Not received{% endtrans %}</span>{% endif %}

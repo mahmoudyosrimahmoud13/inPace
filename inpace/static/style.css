@@ -696,3 +696,37 @@ main > .page { flex: 1 0 auto; width: 100%; }
 :root[data-theme=light] { color-scheme: light; }
 :root[data-theme=dark] { color-scheme: dark; }
 .theme-toggle + .me { margin-inline-start: .6rem; }
+
+/* Media in lessons */
+.media { margin: 1.4rem 0; }
+.media video, .media img { display: block; width: 100%; max-height: 70vh; background: #000; border: 3px solid var(--line); }
+.media img { background: transparent; object-fit: contain; }
+.media audio { width: 100%; }
+.media figcaption { font-size: .9rem; color: var(--muted); margin-block-start: .4rem; }
+.frame-wrap { border: 3px solid var(--line); background: #fff; }
+.frame-wrap iframe { display: block; width: 100%; height: 60vh; border: 0; }
+.frame-wrap.tall iframe { height: 80vh; }
+.frame-wrap.video-ratio { aspect-ratio: 16 / 9; }
+.frame-wrap.video-ratio iframe { height: 100%; }
+.media .small-btn { margin-block-start: .5rem; padding: .35rem .8rem; font-size: .85rem; }
+.embed-box { aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem;
+  text-align: center; padding: 1rem; background: #111 var(--lattice); color: #F2EDE2; border: 3px solid var(--line); }
+.embed-box a { color: #F2EDE2; }
+.link-card a { display: flex; flex-direction: column; gap: .2rem; padding: .9rem 1.1rem; border: 3px solid var(--line);
+  background: var(--surface); text-decoration: none; box-shadow: 4px 4px 0 var(--line); }
+[dir=rtl] .link-card a { box-shadow: -4px 4px 0 var(--line); }
+.link-card .small { overflow-wrap: anywhere; }
+.media-missing form { margin-block-start: .7rem; }
+.pick-row { flex-wrap: wrap; gap: .5rem; }
+.pick-row input { flex: 1 1 260px; min-width: 0; }
+.folder-import summary { display: flex; gap: .8rem; align-items: flex-start; cursor: pointer; list-style: none; }
+.folder-import summary::-webkit-details-marker { display: none; }
+.folder-import { margin-block: 1rem; }
+.warn-card { border-color: var(--line); background: var(--raised); }
+.inline-more { display: inline; } .inline-more summary { display: inline; cursor: pointer; text-decoration: underline; }
+.evidence-list { display: grid; gap: .5rem; }
+.small-media { margin: .3rem 0; max-width: 520px; }
+.small-media video { max-height: 280px; }
+.small-video { max-width: 280px; max-height: 160px; }
+.recorder { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-block: .6rem; }
+.rec-btn.recording { background: #E6007E; color: #fff; border-color: #111; }

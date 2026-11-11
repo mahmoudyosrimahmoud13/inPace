@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.6.0
+
+- **Videos, audio, web pages and more in lessons:** lessons can now play videos and audio, show PDFs and pictures, and run interactive web pages (simulations, mini games) in a sealed box with no internet and no access to your data.
+- **YouTube and Vimeo:** paste a link and it becomes a player. It only connects to the internet when you press play.
+- **Use a folder you already have:** on My courses, choose a folder of videos you've downloaded. Each sub-folder becomes a module and each video a lesson. Nothing is copied, so even a 60 GB course adds in seconds.
+- **Files stay where they are:** a course only points to its files. If they move, or the course came from someone else, inPace asks you to choose the folder where they are now, with your computer's own "choose folder" window.
+- **Share with or without files:** share a course as before, or as one file that carries its videos (for small courses).
+- **Voice notes as proof:** record a voice note right on a task, or add a video. Your checker can play it back.
+- **Editor:** add a YouTube link, a file path or a small file to any lesson.
+- Every old way to add a course still works the same: .lpack, .zip, .yaml, the AI course maker and the editor.
+
 ## v1.5.1
 
 - **New website:** mahmoudyosrimahmoud13.github.io/inPace, in English and Arabic, with download buttons that always point to the newest version.

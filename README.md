@@ -11,7 +11,8 @@ A free, open-source app that helps you follow a course and lets someone you trus
 
 **Learn**
 - **Follow a course step by step.** Lessons, then tasks: upload your work, explain it in your own words, take a quiz. The next module unlocks when you finish.
-- **Make courses three ways:** with any AI chat (copy, paste), with simple forms, or by opening a course file someone shared.
+- **Make courses four ways:** with any AI chat (copy, paste), with simple forms, by opening a course file someone shared, or from a folder of videos you already have (nothing is copied).
+- **Videos, audio, web pages and more.** Lessons play videos and audio, show PDFs, run interactive pages safely, and play YouTube or Vimeo links (only when you press play). Record a voice note as proof for a task.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
