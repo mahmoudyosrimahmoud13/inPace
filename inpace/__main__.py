@@ -56,7 +56,17 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--browser", action="store_true", help="use your browser instead of the app window")
     ap.add_argument("--no-browser", action="store_true", help="don't open a window or browser")
+    ap.add_argument("--which-window", nargs="?", const="-", metavar="FILE",
+                    help="say which app window would be used (optionally into FILE), then exit")
     args = ap.parse_args()
+    if args.which_window:
+        from .window import which
+        kind = which()
+        if args.which_window == "-":
+            print(kind)
+        else:
+            Path(args.which_window).write_text(kind, encoding="utf-8")
+        return
 
     vault = Vault(args.home)
     _quiet_streams(vault.home)
@@ -72,23 +82,13 @@ def main() -> None:
         server.run()
         return
 
-    use_window = not args.browser
-    webview = None
-    if use_window:
-        try:
-            import webview  # type: ignore  # pywebview, optional
-        except Exception:
-            webview = None
-
-    if webview is not None:
+    if not args.browser:
+        from .window import open_window
         threading.Thread(target=server.run, daemon=True).start()
         _wait_until_up(port)
-        try:
-            webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600))
-            webview.start()
+        if open_window(url, vault.home):
             os._exit(0)  # window closed: stop everything
-        except Exception as e:  # no window support on this system: fall back to the browser
-            print(f"App window unavailable ({e}); opening your browser instead.")
+        print("No app window available here; opening your browser instead.")
 
     print(f"\n  inPace is running at {url}")
     print(f"  Your data folder: {vault.home}")

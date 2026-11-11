@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ lesson.title }}{% endblock %}
+{% block title %}{{ T('Edit {name}', name=lesson.title) }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
 <div class="page-head">

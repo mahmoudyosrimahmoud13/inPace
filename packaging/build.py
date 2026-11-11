@@ -38,11 +38,22 @@ def main() -> None:
            "--exclude-module", "PIL", "--exclude-module", "tkinter", "--exclude-module", "numpy"]
     for d in data:
         cmd += ["--add-data", d]
-    try:  # the app window library, when installed (Windows and Mac builds)
-        import webview  # noqa: F401
-        cmd += ["--collect-all", "webview"]
-    except Exception:
-        pass
+    if system != "Linux":  # the app window library (Linux uses the system's GTK window instead)
+        try:
+            import webview  # noqa: F401
+            cmd += ["--collect-all", "webview"]
+        except Exception:
+            pass
+    if system == "Windows":  # pywebview's Edge window talks to Windows through pythonnet
+        for mod in ("clr_loader", "pythonnet"):
+            try:
+                __import__(mod)
+                cmd += ["--collect-all", mod]
+            except Exception:
+                pass
+        cmd += ["--hidden-import", "clr"]
+    if system == "Darwin":
+        cmd += ["--hidden-import", "WebKit", "--hidden-import", "AppKit", "--hidden-import", "Foundation"]
     if system == "Windows":
         cmd += ["--onefile", "--windowed", "--icon", str(ROOT / "packaging" / "icon.ico")]
     elif system == "Darwin":
@@ -100,11 +111,13 @@ def build_deb() -> Path:
         "[Desktop Entry]\nType=Application\nName=inPace\n"
         "Comment=Learn at your pace. Prove you kept it.\n"
         "Exec=/opt/inpace/inPace\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
+        "StartupWMClass=inpace\n"
         "Keywords=learning;study;course;accountability;\n", encoding="utf-8")
     size_kb = sum(p.stat().st_size for p in stage.rglob("*") if p.is_file() and not p.is_symlink()) // 1024
     (stage / "DEBIAN" / "control").write_text(
         f"Package: inpace\nVersion: {__version__}\nSection: education\nPriority: optional\n"
         f"Architecture: amd64\nInstalled-Size: {size_kb}\n"
+        "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n"
         "Maintainer: Mahmoud Saad <noreply@github.com>\n"
         "Homepage: https://github.com/mahmoudyosrimahmoud13/inpace\n"
         "Description: Learn at your pace. Prove you kept it.\n"

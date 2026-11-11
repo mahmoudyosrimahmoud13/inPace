@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Welcome{% endblock %}
+{% block title %}{{ _('Welcome') }}{% endblock %}
 {% block width %}narrow{% endblock %}
 {% block main %}
 <section class="card" style="margin-block-start: 2rem; padding: 2.25rem">
@@ -11,12 +11,12 @@
   <form method="post" class="stack" style="margin-block-start: 1.5rem">
     {% if error %}<div class="note bad">{{ error }}</div>{% endif %}
     <label>{% trans trimmed %}What should we call you?{% endtrans %}
-      <input name="name" required maxlength="40" placeholder="For example: Omar" autofocus>
+      <input name="name" required maxlength="40" placeholder="{{ _('For example: Omar') }}" autofocus>
     </label>
     <fieldset class="colors">
       <legend>{% trans trimmed %}Pick your color{% endtrans %}</legend>
       {% for c in colors %}
-      <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span></span><span class="sr">Color {{ loop.index }}</span></label>
+      <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span></span><span class="sr">{{ T('Color {n}', n=loop.index) }}</span></label>
       {% endfor %}
     </fieldset>
     <p class="muted small">{% trans trimmed %}Everything stays on this computer. inPace makes a private key for you that proves your work is yours.{% endtrans %}</p>

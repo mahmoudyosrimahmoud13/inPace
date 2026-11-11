@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}My courses{% endblock %}
+{% block title %}{{ _('My courses') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}.</h1></div>
 <div class="grid">
@@ -18,7 +18,7 @@
     <h3 dir="auto">{{ c.title }}</h3>
     {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
     <div class="row small muted">
-      <span>{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</span>
+      <span>{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</span>
       {% if not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
     </div>
   </div>
@@ -56,9 +56,9 @@
 {% for c in samples %}
 <article class="card course-row flat">
   <div class="grow">
-    <h3>{{ c.title }}</h3>
-    <p class="muted">{{ c.description }}</p>
-    <p class="small muted">{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</p>
+    <h3 dir="auto">{{ c.title }}</h3>
+    <p class="muted" dir="auto">{{ c.description }}</p>
+    <p class="small muted">{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</p>
   </div>
   <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">{% trans trimmed %}Add to my courses{% endtrans %}</button></form>
 </article>

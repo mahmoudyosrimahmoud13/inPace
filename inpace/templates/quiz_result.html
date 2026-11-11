@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Quiz result{% endblock %}
+{% block title %}{{ _('Quiz result') }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
 {% if verified %}
 <section class="card result good center" style="padding: 2.25rem">
   <p class="eyebrow">{{ module.title }}</p>
   <h1>{% trans trimmed %}Answers saved{% endtrans %}</h1>
-  <p class="lead" style="margin-inline:auto">They go to {{ checker_name }} with your next milestone. {{ checker_name }}'s app grades them, and you'll see your score in their reply.</p>
+  <p class="lead" style="margin-inline:auto">{{ T("They go to {name} with your next milestone. {name}'s app grades them, and you'll see your score in their reply.", name=checker_name) }}</p>
   <div class="row" style="justify-content:center">
     <a class="btn primary big" href="/milestones">{% trans trimmed %}Save a milestone now{% endtrans %}</a>
     <a class="btn big" href="/learn/{{ j.id }}/module/{{ module.id }}">{% trans trimmed %}Back to the module{% endtrans %}</a>
@@ -17,7 +17,7 @@
   {{ mascot('cheer' if passed and not review else ('happy' if review else 'think'), 110) }}
   <div class="grow">
   <p class="eyebrow">{{ module.title }}</p>
-  <h1>{{ result.score }} of {{ result.total }} · {{ result.percent }}%</h1>
+  <h1>{{ T('{a} of {b} · {p}%', a=result.score, b=result.total, p=result.percent) }}</h1>
   {% if review %}<p class="lead">{% trans trimmed %}Done for today. These questions will come back at the right time.{% endtrans %}</p>
   <div class="row"><a class="btn primary big" href="/">{% trans trimmed %}Back home{% endtrans %}</a></div>
   {% else %}
@@ -33,7 +33,7 @@
 {% for d in result.details %}
 <div class="card flat answer {{ 'good' if d.ok else 'bad' }}">
   <p dir="auto"><b>{{ d.text }}</b></p>
-  <p dir="auto" style="margin:0">Your answer: {{ d.chosen }} <span class="chip {{ 'good' if d.ok else 'bad' }} plain">{{ _('Right') if d.ok else _('Wrong') }}</span></p>
+  <p dir="auto" style="margin:0">{{ T('Your answer: {answer}', answer=d.chosen) }} <span class="chip {{ 'good' if d.ok else 'bad' }} plain">{{ _('Right') if d.ok else _('Wrong') }}</span></p>
   {% if not d.ok %}<p dir="auto" style="margin:.35rem 0 0">{% trans trimmed %}Right answer:{% endtrans %} <b>{{ d.right }}</b></p>{% endif %}
   {% if d.why %}<p class="muted small" dir="auto" style="margin:.5rem 0 0">{{ d.why }}</p>{% endif %}
 </div>

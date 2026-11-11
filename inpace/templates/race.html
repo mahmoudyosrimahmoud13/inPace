@@ -5,7 +5,7 @@
   <p class="eyebrow"><a href="/races">{% trans trimmed %}Races{% endtrans %}</a></p>
   <div class="row between">
     <h1 dir="auto" style="margin:0">{{ b.race.name }}</h1>
-    <span class="chip {{ 'muted' if b.finished else 'good' }}">{{ _('Finished') if b.finished else b.left ~ ' days left' }}</span>
+    <span class="chip {{ 'muted' if b.finished else 'good' }}">{{ _('Finished') if b.finished else T('{n} days left', n=b.left) }}</span>
   </div>
   <p class="muted" style="margin:.3rem 0 0">{{ _('Pace race: weeks hitting your weekly goal') if b.race.kind == 'pace' else _('Points race: % of your course approved during the race') }}</p>
 </div>
@@ -13,7 +13,7 @@
 {% if b.finished %}
 <section class="card result good center">
   <p class="eyebrow">{% trans trimmed %}Final result{% endtrans %}</p>
-  <h2>{{ b.rows[0].name }} wins!</h2>
+  <h2>{{ T('{name} wins!', name=b.rows[0].name) }}</h2>
   <p class="muted" style="margin:0">{% trans trimmed %}Everyone who took part kept learning. That's the real win.{% endtrans %}</p>
 </section>
 {% endif %}
@@ -22,13 +22,13 @@
   <div class="track">
     {% for x in b.rows %}
     <div class="lane {{ 'mine' if x.me }}">
-      <span class="lane-name">{{ x.place }}. {{ x.name }}{{ ' (you)' if x.me }}</span>
+      <span class="lane-name">{{ x.place }}. {{ x.name }}{{ ' ' ~ _('(you)') if x.me }}</span>
       <div class="lane-road"><span class="runner" style="inset-inline-start: calc({{ x.track }}% - {{ x.track * 0.36 }}px)">{{ avatar(x.racer, 36) }}</span></div>
-      <span class="lane-score"><b>{{ x.score.main }}</b> {{ 'wk' if b.race.kind == 'pace' else 'pts' }}</span>
+      <span class="lane-score"><b>{{ x.score.main }}</b> {{ _('wk') if b.race.kind == 'pace' else _('pts') }}</span>
     </div>
     {% endfor %}
   </div>
-  {% for line in b.recap %}<p class="small" style="margin:.4rem 0 0">{{ line }}</p>{% endfor %}
+  {% for line in b.recap %}<p class="small" style="margin:.4rem 0 0">{{ _(line) }}</p>{% endfor %}
   {% set me = b.rows|selectattr('me')|first %}
   {% if b.race.kind == 'pace' and not me.score.has_goal %}<p class="note warn" style="margin:.75rem 0 0">{% trans trimmed %}Set a weekly goal on your Home page, or you can't score in a pace race.{% endtrans %}</p>{% endif %}
 </section>
@@ -40,12 +40,12 @@
     {% for x in b.rows %}
       <li class="ev">
         <div class="row between"><span class="row">{{ avatar(x.racer, 28) }} <b>{{ x.name }}</b></span>
-          <span class="small muted">{{ x.score.approved }} approved{% if x.score.pending %} · <span class="chip warn plain">{{ x.score.pending }} waiting</span>{% endif %}</span></div>
+          <span class="small muted">{{ T('{n} approved', n=x.score.approved) }}{% if x.score.pending %} · <span class="chip warn plain">{{ T('{n} waiting', n=x.score.pending) }}</span>{% endif %}</span></div>
         {% if x.badges %}<div class="row" style="margin-top:.4rem">{% for bd in x.badges %}<span class="chip good plain">{{ bd }}</span>{% endfor %}</div>{% endif %}
         {% if not x.me %}
         <form method="post" action="/races/{{ rid }}/cheer" class="row" style="margin-top:.4rem">
           <input type="hidden" name="to" value="{{ x.racer.id }}">
-          <select name="text" style="width:auto">{% for c in cheers %}<option>{{ c }}</option>{% endfor %}</select>
+          <select name="text" style="width:auto">{% for c in cheers %}<option value="{{ c }}">{{ _(c) }}</option>{% endfor %}</select>
           <button class="btn">{% trans trimmed %}Send a cheer{% endtrans %}</button>
         </form>
         {% endif %}
@@ -55,7 +55,7 @@
   </section>
   <section class="card">
     <h3>{% trans trimmed %}Cheers for you{% endtrans %}</h3>
-    {% for c in b.cheers %}<p style="margin:.3rem 0"><b>{{ c.from }}:</b> {{ c.text }}</p>{% else %}<p class="muted small">{% trans trimmed %}None yet.{% endtrans %}</p>{% endfor %}
+    {% for c in b.cheers %}<p style="margin:.3rem 0"><b>{{ c.from }}:</b> {{ _(c.text) }}</p>{% else %}<p class="muted small">{% trans trimmed %}None yet.{% endtrans %}</p>{% endfor %}
     <hr class="divider">
     <h3>{% trans trimmed %}Keep the board up to date{% endtrans %}</h3>
     {% if b.folder %}
@@ -63,17 +63,18 @@
       <p class="small muted" dir="ltr">{{ b.folder }}</p>
     {% else %}
       <ol class="small" style="padding-inline-start:1.1rem">
-        <li>{% trans trimmed %}Send your update file to the other racers.{% endtrans %}</li>
-        <li>{% trans trimmed %}Open theirs with “Open a file”.{% endtrans %}</li>
+        <li>{% trans trimmed %}Send your update to the other racers.{% endtrans %}</li>
+        <li>{% trans trimmed %}Paste theirs in “Open”.{% endtrans %}</li>
       </ol>
     {% endif %}
-    <div class="row">
-      <a class="btn primary" href="/races/{{ rid }}/update">{{ icon('send', 18) }}{{ _("My update file") }}</a>
-      <a class="btn" href="/races/{{ rid }}/invite">{% trans trimmed %}Invite file{% endtrans %}</a>
-    </div>
+    {% if update %}{% with share=update, sid='update-code', label=_('My update') %}{% include '_share.html' %}{% endwith %}{% endif %}
+    <p class="small muted"><a href="/races/{{ rid }}/update">{{ _("Or download my update file") }}</a></p>
+    <h3 style="margin-block-start:1rem">{% trans trimmed %}Invite friends{% endtrans %}</h3>
+    {% with share=invite, sid='invite-code', label=_('Race invite') %}{% include '_share.html' %}{% endwith %}
+    <p class="small muted"><a href="/races/{{ rid }}/invite">{{ _("Or download the invite file") }}</a></p>
     <details class="more"><summary>{% trans trimmed %}Race settings{% endtrans %}</summary>
       <form method="post" action="/races/{{ rid }}/folder" class="stack" style="margin-top:.6rem">
-        <label>{% trans trimmed %}Shared folder{% endtrans %}<input name="folder" value="{{ b.folder }}" dir="ltr" placeholder="Leave empty to swap files by hand"></label>
+        <label>{% trans trimmed %}Shared folder{% endtrans %}<input name="folder" value="{{ b.folder }}" dir="ltr" placeholder="{{ _('Leave empty to swap files by hand') }}"></label>
         <button class="btn">{% trans trimmed %}Save{% endtrans %}</button>
       </form>
       <form method="post" action="/races/{{ rid }}/leave" style="margin-top:.6rem"><button class="btn danger">{% trans trimmed %}Leave race{% endtrans %}</button></form>

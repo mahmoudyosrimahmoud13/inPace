@@ -5,8 +5,12 @@ field to know what kind of file it is, so users can drop any file anywhere.
 """
 from __future__ import annotations
 
+import base64
 import json
+import re
+import zlib
 from typing import Any
+from urllib.parse import quote
 
 from .canon import fingerprint, now_utc
 from .course import course_outline
@@ -28,6 +32,43 @@ def read_inpace_file(raw: bytes) -> dict:
     if not isinstance(data, dict) or "inpace" not in data:
         raise FileProblem("This isn't an inPace file.")
     return data
+
+
+# ---------------------------------------------------------------------------
+# Codes: a small inPace file as one line of text you can paste into any chat
+# ---------------------------------------------------------------------------
+
+CODE_PREFIX = "inpace:"
+_CODE_RE = re.compile(r"inpace:([A-Za-z0-9_-]{16,})")
+
+
+def to_code(data: dict) -> str:
+    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return CODE_PREFIX + base64.urlsafe_b64encode(zlib.compress(raw, 9)).rstrip(b"=").decode("ascii")
+
+
+def from_code(text: str) -> dict:
+    """Find an inPace code anywhere in pasted text (a whole chat message is fine)."""
+    m = _CODE_RE.search(re.sub(r"\s+", "", text or ""))
+    if not m:
+        raise FileProblem("That doesn't look like an inPace code. It starts with inpace:")
+    body = m.group(1)
+    try:
+        z = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
+        d = zlib.decompressobj()
+        raw = d.decompress(z, 2_000_000)
+        if d.unconsumed_tail or not d.eof:
+            raise ValueError("too big or cut off")
+    except Exception:
+        raise FileProblem("This code is cut off or damaged. Copy the whole message again.")
+    return read_inpace_file(raw)
+
+
+def share_links(intro: str, code: str) -> dict:
+    """Links that open Telegram or WhatsApp with the message ready to send."""
+    return {"code": code, "message": f"{intro}\n{code}",
+            "telegram": f"https://t.me/share/url?url={quote(code, safe='')}&text={quote(intro, safe='')}",
+            "whatsapp": f"https://wa.me/?text={quote(intro + chr(10) + code, safe='')}"}
 
 
 def dump(data: dict) -> bytes:

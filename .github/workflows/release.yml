@@ -55,6 +55,18 @@ jobs:
           for i in $(seq 1 90); do curl -s -o /dev/null http://127.0.0.1:8799/setup && break; sleep 1; done
           curl -sf http://127.0.0.1:8799/setup | grep -q "Welcome to inPace"
           curl -sf -X POST http://127.0.0.1:8799/quit > /dev/null || true
+      - name: Check the app opens in its own window (not a browser tab)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -y -q python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1 > /dev/null
+            APP=dist/inPace; WANT=gtk
+          elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace; WANT=pywebview
+          else APP=dist/inPace.exe; WANT=pywebview; fi
+          "$APP" --which-window "$RUNNER_TEMP/window.txt"
+          GOT=$(cat "$RUNNER_TEMP/window.txt")
+          echo "Window type: $GOT"
+          [ "$GOT" = "$WANT" ]
       - uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.label }}

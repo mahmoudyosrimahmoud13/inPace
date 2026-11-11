@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import html
 import pytest
 
 from inpace import pace

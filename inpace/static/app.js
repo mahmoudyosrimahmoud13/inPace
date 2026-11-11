@@ -13,7 +13,7 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     try { await navigator.clipboard.writeText(box.value); }
     catch { box.select(); document.execCommand("copy"); }
     const old = btn.textContent;
-    btn.textContent = "Copied!";
+    btn.textContent = document.documentElement.lang === "ar" ? "تم النسخ!" : "Copied!";
     setTimeout(() => (btn.textContent = old), 1800);
   });
 });
@@ -89,3 +89,26 @@ document.querySelectorAll(".prose pre").forEach((pre) => {
   };
   requestAnimationFrame(frame);
 })();
+
+// Small notice used by the app window (e.g. "Saved to Downloads: file.json").
+window.inpaceToast = (text) => {
+  const t = document.createElement("div");
+  t.className = "mini-toast";
+  t.setAttribute("role", "status");
+  t.textContent = document.documentElement.lang === "ar" ? text.replace("Saved to Downloads:", "حُفظ في التنزيلات:") : text;
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, 4000);
+};
+
+// Light / dark switch: changes right away, and inPace remembers it.
+document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const root = document.documentElement;
+    const now = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = now === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    const body = new FormData();
+    body.append("theme", next);
+    fetch("/theme", { method: "POST", body }).catch(() => {});
+  });
+});

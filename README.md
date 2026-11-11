@@ -41,6 +41,8 @@ Go to the [Releases page](https://github.com/mahmoudyosrimahmoud13/inpace/releas
 
 inPace opens in its own window. Everything stays on your computer.
 
+(Using the plain Linux `.tar.gz`? For the app window, install `python3-gi` and `gir1.2-webkit2-4.1` once: `sudo apt install python3-gi gir1.2-webkit2-4.1`. Without them, inPace opens in Chrome or Edge as an app window, or in a browser tab.)
+
 > The apps aren't signed yet. **Windows** may show "Windows protected your PC": click *More info*, then *Run anyway*.
 > **Mac** may say it can't be opened: right-click inPace, choose *Open*, then *Open* again.
 

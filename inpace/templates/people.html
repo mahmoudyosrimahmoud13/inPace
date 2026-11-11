@@ -1,16 +1,22 @@
 {% extends "base.html" %}
-{% block title %}People{% endblock %}
+{% block title %}{{ _('People') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}People{% endtrans %}.</h1></div>
-<section class="card row between">
-  <div>
-    <h2>{% trans trimmed %}Connect with someone{% endtrans %}</h2>
-    <p>{% trans trimmed %}Swap contact cards: send yours, and open theirs. Then choose who checks whom.{% endtrans %}</p>
+<section class="connect grid two">
+  <div class="card stack">
+    <h2>{% trans trimmed %}Your friend code{% endtrans %}</h2>
+    <p class="small">{% trans trimmed %}Send it to a friend on Telegram, WhatsApp or anywhere else. When they paste it into inPace, you're connected.{% endtrans %}</p>
+    {% with share=share, sid='my-code', label=_('Your friend code') %}{% include '_share.html' %}{% endwith %}
+    <p class="small muted"><a href="/people/card">{% trans trimmed %}Or download it as a file{% endtrans %}</a></p>
   </div>
-  <div class="row">
-    <a class="btn primary big" href="/people/card">{% trans trimmed %}Download my contact card{% endtrans %}</a>
-    <a class="btn big" href="/open">{% trans trimmed %}Open their card{% endtrans %}</a>
-  </div>
+  <form class="card stack" method="post" action="/open">
+    <h2>{% trans trimmed %}Add a friend{% endtrans %}</h2>
+    <p class="small">{% trans trimmed %}Paste the code they sent you. The whole message is fine.{% endtrans %}</p>
+    <input type="hidden" name="from" value="people">
+    <textarea name="code" rows="4" dir="ltr" required placeholder="inpace:..."></textarea>
+    <button class="btn primary big">{% trans trimmed %}Add friend{% endtrans %}</button>
+    <p class="small muted"><a href="/open">{% trans trimmed %}Got a file instead? Open it here{% endtrans %}</a></p>
+  </form>
 </section>
 
 {% if not people %}
@@ -27,7 +33,7 @@
     <li class="ev row between">
       <span class="row">{{ avatar(it.person, 28) }} <b>{{ display_name(it.person) }}</b></span>
       <span class="row"><span class="small muted">{{ it.percent }}%</span>
-        {% if it.person.waiting %}<span class="chip warn">{{ it.person.waiting }} waiting</span>{% endif %}
+        {% if it.person.waiting %}<span class="chip warn">{{ T('{n} waiting', n=it.person.waiting) }}</span>{% endif %}
         <a class="btn" href="/review/{{ it.person.id }}/{{ it.rec.journey }}">{% trans trimmed %}Review{% endtrans %}</a></span>
     </li>
     {% endfor %}
@@ -44,23 +50,23 @@
     <div class="grow">
       <h2>{{ display_name(p) }}</h2>
       <p class="muted small">
-        {% if p.checks_me and p.i_check %}Study buddies: you check each other
-        {% elif p.checks_me %}Checks your progress
-        {% else %}You check their progress{% endif %}
-        {% if p.nickname %} · real name: {{ p.name }}{% endif %}
+        {% if p.checks_me and p.i_check %}{{ _('Study buddies: you check each other') }}
+        {% elif p.checks_me %}{{ _('Checks your progress') }}
+        {% else %}{{ _('You check their progress') }}{% endif %}
+        {% if p.nickname %} · {{ T('real name: {name}', name=p.name) }}{% endif %}
       </p>
     </div>
-    {% if p.waiting %}<span class="chip warn">{{ p.waiting }} waiting</span>{% endif %}
+    {% if p.waiting %}<span class="chip warn">{{ T('{n} waiting', n=p.waiting) }}</span>{% endif %}
   </div>
 
   {% if p.i_check %}
     {% for r in p.journeys %}
       <a class="course-link" href="/review/{{ p.id }}/{{ r.journey }}">
-        <span><b>{{ r.course }}</b> <span class="muted small">last file {{ r.received_at|date }}</span></span>
+        <span><b>{{ r.course }}</b> <span class="muted small">{{ T('last file {date}', date=r.received_at|date) }}</span></span>
         <span class="btn">{% trans trimmed %}Review{% endtrans %}</span>
       </a>
     {% else %}
-      <p class="muted small">When {{ display_name(p) }} sends a progress file, open it with “Open a file”.</p>
+      <p class="muted small">{{ T('When {name} sends a progress file, open it with “Open a file”.', name=display_name(p)) }}</p>
     {% endfor %}
   {% endif %}
 

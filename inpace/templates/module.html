@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ module.title }} tasks{% endblock %}
+{% block title %}{{ T('{name} tasks', name=module.title) }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
 {% set lessons_left = mstate.lessons|rejectattr('done')|list %}
@@ -15,7 +15,7 @@
   <div>
     <div class="task-head"><h3>{% trans trimmed %}Read all lessons{% endtrans %}</h3>{% if not lessons_left %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% endif %}</div>
     <p class="muted" style="margin:0">{{ _('%s of %s done.')|format(mstate.lessons_done, mstate.lessons|length) }}
-    {% if lessons_left %}<a href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">Continue with “{{ lessons_left[0].title }}”</a>{% endif %}</p>
+    {% if lessons_left %}<a href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">{{ T('Continue with “{name}”', name=lessons_left[0].title) }}</a>{% endif %}</p>
   </div>
 </section>
 
@@ -36,7 +36,7 @@
       </form>
       <details class="more"><summary>{% trans trimmed %}Or use a Git project as proof{% endtrans %}</summary>
         <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/git" class="row" style="margin-top:.5rem">
-          <input name="folder" required dir="ltr" placeholder="Full path of the project folder" style="flex:1 1 280px">
+          <input name="folder" required dir="ltr" placeholder="{{ _('Full path of the project folder') }}" style="flex:1 1 280px">
           <button class="btn">{% trans trimmed %}Add its history{% endtrans %}</button>
         </form>
         <p class="small muted" style="margin:.3rem 0 0">{% trans trimmed %}Saves the latest commits as a small text file. Your code stays where it is.{% endtrans %}</p>
@@ -53,8 +53,8 @@
       {% if r.quiz %}<p class="small">{% trans trimmed %}Best practice score:{% endtrans %} <b>{{ r.quiz.percent }}%</b></p>{% endif %}
       {% for x in exams if x.exam.req == r.id %}
         <div class="note {{ 'ok' if x.result and x.result.passed else 'warn' }}" style="margin-block: .5rem">
-          {% if x.result %}Verified exam from {{ x.checker_name }}: <b>{{ x.result.score }} of {{ x.result.total }} ({{ x.result.percent }}%)</b> {{ '· passed' if x.result.passed else '· not passed' }}
-          {% elif x.taken %}Verified exam from {{ x.checker_name }}: done. Your answers go with your next milestone.
+          {% if x.result %}{{ T('Verified exam from {name}:', name=x.checker_name) }} <b>{{ T('{a} of {b} ({p}%)', a=x.result.score, b=x.result.total, p=x.result.percent) }}</b> · {{ _('passed') if x.result.passed else _('not passed') }}
+          {% elif x.taken %}{{ T('Verified exam from {name}: done. Your answers go with your next milestone.', name=x.checker_name) }}
           {% else %}<span class="row between">{{ _('%s sent you a verified exam.')|format(x.checker_name) }} <a class="btn" href="/learn/{{ j.id }}/exam/{{ x.exam.id }}">{% trans trimmed %}Take it{% endtrans %}</a></span>{% endif %}
         </div>
       {% endfor %}

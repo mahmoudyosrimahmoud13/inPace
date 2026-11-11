@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Make a course with AI{% endblock %}
+{% block title %}{{ _('Make a course with AI') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Make a course with AI{% endtrans %}.</h1></div>
 <ol class="steps">
@@ -12,7 +12,7 @@
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="prompt">
   <label>{% trans trimmed %}What do you want to learn?{% endtrans %}
-    <input name="topic" required placeholder="For example: Excel for small business owners" value="{{ form.topic or '' }}">
+    <input name="topic" required placeholder="{{ _('For example: Excel for small business owners') }}" value="{{ form.topic or '' }}">
   </label>
   <label>{% trans trimmed %}Your level{% endtrans %}
     <select name="level">
@@ -29,14 +29,14 @@
     <select name="language"><option>{% trans trimmed %}English{% endtrans %}</option><option>{% trans trimmed %}Arabic{% endtrans %}</option></select>
   </label>
   <label>{% trans trimmed %}Anything else? (optional){% endtrans %}
-    <input name="notes" placeholder="For example: use cooking examples">
+    <input name="notes" placeholder="{{ _('For example: use cooking examples') }}">
   </label>
   <button class="btn primary big">{% trans trimmed %}Make my AI prompt{% endtrans %}</button>
 </form>
 <form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="check">
   <label>{% trans trimmed %}Already have the course text? Paste it here
-    {% endtrans %}<textarea name="reply" rows="5" required placeholder="Paste the course YAML (or the whole AI answer)"></textarea>
+    {% endtrans %}<textarea name="reply" rows="5" required placeholder="{{ _('Paste the course YAML (or the whole AI answer)') }}"></textarea>
   </label>
   <button class="btn">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
@@ -52,14 +52,14 @@
 {% if ai.provider %}
 <form method="post" class="card soft row between">
   <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>
-  <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. This can take a few minutes.</span></span>
+  <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. {{ _('This can take a few minutes.') }}</span></span>
   <button class="btn primary" data-busy="Making your course...">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
 </form>
 {% endif %}
 <form method="post" class="card stack">
   <input type="hidden" name="action" value="check">
   <label>{% trans trimmed %}Paste the AI's answer here
-    {% endtrans %}<textarea name="reply" rows="10" required placeholder="Paste everything the AI wrote"></textarea>
+    {% endtrans %}<textarea name="reply" rows="10" required placeholder="{{ _('Paste everything the AI wrote') }}"></textarea>
   </label>
   <button class="btn primary big">{% trans trimmed %}Check the course{% endtrans %}</button>
 </form>
@@ -69,7 +69,7 @@
   {% if problems %}
   <section class="card">
     <h2>{% trans trimmed %}A few things need fixing{% endtrans %}</h2>
-    <ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
+    <ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul>
     <p class="muted">{% trans trimmed %}Tip: copy these lines back to the AI and ask it to fix them, then paste the new answer below.{% endtrans %}</p>
   </section>
   {% endif %}
@@ -81,12 +81,12 @@
     <ol class="preview">
       {% for m in preview.modules %}
       <li><b>{{ m.title }}</b>
-        <span class="muted small">{{ m.lessons|length }} lessons · {{ m.requires|length }} tasks</span>
+        <span class="muted small">{{ T('{a} lessons · {b} tasks', a=m.lessons|length, b=m.requires|length) }}</span>
         <ul>{% for l in m.lessons %}<li>{{ l.title }}</li>{% endfor %}</ul>
       </li>
       {% endfor %}
     </ol>
-    <p class="small muted">{{ preview.questions|length }} questions. Answers are kept in a separate file.</p>
+    <p class="small muted">{{ T('{n} questions. Answers are kept in a separate file.', n=preview.questions|length) }}</p>
     <form method="post">
       <input type="hidden" name="action" value="save">
       <textarea name="reply" hidden>{{ reply }}</textarea>

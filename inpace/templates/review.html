@@ -1,36 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Review {{ display_name(person) }}{% endblock %}
+{% block title %}{{ T('Review {name}', name=display_name(person)) }}{% endblock %}
 {% macro event_line(e) -%}
   {%- set d = e.data -%}
   {%- if e.type == 'lesson_done' -%}
     <li class="ev"><span class="chip good plain">{% trans trimmed %}Lesson{% endtrans %}</span> <b dir="auto">{{ d.title or names.get(d.lesson, d.lesson) }}</b></li>
   {%- elif e.type == 'evidence_added' -%}
     <li class="ev"><span class="chip plain">{% trans trimmed %}Work{% endtrans %}</span> <b>{{ d.name }}</b>
-      <div class="meta" dir="auto">Task: {{ d.task or names.get(d.req, d.req) }}</div>
+      <div class="meta" dir="auto">{{ T('Task: {q}', q=d.task or names.get(d.req, d.req)) }}</div>
     </li>
   {%- elif e.type == 'writeup_saved' -%}
-    <li class="ev"><span class="chip plain">{% trans trimmed %}Explained{% endtrans %}</span> <span class="meta">{{ d.words }} words</span>
-      <div class="meta" dir="auto">Question: {{ d.task or names.get(d.req, d.req) }}</div>
+    <li class="ev"><span class="chip plain">{% trans trimmed %}Explained{% endtrans %}</span> <span class="meta">{{ T('{n} words', n=d.words) }}</span>
+      <div class="meta" dir="auto">{{ T('Question: {q}', q=d.task or names.get(d.req, d.req)) }}</div>
       <blockquote dir="auto">{{ d.text }}</blockquote></li>
   {%- elif e.type == 'quiz_taken' -%}
-    <li class="ev"><span class="chip plain">{% trans trimmed %}Practice quiz{% endtrans %}</span> <b>{{ d.score }} of {{ d.total }} ({{ d.percent }}%)</b> <span class="meta">{{ d.task }} · practice only, they could see answers afterwards</span></li>
+    <li class="ev"><span class="chip plain">{% trans trimmed %}Practice quiz{% endtrans %}</span> <b>{{ T('{a} of {b} ({p}%)', a=d.score, b=d.total, p=d.percent) }}</b> <span class="meta">{{ d.task }} · {{ _('practice only, they could see answers afterwards') }}</span></li>
   {%- elif e.type == 'reflection_saved' -%}
     <li class="ev"><span class="chip plain">{% trans trimmed %}Reflection{% endtrans %}</span>
       <dl class="kv small" style="margin:.5rem 0 0">{% if d.learned %}<dt>{% trans trimmed %}Learned{% endtrans %}</dt><dd dir="auto">{{ d.learned }}</dd>{% endif %}{% if d.hard %}<dt>{% trans trimmed %}Hard{% endtrans %}</dt><dd dir="auto">{{ d.hard }}</dd>{% endif %}{% if d.next %}<dt>{% trans trimmed %}Next{% endtrans %}</dt><dd dir="auto">{{ d.next }}</dd>{% endif %}</dl></li>
   {%- elif e.type == 'commitment_set' -%}
-    <li class="ev"><span class="chip plain">{% trans trimmed %}Goal{% endtrans %}</span> {{ d.per_week }} milestone{{ 's' if d.per_week > 1 }} a week</li>
+    <li class="ev"><span class="chip plain">{% trans trimmed %}Goal{% endtrans %}</span> {{ T('{n} milestones a week', n=d.per_week) if d.per_week > 1 else _('1 milestone a week') }}</li>
   {%- elif e.type == 'pause_started' -%}
     <li class="ev"><span class="chip warn plain">{% trans trimmed %}Break{% endtrans %}</span> {% trans trimmed %}Started a break{% endtrans %}{% if d.reason %}: <span dir="auto">“{{ d.reason }}”</span>{% endif %}</li>
   {%- elif e.type == 'pause_ended' -%}
     <li class="ev"><span class="chip good plain">{% trans trimmed %}Back{% endtrans %}</span> {% trans trimmed %}Ended the break{% endtrans %}</li>
   {%- elif e.type == 'review_done' -%}
-    <li class="ev"><span class="chip plain">{% trans trimmed %}Review{% endtrans %}</span> {{ d.right }} of {{ d.count }} old questions right</li>
+    <li class="ev"><span class="chip plain">{% trans trimmed %}Review{% endtrans %}</span> {{ T('{a} of {b} old questions right', a=d.right, b=d.count) }}</li>
   {%- elif e.type == 'exam_taken' -%}
     {% set g = graded.get(d.exam) %}
     <li class="ev"><span class="chip {{ 'good' if g and g.passed else 'warn' }} plain">{% trans trimmed %}Verified exam{% endtrans %}</span>
-      {% if g %}<b>{{ g.score }} of {{ g.total }} ({{ g.percent }}%)</b> {{ '· passed' if g.passed else '· not passed' }}
+      {% if g %}<b>{{ T('{a} of {b} ({p}%)', a=g.score, b=g.total, p=g.percent) }}</b> · {{ _('passed') if g.passed else _('not passed') }}
         <details class="more"><summary>{% trans trimmed %}See answers{% endtrans %}</summary>
-          <ul class="small">{% for x in g.details %}<li dir="auto">{{ '✓' if x.ok else '✗' }} {{ x.text }}: <i>{{ x.chosen }}</i>{% if x.note %} <span class="muted">({{ x.note }})</span>{% endif %}</li>{% endfor %}</ul>
+          <ul class="small">{% for x in g.details %}<li dir="auto">{{ '✓' if x.ok else '✗' }} {{ x.text }}: <i>{{ x.chosen }}</i>{% if x.note %} <span class="muted">({{ _(x.note) }})</span>{% endif %}</li>{% endfor %}</ul>
         </details>
       {% else %}<span class="meta">{% trans trimmed %}This exam wasn't sent from this computer, so it can't be graded here.{% endtrans %}</span>{% endif %}
     </li>
@@ -42,14 +42,14 @@
   <div class="grow">
     <p class="eyebrow">{% trans trimmed %}Reviewing{% endtrans %}</p>
     <h1 dir="auto">{{ display_name(person) }} · {{ report.journey.course.title }}</h1>
-    <p class="muted small" style="margin:0">File received {{ rec.received_at|date }}{% if report.last_reviewed %} · you last reviewed on {{ report.last_reviewed|date }}{% endif %}</p>
+    <p class="muted small" style="margin:0">{{ T('File received {date}', date=rec.received_at|date) }}{% if report.last_reviewed %} · {{ T('you last reviewed on {date}', date=report.last_reviewed|date) }}{% endif %}</p>
   </div>
 </div>
 
 {% if reply_file %}
 <section class="card result good">
   <h2>{% trans trimmed %}Your reply is ready{% endtrans %}</h2>
-  <p>Download it and send it back to {{ display_name(person) }} the same way they sent theirs.</p>
+  <p>{{ T('Download it and send it back to {name} the same way they sent theirs.', name=display_name(person)) }}</p>
   <a class="btn primary big" href="/outbox/{{ reply_file|urlencode }}">{{ icon('send', 18) }}{{ _("Download reply file") }}</a>
 </section>
 {% endif %}
@@ -57,41 +57,41 @@
 {% if report.history_ok %}
 <section class="card verdict good">
   <div class="row"><span style="color: var(--good)">{{ icon('shield', 28) }}</span><h2>{% trans trimmed %}Nothing was changed since you last checked{% endtrans %}</h2></div>
-  <p class="muted" style="margin:0">Every milestone is signed by {{ display_name(person) }} and connects to the one before it.{% if receipts %} The ones you already reviewed are exactly as you saw them.{% endif %}</p>
+  <p class="muted" style="margin:0">{{ T('Every milestone is signed by {name} and connects to the one before it.', name=display_name(person)) }}{% if receipts %} {{ _('The ones you already reviewed are exactly as you saw them.') }}{% endif %}</p>
 </section>
 {% else %}
 <section class="card verdict bad">
   <h2>{% trans trimmed %}Something's wrong with this history{% endtrans %}</h2>
   <ul class="problems">{% for p in report.problems %}<li>{{ p }}</li>{% endfor %}</ul>
-  <p style="margin:.75rem 0 0">Don't approve this. Ask {{ display_name(person) }} what happened, and for a fresh progress file.</p>
+  <p style="margin:.75rem 0 0">{{ T("Don't approve this. Ask {name} what happened, and for a fresh progress file.", name=display_name(person)) }}</p>
 </section>
 {% endif %}
 
-{% for c in report.course_changes %}<div class="note warn">{{ c }}</div>{% endfor %}
+{% for c in report.course_changes %}<div class="note warn">{{ _(c) }}</div>{% endfor %}
 {% if course_diffs %}
 <div class="note warn">
-  <b>{{ display_name(person) }}'s copy of the course is different from yours.</b>
+  <b>{{ T("{name}'s copy of the course is different from yours.", name=display_name(person)) }}</b>
   <ul class="small" style="margin:.5rem 0 0">{% for d in course_diffs %}<li dir="auto">{{ d }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
-{% for w in similar %}<div class="note warn"><b>{% trans trimmed %}Very similar answers:{% endtrans %}</b> {{ w }}</div>{% endfor %}
+{% for w in similar %}<div class="note warn"><b>{% trans trimmed %}Very similar answers:{% endtrans %}</b> {{ _(w) }}</div>{% endfor %}
 
 {% if weekly.commitment %}
 <section class="card flat">
-  <div class="row between"><h3>Weekly goal: {{ weekly.commitment.per_week }} milestone{{ 's' if weekly.commitment.per_week > 1 }} a week</h3>
-  <span class="small muted">{{ weekly.met }} met · {{ weekly.missed }} missed · {{ weekly.streak }} in a row</span></div>
-  <div class="weeks">{% for w in weekly.weeks %}<span class="wk {{ w.state }}" title="Week of {{ w.start }}: {{ w.count }} ({{ w.state }})"></span>{% endfor %}</div>
+  <div class="row between"><h3>{{ _('Weekly goal:') }} {{ T('{n} milestones a week', n=weekly.commitment.per_week) if weekly.commitment.per_week > 1 else _('1 milestone a week') }}</h3>
+  <span class="small muted">{{ T('{a} met · {b} missed · {c} in a row', a=weekly.met, b=weekly.missed, c=weekly.streak) }}</span></div>
+  <div class="weeks">{% for w in weekly.weeks %}<span class="wk {{ w.state }}" title="{{ T('Week of {date}: {n}', date=w.start|date, n=w.count) }}"></span>{% endfor %}</div>
   <p class="small muted" style="margin:.4rem 0 0">{% trans trimmed %}Green: met · Red: missed · Grey: on a break · Outline: this week{% endtrans %}</p>
 </section>
 {% endif %}
 
 <div class="section">
-<h2>{{ report.new|length }} new milestone{{ '' if report.new|length == 1 else 's' }} to review</h2>
+<h2>{{ _('1 new milestone to review') if report.new|length == 1 else T('{n} new milestones to review', n=report.new|length) }}</h2>
 {% if not report.new %}<p class="muted">{% trans trimmed %}You've already approved everything in this file.{% endtrans %}</p>{% endif %}
 {% for m in report.new %}
 {% set b = m.body %}
 <section class="card">
-  <div class="row between"><h3>Milestone {{ b.seq }}</h3><span class="muted small">{{ b.created_at|date }}</span></div>
+  <div class="row between"><h3>{{ T('Milestone {n}', n=b.seq) }}</h3><span class="muted small">{{ b.created_at|date }}</span></div>
   <div class="stats">
     <div><b>{{ b.summary.percent }}%</b><span>{% trans trimmed %}of the course{% endtrans %}</span></div>
     <div><b>{{ b.summary.lessons_done }}/{{ b.summary.lessons_total }}</b><span>{% trans trimmed %}lessons{% endtrans %}</span></div>
@@ -123,7 +123,7 @@
 {% if not reply_file %}
 <form method="post" class="card stack decide" id="decide">
   <h2>{% trans trimmed %}Your decision{% endtrans %}</h2>
-  <label>Note for {{ display_name(person) }} (optional)<textarea name="note" rows="3" dir="auto" placeholder="For example: Great progress! Can you show me your notes next time?"></textarea></label>
+  <label>{{ T('Note for {name} (optional)', name=display_name(person)) }}<textarea name="note" rows="3" dir="auto" placeholder="{{ _('For example: Great progress! Can you show me your notes next time?') }}"></textarea></label>
   <div class="row">
     <button class="btn primary big" name="decision" value="approved" {{ 'disabled' if not report.history_ok }}>{{ icon('check', 18) }}{{ _("Approve") }}</button>
     <button class="btn big" name="decision" value="question">{% trans trimmed %}Ask a question{% endtrans %}</button>
@@ -136,22 +136,22 @@
 <section class="card soft">
   <h3>{% trans trimmed %}Send a verified exam{% endtrans %}</h3>
   {% if not course %}
-    <p class="muted" style="margin:0">To send exams, add this course to your own inPace first, using the version with answers ({{ report.journey.course.title }}).</p>
+    <p class="muted" style="margin:0">{{ T('To send exams, add this course to your own inPace first, using the version with answers ({name}).', name=report.journey.course.title) }}</p>
   {% elif not course.has_answers %}
     <p class="muted" style="margin:0">{% trans trimmed %}Your copy of this course has no answers. Ask for the “with answers” version to send exams.{% endtrans %}</p>
   {% else %}
-    <p class="muted">Your app makes the exam and keeps the answers. {{ display_name(person) }} takes it offline, and you see the real score in their next progress file.</p>
+    <p class="muted">{{ T('Your app makes the exam and keeps the answers. {name} takes it offline, and you see the real score in their next progress file.', name=display_name(person)) }}</p>
     <div class="row">
       {% for q in quizzes %}<a class="btn" href="/review/{{ person.id }}/{{ rec.journey }}/exam/{{ q.id }}" dir="auto">{{ q.module }}</a>{% endfor %}
     </div>
-    {% if sent %}<p class="small muted" style="margin:.75rem 0 0">Sent so far: {% for s in sent %}{{ s.exam.task }} ({{ s.created_at|date }}){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    {% if sent %}<p class="small muted" style="margin:.75rem 0 0">{{ _('Sent so far:') }} {% for s in sent %}{{ s.exam.task }} ({{ s.created_at|date }}){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
   {% endif %}
 </section>
 
 {% if report.old %}
 <details class="card flat">
-  <summary><b>Already approved ({{ report.old|length }})</b></summary>
-  <ul>{% for m in report.old %}<li>Milestone {{ m.body.seq }} · {{ m.body.summary.percent }}% · {{ m.body.created_at|date }}</li>{% endfor %}</ul>
+  <summary><b>{{ T('Already approved ({n})', n=report.old|length) }}</b></summary>
+  <ul>{% for m in report.old %}<li>{{ T('Milestone {n}', n=m.body.seq) }} · {{ m.body.summary.percent }}% · {{ m.body.created_at|date }}</li>{% endfor %}</ul>
 </details>
 {% endif %}
 {% endblock %}

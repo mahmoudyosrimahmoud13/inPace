@@ -8,7 +8,25 @@ from .canon import now_utc
 from .vault import Vault, display_name
 
 
-def build_record(v: Vault, journey: str) -> str:
+STRINGS = [
+    "inPace learning record", "Learning record · made with inPace", "Is this record real?",
+    "Checks every fingerprint and signature, right here in your browser. Nothing is sent anywhere.",
+    "Verify this record", "Milestones",
+    "What this proves: the steps were followed in order, the work existed, the history wasn't changed, and the "
+    "checkers named here approved it. It can't prove how well someone learned.",
+    "{n} milestones · record made {date}", "{p}% of the course", "{a} of {b} modules", "Approved by {name}",
+    "Not approved yet", "Milestone {n}", "{p}% · {n} lessons done", "Milestone {n} is missing or out of order.",
+    "Milestone {n} was changed after it was saved.", "Milestone {n} doesn't connect to the one before.",
+    "Milestone {n} belongs to someone else.", "Milestone {n} isn't signed by {name}.",
+    "An approval from {name} isn't genuine.", "This record has problems", "✓ This record checks out",
+    "All {n} milestones are intact and connected, signed by {name}, and every approval is genuine.",
+    "All {n} milestones are intact and connected. (This browser can't check signatures; try a recent Chrome, "
+    "Edge, Firefox or Safari.)",
+    "Show keys", "Learner:", "A checker",
+]
+
+
+def build_record(v: Vault, journey: str, tr=lambda s: s, lang: str = "en", months: list | None = None) -> str:
     j = v.journey(journey)
     course = v.get_course(j["course_id"])
     ms = v.milestones(journey)
@@ -19,13 +37,21 @@ def build_record(v: Vault, journey: str) -> str:
                               "learner": v.identity.id, "checker": a["checker"], "decision": a["decision"],
                               "note": a["note"], "at": a["at"], "sig": a["sig"]})
             p = v.person(a["checker"])
-            checkers[a["checker"]] = display_name(p) if p else "A checker"
+            checkers[a["checker"]] = display_name(p) if p else tr("A checker")
     data = {"learner": v.me, "course": {"title": course.title, "id": course.id},
             "milestones": [{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms],
-            "approvals": approvals, "checkers": checkers, "made": now_utc()}
+            "approvals": approvals, "checkers": checkers, "made": now_utc(),
+            "L": {k: tr(k) for k in STRINGS}, "months": months or []}
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     title = f"{v.me['name']} · {course.title}"
-    return TEMPLATE.replace("__TITLE__", html.escape(title)).replace("__DATA__", payload)
+    L = data["L"]
+    out = TEMPLATE.replace("__TITLE__", html.escape(title)).replace("__DATA__", payload)
+    out = out.replace('<html lang="en">', f'<html lang="{lang}" dir="{"rtl" if lang == "ar" else "ltr"}">')
+    for k in ("inPace learning record", "Learning record · made with inPace", "Is this record real?",
+              "Checks every fingerprint and signature, right here in your browser. Nothing is sent anywhere.",
+              "Verify this record", "Milestones", STRINGS[6]):
+        out = out.replace(f"[[{k}]]", html.escape(L[k]))
+    return out
 
 
 TEMPLATE = r"""<!doctype html>
@@ -33,7 +59,7 @@ TEMPLATE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>__TITLE__ · inPace learning record</title>
+<title>__TITLE__ · [[inPace learning record]]</title>
 <style>
 :root{--bg:#F7F7F4;--s:#fff;--l:#E4E4DC;--i:#15191F;--m:#5F656D;--g:#1B6E4D;--gb:#E6F2EB;--b:#A8261D;--bb:#FBE7E4;--w:#8A4E0E;--wb:#FBEFDF;--p:#233953}
 @media (prefers-color-scheme:dark){:root{--bg:#0F1113;--s:#181B1F;--l:#2A2F35;--i:#ECEFF3;--m:#969DA6;--g:#7DD3A8;--gb:rgba(125,211,168,.12);--b:#FF9E94;--bb:rgba(255,158,148,.12);--w:#F2B56E;--wb:rgba(242,181,110,.12);--p:#C9DAF0}}
@@ -51,7 +77,7 @@ ol{list-style:none;padding:0;margin:0}li{padding:.8rem 0;border-top:1px solid va
 </head>
 <body>
 <main>
-  <p class="eyebrow">Learning record · made with inPace</p>
+  <p class="eyebrow">[[Learning record · made with inPace]]</p>
   <h1 id="title"></h1>
   <p class="m" id="sub"></p>
   <div class="card">
@@ -59,34 +85,37 @@ ol{list-style:none;padding:0;margin:0}li{padding:.8rem 0;border-top:1px solid va
     <div class="bar" style="margin-top:.6rem"><span id="barfill"></span></div>
   </div>
   <div class="card">
-    <div class="row"><div><b>Is this record real?</b><br><span class="m">Checks every fingerprint and signature, right here in your browser. Nothing is sent anywhere.</span></div>
-    <button id="verify">Verify this record</button></div>
+    <div class="row"><div><b>[[Is this record real?]]</b><br><span class="m">[[Checks every fingerprint and signature, right here in your browser. Nothing is sent anywhere.]]</span></div>
+    <button id="verify">[[Verify this record]]</button></div>
     <div id="result" class="card"></div>
   </div>
-  <h2 style="font-family:Georgia,serif;font-weight:500">Milestones</h2>
+  <h2 style="font-family:Georgia,serif;font-weight:500">[[Milestones]]</h2>
   <div class="card"><ol id="list"></ol></div>
-  <p class="m">What this proves: the steps were followed in order, the work existed, the history wasn't changed, and the checkers named here approved it. It can't prove how well someone learned.</p>
+  <p class="m">[[What this proves: the steps were followed in order, the work existed, the history wasn't changed, and the checkers named here approved it. It can't prove how well someone learned.]]</p>
 </main>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 const D = JSON.parse(document.getElementById("data").textContent);
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const L = D.L, f = (k, o) => L[k].replace(/\{(\w+)\}/g, (_, x) => o[x]);
+const day = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); if (!m || !D.months.length) return (s || "").slice(0, 10);
+  return document.documentElement.lang === "ar" ? `${+m[3]} ${D.months[m[2] - 1]} ${m[1]}` : `${D.months[m[2] - 1]} ${+m[3]}, ${m[1]}`; };
 const last = D.milestones.length ? D.milestones[D.milestones.length - 1].body.summary : null;
 $("title").textContent = D.learner.name + " · " + D.course.title;
-$("sub").textContent = D.milestones.length + " milestones · record made " + D.made.slice(0, 10);
-$("pct").textContent = (last ? last.percent : 0) + "% of the course";
-$("mods").textContent = last ? last.modules_done + " of " + last.modules_total + " modules" : "";
+$("sub").textContent = f("{n} milestones · record made {date}", { n: D.milestones.length, date: day(D.made) });
+$("pct").textContent = f("{p}% of the course", { p: last ? last.percent : 0 });
+$("mods").textContent = last ? f("{a} of {b} modules", { a: last.modules_done, b: last.modules_total }) : "";
 $("barfill").style.width = (last ? last.percent : 0) + "%";
 const byM = {};
 D.approvals.forEach((a) => (byM[a.milestone] = byM[a.milestone] || []).push(a));
 $("list").innerHTML = D.milestones.slice().reverse().map((m) => {
   const b = m.body, as = byM[m.hash] || [];
   const ok = as.filter((a) => a.decision === "approved");
-  const chip = ok.length ? `<span class="chip good">Approved by ${esc(ok.map((a) => D.checkers[a.checker]).join(", "))}</span>`
-                         : `<span class="chip">Not approved yet</span>`;
-  return `<li><div class="row"><b>Milestone ${b.seq}</b><span class="m">${esc(b.created_at.slice(0, 10))}</span></div>
-    <div class="row"><span class="m">${b.summary.percent}% · ${b.summary.lessons_done} lessons done</span>${chip}</div></li>`;
+  const chip = ok.length ? `<span class="chip good">${esc(f("Approved by {name}", { name: ok.map((a) => D.checkers[a.checker]).join(", ") }))}</span>`
+                         : `<span class="chip">${esc(L["Not approved yet"])}</span>`;
+  return `<li><div class="row"><b>${esc(f("Milestone {n}", { n: b.seq }))}</b><span class="m">${esc(day(b.created_at))}</span></div>
+    <div class="row"><span class="m">${esc(f("{p}% · {n} lessons done", { p: b.summary.percent, n: b.summary.lessons_done }))}</span>${chip}</div></li>`;
 }).join("");
 
 // Same canonical form as inPace (SPEC.md section 1).
@@ -112,24 +141,25 @@ $("verify").onclick = async () => {
   let prev = "";
   for (const [i, m] of D.milestones.entries()) {
     const b = m.body;
-    if (b.seq !== i + 1) { problems.push(`Milestone ${i + 1} is missing or out of order.`); break; }
-    if (await sha(b) !== m.hash) { problems.push(`Milestone ${b.seq} was changed after it was saved.`); break; }
-    if (b.prev !== prev) { problems.push(`Milestone ${b.seq} doesn't connect to the one before.`); break; }
-    if (b.learner !== D.learner.id) { problems.push(`Milestone ${b.seq} belongs to someone else.`); break; }
-    if (sigs && !(await sigOk(D.learner.id, { kind: "milestone", hash: m.hash }, m.sig))) { problems.push(`Milestone ${b.seq} isn't signed by ${D.learner.name}.`); break; }
+    if (b.seq !== i + 1) { problems.push(f("Milestone {n} is missing or out of order.", { n: i + 1 })); break; }
+    if (await sha(b) !== m.hash) { problems.push(f("Milestone {n} was changed after it was saved.", { n: b.seq })); break; }
+    if (b.prev !== prev) { problems.push(f("Milestone {n} doesn't connect to the one before.", { n: b.seq })); break; }
+    if (b.learner !== D.learner.id) { problems.push(f("Milestone {n} belongs to someone else.", { n: b.seq })); break; }
+    if (sigs && !(await sigOk(D.learner.id, { kind: "milestone", hash: m.hash }, m.sig))) { problems.push(f("Milestone {n} isn't signed by {name}.", { n: b.seq, name: D.learner.name })); break; }
     prev = m.hash;
   }
   if (sigs) for (const a of D.approvals) {
     const { sig, ...rest } = a;
-    if (!(await sigOk(a.checker, rest, sig))) problems.push(`An approval from ${D.checkers[a.checker]} isn't genuine.`);
+    if (!(await sigOk(a.checker, rest, sig))) problems.push(f("An approval from {name} isn't genuine.", { name: D.checkers[a.checker] }));
   }
   out.style.display = "block";
-  if (problems.length) { out.className = "card bad"; out.innerHTML = "<b>This record has problems</b><ul>" + problems.map((p) => `<li>${esc(p)}</li>`).join("") + "</ul>"; }
+  if (problems.length) { out.className = "card bad"; out.innerHTML = "<b>" + esc(L["This record has problems"]) + "</b><ul>" + problems.map((p) => `<li>${esc(p)}</li>`).join("") + "</ul>"; }
   else {
     out.className = "card good";
-    out.innerHTML = `<b>✓ This record checks out</b><br>All ${D.milestones.length} milestones are intact and connected` +
-      (sigs ? `, signed by ${esc(D.learner.name)}, and every approval is genuine.` : `. (This browser can't check signatures; try a recent Chrome, Edge, Firefox or Safari.)`) +
-      `<details style="margin-top:.5rem"><summary class="m">Show keys</summary><p class="m">Learner: <code>${D.learner.id}</code></p>` +
+    out.innerHTML = `<b>${esc(L["✓ This record checks out"])}</b><br>` +
+      esc(sigs ? f("All {n} milestones are intact and connected, signed by {name}, and every approval is genuine.", { n: D.milestones.length, name: D.learner.name })
+               : f("All {n} milestones are intact and connected. (This browser can't check signatures; try a recent Chrome, Edge, Firefox or Safari.)", { n: D.milestones.length })) +
+      `<details style="margin-top:.5rem"><summary class="m">${esc(L["Show keys"])}</summary><p class="m">${esc(L["Learner:"])} <code>${D.learner.id}</code></p>` +
       Object.entries(D.checkers).map(([k, n]) => `<p class="m">${esc(n)}: <code>${k}</code></p>`).join("") + `</details>`;
   }
 };

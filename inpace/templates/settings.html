@@ -1,39 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings<section class="card" style="max-width:620px" id="ai">
-  <h2>{% trans trimmed %}AI course maker{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
-  <form method="post" action="/settings/ai" class="stack">
-    <label>{% trans trimmed %}Provider{% endtrans %}<select name="provider">{% for k, label in providers.items() %}<option value="{{ k }}" {{ 'selected' if ai.provider == k }}>{{ label }}</option>{% endfor %}</select></label>
-    <label>{% trans trimmed %}Model{% endtrans %}<input name="model" value="{{ ai.model }}" placeholder="For example: {{ models.ollama }}, {{ models.anthropic }}" dir="ltr"></label>
-    <label>{% trans trimmed %}Address (only for Ollama on another port, or other OpenAI-compatible services){% endtrans %}<input name="base_url" value="{{ ai.base_url }}" dir="ltr" placeholder="Leave empty for the default"></label>
-    <label>{% trans trimmed %}API key{% endtrans %} {% if ai.has_key %}<span class="chip good plain">{% trans trimmed %}saved{% endtrans %}</span>{% endif %}<input type="password" name="key" placeholder="{{ _('Leave empty to keep the saved key') if ai.has_key else _('Only for Claude or OpenAI') }}" autocomplete="off" dir="ltr"></label>
-    <p class="small muted" style="margin:0">{% trans trimmed %}The key is stored in your inPace folder on this computer only.{% endtrans %}</p>
-    <button class="btn">{% trans trimmed %}Save AI settings{% endtrans %}</button>
-  </form>
-</section>
-<section class="card" style="max-width:620px">
-  <h2>{% trans trimmed %}Backups{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
-  <form method="post" action="/settings/backup" class="row">
-    <input type="password" name="password" minlength="6" required placeholder="Choose a password (6+ characters)" style="max-width:300px" autocomplete="new-password">
-    <button class="btn primary">{% trans trimmed %}Download backup{% endtrans %}</button>
-  </form>
-  <p class="small muted">{% trans trimmed %}There's no way to open a backup without its password. Write it down somewhere safe.{% endtrans %}</p>
-  <details class="more"><summary>{% trans trimmed %}Restore from a backup{% endtrans %}</summary>
-    <form method="post" action="/settings/restore" enctype="multipart/form-data" class="stack" style="margin-block-start:.75rem">
-      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup. inPace closes afterwards; open it again.{% endtrans %}</p>
-      <input type="file" name="file" required accept=".inpace-backup">
-      <input type="password" name="password" required placeholder="The backup's password" autocomplete="current-password">
-      <button class="btn danger">{% trans trimmed %}Restore{% endtrans %}</button>
-    </form>
-  </details>
-</section>
-<section class="card" style="max-width:620px">
-  <h2>{% trans trimmed %}Quit inPace{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}Stops inPace in the background. Your data stays safe in the folder above.{% endtrans %}</p>
-  <form method="post" action="/quit"><button class="btn">{% trans trimmed %}Quit inPace{% endtrans %}</button></form>
-</section>
-{% endblock %}
+{% block title %}{{ _('Settings') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Settings{% endtrans %}.</h1></div>
 <form method="post" class="card stack" style="max-width:620px">
@@ -44,7 +10,7 @@
     <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if c == me.color }}><span></span><span class="sr">{{ c }}</span></label>
     {% endfor %}
   </fieldset>
-  <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>{{ _('Arabic (beta)') }}</option></select></label>
+  <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option></select></label>
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
 <section class="card" style="max-width:620px">
@@ -59,8 +25,8 @@
   <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
   <form method="post" action="/settings/ai" class="stack">
     <label>{% trans trimmed %}Provider{% endtrans %}<select name="provider">{% for k, label in providers.items() %}<option value="{{ k }}" {{ 'selected' if ai.provider == k }}>{{ label }}</option>{% endfor %}</select></label>
-    <label>{% trans trimmed %}Model{% endtrans %}<input name="model" value="{{ ai.model }}" placeholder="For example: {{ models.ollama }}, {{ models.anthropic }}" dir="ltr"></label>
-    <label>{% trans trimmed %}Address (only for Ollama on another port, or other OpenAI-compatible services){% endtrans %}<input name="base_url" value="{{ ai.base_url }}" dir="ltr" placeholder="Leave empty for the default"></label>
+    <label>{% trans trimmed %}Model{% endtrans %}<input name="model" value="{{ ai.model }}" placeholder="{{ _('For example:') }} {{ models.ollama }}, {{ models.anthropic }}" dir="ltr"></label>
+    <label>{% trans trimmed %}Address (only for Ollama on another port, or other OpenAI-compatible services){% endtrans %}<input name="base_url" value="{{ ai.base_url }}" dir="ltr" placeholder="{{ _('Leave empty for the default') }}"></label>
     <label>{% trans trimmed %}API key{% endtrans %} {% if ai.has_key %}<span class="chip good plain">{% trans trimmed %}saved{% endtrans %}</span>{% endif %}<input type="password" name="key" placeholder="{{ _('Leave empty to keep the saved key') if ai.has_key else _('Only for Claude or OpenAI') }}" autocomplete="off" dir="ltr"></label>
     <p class="small muted" style="margin:0">{% trans trimmed %}The key is stored in your inPace folder on this computer only.{% endtrans %}</p>
     <button class="btn">{% trans trimmed %}Save AI settings{% endtrans %}</button>
@@ -70,7 +36,7 @@
   <h2>{% trans trimmed %}Backups{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
   <form method="post" action="/settings/backup" class="row">
-    <input type="password" name="password" minlength="6" required placeholder="Choose a password (6+ characters)" style="max-width:300px" autocomplete="new-password">
+    <input type="password" name="password" minlength="6" required placeholder="{{ _('Choose a password (6+ characters)') }}" style="max-width:300px" autocomplete="new-password">
     <button class="btn primary">{% trans trimmed %}Download backup{% endtrans %}</button>
   </form>
   <p class="small muted">{% trans trimmed %}There's no way to open a backup without its password. Write it down somewhere safe.{% endtrans %}</p>
@@ -78,7 +44,7 @@
     <form method="post" action="/settings/restore" enctype="multipart/form-data" class="stack" style="margin-block-start:.75rem">
       <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup. inPace closes afterwards; open it again.{% endtrans %}</p>
       <input type="file" name="file" required accept=".inpace-backup">
-      <input type="password" name="password" required placeholder="The backup's password" autocomplete="current-password">
+      <input type="password" name="password" required placeholder="{{ _("The backup's password") }}" autocomplete="current-password">
       <button class="btn danger">{% trans trimmed %}Restore{% endtrans %}</button>
     </form>
   </details>

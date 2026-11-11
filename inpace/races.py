@@ -212,8 +212,13 @@ def board(v: Vault, rid: str) -> dict:
         recap.append(f"{rows[0]['name']} is in the lead.")
         if my_place > 1:
             gap = rows[my_place - 2]["score"]["main"] - me["score"]["main"]
-            unit = "week" if race["kind"] == "pace" else "point"
-            recap.append(f"You're {gap} {unit}{'s' if gap != 1 else ''} from place {my_place - 1}.")
+            if race["kind"] == "pace":
+                line = (f"You're 1 week from place {my_place - 1}." if gap == 1
+                        else f"You're {gap} weeks from place {my_place - 1}.")
+            else:
+                line = (f"You're 1 point from place {my_place - 1}." if gap == 1
+                        else f"You're {gap} points from place {my_place - 1}.")
+            recap.append(line)
         else:
             recap.append("You're in first place. Keep it up!")
     if me["score"]["pending"]:

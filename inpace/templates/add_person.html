@@ -1,28 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Add {{ card.name }}{% endblock %}
+{% block title %}{{ T('Add {name}', name=card.name) }}{% endblock %}
 {% block main %}
 <section class="card stack" style="max-width:620px">
   <div class="person-head">{{ avatar(card, 52) }}<div><p class="eyebrow">{{ _('Progress file from') if from_progress else _('Contact card') }}</p><h1>{{ card.name }}</h1></div></div>
   {% if from_progress %}
-    <p>You don't check {{ card.name }}'s progress yet. Add them to review this file.</p>
+    <p>{{ T("You don't check {name}'s progress yet. Add them to review this file.", name=card.name) }}</p>
     <form method="post" action="/people/add-learner" class="stack">
       <textarea name="progress" hidden>{{ progress_json }}</textarea>
-      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
-      <button class="btn primary big">Add {{ card.name }} and review</button>
+      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="{{ T('For example: {name} from work', name=card.name) }}"></label>
+      <button class="btn primary big">{{ T('Add {name} and review', name=card.name) }}</button>
     </form>
   {% else %}
-    {% if existing %}<p class="note">You already know {{ card.name }}. Choosing again updates how you're connected.</p>{% endif %}
+    {% if existing %}<p class="note">{{ T("You already know {name}. Choosing again updates how you're connected.", name=card.name) }}</p>{% endif %}
     <form method="post" action="/people/add" class="stack">
       <textarea name="card" hidden>{{ card_json }}</textarea>
       <input type="hidden" name="then" value="{{ then }}">
       <fieldset class="stack">
         <legend>{% trans trimmed %}How are you connected?{% endtrans %}</legend>
-        <label class="choice"><input type="radio" name="relationship" value="checks_me" required><span><b>{% trans trimmed %}They check my progress{% endtrans %}</b><br><span class="muted small">{{ card.name }} approves your milestones</span></span></label>
-        <label class="choice"><input type="radio" name="relationship" value="i_check"><span><b>{% trans trimmed %}I check their progress{% endtrans %}</b><br><span class="muted small">You approve {{ card.name }}'s milestones</span></span></label>
+        <label class="choice"><input type="radio" name="relationship" value="checks_me" required><span><b>{% trans trimmed %}They check my progress{% endtrans %}</b><br><span class="muted small">{{ T('{name} approves your milestones', name=card.name) }}</span></span></label>
+        <label class="choice"><input type="radio" name="relationship" value="i_check"><span><b>{% trans trimmed %}I check their progress{% endtrans %}</b><br><span class="muted small">{{ T("You approve {name}'s milestones", name=card.name) }}</span></span></label>
         <label class="choice"><input type="radio" name="relationship" value="buddies"><span><b>{% trans trimmed %}We check each other{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Study buddies{% endtrans %}</span></span></label>
       </fieldset>
-      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="For example: {{ card.name }} from work"></label>
-      <button class="btn primary big">Add {{ card.name }}</button>
+      <label>{% trans trimmed %}Nickname (optional, only you see it){% endtrans %}<input name="nickname" placeholder="{{ T('For example: {name} from work', name=card.name) }}"></label>
+      <button class="btn primary big">{{ T('Add {name}', name=card.name) }}</button>
     </form>
   {% endif %}
 </section>

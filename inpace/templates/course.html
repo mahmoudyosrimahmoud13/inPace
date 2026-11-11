@@ -39,7 +39,7 @@
       <a class="stone {{ 'done' if l.done }} {{ 'here' if is_here }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
          style="inset-inline-start: {{ x }}%; top: {{ y }}px" {% if m.status != 'locked' %}href="/learn/{{ j.id }}/lesson/{{ l.id }}"{% endif %}>
         <span class="rock">{% if l.done %}{{ icon('check', 22) }}{% else %}{{ loop.index }}{% endif %}</span>
-        <span class="label" dir="auto">{{ l.title }}{% if l.minutes %}<small>{{ l.minutes }} min</small>{% endif %}</span>
+        <span class="label" dir="auto">{{ l.title }}{% if l.minutes %}<small>{{ T('{n} min', n=l.minutes) }}</small>{% endif %}</span>
         {% if is_here %}<span class="walker">{{ mascot('wave', 64) }}</span>{% endif %}
       </a>
     {% endfor %}

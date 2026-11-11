@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}{{ _('Home') }}{% endblock %}
 {% block main %}
 <div class="hello">
   {% set t = cards[0].tempo if cards else ('wave', "Hi! I'm Tempo. Pick a course and we'll go one step at a time.", []) %}
@@ -27,13 +27,13 @@
   <div class="hero">
     <div>
       <p class="eyebrow"><a href="/learn/{{ c.journey.id }}">{{ p.course.title }}</a></p>
-      <h2>{% if p.finished %}You finished the course!{% elif p.current_module %}{{ p.current_module.title }}{% endif %}</h2>
+      <h2>{% if p.finished %}{{ _('You finished the course!') }}{% elif p.current_module %}{{ p.current_module.title }}{% endif %}</h2>
     </div>
     {% if c.chain_problems %}<span class="chip bad">{% trans trimmed %}Problem with your record{% endtrans %}</span>
-    {% elif c.last_ok %}<span class="chip good">Approved by {{ c.last_ok.checker_name }}</span>
+    {% elif c.last_ok %}<span class="chip good">{{ T('Approved by {name}', name=c.last_ok.checker_name) }}</span>
     {% elif c.milestones %}<span class="chip warn">{% trans trimmed %}Waiting for your checker{% endtrans %}</span>{% endif %}
   </div>
-  <div class="bar" role="progressbar" aria-label="Course progress" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
+  <div class="bar" role="progressbar" aria-label="{{ _('Course progress') }}" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
   <div class="stats">
     <div><b>{{ p.percent }}%</b><span>{% trans trimmed %}done{% endtrans %}</span></div>
     <div><b>{{ p.lessons_done }}/{{ p.lessons_total }}</b><span>{% trans trimmed %}lessons{% endtrans %}</span></div>
@@ -49,14 +49,14 @@
   {% endif %}
   {% if c.requests %}
   <div class="note warn row between">
-    <span><b>{{ c.requests[0].checker_name }}</b> asked to see {{ c.requests|length }} of your file{{ 's' if c.requests|length > 1 }}.</span>
+    <span>{{ T('{name} asked to see {n} of your files.', name=c.requests[0].checker_name, n=c.requests|length) if c.requests|length > 1 else T('{name} asked to see one of your files.', name=c.requests[0].checker_name) }}</span>
     <a class="btn" href="/milestones">{% trans trimmed %}Send them{% endtrans %}</a>
   </div>
   {% endif %}
 
   <div class="pace-row">
     {% if c.paused %}
-      <div class="pace-box warn"><b>{% trans trimmed %}On a break{% endtrans %}</b><span>since {{ c.paused.start|date }}{% if c.paused.reason %} · {{ c.paused.reason }}{% endif %}</span>
+      <div class="pace-box warn"><b>{% trans trimmed %}On a break{% endtrans %}</b><span>{{ T('since {date}', date=c.paused.start|date) }}{% if c.paused.reason %} · {{ c.paused.reason }}{% endif %}</span>
         <form method="post" action="/learn/{{ c.journey.id }}/do/resume"><button class="btn">{% trans trimmed %}I'm back{% endtrans %}</button></form></div>
     {% elif c.pace.commitment %}
       {% set tw = c.pace.this_week %}
@@ -92,7 +92,7 @@
     {% if not c.paused %}
     <details class="more"><summary>{% trans trimmed %}Take a break{% endtrans %}</summary>
       <form method="post" action="/learn/{{ c.journey.id }}/do/pause" class="row" style="margin-block-start:.5rem">
-        <input name="reason" placeholder="Why? (optional, your checker sees it)" style="max-width:320px"><button class="btn">{% trans trimmed %}Start break{% endtrans %}</button></form></details>
+        <input name="reason" placeholder="{{ _('Why? (optional, your checker sees it)') }}" style="max-width:320px"><button class="btn">{% trans trimmed %}Start break{% endtrans %}</button></form></details>
     {% endif %}
     <details class="more"><summary>{% trans trimmed %}Quick reflection{% endtrans %}</summary>
       <form method="post" action="/learn/{{ c.journey.id }}/do/reflect" class="stack" style="margin-block-start:.5rem;min-width:min(560px,80vw)">

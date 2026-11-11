@@ -1,3 +1,4 @@
+import html
 import json
 from pathlib import Path
 

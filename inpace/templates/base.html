@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
+<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"{% if theme %} data-theme="{{ theme }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=6">
+<link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 <header class="top">
@@ -13,15 +13,18 @@
     <img src="/static/icon.svg" alt="" width="30" height="30">
     <span><span class="in">{% trans trimmed %}in{% endtrans %}</span><b>{% trans trimmed %}Pace{% endtrans %}</b></span>
   </a>
-  <span class="pill" title="Nothing leaves this computer unless you send a file yourself"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
+  <span class="pill" title="{{ _('Nothing leaves this computer unless you send a file yourself') }}"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
+  <button type="button" class="theme-toggle" data-theme-toggle aria-label="{{ _('Switch light or dark mode') }}" title="{{ _('Switch light or dark mode') }}">
+    <span class="when-light">{{ icon('moon', 20) }}</span><span class="when-dark">{{ icon('sun', 20) }}</span>
+  </button>
   {% if me %}
-  <a class="me" href="/settings" title="Settings">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
+  <a class="me" href="/settings" title="{{ _('Settings') }}">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
   {% endif %}
 </header>
 <div class="shell {{ 'no-side' if not me }}">
   {% if me %}
   {% set p = active_path %}
-  <nav class="side" aria-label="Main">
+  <nav class="side" aria-label="{{ _('Main') }}">
     <p class="side-h">{% trans trimmed %}My learning{% endtrans %}</p>
     <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}{{ _("Home") }}</a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}{{ _("My courses") }}</a>
@@ -50,7 +53,7 @@
       <div class="yay" role="status" {{ 'data-confetti' if yay[0] in ('cheer', 'proud') }}>
         {{ mascot(yay[0], 76) }}
         <p>{{ _(yay[1]) }}</p>
-        <button type="button" class="yay-close" aria-label="Close">×</button>
+        <button type="button" class="yay-close" aria-label="{{ _('Close') }}">×</button>
       </div>
       {% endif %}
     </div>
@@ -58,7 +61,7 @@
     <footer class="big-foot">
       <div class="foot-top">
         <div><b>{{ _('Slow and steady wins the race.') }}</b><p>{{ _('Free and open source. Everything stays on this computer.') }}</p></div>
-        <nav class="foot-links" aria-label="More">
+        <nav class="foot-links" aria-label="{{ _('More') }}">
           <a href="/courses">{{ _('My courses') }}</a><a href="/races">{{ _('Races') }}</a><a href="/people">{{ _('People') }}</a>
           <a href="/settings">{{ _('Settings') }}</a>
           <a href="https://github.com/mahmoudyosrimahmoud13/inpace" target="_blank" rel="noopener">GitHub</a>
@@ -70,6 +73,6 @@
     {% endif %}
   </main>
 </div>
-<script src="/static/app.js?v=2"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>

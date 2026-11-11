@@ -51,8 +51,49 @@ LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="u
 CURRENT = {"lang": "en"}
 
 
+def _patterns(table: dict) -> list:
+    """Keys with {name} slots, like "Added {name}.", also translate messages built at run time."""
+    out = []
+    for key, val in table.items():
+        if "{" in key and "}" in key:
+            rx = re.escape(key)
+            seen: set = set()
+
+            def slot(m, seen=seen):
+                name = m.group(1)
+                if name in seen:
+                    return f"(?P={name})"
+                seen.add(name)
+                return f"(?P<{name}>.+?)"
+            rx = re.sub(r"\\\{(\w+)\\\}", slot, rx)
+            out.append((len(re.sub(r"\{\w+\}", "", key)), re.compile(rx + r"\Z", re.S), val))
+    out.sort(key=lambda x: -x[0])  # most specific first
+    return [(rx, val) for _, rx, val in out]
+
+
+PATTERNS = {lang: _patterns(t) for lang, t in LOCALES.items()}
+
+
 def gettext(text: str) -> str:
-    return LOCALES.get(CURRENT["lang"], {}).get(text, text)
+    table = LOCALES.get(CURRENT["lang"])
+    if not table or not text:
+        return text
+    hit = table.get(text)
+    if hit is not None:
+        return hit
+    for rx, val in PATTERNS[CURRENT["lang"]]:
+        m = rx.match(text)
+        if m:
+            parts = {}
+            for k, v in m.groupdict().items():
+                core = v.strip()
+                tr = gettext(core) if core != text and any(c.isalpha() for c in core) else core
+                parts[k] = v[: len(v) - len(v.lstrip())] + tr + v[len(v.rstrip()):]
+            try:
+                return val.format(**parts)
+            except (KeyError, IndexError):
+                return text
+    return text
 
 
 env.install_gettext_callables(gettext, lambda s, p, n: gettext(s if n == 1 else p), newstyle=False)
@@ -70,7 +111,38 @@ def say(msg: str, values: list | tuple = ()) -> str:
 
 env.globals["say"] = say
 env.filters["short"] = short
-env.filters["date"] = lambda s: (s or "")[:10]
+MONTHS = {"en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+          "ar": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر",
+                 "نوفمبر", "ديسمبر"]}
+
+
+def nice_date(s: str | None) -> str:
+    """2026-11-11 -> "Nov 11, 2026" or "11 نوفمبر 2026"."""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s or "")
+    if not m:
+        return (s or "")[:10]
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if CURRENT["lang"] == "ar":
+        return f"{d} {MONTHS['ar'][mo - 1]} {y}"
+    return f"{MONTHS['en'][mo - 1]} {d}, {y}"
+
+
+def tr_lines(text: str | None) -> str:
+    """A message can be several sentences joined by new lines; translate each one."""
+    return " ".join(gettext(x) for x in (text or "").split("\n") if x)
+
+
+def t(text: str, **values) -> str:
+    """Translate a sentence with {name} slots, then fill them in."""
+    out = gettext(text)
+    try:
+        return out.format(**values)
+    except (KeyError, IndexError, ValueError):
+        return text.format(**values)
+
+
+env.filters["date"] = nice_date
+env.globals["T"] = t
 env.globals["display_name"] = display_name
 
 
@@ -99,6 +171,8 @@ _ICONS = {
     "lock": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     "shield": '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
     "send": '<path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/>',
+    "moon": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
     "file": '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/>',
     "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
@@ -131,8 +205,9 @@ def create_app(vault: Vault) -> Starlette:
     # ---- helpers -------------------------------------------------------------
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
         CURRENT["lang"] = (V._meta("lang", "en") or "en") if V.is_set_up else "en"
-        base = {"request": request, "msg": gettext(request.query_params.get("ok") or "") or None,
-                "err": gettext(request.query_params.get("err") or "") or None, "lang": CURRENT["lang"],
+        base = {"request": request, "msg": tr_lines(request.query_params.get("ok")) or None,
+                "err": tr_lines(request.query_params.get("err")) or None, "lang": CURRENT["lang"],
+                "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
@@ -215,6 +290,8 @@ def create_app(vault: Vault) -> Starlette:
                     samples.append(load_course(files_from_folder(p)))
                 except CourseError:
                     pass
+        lang = V._meta("lang", "en") or "en"
+        samples.sort(key=lambda c: c.language != lang)  # courses in your language first
         rows = [{"course": c, "journey": V.journey_for_course(c.id)} for c in installed]
         return page("courses.html", request, rows=rows, samples=samples)
 
@@ -558,7 +635,8 @@ def create_app(vault: Vault) -> Starlette:
             return go("/milestones", err="Save a milestone first.")
         j = V.journey(jid)
         title = V.get_course(j["course_id"]).title
-        return download(record.build_record(V, jid).encode("utf-8"), f"{V.me['name']} - {title} - learning record.html",
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        return download(record.build_record(V, jid, gettext, CURRENT["lang"], MONTHS[CURRENT["lang"]]).encode("utf-8"), f"{V.me['name']} - {title} - learning record.html",
                         "text/html")
 
     # ---- races ------------------------------------------------------------------
@@ -602,7 +680,16 @@ def create_app(vault: Vault) -> Starlette:
                 sync_msg = f"Shared folder synced · {n} other racer{'s' if n != 1 else ''}"
             except exchange.FileProblem as e:
                 sync_msg = str(e)
-        return page("race.html", request, b=races.board(V, rid), rid=rid, sync_msg=sync_msg, cheers=races.CHEERS)
+        b = races.board(V, rid)
+        invite = exchange.share_links(say("Join my race on inPace 🐢 Open inPace, choose Open, and paste this code:"),
+                                      exchange.to_code(races.get_race(V, rid)["race"]))
+        try:
+            update = exchange.share_links(say("My inPace race update. Paste it in inPace → Open:"),
+                                          exchange.to_code(races.make_update(V, rid)))
+        except Exception:
+            update = None
+        return page("race.html", request, b=b, rid=rid, sync_msg=sync_msg, cheers=races.CHEERS,
+                    invite=invite, update=update)
 
     async def race_action(request: Request):
         rid, action = request.path_params["rid"], request.path_params["action"]
@@ -677,7 +764,9 @@ def create_app(vault: Vault) -> Starlette:
                 by_course.setdefault(r["course"], []).append({"person": p, "rec": r,
                                                               "percent": (r["data"]["milestones"][-1]["body"]["summary"]["percent"]
                                                                           if r["data"]["milestones"] else 0)})
-        return page("people.html", request, people=rows, by_course=by_course)
+        share = exchange.share_links(say("Add me on inPace 🐢 Open inPace, go to People, and paste this code:"),
+                                     exchange.to_code(exchange.make_contact_card(V)))
+        return page("people.html", request, people=rows, by_course=by_course, share=share)
 
     async def my_card(request: Request):
         return download(exchange.dump(exchange.make_contact_card(V)), f"{V.me['name']} - contact card.inpace",
@@ -722,10 +811,19 @@ def create_app(vault: Vault) -> Starlette:
         if request.method == "GET":
             return page("open.html", request)
         form = await request.form()
-        up = form.get("file")
-        if not up or not getattr(up, "filename", ""):
-            return go("/open", err="Choose a file first.")
-        raw = await up.read()
+        back = "/people" if form.get("from") == "people" else "/open"
+        if form.get("code") is not None:
+            try:
+                raw = exchange.dump(exchange.from_code(str(form.get("code"))))
+                fname = "code.inpace"
+            except exchange.FileProblem as e:
+                return go(back, err=str(e))
+        else:
+            up = form.get("file")
+            if not up or not getattr(up, "filename", ""):
+                return go("/open", err="Choose a file first.")
+            raw = await up.read()
+            fname = up.filename
         if raw[:2] == b"PK" and checks.is_file_pack(raw):
             try:
                 res = checks.import_file_pack(V, raw)
@@ -736,10 +834,10 @@ def create_app(vault: Vault) -> Starlette:
             try:
                 c = V.install_course(load_course(files_from_zip(raw)))
             except CourseError as e:
-                return page("open.html", request, problems=e.problems, filename=up.filename)
+                return page("open.html", request, problems=e.problems, filename=fname)
             extra = "" if c.has_answers else " It came without answers, so practice quizzes are off."
             return go("/courses", ok=f"Added the course “{c.title}”.{extra}")
-        if up.filename.lower().endswith((".yaml", ".yml")) or not raw.lstrip()[:1] == b"{":
+        if fname.lower().endswith((".yaml", ".yml")) or not raw.lstrip()[:1] == b"{":
             # A single-file course (the all-in-one format, e.g. saved from an AI chat).
             try:
                 text = raw.decode("utf-8-sig")
@@ -752,7 +850,7 @@ def create_app(vault: Vault) -> Starlette:
                 if any("is missing" in p and "lessons/" in p for p in e.problems):
                     hint = ["This course keeps its lessons in separate files. Put course.yaml and the lessons "
                             "folder together in a zip file, then open the zip."]
-                return page("open.html", request, problems=hint + e.problems, filename=up.filename)
+                return page("open.html", request, problems=hint + e.problems, filename=fname)
             if V.get_course(course.id) and V.journey_for_course(course.id):
                 course.id = f"{course.id}-{now_utc()[:10]}"
             c = V.install_course(course)
@@ -802,13 +900,16 @@ def create_app(vault: Vault) -> Starlette:
                           ok=f"{res['name']} sent you a verified exam for “{res['task']}”.")
             if kind == "approval":
                 res = exchange.import_approval_file(V, data)
-                word = {"approved": "approved", "question": "has a question about", "flag": "flagged"}[res["decision"]]
-                note = f" Note: “{res['note']}”" if res["note"] else ""
+                first = {"approved": "{a} approved {b} milestone(s).", "question": "{a} has a question about {b} milestone(s).",
+                         "flag": "{a} flagged {b} milestone(s)."}[res["decision"]]
+                lines = [first.format(a=res["name"], b=res["count"])]
+                if res["note"]:
+                    lines.append(f"Note: “{res['note']}”")
                 if res.get("results"):
-                    note += " Your exam score is in."
+                    lines.append("Your exam score is in.")
                 if res.get("requests"):
-                    note += f" They asked to see {res['requests']} file(s)."
-                return go("/milestones", ok=f"{res['name']} {word} {res['count']} milestone(s).{note}",
+                    lines.append(f"They asked to see {res['requests']} file(s).")
+                return go("/milestones", ok="\n".join(lines),
                           yay="approved" if res["decision"] == "approved" else None)
         except exchange.FileProblem as e:
             return go("/open", err=str(e))
@@ -992,10 +1093,18 @@ def create_app(vault: Vault) -> Starlette:
         return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
+    async def set_theme(request: Request):
+        form = await request.form()
+        theme = str(form.get("theme", ""))
+        if V.is_set_up:
+            V._set_meta("theme", theme if theme in ("light", "dark") else "")
+        return Response(status_code=204)
+
     async def quit_app(request: Request):
         import os
         import threading
-        threading.Timer(0.6, lambda: os._exit(0)).start()
+        from .window import close_children
+        threading.Timer(0.6, lambda: (close_children(), os._exit(0))).start()
         return HTMLResponse('<!doctype html><meta charset="utf-8"><title>inPace stopped</title>'
                             '<body style="font-family:system-ui;padding:3rem;background:#F7F7F4;color:#15191F">'
                             '<h1>inPace has stopped</h1><p>You can close this tab. Open inPace again any time.</p></body>')
@@ -1052,6 +1161,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/outbox/{name}", needs_setup(outbox)),
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
+        Route("/theme", set_theme, methods=["POST"]),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),

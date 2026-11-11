@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ c.title }}{% endblock %}
+{% block title %}{{ T('Edit {name}', name=c.title) }}{% endblock %}
 {% block main %}
 <div class="page-head">
   <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a> {% trans trimmed %}· Editing{% endtrans %}</p>
   <h1 dir="auto">{{ c.title }}</h1>
-  <p class="muted small" style="margin:0">Version {{ c.version }} · every change is checked, then saved as a new version.</p>
+  <p class="muted small" style="margin:0">{{ T('Version {n} · every change is checked, then saved as a new version.', n=c.version) }}</p>
 </div>
-{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
 {% if started %}<p class="note warn">{% trans trimmed %}You've started this course. Your progress is kept, but your checker will see that the course changed.{% endtrans %}</p>{% endif %}
 
 <details class="card flat">
@@ -60,7 +60,7 @@
       <label>{% trans trimmed %}Type{% endtrans %}<select name="type">
         <option value="practical">{% trans trimmed %}Your work: upload a file as proof{% endtrans %}</option>
         <option value="explain">{% trans trimmed %}Explain it: write in your own words{% endtrans %}</option>
-        <option value="quiz" {{ 'disabled' if not c.questions }}>Quiz: questions from the question bank{{ ' (add questions first)' if not c.questions }}</option></select></label>
+        <option value="quiz" {{ 'disabled' if not c.questions }}>{{ _('Quiz: questions from the question bank') }}{{ ' ' ~ _('(add questions first)') if not c.questions }}</option></select></label>
       <label>{% trans trimmed %}What should the learner do? (for quizzes, a short title){% endtrans %}<input name="prompt" dir="auto"></label>
       {% if c.questions %}
       <fieldset class="stack"><legend>{% trans trimmed %}Questions (quizzes only){% endtrans %}</legend>
@@ -86,7 +86,7 @@
   <ul class="events">
   {% for qid, q in c.questions.items() %}
     {% set right = (c.answers or {}).get(qid, {}).get('right', []) %}
-    <li class="ev row between"><span><b dir="auto">{{ q.text }}</b><br><span class="small muted">{{ right|length }} right · {{ q.options|length - right|length }} wrong · shows {{ q.show }}</span></span>
+    <li class="ev row between"><span><b dir="auto">{{ q.text }}</b><br><span class="small muted">{{ T('{a} right · {b} wrong · shows {c}', a=right|length, b=q.options|length - right|length, c=q.show) }}</span></span>
       <form method="post"><input type="hidden" name="action" value="delete_question"><input type="hidden" name="question" value="{{ qid }}"><button class="btn ghost danger">{% trans trimmed %}Delete{% endtrans %}</button></form></li>
   {% else %}<li class="ev muted small">{% trans trimmed %}No questions yet.{% endtrans %}</li>{% endfor %}
   </ul>

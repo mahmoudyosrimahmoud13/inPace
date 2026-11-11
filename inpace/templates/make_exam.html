@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Make an exam{% endblock %}
+{% block title %}{{ _('Make an exam') }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
 <div class="page-head">
-  <p class="eyebrow"><a href="/review/{{ person.id }}/{{ journey }}">Back to {{ display_name(person) }}</a></p>
-  <h1 dir="auto">Verified exam: {{ module.title }}</h1>
-  <p class="muted">{{ req.questions|length }} questions from the course, shuffled just for {{ display_name(person) }}. They can't see the answers, and they can take it only once.</p>
+  <p class="eyebrow"><a href="/review/{{ person.id }}/{{ journey }}">{{ T('Back to {name}', name=display_name(person)) }}</a></p>
+  <h1 dir="auto">{{ T('Verified exam: {name}', name=module.title) }}</h1>
+  <p class="muted">{{ T("{n} questions from the course, shuffled just for {name}. They can't see the answers, and they can take it only once.", n=req.questions|length, name=display_name(person)) }}</p>
 </div>
 
 {% if exam_file %}
 <section class="card result good">
   <h2>{% trans trimmed %}The exam is ready{% endtrans %}</h2>
-  <p>Send this file to {{ display_name(person) }}. They open it with “Open a file”.</p>
+  <p>{{ T('Send this file to {name}. They open it with “Open a file”.', name=display_name(person)) }}</p>
   <a class="btn primary big" href="/outbox/{{ exam_file|urlencode }}">{{ icon('send', 18) }}{{ _("Download exam file") }}</a>
 </section>
 {% else %}
@@ -22,7 +22,7 @@
   <fieldset class="stack">
     <legend>{% trans trimmed %}Your own questions{% endtrans %}</legend>
     {% for q in private %}
-    <label class="check"><input type="checkbox" name="private" value="{{ q.id }}" checked> <span dir="auto">{{ q.text }} <span class="muted small">(right: {{ q.right }})</span></span></label>
+    <label class="check"><input type="checkbox" name="private" value="{{ q.id }}" checked> <span dir="auto">{{ q.text }} <span class="muted small">{{ T('(right: {answer})', answer=q.right) }}</span></span></label>
     {% endfor %}
   </fieldset>
   {% endif %}
@@ -33,7 +33,7 @@
   <summary><b>{% trans trimmed %}Add your own question{% endtrans %}</b> <span class="muted small">{% trans trimmed %}(only you have it, so it can't be looked up){% endtrans %}</span></summary>
   <form method="post" class="stack" style="margin-block-start:1rem">
     <input type="hidden" name="action" value="add_question">
-    <label>{% trans trimmed %}Question{% endtrans %}<input name="text" required dir="auto" placeholder="For example: What did you build in Module 1, in one sentence?"></label>
+    <label>{% trans trimmed %}Question{% endtrans %}<input name="text" required dir="auto" placeholder="{{ _('For example: What did you build in Module 1, in one sentence?') }}"></label>
     <label>{% trans trimmed %}Right answer{% endtrans %}<input name="right" required dir="auto"></label>
     <label>{% trans trimmed %}Wrong answers (one per line, at least one){% endtrans %}<textarea name="wrong" rows="3" required dir="auto"></textarea></label>
     <button class="btn">{% trans trimmed %}Save question{% endtrans %}</button>
