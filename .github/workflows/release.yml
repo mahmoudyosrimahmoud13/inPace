@@ -1,0 +1,56 @@
+name: release
+
+# Builds the double-click apps when you push a version tag, e.g.  git tag v0.2.0 && git push --tags
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            file: dist/inPace-windows.zip
+            extra: pywebview
+          - os: macos-latest
+            file: dist/inPace-mac.dmg
+            extra: pywebview
+          - os: ubuntu-22.04
+            file: dist/inPace-linux.tar.gz
+            extra: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: python -m pip install . pyinstaller ${{ matrix.extra }} pytest httpx
+      - name: Test
+        run: python -m pytest -q
+      - name: Build
+        run: python packaging/build.py
+      - name: Smoke test (starts and answers)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then APP=dist/inPace.exe;
+          elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace;
+          else APP=dist/inPace; fi
+          INPACE_HOME="$RUNNER_TEMP/vault" "$APP" --no-browser --port 8799 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8799/setup && break; sleep 1; done
+          curl -sf http://127.0.0.1:8799/setup | grep -q "Welcome to inPace"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: ${{ matrix.file }}
+      - name: Attach to the GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.file }}

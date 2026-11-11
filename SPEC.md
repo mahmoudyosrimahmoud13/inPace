@@ -118,3 +118,23 @@ with lesson text inlined. Answers are not included, so a copy with or without an
 4. Display order: sort the chosen options by `rank(s, qid, "show", option_id)`.
 
 The same seed always gives the same exam, so anyone with the course can rebuild what the learner saw.
+
+## 8. Verified exams (`"inpace": "exam"`)
+
+Made by the checker: `id`, `checker` `{id, name, color}`, `learner`, `journey`, `course` `{id, title, hash}`,
+`req`, `task`, `pass`, `questions` `[{id, text, choices: [{id, text}], note?}]`, `created_at`, and `sig`
+(checker's signature over everything except `sig`). It never contains answers; the checker's app keeps the key.
+
+The learner answers once. That records an `exam_taken` event `{exam, req, task, checker, answers}`, which travels
+inside the next milestone. The checker's app grades it with the stored key.
+
+## 9. Extras in an approval file
+
+An approval file may carry `extras`: `{kind: "extras", learner, journey, checker, exam_results: [{exam, score,
+total, percent, passed}], requests: [{sha256, name}], at, sig}`, signed by the checker.
+
+## 10. File packs
+
+A zip with `inpace-files.json` (`"inpace": "files"`, `learner`, `journey`, `files: [{sha256, name}]`, `sig` by
+the learner) and each file at `files/<sha256>`. The checker accepts a file only if its SHA-256 matches and the
+same fingerprint appears in an `evidence_added` event of that learner's milestones.

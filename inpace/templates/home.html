@@ -1,73 +1,78 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block main %}
-<h1>Hi {{ me.name }}</h1>
+<div class="page-head">
+  <h1>Hi {{ me.name }}</h1>
+  {% if cards %}<p class="muted">Here's where you are.</p>{% endif %}
+</div>
+
 {% if not cards %}
-  <section class="card empty">
-    <h2>Let's start your first course</h2>
-    <p>Pick one from the library, open a course file someone gave you, or make one with AI.</p>
-    <div class="row">
-      <a class="btn primary big" href="/courses">Choose a course</a>
-      <a class="btn" href="/ai">Make one with AI</a>
-      <a class="btn" href="/open">Open a course file</a>
-    </div>
-  </section>
+<section class="card empty">
+  <h2>Let's start your first course</h2>
+  <p class="muted">Pick one from your courses, open a course file someone gave you, or make one with AI.</p>
+  <div class="row">
+    <a class="btn primary big" href="/courses">Choose a course</a>
+    <a class="btn big" href="/ai">Make one with AI</a>
+  </div>
+</section>
 {% endif %}
 
 {% for c in cards %}
 {% set p = c.progress %}
-<section class="card journey">
-  <div class="journey-head">
+<section class="card">
+  <div class="hero">
     <div>
-      <p class="eyebrow">{{ p.course.title }}</p>
-      {% if p.finished %}
-        <h2>You finished the course!</h2>
-      {% elif p.current_module %}
-        <h2>{{ p.current_module.title }}</h2>
-      {% endif %}
+      <p class="eyebrow"><a href="/learn/{{ c.journey.id }}">{{ p.course.title }}</a></p>
+      <h2>{% if p.finished %}You finished the course!{% elif p.current_module %}{{ p.current_module.title }}{% endif %}</h2>
     </div>
-    {% if c.chain_problems %}
-      <span class="chip bad">Problem with your record</span>
-    {% elif c.last_ok %}
-      <span class="chip good">Approved by {{ c.last_ok.checker_name }} · {{ c.last_ok.at|date }}</span>
-    {% elif c.milestones %}
-      <span class="chip warn">Waiting for your checker</span>
-    {% endif %}
+    {% if c.chain_problems %}<span class="chip bad">Problem with your record</span>
+    {% elif c.last_ok %}<span class="chip good">Approved by {{ c.last_ok.checker_name }}</span>
+    {% elif c.milestones %}<span class="chip warn">Waiting for your checker</span>{% endif %}
   </div>
-  <div class="bar" role="progressbar" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
+  <div class="bar" role="progressbar" aria-label="Course progress" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
   <div class="stats">
     <div><b>{{ p.percent }}%</b><span>done</span></div>
-    <div><b>{{ p.lessons_done }} / {{ p.lessons_total }}</b><span>lessons</span></div>
-    <div><b>{{ p.modules_done }} / {{ p.modules_total }}</b><span>modules</span></div>
-    <div><b>{{ p.minutes }} min</b><span>time spent (your own count)</span></div>
+    <div><b>{{ p.lessons_done }}/{{ p.lessons_total }}</b><span>lessons</span></div>
+    <div><b>{{ p.modules_done }}/{{ p.modules_total }}</b><span>modules</span></div>
+    <div><b>{{ p.minutes }}m</b><span>time (your own count)</span></div>
   </div>
 
+  {% if c.exams_waiting %}
+  <div class="note warn row between">
+    <span><b>{{ c.exams_waiting[0].checker_name }}</b> sent you a verified exam.</span>
+    <a class="btn" href="/learn/{{ c.journey.id }}/exam/{{ c.exams_waiting[0].exam.id }}">Take the exam</a>
+  </div>
+  {% endif %}
+  {% if c.requests %}
+  <div class="note warn row between">
+    <span><b>{{ c.requests[0].checker_name }}</b> asked to see {{ c.requests|length }} of your file{{ 's' if c.requests|length > 1 }}.</span>
+    <a class="btn" href="/milestones">Send them</a>
+  </div>
+  {% endif %}
+
+  {% if p.next %}
   <div class="next">
-    {% if p.next %}
-      <div>
-        <p class="eyebrow">What to do next</p>
-        <p class="next-title">{{ p.next.title }}</p>
-      </div>
-      {% if p.next.kind == 'lesson' %}
-        <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.id }}">Continue lesson</a>
-      {% else %}
-        <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.lesson }}#tasks">Do this task</a>
-      {% endif %}
-    {% elif c.has_new %}
-      <div><p class="next-title">Great work. Save a milestone so your checker can see it.</p></div>
-      <a class="btn primary big" href="/milestones">Go to milestones</a>
+    <div>
+      <p class="eyebrow">Next up</p>
+      <p class="next-title" dir="auto">{{ p.next.title if p.next.kind == 'lesson' else 'Finish the module tasks' }}</p>
+    </div>
+    {% if p.next.kind == 'lesson' %}
+      <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.id }}">Continue {{ icon('arrow', 18) }}</a>
+    {% else %}
+      <a class="btn primary big" href="/learn/{{ c.journey.id }}/module/{{ p.current_module.id }}">Go to tasks {{ icon('arrow', 18) }}</a>
     {% endif %}
   </div>
-  {% if c.has_new and p.next %}
-  <p class="muted small">You have new progress since your last milestone. <a href="/milestones">Save a milestone</a> whenever you want your checker to see it.</p>
+  {% endif %}
+  {% if c.has_new %}
+  <p class="small muted" style="margin: .9rem 0 0">You've made progress since your last milestone. <a href="/milestones">Save a milestone</a> when you want your checker to see it.</p>
   {% endif %}
 </section>
 {% endfor %}
 
 {% if cards and not checkers %}
-<section class="card tip">
+<section class="card soft">
   <h3>Add someone to keep you on track</h3>
-  <p>Ask a friend, family member or mentor to install inPace too. Swap contact cards, and they can check your milestones. They don't need to know the subject.</p>
+  <p class="muted">A friend, parent or mentor installs inPace too. You swap contact cards, and they check your milestones. They don't need to know the subject.</p>
   <a class="btn" href="/people">Add a checker</a>
 </section>
 {% endif %}

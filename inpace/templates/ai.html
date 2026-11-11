@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Make a course with AI{% endblock %}
 {% block main %}
-<h1>Make a course with AI</h1>
+<div class="page-head"><h1>Make a course with AI</h1></div>
 <ol class="steps">
   <li class="{{ 'on' if step == 1 }}">Describe it</li>
   <li class="{{ 'on' if step == 2 }}">Copy to an AI chat</li>
@@ -9,7 +9,7 @@
 </ol>
 
 {% if step == 1 %}
-<form method="post" class="card stack narrow">
+<form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="prompt">
   <label>What do you want to learn?
     <input name="topic" required placeholder="For example: Excel for small business owners" value="{{ form.topic or '' }}">
@@ -33,7 +33,7 @@
   </label>
   <button class="btn primary big">Make my AI prompt</button>
 </form>
-<form method="post" class="card stack narrow">
+<form method="post" class="card stack" style="max-width:680px">
   <input type="hidden" name="action" value="check">
   <label>Already have the course text? Paste it here
     <textarea name="reply" rows="5" required placeholder="Paste the course YAML (or the whole AI answer)"></textarea>

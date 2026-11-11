@@ -355,6 +355,12 @@ def _dup(i: str, seen: set[str], problems: list[str]) -> None:
     seen.add(i)
 
 
+def course_outline(course: Course) -> dict:
+    return {"modules": [{"title": m["title"], "lessons": [les["title"] for les in m["lessons"]],
+                         "requires": [f"{r['type']}: {r['prompt']}" for r in m["requires"]]}
+                        for m in course.modules]}
+
+
 # ---------------------------------------------------------------------------
 # Writing
 # ---------------------------------------------------------------------------

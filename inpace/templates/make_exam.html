@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Make an exam{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/review/{{ person.id }}/{{ journey }}">Back to {{ display_name(person) }}</a></p>
+  <h1 dir="auto">Verified exam: {{ module.title }}</h1>
+  <p class="muted">{{ req.questions|length }} questions from the course, shuffled just for {{ display_name(person) }}. They can't see the answers, and they can take it only once.</p>
+</div>
+
+{% if exam_file %}
+<section class="card result good">
+  <h2>The exam is ready</h2>
+  <p>Send this file to {{ display_name(person) }}. They open it with “Open a file”.</p>
+  <a class="btn primary big" href="/outbox/{{ exam_file|urlencode }}">{{ icon('send', 18) }}Download exam file</a>
+</section>
+{% else %}
+<form method="post" class="card stack">
+  <input type="hidden" name="action" value="make">
+  <label class="check"><input type="checkbox" name="surprise" value="1" {{ 'disabled' if not has_earlier }} checked> Add a surprise question from an earlier module{% if not has_earlier %} <span class="muted">(this is the first module)</span>{% endif %}</label>
+  {% if private %}
+  <fieldset class="stack">
+    <legend>Your own questions</legend>
+    {% for q in private %}
+    <label class="check"><input type="checkbox" name="private" value="{{ q.id }}" checked> <span dir="auto">{{ q.text }} <span class="muted small">(right: {{ q.right }})</span></span></label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+  <button class="btn primary big">Make the exam</button>
+</form>
+
+<details class="card flat" {{ 'open' if not private }}>
+  <summary><b>Add your own question</b> <span class="muted small">(only you have it, so it can't be looked up)</span></summary>
+  <form method="post" class="stack" style="margin-block-start:1rem">
+    <input type="hidden" name="action" value="add_question">
+    <label>Question<input name="text" required dir="auto" placeholder="For example: What did you build in Module 1, in one sentence?"></label>
+    <label>Right answer<input name="right" required dir="auto"></label>
+    <label>Wrong answers (one per line, at least one)<textarea name="wrong" rows="3" required dir="auto"></textarea></label>
+    <button class="btn">Save question</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

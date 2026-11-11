@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}People{% endblock %}
 {% block main %}
-<h1>People</h1>
-<section class="card connect">
+<div class="page-head"><h1>People</h1></div>
+<section class="card row between">
   <div>
     <h2>Connect with someone</h2>
     <p>Swap contact cards: send yours, and open theirs. Then choose who checks whom.</p>
@@ -19,7 +19,7 @@
 
 <div class="list">
 {% for p in people %}
-<section class="card person" id="p-{{ p.id[:12] }}">
+<section class="card" id="p-{{ p.id[:12] }}">
   <div class="person-head">
     {{ avatar(p, 44) }}
     <div class="grow">
@@ -45,7 +45,7 @@
     {% endfor %}
   {% endif %}
 
-  <details class="small">
+  <details class="more">
     <summary>Edit</summary>
     <form method="post" action="/people/{{ p.id }}" class="stack">
       <label>Nickname (only you see this)<input name="nickname" value="{{ p.nickname }}" placeholder="{{ p.name }}"></label>

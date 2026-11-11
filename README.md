@@ -14,26 +14,27 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Check others too.** Anyone can be a learner and a checker at the same time. Study buddies check each other.
 - **Make courses with AI.** Describe a topic, copy the prompt into any AI chat, paste the answer back. inPace checks it and turns it into a course.
 - **Fair quizzes.** Each question has several right answers and several wrong ones. Every quiz shows one right answer mixed with wrong ones, in a new random order each time.
+- **Verified exams.** Your checker's app makes an exam and keeps the answers. You take it offline, once, and their app grades it. Checkers can add their own private questions and a surprise question from an earlier module.
+- **See the real work.** Your checker can ask for any file you added, and inPace confirms it's exactly the file from your milestones.
+- **Extra checks.** Warns a checker when two learners' answers are nearly the same, or when someone's copy of the course is different.
 - **Private by design.** No accounts, no internet, no tracking. Files only leave your computer when you send them yourself.
 
-## Try it
+## Download
 
-You need **Python 3.10 or newer** ([download it here](https://www.python.org/downloads/)). On Windows, tick "Add Python to PATH" when installing.
+Go to the [Releases page](https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest) and download the file for your computer:
 
-```bash
-pip install git+https://github.com/mahmoudyosrimahmoud13/inpace.git
-inpace
-```
+- **Windows:** `inPace-windows.zip`. Unzip it, then double-click `inPace.exe`.
+- **Mac:** `inPace-mac.dmg`. Open it and drag inPace into Applications.
+- **Linux:** `inPace-linux.tar.gz`. Unpack it and run `inPace`.
 
-Your browser opens inPace. Keep the black terminal window open while you use it. Close it to stop.
+inPace opens in its own window. Everything stays on your computer.
 
-**Try both sides on one computer:** open a second terminal and run
+> The apps aren't signed yet. **Windows** may show "Windows protected your PC": click *More info*, then *Run anyway*.
+> **Mac** may say it can't be opened: right-click inPace, choose *Open*, then *Open* again.
 
-```bash
-inpace --home ~/inpace-checker
-```
+**With Python instead** (3.10 or newer): `pip install git+https://github.com/mahmoudyosrimahmoud13/inpace.git`, then run `inpace`.
 
-That starts a second, separate person (in a new browser tab), so you can play learner and checker.
+**Try both sides on one computer:** run a second copy with its own data folder, `inpace --home ~/inpace-checker`, so you can play learner and checker.
 
 ## How the checking works
 
@@ -50,7 +51,7 @@ We want to be honest about this.
 
 - **It proves:** the steps of the course were followed in order, the work you added exists, and your history wasn't changed after your checker saw it.
 - **It doesn't prove:** that every minute was real study, or that you truly learned. No app can.
-- **Quizzes:** in this version they are practice quizzes. Courses shared publicly come with their answers, so a determined person could look them up. The strongest proof is your own work and your own explanations, which your checker reads.
+- **Quizzes:** practice quizzes are for learning. Public courses come with their answers, so a determined person could look them up. **Verified exams** are stronger, and a checker's **private questions** can't be looked up at all. The strongest proof is still your own work and explanations, which your checker reads.
 
 ## Courses
 
@@ -76,7 +77,9 @@ pytest
 
 Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push.
 
-**Roadmap:** verified exams sent by the checker, a course editor, Arabic and right-to-left layout, pace races with friends, encrypted backups, an offline verifier page, and one-click installers.
+**Making a release:** push a version tag (`git tag v0.2.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release.
+
+**Roadmap:** commitments and pace forecasts, pace races with friends, a course editor, the full app in Arabic, encrypted backups, and a shareable learning record.
 
 ## License
 

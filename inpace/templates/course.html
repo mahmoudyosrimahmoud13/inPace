@@ -1,34 +1,43 @@
 {% extends "base.html" %}
 {% block title %}{{ prog.course.title }}{% endblock %}
 {% block main %}
-<p class="eyebrow"><a href="/courses">My courses</a></p>
-<h1>{{ prog.course.title }}</h1>
-<div class="bar"><span style="width: {{ prog.percent }}%"></span></div>
-<p class="muted">{{ prog.percent }}% done · {{ prog.lessons_done }} of {{ prog.lessons_total }} lessons</p>
-<div class="list">
-{% for m in prog.modules %}
-  <section class="card module {{ m.status }}">
-    <div class="module-head">
-      <h2>{{ loop.index }}. {{ m.title }}</h2>
-      {% if m.status == 'done' %}<span class="chip good">Done</span>
-      {% elif m.status == 'open' %}<span class="chip">In progress</span>
-      {% else %}<span class="chip muted">Locked · finish the module before</span>{% endif %}
-    </div>
-    <ul class="checks">
-      {% for l in m.lessons %}
-      <li class="{{ 'done' if l.done }}">
-        {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/lesson/{{ l.id }}">{{ l.title }}</a>{% else %}{{ l.title }}{% endif %}
-        {% if l.minutes %}<span class="muted small">{{ l.minutes }} min</span>{% endif %}
-      </li>
-      {% endfor %}
-      {% for r in m.requires %}
-      <li class="task {{ 'done' if r.done }}">
-        <span class="tag">{{ {'practical': 'Your work', 'explain': 'Explain it', 'quiz': 'Quiz'}[r.type] }}</span>
-        {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/lesson/{{ m.lessons[-1].id }}#task-{{ r.id }}">{{ r.prompt }}</a>{% else %}{{ r.prompt }}{% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-{% endfor %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">My courses</a></p>
+  <h1 dir="auto">{{ prog.course.title }}</h1>
+  <div class="row" style="margin-block-start: .75rem">
+    <div class="bar grow" style="max-width: 420px"><span style="width: {{ prog.percent }}%"></span></div>
+    <span class="muted small">{{ prog.percent }}% done</span>
+  </div>
 </div>
+<section class="card">
+<ol class="modules">
+{% for m in prog.modules %}
+  <li class="module {{ m.status }}">
+    <span class="num">{% if m.status == 'done' %}{{ icon('check', 18) }}{% elif m.status == 'locked' %}{{ icon('lock', 16) }}{% else %}{{ loop.index }}{% endif %}</span>
+    <div>
+      <div class="row between">
+        <h2 style="font-size: 1.25rem; margin: 0" dir="auto">{{ m.title }}</h2>
+        {% if m.status == 'done' %}<span class="chip good">Done</span>
+        {% elif m.status == 'open' %}<span class="chip">In progress</span>
+        {% else %}<span class="chip muted">Locked</span>{% endif %}
+      </div>
+      {% if m.status == 'locked' %}<p class="small muted" style="margin:.25rem 0 0">Opens when you finish the module before.</p>{% endif %}
+      <ul class="checks">
+        {% for l in m.lessons %}
+        <li class="{{ 'done' if l.done }}">
+          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{{ l.title }}</a>{% else %}<span dir="auto">{{ l.title }}</span>{% endif %}
+          {% if l.minutes %}<span class="muted small">{{ l.minutes }} min</span>{% endif %}
+        </li>
+        {% endfor %}
+        <li class="{{ 'done' if m.requires and m.requires|rejectattr('done')|list|length == 0 }}">
+          {% set tdone = m.requires|selectattr('done')|list|length %}
+          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/module/{{ m.id }}"><b>Module tasks</b></a>{% else %}<b>Module tasks</b>{% endif %}
+          <span class="muted small">{{ tdone }} of {{ m.requires|length }} done</span>
+        </li>
+      </ul>
+    </div>
+  </li>
+{% endfor %}
+</ol>
+</section>
 {% endblock %}

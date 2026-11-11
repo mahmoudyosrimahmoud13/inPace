@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ module.title }} tasks{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+{% set lessons_left = mstate.lessons|rejectattr('done')|list %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
+  <h1 dir="auto">{{ module.title }}</h1>
+  <p class="muted">To finish this module, read every lesson and complete these tasks.
+  {% if mstate.status == 'done' %}<span class="chip good">Module done</span>{% endif %}</p>
+</div>
+
+<section class="card task {{ 'done' if not lessons_left }}">
+  <span class="ico">{{ icon('check' if not lessons_left else 'book') }}</span>
+  <div>
+    <div class="task-head"><h3>Read all lessons</h3>{% if not lessons_left %}<span class="chip good">Done</span>{% endif %}</div>
+    <p class="muted" style="margin:0">{{ mstate.lessons_done }} of {{ mstate.lessons|length }} done.
+    {% if lessons_left %}<a href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">Continue with “{{ lessons_left[0].title }}”</a>{% endif %}</p>
+  </div>
+</section>
+
+{% for r in mstate.requires %}
+<section class="card task {{ 'done' if r.done }}" id="task-{{ r.id }}">
+  <span class="ico">{{ icon('check' if r.done else TASK_ICON[r.type]) }}</span>
+  <div>
+    <div class="task-head"><h3>{{ TASK_LABEL[r.type] }}</h3>{% if r.done %}<span class="chip good">Done</span>{% endif %}</div>
+    {% if r.type != 'quiz' %}<p class="task-prompt" dir="auto">{{ r.prompt }}</p>{% endif %}
+
+    {% if r.type == 'practical' %}
+      <div>{% for e in r.evidence %}<span class="file">{{ icon('file', 16) }}{{ e.name }}</span>{% endfor %}</div>
+      <form method="post" enctype="multipart/form-data" action="/learn/{{ j.id }}/task/{{ r.id }}/evidence">
+        <label class="drop-zone">
+          <input type="file" name="file" required data-autosubmit>
+          <span>{{ icon('upload') }}<br>{{ 'Add another file' if r.evidence else 'Drop your file here, or click to choose' }}<br><span class="small muted" style="font-weight:400">Projects: zip the folder first</span></span>
+        </label>
+      </form>
+
+    {% elif r.type == 'explain' %}
+      <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/writeup" class="stack">
+        <textarea name="text" rows="7" dir="auto" data-wordcount="{{ r.min_words }}" placeholder="Write it in your own words...">{{ r.writeup.text if r.writeup }}</textarea>
+        <div class="row between"><span class="muted small" data-wordcount-out>At least {{ r.min_words }} words</span><button class="btn primary">Save</button></div>
+      </form>
+
+    {% elif r.type == 'quiz' %}
+      <p class="task-prompt">{{ r.questions|length }} questions · {{ r.pass }}% to pass. The choices change every time.</p>
+      {% if r.quiz %}<p class="small">Best practice score: <b>{{ r.quiz.percent }}%</b></p>{% endif %}
+      {% for x in exams if x.exam.req == r.id %}
+        <div class="note {{ 'ok' if x.result and x.result.passed else 'warn' }}" style="margin-block: .5rem">
+          {% if x.result %}Verified exam from {{ x.checker_name }}: <b>{{ x.result.score }} of {{ x.result.total }} ({{ x.result.percent }}%)</b> {{ '· passed' if x.result.passed else '· not passed' }}
+          {% elif x.taken %}Verified exam from {{ x.checker_name }}: done. Your answers go with your next milestone.
+          {% else %}<span class="row between">{{ x.checker_name }} sent you a verified exam. <a class="btn" href="/learn/{{ j.id }}/exam/{{ x.exam.id }}">Take it</a></span>{% endif %}
+        </div>
+      {% endfor %}
+      {% if has_answers %}
+        {% if not lessons_left %}
+          <a class="btn {{ '' if r.done else 'primary' }}" href="/learn/{{ j.id }}/task/{{ r.id }}/quiz">{{ 'Practice again' if r.quiz else 'Start practice quiz' }}</a>
+        {% else %}<p class="muted small">Finish the lessons first, then take the quiz.</p>{% endif %}
+      {% elif not exams %}
+        <p class="muted small">This copy of the course has no answers, so practice is off. Your checker can send you a verified exam.</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endfor %}
+
+{% if mstate.status == 'done' %}
+<div class="next">
+  <p class="next-title">Module complete. Save a milestone so your checker can see it.</p>
+  <a class="btn primary big" href="/milestones">Go to milestones</a>
+</div>
+{% endif %}
+{% endblock %}

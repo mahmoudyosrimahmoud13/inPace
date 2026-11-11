@@ -37,6 +37,18 @@ CREATE TABLE IF NOT EXISTS received (
 CREATE TABLE IF NOT EXISTS receipts (
   learner TEXT, journey TEXT, seq INTEGER, hash TEXT, decision TEXT, note TEXT, at TEXT,
   PRIMARY KEY (learner, journey, seq, at));
+CREATE TABLE IF NOT EXISTS sent_exams (
+  id TEXT PRIMARY KEY, learner TEXT, journey TEXT, req TEXT, exam TEXT, key TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS my_exams (
+  id TEXT PRIMARY KEY, checker TEXT, journey TEXT, req TEXT, data TEXT, received_at TEXT);
+CREATE TABLE IF NOT EXISTS exam_results (
+  exam TEXT PRIMARY KEY, checker TEXT, score INTEGER, total INTEGER, percent INTEGER, passed INTEGER, at TEXT);
+CREATE TABLE IF NOT EXISTS private_questions (
+  course TEXT, id TEXT, data TEXT, created_at TEXT, PRIMARY KEY (course, id));
+CREATE TABLE IF NOT EXISTS file_requests (
+  journey TEXT, sha256 TEXT, name TEXT, checker TEXT, at TEXT, PRIMARY KEY (journey, sha256, checker));
+CREATE TABLE IF NOT EXISTS received_files (
+  sha256 TEXT PRIMARY KEY, learner TEXT, name TEXT, at TEXT);
 CREATE TRIGGER IF NOT EXISTS events_no_update BEFORE UPDATE ON events
   BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
@@ -207,8 +219,11 @@ class Vault:
         evidence: dict[str, list] = {}
         writeups: dict[str, dict] = {}
         quizzes: dict[str, dict] = {}
+        exams_taken: dict[str, dict] = {}
         for e in evs:
             d = e["data"]
+            if e["type"] == "exam_taken":
+                exams_taken[d["req"]] = d
             if e["type"] == "evidence_added":
                 evidence.setdefault(d["req"], []).append(d)
             elif e["type"] == "writeup_saved":
@@ -228,9 +243,12 @@ class Vault:
                 elif r["type"] == "explain":
                     ok = writeups.get(r["id"], {}).get("words", 0) >= r.get("min_words", 40)
                 else:
-                    ok = quizzes.get(r["id"], {}).get("percent", 0) >= r.get("pass", 70)
+                    # A practice pass, or a verified exam taken (graded by the checker).
+                    ok = (quizzes.get(r["id"], {}).get("percent", 0) >= r.get("pass", 70)
+                          or r["id"] in exams_taken)
                 reqs.append({**r, "done": ok, "evidence": evidence.get(r["id"], []),
-                             "writeup": writeups.get(r["id"]), "quiz": quizzes.get(r["id"])})
+                             "writeup": writeups.get(r["id"]), "quiz": quizzes.get(r["id"]),
+                             "exam_taken": exams_taken.get(r["id"])})
             lessons = [{**{k: v for k, v in les.items() if k != "content"}, "done": les["id"] in done_lessons}
                        for les in m["lessons"]]
             ldone = sum(1 for les in lessons if les["done"])

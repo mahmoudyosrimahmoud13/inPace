@@ -1,4 +1,5 @@
 """Two people, two vaults, the whole loop through the real web pages."""
+import json
 import re
 
 from starlette.testclient import TestClient
@@ -62,6 +63,8 @@ def test_everything(tmp_path):
     r = learner.post(f"/learn/{jid}/task/m1-quiz/quiz", data={"seed": seed, **answers})
     assert "You passed" in r.text
     assert lv.progress(jid)["modules"][0]["status"] == "done"
+    r = learner.get(f"/learn/{jid}/module/m1")
+    assert "Module done" in r.text and "hello.py" in r.text
 
     # Milestone + progress file.
     r = learner.post(f"/milestones/{jid}/save")
@@ -75,7 +78,7 @@ def test_everything(tmp_path):
     pj = re.search(r'<textarea name="progress" hidden>(.*?)</textarea>', r.text, re.S).group(1)
     r = checker.post("/people/add-learner", data={"progress": html.unescape(pj), "nickname": "Omar (cousin)"})
     assert "Nothing was changed since you last checked" in r.text
-    assert "Finished lesson" in r.text and "hello.py" in r.text and "Omar (cousin)" in r.text
+    assert "hello.py" in r.text and "Omar (cousin)" in r.text
     assert "What is Python?" in r.text  # names show even though the checker doesn't have the course
 
     # Approve -> reply file.
@@ -88,6 +91,43 @@ def test_everything(tmp_path):
     r = upload(learner, "reply.inpace", reply)
     assert "Sara approved 1 milestone" in r.text and "Great start!" in r.text
     assert "Approved by Sara" in learner.get("/").text
+
+    # ---- Phase C through the screens -------------------------------------
+    # Checker gets the course with answers, makes a verified exam with a private question.
+    upload(checker, "course.lpack", learner.get("/courses/python-basics/export?answers=1").content)
+    r = checker.get(f"/review/{learner_id}/{jid}")
+    assert "Send a verified exam" in r.text
+    checker.post(f"/review/{learner_id}/{jid}/exam/m2-quiz",
+                 data={"action": "add_question", "text": "What did you print?", "right": "My name", "wrong": "A cat\nNothing"})
+    r = checker.get(f"/review/{learner_id}/{jid}/exam/m2-quiz")
+    pid = re.search(r'name="private" value="([^"]+)"', r.text).group(1)
+    r = checker.post(f"/review/{learner_id}/{jid}/exam/m2-quiz", data={"action": "make", "surprise": "1", "private": pid})
+    exam_name = re.search(r'href="/outbox/([^"]+)"', r.text).group(1)
+    exam_file = checker.get(f"/outbox/{exam_name}").content
+
+    # Learner opens it, takes it once.
+    r = upload(learner, "exam.inpace", exam_file)
+    assert "Verified exam" in r.text and "won't see the answers" in r.text
+    exam = json.loads(exam_file)
+    r = learner.post(f"/learn/{jid}/exam/{exam['id']}", data={q["id"]: q["choices"][0]["id"] for q in exam["questions"]})
+    assert "Answers saved" in r.text
+    assert "already took" in learner.get(f"/learn/{jid}/exam/{exam['id']}").text
+    learner.post(f"/milestones/{jid}/save")
+    r = upload(checker, "omar2.inpace", learner.get(f"/milestones/{jid}/export").content)
+    assert "Verified exam" in r.text and re.search(r"\d of 5 \(\d+%\)", r.text)
+
+    # Checker asks for hello.py and approves; learner gets the score and the request.
+    sha = re.search(r'name="request" value="([0-9a-f]{64})\|', r.text).group(1)
+    r = checker.post(f"/review/{learner_id}/{jid}", data={"decision": "approved", "request": f"{sha}|hello.py"})
+    reply_name = re.search(r'href="/outbox/([^"]+)"', r.text).group(1)
+    r = upload(learner, "reply2.inpace", checker.get(f"/outbox/{reply_name}").content)
+    assert "Your exam score is in" in r.text and "asked to see 1 file" in r.text
+    assert "Download file pack" in learner.get("/milestones").text
+    pack_resp = learner.get(f"/milestones/{jid}/files")
+    assert "Download file pack" not in learner.get("/milestones").text  # request cleared once sent
+    r = upload(checker, "files.zip", pack_resp.content)
+    assert "Got 1 file(s)" in r.text and f'href="/files/{sha}"' in r.text
+    assert checker.get(f"/files/{sha}").content == b"print('Omar', 7*6)"
 
     # AI course maker: prompt + paste + save.
     r = learner.post("/ai", data={"action": "prompt", "topic": "Budgeting", "level": "beginner", "weeks": "2",
@@ -128,4 +168,6 @@ questions:
     # Course export without answers, re-import elsewhere.
     pack = learner.get("/courses/python-basics/export").content
     r = upload(checker, "course.lpack", pack)
-    assert "practice quizzes are off" in r.text
+    assert "Added the course" in r.text and cv.get_course("python-basics").has_answers  # kept the answers it had
+    _, third = client(tmp_path, "Lina")
+    assert "practice quizzes are off" in upload(third, "course.lpack", pack).text

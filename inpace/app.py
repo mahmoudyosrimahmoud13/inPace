@@ -14,7 +14,7 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, exchange
+from . import ai, checks, exchange
 from .canon import now_utc, short
 from .course import (Course, CourseError, course_to_pack, files_from_folder, files_from_zip, load_course,
                      strip_fences)
@@ -23,7 +23,7 @@ from .vault import COLORS, Vault, display_name
 
 HERE = Path(__file__).parent
 SAMPLES = HERE / "sample_courses"
-MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken"}
+MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken"}
 
 md = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]))
@@ -42,6 +42,45 @@ def avatar(p: dict, size: int = 36) -> Markup:
 
 
 env.globals["avatar"] = avatar
+
+_ICONS = {
+    "home": '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+    "book": '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/>',
+    "flag": '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+    "spark": '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+    "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
+    "open": '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
+    "upload": '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 17v3h16v-3"/>',
+    "pen": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    "quiz": '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/>',
+    "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    "lock": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    "shield": '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+    "send": '<path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/>',
+    "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    "file": '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/>',
+    "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+}
+
+
+def icon(name: str, size: int = 20) -> Markup:
+    return Markup(
+        f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        f'{_ICONS.get(name, "")}</svg>')
+
+
+env.globals["icon"] = icon
+env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
+env.globals["TASK_ICON"] = {"practical": "upload", "explain": "pen", "quiz": "quiz"}
+
+
+def _drop_title(content: str, title: str) -> str:
+    """The page already shows the lesson title, so skip a first heading that repeats it."""
+    lines = content.lstrip().splitlines()
+    if lines and lines[0].startswith("#") and lines[0].lstrip("#").strip().lower() == title.strip().lower():
+        return "\n".join(lines[1:])
+    return content
 
 
 def create_app(vault: Vault) -> Starlette:
@@ -84,8 +123,12 @@ def create_app(vault: Vault) -> Starlette:
         ms = V.milestones(j["id"])
         last_ok = next((a for m in reversed(ms) for a in m["approvals"] if a["decision"] == "approved"), None)
         waiting = [m for m in ms if not any(a["decision"] == "approved" for a in m["approvals"])]
+        exams = checks.my_exams(V, j["id"])
+        packed_at = V._meta(f"pack:{j['id']}", "") or ""
         return {"journey": j, "progress": prog, "milestones": ms, "last_ok": last_ok, "waiting": waiting,
-                "has_new": has_new(j["id"]), "chain_problems": V.check_my_chain(j["id"])}
+                "has_new": has_new(j["id"]), "chain_problems": V.check_my_chain(j["id"]),
+                "exams_waiting": [x for x in exams if not x["taken"]],
+                "requests": [r for r in checks.requests_for(V, j["id"]) if r["at"] > packed_at]}
 
     # ---- setup ---------------------------------------------------------------
     async def setup(request: Request):
@@ -206,8 +249,45 @@ def create_app(vault: Vault) -> Starlette:
         nxt = module["lessons"][idx + 1]["id"] if idx + 1 < len(module["lessons"]) else None
         prv = module["lessons"][idx - 1]["id"] if idx > 0 else None
         return page("lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
-                    lstate=lstate, html=md.render(les["content"]), next_id=nxt, prev_id=prv,
+                    lstate=lstate, html=md.render(_drop_title(les["content"], les["title"])), next_id=nxt, prev_id=prv,
                     has_answers=course.has_answers, prog=prog)
+
+    async def module_page(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        if not j:
+            return go("/", err="That course wasn't found.")
+        course = V.get_course(j["course_id"])
+        module = next((m for m in course.modules if m["id"] == request.path_params["mid"]), None)
+        if not module:
+            return go(f"/learn/{j['id']}", err="That module wasn't found.")
+        prog = V.progress(j["id"])
+        mstate = _module_state(prog, module["id"])
+        if mstate["status"] == "locked":
+            return go(f"/learn/{j['id']}", err="Finish the module before this one first.")
+        exams = [x for x in checks.my_exams(V, j["id"]) if course.find_requirement(x["exam"]["req"]) and
+                 course.find_requirement(x["exam"]["req"])[0]["id"] == module["id"]]
+        return page("module.html", request, j=j, course=course, module=module, mstate=mstate,
+                    has_answers=course.has_answers, exams=exams)
+
+    async def take_exam(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        exam = checks.get_my_exam(V, request.path_params["eid"]) if j else None
+        if not exam or exam["journey"] != j["id"]:
+            return go("/", err="That exam wasn't found.")
+        course = V.get_course(j["course_id"])
+        found = course.find_requirement(exam["req"])
+        module = found[0] if found else {"id": "", "title": exam["task"], "lessons": []}
+        checker_name = display_name(V.person(exam["checker"]["id"]))
+        if any(e["type"] == "exam_taken" and e["data"]["exam"] == exam["id"] for e in V.events(j["id"])):
+            return go(f"/learn/{j['id']}/module/{module['id']}", err="You already took this exam.")
+        if request.method == "POST":
+            form = await request.form()
+            answers = {q["id"]: str(form.get(q["id"], "")) for q in exam["questions"]}
+            V.add_event(j["id"], "exam_taken", {"exam": exam["id"], "req": exam["req"], "task": exam["task"],
+                                                "checker": exam["checker"]["id"], "answers": answers})
+            return page("quiz_result.html", request, j=j, module=module, verified=True, checker_name=checker_name)
+        return page("quiz.html", request, j=j, module=module, req={"pass": exam["pass"]}, exam=exam["questions"],
+                    seed="", verified=True, checker_name=checker_name)
 
     async def lesson_done(request: Request):
         jid, lid = request.path_params["jid"], request.path_params["lid"]
@@ -220,7 +300,9 @@ def create_app(vault: Vault) -> Starlette:
             V.add_event(jid, "lesson_done", {"lesson": lid, "title": found[1]["title"]})
         form = await request.form()
         target = form.get("next")
-        return go(f"/learn/{jid}/lesson/{target}" if target else f"/learn/{jid}/lesson/{lid}", ok="Lesson marked as done.")
+        if target:
+            return go(f"/learn/{jid}/lesson/{target}")
+        return go(f"/learn/{jid}/module/{found[0]['id']}", ok="All lessons read. Now the tasks.")
 
     async def _req_ctx(request: Request):
         j = journey_or_404(request.path_params["jid"])
@@ -238,7 +320,7 @@ def create_app(vault: Vault) -> Starlette:
             return go("/", err="That task wasn't found.")
         form = await request.form()
         up = form.get("file")
-        back = f"/learn/{j['id']}/lesson/{module['lessons'][-1]['id']}#tasks"
+        back = f"/learn/{j['id']}/module/{module['id']}#task-{req['id']}"
         if not up or not getattr(up, "filename", ""):
             return go(back, err="Choose a file first.")
         data = await up.read()
@@ -256,7 +338,7 @@ def create_app(vault: Vault) -> Starlette:
         form = await request.form()
         text = str(form.get("text", "")).strip()
         words = len(text.split())
-        back = f"/learn/{j['id']}/lesson/{module['lessons'][-1]['id']}#tasks"
+        back = f"/learn/{j['id']}/module/{module['id']}#task-{req['id']}"
         if not text:
             return go(back, err="Write something first.")
         V.add_event(j["id"], "writeup_saved", {"req": req["id"], "task": req["prompt"], "text": text, "words": words})
@@ -274,7 +356,7 @@ def create_app(vault: Vault) -> Starlette:
             try:
                 exam = build_exam(course, req["questions"], seed)
             except NoAnswers:
-                return go(f"/learn/{j['id']}/lesson/{module['lessons'][-1]['id']}",
+                return go(f"/learn/{j['id']}/module/{module['id']}",
                           err="This course came without answers, so practice quizzes aren't available. "
                               "Ask whoever shared it for the version with answers.")
             return page("quiz.html", request, j=j, course=course, module=module, req=req, exam=exam, seed=seed)
@@ -314,6 +396,15 @@ def create_app(vault: Vault) -> Starlette:
         data = exchange.make_progress_file(V, jid)
         title = data["journey"]["course"]["title"]
         return download(exchange.dump(data), f"{V.me['name']} - {title} - {now_utc()[:10]}.inpace", "application/json")
+
+    async def file_pack(request: Request):
+        jid = request.path_params["jid"]
+        try:
+            data = checks.make_file_pack(V, jid)
+        except exchange.FileProblem as e:
+            return go("/milestones", err=str(e))
+        V._set_meta(f"pack:{jid}", now_utc())
+        return download(data, f"{V.me['name']} - requested files - {now_utc()[:10]}.zip", "application/zip")
 
     # ---- people ---------------------------------------------------------------
     async def people(request: Request):
@@ -370,6 +461,12 @@ def create_app(vault: Vault) -> Starlette:
         if not up or not getattr(up, "filename", ""):
             return go("/open", err="Choose a file first.")
         raw = await up.read()
+        if raw[:2] == b"PK" and checks.is_file_pack(raw):
+            try:
+                res = checks.import_file_pack(V, raw)
+            except (exchange.FileProblem, KeyError, ValueError) as e:
+                return go("/open", err=str(e) if isinstance(e, exchange.FileProblem) else "This file pack is damaged.")
+            return go(f"/review/{res['learner']}/{res['journey']}", ok=f"Got {res['count']} file(s) from {res['name']}.")
         if raw[:2] == b"PK":  # a course pack (zip)
             try:
                 c = V.install_course(load_course(files_from_zip(raw)))
@@ -423,10 +520,18 @@ def create_app(vault: Vault) -> Starlette:
                                 then=f"/review/{learner}/{data['journey']['id']}")
                 V.store_received(data)
                 return go(f"/review/{learner}/{data['journey']['id']}")
+            if kind == "exam":
+                res = checks.import_exam(V, data)
+                return go(f"/learn/{data['journey']}/exam/{data['id']}",
+                          ok=f"{res['name']} sent you a verified exam for “{res['task']}”.")
             if kind == "approval":
                 res = exchange.import_approval_file(V, data)
                 word = {"approved": "approved", "question": "has a question about", "flag": "flagged"}[res["decision"]]
                 note = f" Note: “{res['note']}”" if res["note"] else ""
+                if res.get("results"):
+                    note += " Your exam score is in."
+                if res.get("requests"):
+                    note += f" They asked to see {res['requests']} file(s)."
                 return go("/milestones", ok=f"{res['name']} {word} {res['count']} milestone(s).{note}")
         except exchange.FileProblem as e:
             return go("/open", err=str(e))
@@ -466,7 +571,22 @@ def create_app(vault: Vault) -> Starlette:
                 return go(f"/review/{lid}/{jid}", err="You can't approve while there's a problem with the history.")
             seqs = [m["body"]["seq"] for m in report["new"]] or [m["body"]["seq"] for m in report["milestones"][-1:]]
             note = str(form.get("note", ""))
-            approval = exchange.make_approval_file(V, rec["data"], decision, note, seqs)
+            # Grade any verified exams in the new milestones, and add file requests.
+            results = []
+            for m in report["new"]:
+                for e in m["body"]["events"]:
+                    if e["type"] == "exam_taken":
+                        g = checks.grade_exam_event(V, e["data"])
+                        if g:
+                            results.append({k: g[k] for k in ("exam", "score", "total", "percent", "passed")})
+            known = checks.evidence_in(rec["data"])
+            requests = []
+            for item in form.getlist("request"):
+                sha, _, name = str(item).partition("|")
+                if sha in known:
+                    requests.append({"sha256": sha, "name": known[sha]["name"]})
+            extras = checks.sign_extras(V, lid, jid, results, requests) if (results or requests) else None
+            approval = exchange.make_approval_file(V, rec["data"], decision, note, seqs, extras)
             out = V.home / "outbox"
             out.mkdir(exist_ok=True)
             fname = f"For {display_name(person)} - {decision} - {now_utc()[:10]}.inpace"
@@ -483,8 +603,65 @@ def create_app(vault: Vault) -> Starlette:
                     names[les["id"]] = les["title"]
                 for r in m["requires"]:
                     names[r["id"]] = r["prompt"]
+        graded = {}
+        for m in report["milestones"]:
+            for e in m["body"]["events"]:
+                if e["type"] == "exam_taken":
+                    g = checks.grade_exam_event(V, e["data"])
+                    if g:
+                        graded[e["data"]["exam"]] = g
+        quizzes = []
+        if course:
+            for m in course.modules:
+                for r in m["requires"]:
+                    if r["type"] == "quiz":
+                        quizzes.append({"id": r["id"], "module": m["title"]})
+        diffs = checks.outline_differences(course, rec["data"].get("outline"),
+                                           rec["data"]["journey"]["course"]["hash"]) if course else []
         return page("review.html", request, person=person, rec=rec, report=report, names=names,
-                    reply_file=request.query_params.get("file"), receipts=V.receipts(lid, jid))
+                    reply_file=request.query_params.get("file"), receipts=V.receipts(lid, jid),
+                    graded=graded, have_files=checks.has_received_files(V), course=course, quizzes=quizzes,
+                    sent=checks.sent_exams(V, lid, jid), course_diffs=diffs,
+                    similar=checks.similar_writeups(V, rec["data"]), all_files=checks.evidence_in(rec["data"]))
+
+    async def make_exam_page(request: Request):
+        lid, jid, rid = request.path_params["learner"], request.path_params["journey"], request.path_params["rid"]
+        rec, person = V.received_one(lid, jid), V.person(lid)
+        if not rec or not person:
+            return go("/people", err="Open their progress file first.")
+        course = V.get_course(rec["data"]["journey"]["course"]["id"])
+        found = course.find_requirement(rid) if course else None
+        if not found or found[1]["type"] != "quiz":
+            return go(f"/review/{lid}/{jid}", err="That quiz wasn't found in your copy of the course.")
+        module, req = found
+        ctx = dict(person=person, journey=jid, module=module, req=req,
+                   has_earlier=bool(checks.earlier_quiz_questions(course, rid)))
+        if request.method == "POST":
+            form = await request.form()
+            if form.get("action") == "add_question":
+                try:
+                    checks.add_private_question(V, course.id, str(form.get("text", "")), str(form.get("right", "")),
+                                                str(form.get("wrong", "")).splitlines())
+                except ValueError as e:
+                    return go(f"/review/{lid}/{jid}/exam/{rid}", err=str(e))
+                return go(f"/review/{lid}/{jid}/exam/{rid}", ok="Question saved. It's ticked for this exam.")
+            try:
+                exam = checks.make_exam(V, rec["data"], course, rid, [str(x) for x in form.getlist("private")],
+                                        bool(form.get("surprise")))
+            except exchange.FileProblem as e:
+                return go(f"/review/{lid}/{jid}", err=str(e))
+            out = V.home / "outbox"
+            out.mkdir(exist_ok=True)
+            fname = re.sub(r"[^\w .,()-]+", "", f"Exam for {display_name(person)} - {module['title']} - {now_utc()[:10]}.inpace")
+            (out / fname).write_bytes(exchange.dump(exam))
+            return page("make_exam.html", request, exam_file=fname, **ctx)
+        return page("make_exam.html", request, private=checks.private_questions(V, course.id), **ctx)
+
+    async def received_file(request: Request):
+        got = checks.received_file(V, request.path_params["sha"])
+        if not got:
+            return go("/people", err="That file isn't here.")
+        return download(got[0], got[1])
 
     async def outbox(request: Request):
         name = Path(request.path_params["name"]).name
@@ -499,6 +676,14 @@ def create_app(vault: Vault) -> Starlette:
             V.rename(str(form.get("name", "")).strip() or V.me["name"], str(form.get("color", COLORS[0])))
             return go("/settings", ok="Saved.")
         return page("settings.html", request, colors=COLORS, home=str(V.home))
+
+    async def quit_app(request: Request):
+        import os
+        import threading
+        threading.Timer(0.6, lambda: os._exit(0)).start()
+        return HTMLResponse('<!doctype html><meta charset="utf-8"><title>inPace stopped</title>'
+                            '<body style="font-family:system-ui;padding:3rem;background:#F7F7F4;color:#15191F">'
+                            '<h1>inPace has stopped</h1><p>You can close this tab. Open inPace again any time.</p></body>')
 
     def needs_setup(handler):
         async def wrapped(request: Request):
@@ -518,6 +703,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/ai", needs_setup(ai_page), methods=["GET", "POST"]),
         Route("/learn/{jid}", needs_setup(course_overview)),
         Route("/learn/{jid}/lesson/{lid}", needs_setup(lesson)),
+        Route("/learn/{jid}/module/{mid}", needs_setup(module_page)),
+        Route("/learn/{jid}/exam/{eid}", needs_setup(take_exam), methods=["GET", "POST"]),
         Route("/learn/{jid}/lesson/{lid}/done", needs_setup(lesson_done), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/evidence", needs_setup(add_evidence), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/writeup", needs_setup(save_writeup), methods=["POST"]),
@@ -525,6 +712,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/milestones", needs_setup(milestones)),
         Route("/milestones/{jid}/save", needs_setup(save_milestone), methods=["POST"]),
         Route("/milestones/{jid}/export", needs_setup(export_progress)),
+        Route("/milestones/{jid}/files", needs_setup(file_pack)),
         Route("/people", needs_setup(people)),
         Route("/people/card", needs_setup(my_card)),
         Route("/people/add", needs_setup(add_person), methods=["POST"]),
@@ -532,8 +720,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/people/{pid}", needs_setup(edit_person), methods=["POST"]),
         Route("/open", needs_setup(open_file), methods=["GET", "POST"]),
         Route("/review/{learner}/{journey}", needs_setup(review), methods=["GET", "POST"]),
+        Route("/review/{learner}/{journey}/exam/{rid}", needs_setup(make_exam_page), methods=["GET", "POST"]),
+        Route("/files/{sha}", needs_setup(received_file)),
         Route("/outbox/{name}", needs_setup(outbox)),
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
+        Route("/quit", quit_app, methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     return Starlette(routes=routes)

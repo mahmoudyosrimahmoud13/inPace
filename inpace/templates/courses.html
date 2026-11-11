@@ -1,59 +1,62 @@
 {% extends "base.html" %}
 {% block title %}My courses{% endblock %}
 {% block main %}
-<h1>My courses</h1>
-<div class="grid3">
-  <a class="card action" href="/open"><b>Add a course file</b><span>Someone gave you a .lpack file? Open it here.</span></a>
-  <a class="card action" href="/ai"><b>Make a course with AI</b><span>Describe a topic, paste the AI's answer back.</span></a>
-  <div class="card action muted-card"><b>Make one by hand</b><span>Course editor coming soon. For now, see the course format in the guide.</span></div>
+<div class="page-head"><h1>My courses</h1></div>
+<div class="grid">
+  <a class="card tile" href="/open"><span class="ico">{{ icon('open') }}</span><span><b>Add a course file</b><span>Open a .lpack, .zip or .yaml someone gave you.</span></span></a>
+  <a class="card tile" href="/ai"><span class="ico">{{ icon('spark') }}</span><span><b>Make a course with AI</b><span>Describe a topic, paste the AI's answer back.</span></span></a>
+  <div class="card tile off"><span class="ico">{{ icon('pen') }}</span><span><b>Make one by hand</b><span>Course editor coming soon.</span></span></div>
 </div>
 
 {% if rows %}
+<div class="section">
 <h2>Installed</h2>
-<div class="list">
-  {% for r in rows %}
-  {% set c = r.course %}
-  <article class="card course-row">
-    <div class="grow">
-      <h3>{{ c.title }}</h3>
-      <p class="muted">{{ c.description }}</p>
-      <p class="small muted">{{ c.modules|length }} modules · {{ c.lesson_count }} lessons · version {{ c.version }}{% if not c.has_answers %} · <span class="chip warn">no answers included</span>{% endif %}</p>
+{% for r in rows %}
+{% set c = r.course %}
+<article class="card course-row">
+  <div class="grow">
+    <h3 dir="auto">{{ c.title }}</h3>
+    {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
+    <div class="row small muted">
+      <span>{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</span>
+      {% if not c.has_answers %}<span class="chip warn">No answers included</span>{% endif %}
     </div>
-    <div class="row">
-      {% if r.journey %}
-        <a class="btn primary" href="/learn/{{ r.journey }}">Open</a>
-      {% else %}
-        <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">Start</button></form>
-      {% endif %}
-      <details class="menu">
-        <summary class="btn">Share</summary>
-        <div class="menu-box">
-          <a href="/courses/{{ c.id }}/export">For learners (no answers)</a>
-          {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">For checkers and teachers (with answers)</a>{% endif %}
-          {% if not r.journey %}
-          <form method="post" action="/courses/{{ c.id }}/remove"><button class="link danger">Remove course</button></form>
-          {% endif %}
-        </div>
-      </details>
-    </div>
-  </article>
-  {% endfor %}
+  </div>
+  <div class="row">
+    {% if r.journey %}
+      <a class="btn primary" href="/learn/{{ r.journey }}">Open</a>
+    {% else %}
+      <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">Start</button></form>
+    {% endif %}
+    <details class="menu">
+      <summary class="btn">Share</summary>
+      <div class="menu-box">
+        <a href="/courses/{{ c.id }}/export">For learners (no answers)</a>
+        {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">For checkers and teachers (with answers)</a>{% endif %}
+        {% if not r.journey %}
+        <form method="post" action="/courses/{{ c.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">Remove course</button></form>
+        {% endif %}
+      </div>
+    </details>
+  </div>
+</article>
+{% endfor %}
 </div>
 {% endif %}
 
 {% if samples %}
+<div class="section">
 <h2>Sample courses</h2>
-<div class="list">
-  {% for c in samples %}
-  <article class="card course-row">
-    <div class="grow">
-      <h3>{{ c.title }}</h3>
-      <p class="muted">{{ c.description }}</p>
-      <p class="small muted">{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</p>
-    </div>
-    <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">Add to my courses</button></form>
-  </article>
-  {% endfor %}
+{% for c in samples %}
+<article class="card course-row flat">
+  <div class="grow">
+    <h3>{{ c.title }}</h3>
+    <p class="muted">{{ c.description }}</p>
+    <p class="small muted">{{ c.modules|length }} modules · {{ c.lesson_count }} lessons</p>
+  </div>
+  <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">Add to my courses</button></form>
+</article>
+{% endfor %}
 </div>
 {% endif %}
 {% endblock %}

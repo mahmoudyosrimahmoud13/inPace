@@ -9,6 +9,7 @@ import json
 from typing import Any
 
 from .canon import fingerprint, now_utc
+from .course import course_outline
 from .identity import verify
 from .vault import Vault, display_name
 
@@ -94,6 +95,7 @@ def make_progress_file(v: Vault, journey: str) -> dict:
         "journey": {"id": journey, "started_at": j["started_at"],
                     "course": {"id": course.id, "title": course.title, "version": course.version, "hash": course.hash}},
         "milestones": [{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms],
+        "outline": course_outline(course),
         "created_at": now_utc(),
     }
 
@@ -145,7 +147,8 @@ def _decision_payload(d: dict) -> dict:
     return {k: d[k] for k in ("kind", "milestone", "journey", "learner", "checker", "decision", "note", "at")}
 
 
-def make_approval_file(v: Vault, data: dict, decision: str, note: str, seqs: list[int]) -> dict:
+def make_approval_file(v: Vault, data: dict, decision: str, note: str, seqs: list[int],
+                       extras: dict | None = None) -> dict:
     assert decision in ("approved", "question", "flag")
     learner = data["learner"]["id"]
     jid = data["journey"]["id"]
@@ -160,8 +163,11 @@ def make_approval_file(v: Vault, data: dict, decision: str, note: str, seqs: lis
         d["seq"] = m["body"]["seq"]
         decisions.append(d)
         v.add_receipt(learner, jid, m["body"]["seq"], m["hash"], decision, note.strip(), at)
-    return {"inpace": "approval", "v": APP_VERSION, "checker": v.me, "learner": learner,
-            "journey": jid, "decisions": decisions, "created_at": at}
+    out = {"inpace": "approval", "v": APP_VERSION, "checker": v.me, "learner": learner,
+           "journey": jid, "decisions": decisions, "created_at": at}
+    if extras:
+        out["extras"] = extras
+    return out
 
 
 def import_approval_file(v: Vault, data: dict) -> dict:
@@ -174,15 +180,23 @@ def import_approval_file(v: Vault, data: dict) -> dict:
             f"This is from {checker.get('name', 'someone')}, who isn't set as one of your checkers yet. "
             "Add their contact card first and choose 'They check my progress'.")
     mine = {m["hash"] for m in v.milestones(data["journey"])}
-    count = 0
+    # Check everything first, then save, so a damaged file never saves half.
     for d in data["decisions"]:
         if d.get("checker") != checker["id"] or not verify(checker["id"], _decision_payload(d), d.get("sig", "")):
             raise FileProblem("This approval file has been changed or is damaged. Ask for a new one.")
         if d["milestone"] not in mine:
             raise FileProblem("This approval is for milestones you don't have. Was it meant for another course?")
-        v.db.execute("INSERT OR IGNORE INTO approvals VALUES (?,?,?,?,?,?)",
-                     (d["milestone"], d["checker"], d["decision"], d["note"], d["at"], d["sig"]))
-        count += 1
-    v.db.commit()
+    from .checks import import_extras
+    try:
+        extra = import_extras(v, data.get("extras") or {}, checker["id"])
+        for d in data["decisions"]:
+            v.db.execute("INSERT OR IGNORE INTO approvals VALUES (?,?,?,?,?,?)",
+                         (d["milestone"], d["checker"], d["decision"], d["note"], d["at"], d["sig"]))
+        v.db.commit()
+    except Exception:
+        v.db.rollback()
+        raise
+    count = len(data["decisions"])
     first = data["decisions"][0] if data["decisions"] else {"decision": "approved", "note": ""}
-    return {"name": display_name(person), "count": count, "decision": first["decision"], "note": first["note"]}
+    return {"name": display_name(person), "count": count, "decision": first["decision"], "note": first["note"],
+            "results": extra["results"], "requests": extra["requests"]}

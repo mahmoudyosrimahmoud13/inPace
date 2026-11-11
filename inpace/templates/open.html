@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Open a file{% endblock %}
 {% block main %}
-<h1>Open a file</h1>
+<div class="page-head"><h1>Open a file</h1></div>
 <p class="lead">Drop any inPace file here: a course, a contact card, a progress file, or a checker's reply. inPace figures out what it is.</p>
 {% if problems %}
 <section class="card">
@@ -15,9 +15,9 @@
     <span><b>Drop the file here</b><br>or click to choose it</span>
   </label>
 </form>
-<div class="grid3 small">
-  <div class="card"><b>.lpack, .zip or .yaml</b><p class="muted">A course</p></div>
-  <div class="card"><b>contact card</b><p class="muted">Someone you want to connect with</p></div>
-  <div class="card"><b>progress / reply</b><p class="muted">Milestones to review, or your checker's answer</p></div>
+<div class="grid small">
+  <div class="card flat"><b>.lpack, .zip or .yaml</b><p class="muted">A course</p></div>
+  <div class="card flat"><b>contact card</b><p class="muted">Someone you want to connect with</p></div>
+  <div class="card flat"><b>progress / reply</b><p class="muted">Milestones to review, or your checker's answer</p></div>
 </div>
 {% endblock %}

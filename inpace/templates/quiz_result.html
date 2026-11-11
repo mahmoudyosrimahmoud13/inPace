@@ -1,23 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Quiz result{% endblock %}
+{% block width %}read{% endblock %}
 {% block main %}
+{% if verified %}
+<section class="card result good center" style="padding: 2.25rem">
+  <p class="eyebrow">{{ module.title }}</p>
+  <h1>Answers saved</h1>
+  <p class="lead" style="margin-inline:auto">They go to {{ checker_name }} with your next milestone. {{ checker_name }}'s app grades them, and you'll see your score in their reply.</p>
+  <div class="row" style="justify-content:center">
+    <a class="btn primary big" href="/milestones">Save a milestone now</a>
+    <a class="btn big" href="/learn/{{ j.id }}/module/{{ module.id }}">Back to the module</a>
+  </div>
+</section>
+{% else %}
 <section class="card result {{ 'good' if passed else 'warn' }}">
   <p class="eyebrow">{{ module.title }}</p>
   <h1>{{ result.score }} of {{ result.total }} · {{ result.percent }}%</h1>
-  <p class="lead">{{ 'You passed! Nice work.' if passed else 'Not quite yet. You need ' ~ req.pass ~ '%. Read the explanations and try again: the choices will be different.' }}</p>
+  <p class="lead">{{ 'You passed. Nice work!' if passed else 'Not yet. You need ' ~ req.pass ~ '%. Read the explanations and try again: the choices will be different.' }}</p>
   <div class="row">
-    <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ module.lessons[-1].id }}#tasks">Back to the module</a>
-    {% if not passed %}<a class="btn" href="/learn/{{ j.id }}/task/{{ req.id }}/quiz">Try again</a>{% endif %}
+    <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">Back to the module</a>
+    {% if not passed %}<a class="btn big" href="/learn/{{ j.id }}/task/{{ req.id }}/quiz">Try again</a>{% endif %}
   </div>
 </section>
-<div class="list">
-  {% for d in result.details %}
-  <div class="card answer {{ 'good' if d.ok else 'bad' }}">
-    <p><b>{{ d.text }}</b></p>
-    <p>Your answer: {{ d.chosen }} {{ '✓' if d.ok else '✗' }}</p>
-    {% if not d.ok %}<p>Right answer: <b>{{ d.right }}</b></p>{% endif %}
-    {% if d.why %}<p class="muted small">{{ d.why }}</p>{% endif %}
-  </div>
-  {% endfor %}
+{% for d in result.details %}
+<div class="card flat answer {{ 'good' if d.ok else 'bad' }}">
+  <p dir="auto"><b>{{ d.text }}</b></p>
+  <p dir="auto" style="margin:0">Your answer: {{ d.chosen }} <span class="chip {{ 'good' if d.ok else 'bad' }} plain">{{ 'Right' if d.ok else 'Wrong' }}</span></p>
+  {% if not d.ok %}<p dir="auto" style="margin:.35rem 0 0">Right answer: <b>{{ d.right }}</b></p>{% endif %}
+  {% if d.why %}<p class="muted small" dir="auto" style="margin:.5rem 0 0">{{ d.why }}</p>{% endif %}
 </div>
+{% endfor %}
+{% endif %}
 {% endblock %}

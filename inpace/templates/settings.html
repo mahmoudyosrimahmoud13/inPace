@@ -1,8 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% block title %}Settings<section class="card" style="max-width:620px">
+  <h2>Quit inPace</h2>
+  <p class="muted">Stops inPace in the background. Your data stays safe in the folder above.</p>
+  <form method="post" action="/quit"><button class="btn">Quit inPace</button></form>
+</section>
+{% endblock %}
 {% block main %}
-<h1>Settings</h1>
-<form method="post" class="card stack narrow">
+<div class="page-head"><h1>Settings</h1></div>
+<form method="post" class="card stack" style="max-width:620px">
   <label>Your name<input name="name" value="{{ me.name }}" maxlength="40"></label>
   <fieldset class="colors">
     <legend>Your color</legend>
@@ -12,11 +17,16 @@
   </fieldset>
   <button class="btn primary">Save</button>
 </form>
-<section class="card narrow">
+<section class="card" style="max-width:620px">
   <h2>Where your data lives</h2>
   <p>Everything is in this folder on your computer:</p>
   <p><code>{{ home }}</code></p>
   <p class="muted small">Back up this whole folder to keep your progress safe. The file <b>identity.key</b> is your private key: never send it to anyone.</p>
   <details class="small muted"><summary>Show details</summary>Your public id: <code>{{ me.id }}</code></details>
+</section>
+<section class="card" style="max-width:620px">
+  <h2>Quit inPace</h2>
+  <p class="muted">Stops inPace in the background. Your data stays safe in the folder above.</p>
+  <form method="post" action="/quit"><button class="btn">Quit inPace</button></form>
 </section>
 {% endblock %}

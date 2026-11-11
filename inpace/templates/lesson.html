@@ -1,71 +1,42 @@
 {% extends "base.html" %}
 {% block title %}{{ lesson.title }}{% endblock %}
+{% block width %}read{% endblock %}
 {% block main %}
-<p class="eyebrow"><a href="/learn/{{ j.id }}">{{ course.title }}</a> › {{ module.title }}</p>
-<div class="lesson-layout">
-  <article class="card lesson">
-    <div class="lesson-meta">
-      <span class="muted small">Lesson {{ module.lessons.index(lesson) + 1 }} of {{ module.lessons|length }}{% if lesson.minutes %} · about {{ lesson.minutes }} min{% endif %}</span>
-      {% if lstate.done %}<span class="chip good">Done</span>{% endif %}
+{% set idx = module.lessons.index(lesson) %}
+<div class="strip">
+  <div>
+    <p class="eyebrow"><a href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a> › <span dir="auto">{{ module.title }}</span></p>
+    <div class="row">
+      <nav class="dots" aria-label="Lessons in this module">
+        {% for l in mstate.lessons %}
+          <a href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}"><span class="sr">{{ l.title }}</span></a>
+        {% endfor %}
+      </nav>
+      <span class="small muted">Lesson {{ idx + 1 }} of {{ module.lessons|length }}{% if lesson.minutes %} · about {{ lesson.minutes }} min{% endif %}</span>
     </div>
-    <div class="prose">{{ html|safe }}</div>
-    <div class="lesson-foot">
-      {% if prev_id %}<a class="btn ghost" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">Previous lesson</a>{% else %}<span></span>{% endif %}
-      {% if not lstate.done %}
-        <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done">
-          <input type="hidden" name="next" value="{{ next_id or '' }}">
-          <button class="btn primary big">{{ 'Done, next lesson' if next_id else 'Mark as done' }}</button>
-        </form>
-      {% elif next_id %}
-        <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ next_id }}">Next lesson</a>
-      {% endif %}
-    </div>
-  </article>
-
-  <aside class="card tasks" id="tasks">
-    <p class="eyebrow">To finish this module</p>
-    {% set lessons_left = mstate.lessons|rejectattr('done')|list|length %}
-    <div class="task-item {{ 'done' if not lessons_left }}">
-      <h3>Read all lessons</h3>
-      <p class="muted small">{{ mstate.lessons_done }} of {{ mstate.lessons|length }} done</p>
-    </div>
-    {% for r in mstate.requires %}
-    <div class="task-item {{ 'done' if r.done }}" id="task-{{ r.id }}">
-      <div class="task-head">
-        <h3>{{ {'practical': 'Your work', 'explain': 'Explain it', 'quiz': 'Quiz'}[r.type] }}</h3>
-        {% if r.done %}<span class="chip good">Done</span>{% endif %}
-      </div>
-      <p>{{ r.prompt }}</p>
-
-      {% if r.type == 'practical' %}
-        {% for e in r.evidence %}<p class="file">{{ e.name }} <span class="muted small">saved</span></p>{% endfor %}
-        <form method="post" enctype="multipart/form-data" action="/learn/{{ j.id }}/task/{{ r.id }}/evidence" class="drop">
-          <label class="drop-zone">
-            <input type="file" name="file" required data-autosubmit>
-            <span>{{ 'Add another file' if r.evidence else 'Drop your file here or click to choose' }}</span>
-          </label>
-        </form>
-
-      {% elif r.type == 'explain' %}
-        <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/writeup" class="stack">
-          <textarea name="text" rows="6" data-wordcount="{{ r.min_words }}" placeholder="Write in your own words...">{{ r.writeup.text if r.writeup }}</textarea>
-          <div class="row between"><span class="muted small" data-wordcount-out>At least {{ r.min_words }} words</span><button class="btn">Save</button></div>
-        </form>
-
-      {% elif r.type == 'quiz' %}
-        {% if r.quiz %}<p class="small">Best score: <b>{{ r.quiz.percent }}%</b> (need {{ r.pass }}%)</p>{% endif %}
-        {% if has_answers %}
-          {% if mstate.lessons_done == mstate.lessons|length %}
-            <a class="btn {{ '' if r.done else 'primary' }}" href="/learn/{{ j.id }}/task/{{ r.id }}/quiz">{{ 'Practice again' if r.quiz else 'Start quiz' }} ({{ r.questions|length }} questions)</a>
-          {% else %}
-            <p class="muted small">Finish the lessons first, then take the quiz.</p>
-          {% endif %}
-        {% else %}
-          <p class="muted small">This copy of the course has no answers, so the quiz is off.</p>
-        {% endif %}
-      {% endif %}
-    </div>
-    {% endfor %}
-  </aside>
+  </div>
+  {% set tdone = mstate.requires|selectattr('done')|list|length %}
+  <a class="btn" href="/learn/{{ j.id }}/module/{{ module.id }}">Module tasks · {{ tdone }}/{{ mstate.requires|length }}</a>
 </div>
+
+<article class="card" style="padding: clamp(1.25rem, 4vw, 2.5rem)">
+  <div class="row between" style="margin-block-end: .5rem">
+    <h1 dir="auto" style="margin:0">{{ lesson.title }}</h1>
+    {% if lstate.done %}<span class="chip good">Done</span>{% endif %}
+  </div>
+  <div class="prose" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
+  <div class="lesson-foot">
+    {% if prev_id %}<a class="btn ghost" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">Previous</a>{% else %}<span></span>{% endif %}
+    {% if not lstate.done %}
+      <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done">
+        <input type="hidden" name="next" value="{{ next_id or '' }}">
+        <button class="btn primary big">{{ 'Done, next lesson' if next_id else 'Done, go to tasks' }} {{ icon('arrow', 18) }}</button>
+      </form>
+    {% elif next_id %}
+      <a class="btn primary big" href="/learn/{{ j.id }}/lesson/{{ next_id }}">Next lesson {{ icon('arrow', 18) }}</a>
+    {% else %}
+      <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">Go to module tasks {{ icon('arrow', 18) }}</a>
+    {% endif %}
+  </div>
+</article>
 {% endblock %}

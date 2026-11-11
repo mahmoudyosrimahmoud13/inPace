@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Add {{ card.name }}{% endblock %}
 {% block main %}
-<section class="card narrow stack">
+<section class="card stack" style="max-width:620px">
   <div class="person-head">{{ avatar(card, 52) }}<div><p class="eyebrow">{{ 'Progress file from' if from_progress else 'Contact card' }}</p><h1>{{ card.name }}</h1></div></div>
   {% if from_progress %}
     <p>You don't check {{ card.name }}'s progress yet. Add them to review this file.</p>

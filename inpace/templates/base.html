@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}inPace{% endblock %} · inPace</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
 <header class="top">
@@ -15,35 +15,39 @@
   </a>
   <span class="pill" title="Nothing leaves this computer unless you send a file yourself"><i class="dot"></i>Offline · on this computer</span>
   {% if me %}
-  <a class="me" href="/settings">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
+  <a class="me" href="/settings" title="Settings">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
   {% endif %}
 </header>
-<div class="shell">
+<div class="shell {{ 'no-side' if not me }}">
   {% if me %}
+  {% set p = active_path %}
   <nav class="side" aria-label="Main">
     <p class="side-h">My learning</p>
-    <a href="/" class="{{ 'on' if active_path == '/' }}">Home</a>
-    <a href="/courses" class="{{ 'on' if active_path.startswith('/courses') or active_path.startswith('/learn') }}">My courses</a>
-    <a href="/milestones" class="{{ 'on' if active_path.startswith('/milestones') }}">Milestones</a>
-    <a href="/ai" class="{{ 'on' if active_path.startswith('/ai') }}">Make a course with AI</a>
+    <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}Home</a>
+    <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}My courses</a>
+    <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('flag') }}Milestones</a>
+    <a href="/ai" class="{{ 'on' if p.startswith('/ai') }}">{{ icon('spark') }}Make a course</a>
     <p class="side-h">People I check on</p>
-    {% for p in checking %}
-      <a href="/people#p-{{ p.id[:12] }}" class="person-link">{{ avatar(p, 24) }}<span>{{ display_name(p) }}</span>{% if p.waiting %}<em class="badge">{{ p.waiting }} waiting</em>{% endif %}</a>
+    {% for x in checking %}
+      <a href="/people#p-{{ x.id[:12] }}" class="person-link">{{ avatar(x, 24) }}<span>{{ display_name(x) }}</span>{% if x.waiting %}<em class="badge">{{ x.waiting }}</em>{% endif %}</a>
     {% else %}
       <p class="side-empty">Nobody yet</p>
     {% endfor %}
-    <a href="/people" class="{{ 'on' if active_path.startswith('/people') or active_path.startswith('/review') }}">All people</a>
+    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users') }}People</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings') }}Settings</a>
     <div class="side-bottom">
-      <a class="btn wide" href="/open">Open a file</a>
+      <a class="btn primary wide" href="/open">{{ icon('open', 18) }}Open a file</a>
     </div>
   </nav>
   {% endif %}
   <main>
-    {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
-    {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
-    {% block main %}{% endblock %}
+    <div class="page {% block width %}{% endblock %}">
+      {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
+      {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
+      {% block main %}{% endblock %}
+    </div>
   </main>
 </div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>
