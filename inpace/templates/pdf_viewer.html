@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ file_name }} · inPace</title>
+<link rel="stylesheet" href="/static/style.css?v=14">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--raised); }
+  .pdf-bar { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; padding: .45rem .6rem; background: var(--cream);
+    border-bottom: 3px solid var(--line); direction: ltr; position: sticky; top: 0; z-index: 2; }
+  .pdf-bar .btn { padding: .3rem .6rem; min-width: 2.2rem; box-shadow: 2px 2px 0 var(--line); }
+  .pdf-bar input { width: 3.6rem; padding: .25rem .4rem; text-align: center; }
+  .pdf-name { font-weight: 700; margin-inline-end: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+  .pdf-pages { position: relative; flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .pdf-page { background: #fff; box-shadow: 4px 4px 0 var(--line); border: 2px solid var(--line); position: relative; }
+  .pdf-page canvas { display: block; width: 100%; height: 100%; }
+  .pdf-msg { margin: 3rem auto; text-align: center; max-width: 30rem; }
+</style>
+</head>
+<body>
+<div class="pdf-bar" role="toolbar">
+  {% if standalone %}<button type="button" class="btn" onclick="history.length > 1 ? history.back() : window.close()" title="{{ _('Back') }}">←</button>{% endif %}
+  <span class="pdf-name" title="{{ file_name }}">{{ file_name }}</span>
+  <button type="button" class="btn" id="prev" title="{{ _('Previous page') }}">‹</button>
+  <span><input id="num" type="number" min="1" value="1" aria-label="{{ _('Page') }}"> / <span id="count">…</span></span>
+  <button type="button" class="btn" id="next" title="{{ _('Next page') }}">›</button>
+  <button type="button" class="btn" id="out" title="{{ _('Zoom out') }}">−</button>
+  <button type="button" class="btn" id="fit" title="{{ _('Fit to width') }}">↔</button>
+  <button type="button" class="btn" id="in" title="{{ _('Zoom in') }}">+</button>
+  <button type="button" class="btn" id="full" title="{{ _('Full screen') }}">⛶</button>
+  {% if standalone %}<a class="btn" href="{{ src }}" download title="{{ _('Download') }}">⤓</a>{% endif %}
+</div>
+<div class="pdf-pages" id="pages" tabindex="0"><p class="pdf-msg">{{ _('Opening the PDF…') }}</p></div>
+<script type="module">
+  import * as pdfjs from "/static/pdfjs/pdf.min.mjs";
+  pdfjs.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.mjs";
+  const SRC = {{ src|tojson }}, KEY = {{ key|tojson }};
+  let startPage = {{ start }};
+  const box = document.getElementById("pages"), num = document.getElementById("num"), count = document.getElementById("count");
+  let pdf, scale = 0, pages = [], current = 1, lastSaved = 0;
+  const save = (beacon) => {
+    if (!KEY || !pdf || current === lastSaved) return;
+    lastSaved = current;
+    const body = new FormData();
+    body.append("key", KEY); body.append("t", String(current === 1 ? 0 : current)); body.append("d", "0");
+    beacon && navigator.sendBeacon ? navigator.sendBeacon("/media-pos", body) : fetch("/media-pos", { method: "POST", body }).catch(() => {});
+  };
+  const fitScale = (vp) => Math.min(2.5, (box.clientWidth - 40) / vp.width);
+  async function layout() {
+    const first = await pdf.getPage(1);
+    const base = first.getViewport({ scale: 1 });
+    if (!scale) scale = fitScale(base);
+    box.innerHTML = "";
+    pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const div = document.createElement("div");
+      div.className = "pdf-page";
+      div.dataset.n = i;
+      div.style.width = base.width * scale + "px";
+      div.style.height = base.height * scale + "px";
+      box.appendChild(div);
+      pages.push(div);
+      io.observe(div);
+    }
+  }
+  const rendering = new Set();
+  async function draw(div) {
+    const n = +div.dataset.n;
+    if (div.dataset.scale == scale || rendering.has(n)) return;
+    rendering.add(n);
+    const page = await pdf.getPage(n);
+    const vp = page.getViewport({ scale });
+    const ratio = window.devicePixelRatio || 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(vp.width * ratio); canvas.height = Math.floor(vp.height * ratio);
+    div.style.width = vp.width + "px"; div.style.height = vp.height + "px";
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null }).promise;
+    div.replaceChildren(canvas);
+    div.dataset.scale = scale;
+    rendering.delete(n);
+  }
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting && draw(e.target)), { root: box, rootMargin: "600px 0px" });
+  const go = (n) => {
+    n = Math.max(1, Math.min(pdf.numPages, n));
+    const jump = () => { box.scrollTop = pages[n - 1].offsetTop - 16; current = n; num.value = n; };
+    jump(); requestAnimationFrame(jump);
+  };
+  box.addEventListener("scroll", () => {
+    const mid = box.scrollTop + box.clientHeight / 3;
+    let n = 1;
+    for (const p of pages) { if (p.offsetTop <= mid) n = +p.dataset.n; else break; }
+    if (n !== current) { current = n; num.value = n; }
+  });
+  const rezoom = async (s) => { const keep = current; scale = s; await layout(); go(keep); };
+  document.getElementById("prev").onclick = () => go(current - 1);
+  document.getElementById("next").onclick = () => go(current + 1);
+  document.getElementById("in").onclick = () => rezoom(Math.min(4, scale * 1.2));
+  document.getElementById("out").onclick = () => rezoom(Math.max(0.3, scale / 1.2));
+  document.getElementById("fit").onclick = async () => rezoom(fitScale((await pdf.getPage(1)).getViewport({ scale: 1 })));
+  document.getElementById("full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+  num.addEventListener("change", () => go(parseInt(num.value || "1", 10)));
+  document.addEventListener("keydown", (e) => {
+    if (e.target === num) return;
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); document.getElementById("in").click(); }
+    else if (e.key === "-") { e.preventDefault(); document.getElementById("out").click(); }
+    else if (e.key === "ArrowRight" || e.key === "PageDown" && e.ctrlKey) { go(current + 1); }
+    else if (e.key === "ArrowLeft") { go(current - 1); }
+  });
+  setInterval(() => save(false), 4000);
+  addEventListener("pagehide", () => save(true));
+  try {
+    pdf = await pdfjs.getDocument({ url: SRC, isEvalSupported: false }).promise;
+    count.textContent = pdf.numPages;
+    num.max = pdf.numPages;
+    await layout();
+    if (startPage > 1 && startPage <= pdf.numPages) {
+      // Continue on the page you stopped at (retry a few times while the pages settle, unless you scroll first).
+      let touched = false;
+      ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) => box.addEventListener(ev, () => (touched = true), { once: true }));
+      [0, 150, 400, 900].forEach((ms) => setTimeout(() => { if (!touched && box.scrollTop < 5) go(startPage); }, ms));
+    }
+    box.focus({ preventScroll: true });
+  } catch (err) {
+    box.innerHTML = `<p class="pdf-msg">{{ _("This PDF couldn't be opened. It may be damaged or protected with a password.") }}</p>`;
+  }
+</script>
+</body>
+</html>

@@ -210,9 +210,11 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
     elif kind == "html":
         body = (f'<div class="frame-wrap"><iframe sandbox="allow-scripts" src="{url}" loading="lazy" title="{e(label or rel)}"></iframe></div>'
                 f'<button type="button" class="btn small-btn" data-fullscreen>{e(t("Full screen"))}</button>')
-    else:  # pdf
-        body = (f'<div class="frame-wrap tall"><iframe src="{url}" loading="lazy" title="{e(label or rel)}"></iframe></div>'
-                f'<a class="small" href="{url}" target="_blank" rel="noopener">{e(t("Open the PDF"))}</a>')
+    else:  # pdf: inPace's own reader (works in every app window, remembers your page)
+        name = rel.rstrip("/").rsplit("/", 1)[-1]
+        q = f"src={quote(url, safe='')}&key={quote(key, safe='')}&name={quote(name, safe='')}"
+        body = (f'<div class="frame-wrap tall"><iframe src="/pdf?{q}" loading="lazy" title="{e(label or name)}" allowfullscreen></iframe></div>'
+                f'<a class="small" href="/pdf?{q}&full=1">{e(t("Open the PDF on its own page"))}</a>')
     return f'<figure class="media {kind}">{body}{cap}</figure>'
 
 

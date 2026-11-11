@@ -31,7 +31,7 @@
     {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
     <div class="row small muted">
       <span>{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</span>
-      {% if not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
+      {% if c.questions and not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
     </div>
   </div>
   <div class="row">
@@ -40,16 +40,19 @@
     {% else %}
       <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">{% trans trimmed %}Start{% endtrans %}</button></form>
     {% endif %}
+    <a class="btn" href="/edit/{{ c.id }}">{{ icon('pen', 18) }}{% trans trimmed %}Edit{% endtrans %}</a>
     <details class="menu">
-      <summary class="btn">{% trans trimmed %}Share{% endtrans %}</summary>
+      <summary class="btn">{% trans trimmed %}More{% endtrans %}</summary>
       <div class="menu-box">
-        <a href="/edit/{{ c.id }}">{% trans trimmed %}Edit course{% endtrans %}</a>
+        <p class="menu-h">{% trans trimmed %}Share{% endtrans %}</p>
         <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
         {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
         {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
-        {% if not r.journey %}
-        <form method="post" action="/courses/{{ c.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">{% trans trimmed %}Remove course{% endtrans %}</button></form>
-        {% endif %}
+        <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
+        <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>
+        {% if r.media_root %}<form method="post" action="/courses/{{ c.id }}/refresh"><button class="link btn" style="justify-content:flex-start">{% trans trimmed %}Refresh from its folder{% endtrans %}</button></form>{% endif %}
+        <p class="menu-h"></p>
+        <a class="danger" href="/courses/{{ c.id }}/remove">{% trans trimmed %}Delete course…{% endtrans %}</a>
       </div>
     </details>
   </div>

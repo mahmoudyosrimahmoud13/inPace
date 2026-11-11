@@ -1,6 +1,9 @@
 // Small helpers only. The app works without JavaScript too.
 document.querySelectorAll("[data-autosubmit]").forEach((input) => {
-  input.addEventListener("change", () => { if (input.files.length) input.form.submit(); });
+  input.addEventListener("change", () => {
+    if (input.tagName === "SELECT") return;  // handled below
+    if (input.type === "file" ? input.files.length : true) input.form.submit();
+  });
   const zone = input.closest(".drop-zone");
   if (!zone) return;
   ["dragenter", "dragover"].forEach((e) => zone.addEventListener(e, () => zone.classList.add("over")));
@@ -522,4 +525,72 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   addEventListener("resize", place);
   shade.addEventListener("click", () => {});
   draw();
+})();
+
+// Search and jump (Ctrl+K or /): courses, lessons, tasks, people and pages.
+(() => {
+  const btn = document.querySelector("[data-search]");
+  const L = document.getElementById("search-labels");
+  if (!btn || !L) return;
+  let items = null, box = null, list, input, sel = 0, shown = [];
+  const norm = (s) => (s || "").toLowerCase().normalize("NFKD").replace(/[ً-ٰٟ]/g, "");
+  const score = (it, q) => {
+    const t = norm(it.t), k = norm(it.k);
+    if (!q) return 1;
+    let s = 0;
+    for (const w of q.split(/\s+/).filter(Boolean)) {
+      if (t.startsWith(w)) s += 5; else if (t.includes(w)) s += 3; else if (k.includes(w)) s += 1; else return 0;
+    }
+    return s;
+  };
+  const render = () => {
+    const q = norm(input.value.trim());
+    shown = items.map((it) => [score(it, q), it]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).slice(0, 40).map(([, it]) => it);
+    sel = Math.min(sel, Math.max(0, shown.length - 1));
+    list.innerHTML = "";
+    if (!shown.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = L.dataset.empty; list.append(li); return; }
+    shown.forEach((it, i) => {
+      const li = document.createElement("li");
+      li.className = i === sel ? "on" : "";
+      li.setAttribute("role", "option");
+      li.innerHTML = "<b dir='auto'></b><span dir='auto'></span>";
+      li.firstChild.textContent = it.t; li.lastChild.textContent = it.k;
+      li.addEventListener("click", () => (location.href = it.u));
+      li.addEventListener("mousemove", () => { if (sel !== i) { sel = i; mark(); } });
+      list.append(li);
+    });
+  };
+  const mark = () => [...list.children].forEach((li, i) => { li.classList.toggle("on", i === sel); if (i === sel) li.scrollIntoView({ block: "nearest" }); });
+  const close = () => { box && box.remove(); box = null; };
+  const open = async () => {
+    if (box) return;
+    box = document.createElement("div");
+    box.className = "search-pop";
+    box.innerHTML = `<div class="search-card" role="dialog" aria-modal="true"><input type="search" autocomplete="off"><ul role="listbox"></ul><p class="small muted"></p></div>`;
+    document.body.append(box);
+    input = box.querySelector("input"); list = box.querySelector("ul");
+    input.placeholder = L.dataset.placeholder; box.querySelector("p").textContent = L.dataset.hint;
+    box.addEventListener("click", (e) => e.target === box && close());
+    input.addEventListener("input", () => { sel = 0; render(); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); sel = Math.min(shown.length - 1, sel + 1); mark(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); mark(); }
+      else if (e.key === "Enter" && shown[sel]) location.href = shown[sel].u;
+      else if (e.key === "Escape") close();
+    });
+    input.focus();
+    if (!items) { try { items = await (await fetch("/nav.json")).json(); } catch (e) { items = []; } }
+    render();
+  };
+  btn.addEventListener("click", open);
+  document.addEventListener("keydown", (e) => {
+    const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); open(); }
+    else if (e.key === "/" && !typing && !e.target.closest("[data-player]")) { e.preventDefault(); open(); }
+    else if (e.altKey && !typing && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      const fwd = (e.key === "ArrowRight") !== (document.dir === "rtl");
+      const a = document.querySelector(fwd ? "[data-key-next]" : "[data-key-prev]");
+      if (a) { e.preventDefault(); location.href = a.href; }
+    }
+  });
 })();

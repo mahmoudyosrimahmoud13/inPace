@@ -169,6 +169,14 @@ class Vault:
         self._set_meta(f"media_root:{course_id}", "")
         self._courses.pop(course_id, None)
 
+    def archive_course(self, course_id: str) -> None:
+        """Delete a course you've started. Its signed history can't be erased (it's append-only and your
+        checker may have it), so the progress is hidden instead, and the course and its own files are removed.
+        Adding the course again later starts fresh."""
+        self.db.execute("UPDATE journeys SET archived=1 WHERE course_id=?", (course_id,))
+        self.db.commit()
+        self.delete_course(course_id)
+
     # ---- the course's own files (videos, audio, pages) -----------------------
     # Two places are checked, in this order:
     #   1. files that came inside the course pack or were added in the editor: <home>/media/<course>/
@@ -231,7 +239,8 @@ class Vault:
         if existing:
             return existing["id"]
         started = now_utc()
-        jid = fingerprint({"learner": self.identity.id, "course": course_id, "started": started})[:16]
+        n = self.db.execute("SELECT COUNT(*) AS n FROM journeys WHERE course_id=?", (course_id,)).fetchone()["n"]
+        jid = fingerprint({"learner": self.identity.id, "course": course_id, "started": started, "n": n})[:16]
         self.db.execute("INSERT INTO journeys (id, course_id, started_at) VALUES (?,?,?)", (jid, course_id, started))
         self.db.commit()
         self.add_event(jid, "journey_started", {"course": course_id})

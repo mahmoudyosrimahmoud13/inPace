@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ T('Update {name}', name=cur.title) }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
+  <h1 dir="auto">{% trans trimmed %}A newer copy of a course you have{% endtrans %}.</h1>
+  <p class="muted" dir="auto">{{ T('You have “{name}” version {a}. This file is version {b}.', name=cur.title, a=cur.version, b=new.version) }}</p>
+</div>
+<section class="card stack">
+  <h2>{% trans trimmed %}What changed{% endtrans %}</h2>
+  {% if not added and not removed %}
+    <p>{% trans trimmed %}The modules and lessons are the same. The lesson text, tasks or questions changed.{% endtrans %}</p>
+  {% endif %}
+  {% if added %}<div><b class="chip good">{% trans trimmed %}New{% endtrans %}</b>
+    <ul class="small">{% for kind, title, mod in added %}<li dir="auto">{{ _('Module') if kind == 'module' else _('Lesson') }}: {{ title }}{% if mod %} <span class="muted">({{ mod }})</span>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+  {% if removed %}<div><b class="chip bad">{% trans trimmed %}Removed{% endtrans %}</b>
+    <ul class="small">{% for kind, title, mod in removed %}<li dir="auto">{{ _('Module') if kind == 'module' else _('Lesson') }}: {{ title }}{% if mod %} <span class="muted">({{ mod }})</span>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+  {% if started %}<p class="note">{% trans trimmed %}Your progress is kept: lessons and tasks you finished stay done if they're still in the new version. Your checker will see that the course changed.{% endtrans %}</p>{% endif %}
+  <form method="post" class="row">
+    <button class="btn primary" name="choice" value="update">{% trans trimmed %}Update my course{% endtrans %}</button>
+    <button class="btn" name="choice" value="separate">{% trans trimmed %}Add it as a separate course{% endtrans %}</button>
+    <button class="btn ghost" name="choice" value="cancel">{% trans trimmed %}Keep mine as it is{% endtrans %}</button>
+  </form>
+  <p class="small muted" style="margin:0">{% trans trimmed %}Changed your mind after updating? Open the course in the editor and press Undo last change.{% endtrans %}</p>
+</section>
+{% endblock %}

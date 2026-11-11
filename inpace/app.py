@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -26,6 +27,7 @@ from .exam import NoAnswers, build_exam, grade, new_seed
 from .vault import COLORS, Vault, display_name
 
 HERE = Path(__file__).parent
+mimetypes.add_type("text/javascript", ".mjs")  # the PDF reader's scripts
 SAMPLES = HERE / "sample_courses"
 MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken", "reflection_saved",
               "review_done", "commitment_set", "pause_started", "pause_ended"}
@@ -113,6 +115,17 @@ def say(msg: str, values: list | tuple = ()) -> str:
 
 env.globals["say"] = say
 env.filters["short"] = short
+# Color profiles for the whole app: (name, main colour, second colour) for the Settings preview.
+ACCENTS = {
+    "": ("Sunny", "#FFD43B", "#E6007E"),
+    "ocean": ("Ocean", "#4DB8FF", "#FF6B35"),
+    "mint": ("Mint", "#46D99A", "#7C3AED"),
+    "rose": ("Rose", "#FF8FB1", "#2563EB"),
+    "grape": ("Grape", "#B79CFF", "#F59E0B"),
+    "nile": ("Nile", "#F4A259", "#0E7C86"),
+    "mono": ("Ink", "#D4D4D4", "#111111"),
+}
+
 MONTHS = {"en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
           "ar": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر",
                  "نوفمبر", "ديسمبر"]}
@@ -145,6 +158,7 @@ def t(text: str, **values) -> str:
 
 env.filters["date"] = nice_date
 env.globals["T"] = t
+env.globals["ACCENTS"] = ACCENTS
 env.globals["display_name"] = display_name
 
 
@@ -173,6 +187,7 @@ _ICONS = {
     "lock": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     "shield": '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
     "send": '<path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/>',
+    "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "moon": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
@@ -218,6 +233,7 @@ def create_app(vault: Vault) -> Starlette:
         base = {"request": request, "msg": tr_lines(request.query_params.get("ok")) or None,
                 "err": tr_lines(request.query_params.get("err")) or None, "lang": CURRENT["lang"],
                 "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
+                "accent": (V._meta("accent", "") or "") if V.is_set_up else "",
                 "update": _update_info() if V.is_set_up else None,
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
@@ -226,8 +242,51 @@ def create_app(vault: Vault) -> Starlette:
                 {**p, "waiting": V.waiting_count(p["id"])} for p in V.people() if p["i_check"]
             ]
             base["active_path"] = request.url.path
+            base["resume"] = _last_lesson()
         base.update(ctx)
         return HTMLResponse(env.get_template(name).render(**base))
+
+    def _last_lesson() -> dict | None:
+        """The lesson you opened last, for the "Continue" button in the side bar."""
+        row = V.db.execute(
+            "SELECT e.journey, e.data FROM events e JOIN journeys j ON j.id = e.journey "
+            "WHERE e.type = 'lesson_opened' AND j.archived = 0 ORDER BY e.seq DESC LIMIT 1").fetchone()
+        if not row:
+            return None
+        j = V.journey(row["journey"])
+        c = V.get_course(j["course_id"]) if j else None
+        found = c.find_lesson(json.loads(row["data"]).get("lesson", "")) if c else None
+        if not found:
+            return None
+        return {"url": f"/learn/{j['id']}/lesson/{found[1]['id']}", "lesson": found[1]["title"], "course": c.title}
+
+    async def nav_index(request: Request):
+        """Everything you can jump to from the search box (Ctrl+K)."""
+        items = [{"t": say(n), "u": u, "k": say("Page")} for n, u in (
+            ("Home", "/"), ("My courses", "/courses"), ("Milestones", "/milestones"), ("Races", "/races"),
+            ("Make a course with AI", "/ai"), ("Make one by hand", "/edit/new"), ("People", "/people"),
+            ("Open a file", "/open"), ("Settings", "/settings"), ("Show the tour again", "/?tour=1"))]
+        for c in V.courses():
+            jid = V.journey_for_course(c.id)
+            items.append({"t": c.title, "u": f"/learn/{jid}" if jid else "/courses", "k": say("Course")})
+            items.append({"t": t("Edit {name}", name=c.title), "u": f"/edit/{c.id}", "k": say("Edit")})
+            if jid:
+                for m in c.modules:
+                    for les in m["lessons"]:
+                        items.append({"t": les["title"], "u": f"/learn/{jid}/lesson/{les['id']}",
+                                      "k": f"{c.title} › {m['title']}"})
+                    if m["requires"]:
+                        items.append({"t": t("{name} tasks", name=m["title"]), "u": f"/learn/{jid}/module/{m['id']}",
+                                      "k": c.title})
+        for p in V.people():
+            items.append({"t": display_name(p), "u": "/people", "k": say("Person")})
+        return JSONResponse(items[:3000])
+
+    async def set_accent(request: Request):
+        form = await request.form()
+        accent = str(form.get("accent", ""))
+        V._set_meta("accent", accent if accent in ACCENTS else "")
+        return go("/settings#colors", ok="Colors saved.")
 
     def go(url: str, ok: str | None = None, err: str | None = None, yay: str | None = None) -> RedirectResponse:
         if yay:
@@ -330,7 +389,8 @@ def create_app(vault: Vault) -> Starlette:
         lang = V._meta("lang", "en") or "en"
         samples.sort(key=lambda c: c.language != lang)  # courses in your language first
         rows = [{"course": c, "journey": V.journey_for_course(c.id),
-                 "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"])}
+                 "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"]),
+                 "media_root": V.media_root(c.id)}
                 for c in installed]
         return page("courses.html", request, rows=rows, samples=samples)
 
@@ -381,6 +441,20 @@ def create_app(vault: Vault) -> Starlette:
         except ValueError:
             speed = 1.0
         return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed)
+
+    async def pdf_reader(request: Request):
+        """inPace's own PDF reader (pdf.js, bundled), so PDFs open in every app window, offline."""
+        src = request.query_params.get("src", "")
+        if not src.startswith(("/m/", "/evidence/", "/files/")):
+            return Response("Not found", status_code=404)
+        key = request.query_params.get("key", "")[:600]
+        try:
+            start = int(float(V._meta(f"pos:{key}", "0") or 0)) if key else 0
+        except ValueError:
+            start = 0
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        return page("pdf_viewer.html", request, src=src, key=key, start=max(start, 1),
+                    file_name=request.query_params.get("name", "PDF")[:200], standalone=request.query_params.get("full") == "1")
 
     async def media_position(request: Request):
         """The video player reports where you are every few seconds, so it can continue from there next time."""
@@ -485,11 +559,143 @@ def create_app(vault: Vault) -> Starlette:
         return JSONResponse({"folder": folder})
 
     async def remove_course(request: Request):
+        """Delete a course. A started course needs a tick in the box first, because its progress goes too."""
         cid = request.path_params["cid"]
-        if V.journey_for_course(cid):
-            return go("/courses", err="You've started this course, so it can't be removed. Your progress depends on it.")
-        V.delete_course(cid)
-        return go("/courses", ok="Course removed.")
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        jid = V.journey_for_course(cid)
+        if request.method == "GET":
+            info = None
+            if jid:
+                prog = V.progress(jid)
+                info = {"percent": prog["percent"], "milestones": len(V.milestones(jid))}
+            return page("delete_course.html", request, c=c, info=info)
+        form = await request.form()
+        if jid and form.get("sure") != "1":
+            return go(f"/courses/{cid}/remove", err="Tick the box to confirm.")
+        import shutil
+        shutil.rmtree(V.home / "course_history" / cid, ignore_errors=True)
+        if jid:
+            V.archive_course(cid)
+        else:
+            V.delete_course(cid)
+        return go("/courses", ok=f"Deleted “{c.title}”.")
+
+    # ---- updating a course to a newer version ---------------------------------
+    def _pending(cid: str) -> Path:
+        return V.home / "pending" / cid
+
+    def _hold_update(new: Course, media_zip=None):
+        """A newer copy of a course you already have arrived. Keep it aside and ask what to do."""
+        import shutil
+        from .course import save_course_folder
+        pend = _pending(new.id)
+        shutil.rmtree(pend, ignore_errors=True)
+        save_course_folder(new, pend / "course")
+        if media_zip is not None:
+            zf, inside = media_zip
+            for info, rel in inside:
+                target = (pend / "files" / rel)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, open(target, "wb") as out:
+                    shutil.copyfileobj(src, out, 1024 * 1024)
+        return go(f"/courses/{new.id}/update")
+
+    def _outline_lines(c: Course) -> list:
+        out = []
+        for m in c.modules:
+            out.append(("module", m["title"], ""))
+            out += [("lesson", les["title"], m["title"]) for les in m["lessons"]]
+        return out
+
+    async def course_update(request: Request):
+        cid = request.path_params["cid"]
+        cur = V.get_course(cid)
+        pend = _pending(cid)
+        if not cur or not (pend / "course" / "course.yaml").exists():
+            return go("/courses", err="There's no update waiting for this course.")
+        new = load_course(files_from_folder(pend / "course"))
+        if request.method == "GET":
+            a, b = _outline_lines(cur), _outline_lines(new)
+            added = [x for x in b if x not in a]
+            removed = [x for x in a if x not in b]
+            jid = V.journey_for_course(cid)
+            return page("update_course.html", request, cur=cur, new=new, added=added[:40], removed=removed[:40],
+                        same=(cur.hash == new.hash), started=bool(jid))
+        import shutil
+        form = await request.form()
+        choice = form.get("choice")
+        if choice == "cancel":
+            shutil.rmtree(pend, ignore_errors=True)
+            return go("/courses", ok="Kept your course as it was.")
+        if choice == "separate":
+            base, n = new.id, 1
+            while V.get_course(new.id):
+                n += 1
+                new.id = f"{base}-{n}"
+        else:
+            new.extra.update({k: v for k, v in cur.extra.items() if k not in new.extra})
+            # The version before is kept, so Undo in the editor can bring it back.
+            editor.save(V, new)
+        if choice == "separate":
+            V.install_course(new)
+        files = pend / "files"
+        if files.exists():
+            dest = V.media_dir(new.id)
+            dest.mkdir(parents=True, exist_ok=True)
+            for f in files.rglob("*"):
+                if f.is_file():
+                    target = dest / f.relative_to(files)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(f), str(target))
+        shutil.rmtree(pend, ignore_errors=True)
+        if choice == "separate":
+            return go("/courses", ok=f"Added “{new.title}” as a separate course.")
+        return go("/courses", ok=f"Updated “{new.title}”. Your progress is kept.")
+
+    async def refresh_from_folder(request: Request):
+        """Look in the course's folder again: new videos become new lessons, everything you did stays."""
+        cid = request.path_params["cid"]
+        cur = V.get_course(cid)
+        root = V.media_root(cid)
+        if not cur or not root:
+            return go("/courses", err="This course isn't linked to a folder.")
+        try:
+            fresh = course_from_folder(root, cur.title)
+        except CourseError as e:
+            return go("/courses", err=e.problems[0])
+        merged, added = _merge_folder(cur, fresh)
+        if not added:
+            return go(_back(request), ok="Nothing new in the folder. Your course is up to date.")
+        editor.bump(merged)
+        editor.save(V, merged)
+        return go(_back(request), ok=f"Added {added} new lesson(s) from the folder.")
+
+    def _merge_folder(cur: Course, fresh: Course):
+        """Keep every existing module and lesson (with your edits, tasks and ids); add what's new."""
+        import copy
+        merged = copy.deepcopy(cur)
+        have = {les.get("media") for m in merged.modules for les in m["lessons"] if les.get("media")}
+        ids = editor.all_ids(merged)
+        added = 0
+        for fm in fresh.modules:
+            new_lessons = [les for les in fm["lessons"] if les.get("media") and les["media"] not in have]
+            if not new_lessons:
+                continue
+            target = next((m for m in merged.modules if m["title"] == fm["title"]), None)
+            if target is None:
+                mid = editor._unique("m", ids)
+                ids.add(mid)
+                target = {"id": mid, "title": fm["title"], "lessons": [], "requires": []}
+                merged.modules.append(target)
+            for les in new_lessons:
+                lid = editor._unique(f"{target['id']}-l", ids)
+                ids.add(lid)
+                target["lessons"].append({**les, "id": lid})
+                added += 1
+        merged.extra["media_index"] = {**cur.extra.get("media_index", {}), **fresh.extra.get("media_index", {})}
+        return merged, added
 
     # ---- AI course maker -----------------------------------------------------
     def _titled_videos(text: str) -> str:
@@ -1074,8 +1280,11 @@ def create_app(vault: Vault) -> Starlette:
             return go("/open", err="This doesn't look like a course file.")
         except CourseError as e:
             return page("open.html", request, problems=e.problems, filename=fname)
-        c = V.install_course(c)
         inside = media_in_zip(zf)
+        existing = V.get_course(c.id)
+        if existing and existing.hash != c.hash:
+            return _hold_update(c, (zf, inside) if inside else None)
+        c = V.install_course(c)
         if inside:
             dest = V.media_dir(c.id).resolve()
             for info, rel in inside:
@@ -1141,8 +1350,9 @@ def create_app(vault: Vault) -> Starlette:
                     hint = ["This course keeps its lessons in separate files. Put course.yaml and the lessons "
                             "folder together in a zip file, then open the zip."]
                 return page("open.html", request, problems=hint + e.problems, filename=fname)
-            if V.get_course(course.id) and V.journey_for_course(course.id):
-                course.id = f"{course.id}-{now_utc()[:10]}"
+            existing = V.get_course(course.id)
+            if existing and existing.hash != course.hash:
+                return _hold_update(course)
             c = V.install_course(course)
             extra = "" if c.has_answers else " It has no answers, so practice quizzes are off."
             return go("/courses", ok=f"Added the course “{c.title}”.{extra}")
@@ -1499,10 +1709,15 @@ def create_app(vault: Vault) -> Starlette:
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
+        Route("/pdf", needs_setup(pdf_reader)),
+        Route("/nav.json", needs_setup(nav_index)),
+        Route("/settings/colors", needs_setup(set_accent), methods=["POST"]),
         Route("/evidence/{sha}", needs_setup(my_evidence)),
         Route("/courses/{cid}/start", needs_setup(start_course), methods=["POST"]),
         Route("/courses/{cid}/export", needs_setup(export_course)),
-        Route("/courses/{cid}/remove", needs_setup(remove_course), methods=["POST"]),
+        Route("/courses/{cid}/remove", needs_setup(remove_course), methods=["GET", "POST"]),
+        Route("/courses/{cid}/update", needs_setup(course_update), methods=["GET", "POST"]),
+        Route("/courses/{cid}/refresh", needs_setup(refresh_from_folder), methods=["POST"]),
         Route("/ai", needs_setup(ai_page), methods=["GET", "POST"]),
         Route("/learn/{jid}", needs_setup(course_overview)),
         Route("/learn/{jid}/lesson/{lid}", needs_setup(lesson)),

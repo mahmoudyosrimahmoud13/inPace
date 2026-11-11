@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"{% if theme %} data-theme="{{ theme }}"{% endif %}>
+<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=13">
+<link rel="stylesheet" href="/static/style.css?v=14">
 </head>
 <body>
 <header class="top">
@@ -14,6 +14,7 @@
     <span><span class="in">{% trans trimmed %}in{% endtrans %}</span><b>{% trans trimmed %}Pace{% endtrans %}</b></span>
   </a>
   <span class="pill" title="{{ _('Nothing leaves this computer unless you send a file yourself') }}"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
+  {% if me %}<button type="button" class="search-btn" data-search title="{{ _('Search and jump (Ctrl+K)') }}">{{ icon('search', 18) }}<span>{{ _('Search…') }}</span><kbd>Ctrl K</kbd></button>{% endif %}
   <button type="button" class="theme-toggle" data-theme-toggle aria-label="{{ _('Switch light or dark mode') }}" title="{{ _('Switch light or dark mode') }}">
     <span class="when-light">{{ icon('moon', 20) }}</span><span class="when-dark">{{ icon('sun', 20) }}</span>
   </button>
@@ -25,6 +26,9 @@
   {% if me %}
   {% set p = active_path %}
   <nav class="side" aria-label="{{ _('Main') }}">
+    {% if resume and not p.startswith('/learn') %}
+    <a class="continue" href="{{ resume.url }}"><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ resume.lesson }}</b><span class="small muted" dir="auto">{{ resume.course }}</span></a>
+    {% endif %}
     <p class="side-h">{% trans trimmed %}My learning{% endtrans %}</p>
     <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}{{ _("Home") }}</a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}{{ _("My courses") }}</a>
@@ -96,6 +100,7 @@
 <script type="application/json" id="tour-data">{{ {"steps": tour, "next": _("Next"), "back": _("Back"), "skip": _("Skip the tour"), "done": _("Let's go!")}|tojson }}</script>
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
-<script src="/static/app.js?v=9"></script>
+{% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
+<script src="/static/app.js?v=10"></script>
 </body>
 </html>

@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.10.0
+
+- **Delete any course:** My courses → More → Delete course. A course you've started asks you to tick a box first, because your progress in it goes too. Progress files you already sent stay with your checker, and video folders on your computer are never touched.
+- **Update courses:**
+  - Open a newer copy of a course you already have, and inPace shows what changed and asks: update and keep my progress, add it as a separate course, or keep mine. Undo in the editor brings the old version back.
+  - Folder courses get **Refresh from its folder**: new videos become new lessons, and everything you did stays.
+- **Easier to get around:**
+  - **Search and jump:** press Ctrl+K (or /), or click Search in the top bar, to jump to any course, lesson, task, person or page.
+  - **Continue:** the side bar always shows the lesson you were last on.
+  - **Course outline:** every lesson has a Course outline you can open to jump anywhere in the course.
+  - Alt+→ and Alt+← go to the next and previous lesson.
+- **Color profiles:** Settings → Colors: Sunny, Ocean, Mint, Rose, Grape, Nile or Ink. They change the whole app, in light and dark mode.
+- **A built-in PDF reader:** PDFs open inside inPace in every app window (including Linux, which couldn't show them before), offline, with page buttons, zoom, fit to width and full screen. It remembers the page you stopped on.
+- **Fixed:** "No answers included" no longer shows on courses that have no quizzes.
+
 ## v1.9.0
 
 - **Meet Tempo's tour:** the first time you open inPace, Tempo shows you around in about a minute, pointing at each part of the app. Watch it again any time from Settings → Show the tour again.

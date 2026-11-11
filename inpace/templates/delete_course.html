@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ T('Delete {name}', name=c.title) }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{% trans trimmed %}My courses{% endtrans %}</a></p>
+  <h1 dir="auto">{{ T('Delete “{name}”?', name=c.title) }}</h1>
+</div>
+<section class="card stack danger-card">
+  {% if info %}
+    <p>{{ T("You've done {p}% of this course and saved {n} milestone(s). Deleting it removes the course and hides your progress from inPace.", p=info.percent, n=info.milestones) }}</p>
+    <ul class="small">
+      <li>{% trans trimmed %}Progress files you already sent stay with your checker.{% endtrans %}</li>
+      <li>{% trans trimmed %}Videos and files in a folder on your computer are not touched.{% endtrans %}</li>
+      <li>{% trans trimmed %}If you add the course again later, it starts from the beginning.{% endtrans %}</li>
+    </ul>
+    <p class="small muted">{% trans trimmed %}Want a safety copy first?{% endtrans %} <a href="/settings#backup">{% trans trimmed %}Make a backup{% endtrans %}</a></p>
+  {% else %}
+    <p>{% trans trimmed %}You haven't started this course, so nothing else is lost. Videos and files in a folder on your computer are not touched.{% endtrans %}</p>
+  {% endif %}
+  <form method="post" class="stack">
+    {% if info %}<label class="check"><input type="checkbox" name="sure" value="1" required> <span>{% trans trimmed %}I understand my progress in this course will be gone.{% endtrans %}</span></label>{% endif %}
+    <div class="row"><a class="btn" href="/courses">{% trans trimmed %}Cancel{% endtrans %}</a><button class="btn danger-solid">{% trans trimmed %}Delete course{% endtrans %}</button></div>
+  </form>
+</section>
+{% endblock %}
