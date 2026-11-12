@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Sort your course') }}{% endblock %}
+{% macro kind_icon(kind) %}{{ icon({'video': 'video', 'audio': 'audio', 'pdf': 'doc', 'note': 'pen', 'html': 'link', 'image': 'image', 'code': 'code', 'folder': 'code'}.get(kind, 'file'), 20) }}{% endmacro %}
+{% macro file_row(rel) %}{% set f = info[rel] %}
+<li class="org-file" draggable="true" data-file="{{ rel }}" data-size="{{ f.size }}">
+  <span class="org-grip" aria-hidden="true">{{ icon('grip', 18) }}</span>
+  <span class="org-ico" title="{{ f.kind }}">{{ kind_icon(f.kind) }}</span>
+  <span class="org-main">
+    <input class="org-name" value="{{ (plan.names or {}).get(rel) or f.name }}" data-default="{{ f.name }}" dir="auto" aria-label="{{ _('Lesson title') }}">
+    <span class="small muted org-meta" dir="auto">{{ f.file }} · {{ nice_size(f.size) }}</span>
+  </span>
+  <span class="org-tools">
+    <select data-move aria-label="{{ _('Move to') }}"></select>
+    <button type="button" class="btn icon-btn" data-file-up aria-label="{{ _('Move up') }}">{{ icon('up', 18) }}</button>
+    <button type="button" class="btn icon-btn" data-file-down aria-label="{{ _('Move down') }}">{{ icon('down', 18) }}</button>
+  </span>
+</li>{% endmacro %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Sort your course{% endtrans %}.</h1>
+  <p class="muted">
+    {% if how == 'folders' %}{% trans trimmed %}Your folder was already sorted, so each sub-folder is a section.{% endtrans %}
+    {% elif how == 'numbers' %}{% trans trimmed %}Your files were mixed together, so inPace sorted them by the week, lecture or chapter numbers in their names.{% endtrans %}
+    {% elif how == 'kinds' %}{% trans trimmed %}Your files had no week or lecture numbers, so inPace sorted them by kind: videos, slides, notes.{% endtrans %}
+    {% elif how == 'ai' %}{% trans trimmed %}This is how the AI sorted your files.{% endtrans %}
+    {% else %}{% trans trimmed %}All your files are in one section.{% endtrans %}{% endif %}
+    {% trans trimmed %}Check it, then fix anything: rename, drag files between sections, or use "Move to".{% endtrans %}
+  </p>
+</div>
+{% if problem %}<div class="note bad" role="alert">{{ _(problem) }}</div>{% endif %}
+
+<form method="post" action="/add/organize" class="stack" data-organizer>
+  <input type="hidden" name="folder" value="{{ folder }}">
+  <input type="hidden" name="draft" value="{{ draft }}">
+  <input type="hidden" name="plan" data-plan>
+  <div class="card stack">
+    <label>{% trans trimmed %}Course name{% endtrans %}<input name="title" data-title value="{{ plan.title }}" required dir="auto"></label>
+  </div>
+
+  <div class="stack" data-sections>
+    {% for sec in plan.sections %}
+    <section class="card org-sec" data-sec>
+      <div class="org-sec-head">
+        <span class="org-num" aria-hidden="true">{{ loop.index }}</span>
+        <input class="org-sec-title" value="{{ sec.title }}" dir="auto" aria-label="{{ _('Section name') }}" data-sec-title>
+        <button type="button" class="btn icon-btn" data-sec-up aria-label="{{ _('Move section up') }}">{{ icon('up', 18) }}</button>
+        <button type="button" class="btn icon-btn" data-sec-down aria-label="{{ _('Move section down') }}">{{ icon('down', 18) }}</button>
+        <button type="button" class="btn icon-btn" data-sec-remove aria-label="{{ _('Remove section (its files move to Left out)') }}" title="{{ _('Remove section (its files move to Left out)') }}">{{ icon('x', 18) }}</button>
+      </div>
+      <ol class="org-files" data-files>{% for rel in sec.files if rel in info %}{{ file_row(rel) }}{% endfor %}</ol>
+      <p class="small muted org-empty">{% trans trimmed %}Drag files here, or choose this section in "Move to".{% endtrans %}</p>
+    </section>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn" data-sec-add>{{ icon('plus', 18) }}{% trans trimmed %}Add a section{% endtrans %}</button>
+
+  <section class="card soft org-sec org-out" data-out>
+    <div class="org-sec-head"><h2>{% trans trimmed %}Left out{% endtrans %}</h2></div>
+    <p class="small muted">{% trans trimmed %}Files here won't be in the course. Move a file here to leave it out.{% endtrans %}</p>
+    <ol class="org-files" data-files>{% for rel in left_out %}{{ file_row(rel) }}{% endfor %}</ol>
+  </section>
+
+  {% if cant_show %}
+  <details class="card more">
+    <summary>{{ T("{n} files can't be shown in inPace", n=cant_show|length) }}</summary>
+    <p class="small muted">{% trans trimmed %}Word, PowerPoint and Excel files can't open inside inPace. Save them as PDF in the same folder, then add the folder again.{% endtrans %}</p>
+    <ul class="small" dir="auto">{% for f in cant_show[:30] %}<li>{{ f }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+
+  <details class="card more org-ai" {{ 'open' if open_ai }}>
+    <summary>{{ icon('spark', 18) }} {% trans trimmed %}Ask AI to sort it{% endtrans %}</summary>
+    <div class="stack" style="margin-block-start:.75rem">
+      <p class="small muted" style="margin:0">{% trans trimmed %}The AI only sees the file names, never the files. It replaces the sections above, and you can still fix them after.{% endtrans %}</p>
+      {% if ai_error %}<div class="note bad" role="alert">{{ _(ai_error) }}</div>{% endif %}
+      <label>{% trans trimmed %}Anything the AI should know? (optional){% endtrans %}<textarea name="notes" rows="2" dir="auto" placeholder="{{ _('For example: follow the order of the syllabus, put the labs after each week') }}">{{ notes or '' }}</textarea></label>
+      {% if ai.provider %}
+      <button class="btn primary" name="action" value="ai_auto" formnovalidate>{{ icon('spark', 18) }}{% trans trimmed %}Ask AI now{% endtrans %}</button>
+      {% else %}
+      <ol class="small org-ai-steps">
+        <li>{% trans trimmed %}Copy this request and paste it into any AI chat (ChatGPT, Claude, Gemini).{% endtrans %}</li>
+      </ol>
+      <textarea id="org-prompt" rows="5" readonly dir="ltr" class="mono small">{{ prompt }}</textarea>
+      <button type="button" class="btn" data-copy="#org-prompt">{% trans trimmed %}Copy the request{% endtrans %}</button>
+      <label>{% trans trimmed %}Paste the AI's whole answer here{% endtrans %}<textarea name="reply" rows="5" dir="ltr" class="mono small">{{ reply or '' }}</textarea></label>
+      <button class="btn primary" name="action" value="ai_paste" formnovalidate>{% trans trimmed %}Use the AI's sorting{% endtrans %}</button>
+      <p class="small muted" style="margin:0">{% trans trimmed %}Want inPace to ask the AI by itself? Add an AI key in Settings.{% endtrans %} <a href="/settings#ai">{% trans trimmed %}Settings{% endtrans %}</a></p>
+      {% endif %}
+    </div>
+  </details>
+
+  {% if not draft %}
+  <fieldset class="card stack org-store">
+    <legend>{% trans trimmed %}Where should the files live?{% endtrans %}</legend>
+    <label class="choice"><input type="radio" name="storage" value="keep" checked>
+      <span><b>{% trans trimmed %}Leave them where they are (recommended){% endtrans %}</b><br>
+      <span class="small muted">{% trans trimmed %}Uses no extra space and adds in seconds. If you move, rename or delete the folder later, inPace asks you where it went.{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="storage" value="copy" data-copy-choice>
+      <span><b>{% trans trimmed %}Copy them into inPace{% endtrans %}</b><br>
+      <span class="small muted">{% trans trimmed %}The course keeps working even if you delete the folder, and it goes into your backups.{% endtrans %}</span><br>
+      <span class="small org-space" data-space data-free="{{ free }}"
+        data-msg="{{ _('This uses {size} more space. You have {free} free.') }}"
+        data-big="{{ _('That is a lot: {size} more space, and copying takes a while. You have {free} free.') }}"
+        data-full="{{ _('Not enough space: the files need {size}, but only {free} is free.') }}"></span></span></label>
+  </fieldset>
+  {% endif %}
+
+  <div class="org-go">
+    <button class="btn primary big" name="action" value="create">{% trans trimmed %}Add the course{% endtrans %}</button>
+    <span class="small muted" data-count data-msg="{{ _('{n} lessons in {s} sections') }}"></span>
+  </div>
+  <template data-sec-tpl>
+    <section class="card org-sec" data-sec>
+      <div class="org-sec-head">
+        <span class="org-num" aria-hidden="true"></span>
+        <input class="org-sec-title" value="{{ _('New section') }}" dir="auto" aria-label="{{ _('Section name') }}" data-sec-title>
+        <button type="button" class="btn icon-btn" data-sec-up aria-label="{{ _('Move section up') }}">{{ icon('up', 18) }}</button>
+        <button type="button" class="btn icon-btn" data-sec-down aria-label="{{ _('Move section down') }}">{{ icon('down', 18) }}</button>
+        <button type="button" class="btn icon-btn" data-sec-remove aria-label="{{ _('Remove section (its files move to Left out)') }}">{{ icon('x', 18) }}</button>
+      </div>
+      <ol class="org-files" data-files></ol>
+      <p class="small muted org-empty">{% trans trimmed %}Drag files here, or choose this section in "Move to".{% endtrans %}</p>
+    </section>
+  </template>
+  <template data-out-label>{% trans trimmed %}Leave out{% endtrans %}</template>
+</form>
+{% endblock %}

@@ -13,10 +13,10 @@
 {% if not cards %}
 <section class="card empty">
   <h2>{% trans trimmed %}Let's start your first course{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}Pick one from your courses, open a course file someone gave you, or make one with AI.{% endtrans %}</p>
+  <p class="muted">{% trans trimmed %}Pick one from your courses, or add your own: a folder of class material, a course file, or one made with AI.{% endtrans %}</p>
   <div class="row">
     <a class="btn primary big" href="/courses">{% trans trimmed %}Choose a course{% endtrans %}</a>
-    <a class="btn big" href="/ai">{% trans trimmed %}Make one with AI{% endtrans %}</a>
+    <a class="btn big" href="/add">{% trans trimmed %}Add a course{% endtrans %}</a>
   </div>
 </section>
 {% endif %}

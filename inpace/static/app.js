@@ -484,7 +484,8 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   };
   const place = () => {
     const s = steps[i];
-    const el = s.target && document.querySelector(s.target);
+    // A target can list a few places ("the sidebar link, or the phone tab"): use the first one on screen.
+    const el = s.target && s.target.split(",").map((t) => document.querySelector(t.trim())).find(visible);
     card.classList.remove("center");
     if (visible(el)) {
       el.scrollIntoView({ block: "nearest" });
@@ -713,4 +714,162 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
     btn.hidden = false;
     btn.addEventListener("click", () => send({ type: "share", text: document.querySelector(btn.dataset.share).value }));
   });
+})();
+
+// ---- Add a course: sort the files ------------------------------------------------------------------
+// Sections and files live in the page; on submit they're written into one hidden "plan" field.
+(() => {
+  const form = document.querySelector("[data-organizer]");
+  if (!form) return;
+  const box = form.querySelector("[data-sections]");
+  const out = form.querySelector("[data-out]");
+  const outLabel = form.querySelector("[data-out-label]").innerHTML.trim();
+  const sections = () => [...box.querySelectorAll(":scope > [data-sec]")];
+  const lists = () => [...sections().map((s) => s.querySelector("[data-files]")), out.querySelector("[data-files]")];
+  const size = (n) => {
+    const u = ["bytes", "KB", "MB", "GB", "TB"];
+    let i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return i ? n.toFixed(1) + " " + u[i] : n + " bytes";
+  };
+
+  const refresh = () => {
+    const secs = sections();
+    secs.forEach((s, i) => {
+      s.querySelector(".org-num").textContent = i + 1;
+      s.querySelector("[data-sec-up]").disabled = i === 0;
+      s.querySelector("[data-sec-down]").disabled = i === secs.length - 1;
+      s.classList.toggle("empty", !s.querySelector(".org-file"));
+    });
+    const names = secs.map((s, i) => `${i + 1}. ${s.querySelector("[data-sec-title]").value || "…"}`);
+    lists().forEach((list, li) => {
+      const rows = [...list.children];
+      rows.forEach((row, ri) => {
+        const sel = row.querySelector("[data-move]");
+        sel.innerHTML = "";
+        names.forEach((n, i) => sel.add(new Option(n, i, false, i === li)));
+        sel.add(new Option("— " + outLabel, "out", false, li === names.length));
+        row.querySelector("[data-file-up]").disabled = ri === 0;
+        row.querySelector("[data-file-down]").disabled = ri === rows.length - 1;
+      });
+    });
+    let total = 0, n = 0;
+    secs.forEach((s) => s.querySelectorAll(".org-file").forEach((r) => { total += +r.dataset.size; n++; }));
+    const count = form.querySelector("[data-count]");
+    if (count) count.textContent = count.dataset.msg.replace("{n}", n).replace("{s}", secs.filter((s) => s.querySelector(".org-file")).length);
+    const space = form.querySelector("[data-space]");
+    if (space) {
+      const free = +space.dataset.free;
+      const full = free && total > free;
+      const msg = full ? space.dataset.full : total > 2 * 1024 ** 3 ? space.dataset.big : space.dataset.msg;
+      space.textContent = msg.replace("{size}", size(total)).replace("{free}", size(free));
+      space.classList.toggle("warn", total > 2 * 1024 ** 3 || full);
+      const copy = form.querySelector("[data-copy-choice]");
+      copy.disabled = !!full;
+      if (full && copy.checked) form.querySelector('[name=storage][value=keep]').checked = true;
+    }
+  };
+
+  const moveTo = (row, target) => {
+    const list = target === "out" ? out.querySelector("[data-files]") : sections()[+target].querySelector("[data-files]");
+    list.appendChild(row);
+    refresh();
+    row.querySelector("[data-move]").focus();
+  };
+
+  form.addEventListener("change", (e) => {
+    if (e.target.matches("[data-move]")) moveTo(e.target.closest(".org-file"), e.target.value);
+  });
+  form.addEventListener("input", (e) => { if (e.target.matches("[data-sec-title]")) refresh(); });
+  form.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const row = b.closest(".org-file");
+    const sec = b.closest("[data-sec]");
+    if (b.matches("[data-file-up]") && row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    else if (b.matches("[data-file-down]") && row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+    else if (b.matches("[data-sec-up]") && sec.previousElementSibling) box.insertBefore(sec, sec.previousElementSibling);
+    else if (b.matches("[data-sec-down]") && sec.nextElementSibling) box.insertBefore(sec.nextElementSibling, sec);
+    else if (b.matches("[data-sec-remove]")) {
+      sec.querySelectorAll(".org-file").forEach((r) => out.querySelector("[data-files]").appendChild(r));
+      sec.remove();
+    } else if (b.matches("[data-sec-add]")) {
+      const s = form.querySelector("[data-sec-tpl]").content.firstElementChild.cloneNode(true);
+      box.appendChild(s);
+      refresh();
+      const t = s.querySelector("[data-sec-title]");
+      t.focus(); t.select();
+      return;
+    } else return;
+    refresh();
+    b.focus();
+  });
+
+  // Drag and drop with a mouse (on phones, "Move to" and the arrows do the same).
+  let dragged = null;
+  form.addEventListener("dragstart", (e) => {
+    dragged = e.target.closest && e.target.closest(".org-file");
+    if (!dragged) return;
+    dragged.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", dragged.dataset.file);
+  });
+  form.addEventListener("dragend", () => { if (dragged) dragged.classList.remove("dragging"); dragged = null; refresh(); });
+  form.addEventListener("dragover", (e) => {
+    if (!dragged) return;
+    const sec = e.target.closest("[data-sec], [data-out]");
+    if (!sec) return;
+    e.preventDefault();
+    const list = sec.querySelector("[data-files]");
+    const over = e.target.closest(".org-file");
+    if (over && over !== dragged) {
+      const r = over.getBoundingClientRect();
+      list.insertBefore(dragged, e.clientY > r.top + r.height / 2 ? over.nextSibling : over);
+    } else if (!over) list.appendChild(dragged);
+  });
+  form.addEventListener("drop", (e) => { if (dragged) e.preventDefault(); });
+
+  form.addEventListener("submit", () => {
+    const names = {};
+    const plan = { title: form.querySelector("[data-title]").value, names, sections: sections().map((s) => ({
+      title: s.querySelector("[data-sec-title]").value,
+      files: [...s.querySelectorAll(".org-file")].map((r) => {
+        const inp = r.querySelector(".org-name");
+        if (inp.value.trim() && inp.value !== inp.dataset.default) names[r.dataset.file] = inp.value.trim();
+        return r.dataset.file;
+      }),
+    })) };
+    form.querySelector("[data-plan]").value = JSON.stringify(plan);
+  });
+  refresh();
+})();
+
+// Picking files to add: show how big they are, and a note while they upload.
+(() => {
+  const form = document.querySelector("[data-upload-form]");
+  if (!form) return;
+  const input = form.querySelector("[data-upload-files]");
+  const note = form.querySelector("[data-upload-size]");
+  input.addEventListener("change", () => {
+    let total = 0;
+    for (const f of input.files) total += f.size;
+    const mb = total / 1024 / 1024;
+    note.hidden = !input.files.length;
+    note.textContent = `${input.files.length} · ${mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : mb.toFixed(1) + " MB"}`;
+  });
+  form.addEventListener("submit", () => {
+    form.querySelector("[data-upload-wait]").hidden = false;
+    form.querySelector("button").disabled = true;
+  });
+})();
+
+// Phones: the "More" tab opens a sheet with the other pages.
+(() => {
+  const sheet = document.querySelector("[data-more-sheet]");
+  const open = document.querySelector("[data-more-open]");
+  if (!sheet || !open) return;
+  open.addEventListener("click", () => (sheet.showModal ? sheet.showModal() : sheet.setAttribute("open", "")));
+  const close = () => (sheet.close ? sheet.close() : sheet.removeAttribute("open"));
+  sheet.querySelector("[data-more-close]").addEventListener("click", close);
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) close(); });  // tap outside
 })();

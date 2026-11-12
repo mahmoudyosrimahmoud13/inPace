@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Add some files') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Add some files{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}inPace saves a copy of each file, so the course keeps working even if you move or delete the originals. Next, you'll sort them into sections.{% endtrans %}</p>
+</div>
+<form method="post" action="/add/files" enctype="multipart/form-data" class="card stack" data-upload-form>
+  <label>{% trans trimmed %}Files{% endtrans %}<input type="file" name="files" multiple required data-upload-files></label>
+  <p class="small muted" style="margin:0" data-upload-size hidden></p>
+  <label>{% trans trimmed %}Course name{% endtrans %}<input name="title" dir="auto" required placeholder="{{ _('For example: Data Structures, fall term') }}"></label>
+  <button class="btn primary big">{% trans trimmed %}Next: sort the files{% endtrans %}</button>
+  <p class="small muted" style="margin:0" data-upload-wait hidden>{% trans trimmed %}Saving your files… big videos take a moment.{% endtrans %}</p>
+</form>
+<p class="small muted">{% trans trimmed %}A big video course? Use "A folder on this device" instead: it can leave the files where they are and use no extra space.{% endtrans %}
+  <a href="/add/folder">{% trans trimmed %}Add a folder{% endtrans %}</a></p>
+{% endblock %}

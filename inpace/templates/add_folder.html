@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Add a folder') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Add a folder{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Choose the folder with your course material. Next, you'll see how inPace sorted it, and you can change anything before adding it.{% endtrans %}</p>
+</div>
+<form method="get" action="/add/organize" class="card stack">
+  <label>{% trans trimmed %}Folder{% endtrans %}
+    <span class="row pick-row"><input name="folder" id="add-folder" required dir="ltr" placeholder="{{ _('Full path of the course folder') }}">
+    <button type="button" class="btn" data-pick-folder="#add-folder">{{ icon('folder', 18) }}{% trans trimmed %}Choose folder{% endtrans %}</button></span></label>
+  <label>{% trans trimmed %}Course name (optional){% endtrans %}<input name="title" dir="auto" placeholder="{{ _('Leave empty to use the folder name') }}"></label>
+  <button class="btn primary big">{% trans trimmed %}Next: sort the files{% endtrans %}</button>
+</form>
+<p class="small muted">{% trans trimmed %}inPace understands videos, audio, PDFs, web pages, pictures, code and Markdown notes. Word and PowerPoint files can't be shown inside inPace: save them as PDF first.{% endtrans %}</p>
+{% endblock %}

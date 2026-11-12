@@ -42,9 +42,11 @@ pick the background color `#FFD43B`, and download the Android files. Unzip, and 
 - The inPace app icon
 - No desktop update prompts on Android; Settings points to the website for new versions
 - The top bar fits phone screens
+- A tab bar at the bottom (Home, Courses, Add, Milestones, More), calmer pages and bigger buttons
+- Restoring a backup keeps the app open
 - On version tags, the APKs are added to the GitHub release, and the website has an Android download button
 
 ## Next
 
-- Settings page: one row is still a little too wide on small phones
+- Tell us what's still hard to use on a phone
 - Test on real phones and fix what the first builds show

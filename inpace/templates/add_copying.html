@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Copying files') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<meta http-equiv="refresh" content="2">
+<div class="page-head">
+  <h1>{% trans trimmed %}Copying the files into inPace{% endtrans %}.</h1>
+  <p class="muted" dir="auto">{{ c.title }}</p>
+</div>
+<div class="card stack">
+  {% if job.state == 'failed' %}
+  <p class="note bad" style="margin:0">{% trans trimmed %}Copying stopped. The course still works with the files where they are.{% endtrans %} <span dir="ltr" class="small">{{ job.error }}</span></p>
+  <a class="btn primary" href="/courses?show={{ c.id }}">{% trans trimmed %}Go to my courses{% endtrans %}</a>
+  {% else %}
+  {% set pct = (100 * job.done / job.total)|round|int %}
+  <div class="bar" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"><span style="width:{{ pct }}%"></span></div>
+  <p style="margin:0"><b>{{ pct }}%</b> · {{ nice_size(job.done) }} / {{ nice_size(job.total) }}</p>
+  <p class="small muted" style="margin:0">{% trans trimmed %}You can start learning now: the course already works from the original folder while it copies. Keep inPace open until this finishes.{% endtrans %}</p>
+  <a class="btn" href="/courses?show={{ c.id }}">{% trans trimmed %}Go to my courses{% endtrans %}</a>
+  {% endif %}
+</div>
+{% endblock %}

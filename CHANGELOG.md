@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.13.0
+
+- **Add a course, the easy way.** One **Add a course** page with every way in: a folder, some files, a course file, the library, AI, or simple forms. Writing YAML and Markdown yourself is still there, under Advanced.
+- **Messy folders get sorted for you.** inPace groups files by the week, lecture or chapter numbers in their names (English and Arabic), or by kind (videos, slides, notes), and keeps a neat folder's sub-folders as sections.
+- **The organizer:** rename sections and lessons, drag files between sections (or "Move to" and arrows on a phone), add and remove sections, and leave files out. Word and PowerPoint files are listed with a tip to save them as PDF.
+- **Ask AI to sort it:** directly with an AI key, or copy and paste with any AI chat. The AI only sees file names.
+- **You choose where files live:** leave them where they are (the default, no extra space) or copy them into inPace, with the size and free space shown first. Copying runs in the background with a progress bar.
+- **Phones:** a tab bar at the bottom (Home, Courses, Add, Milestones, More) that always shows where you are, the page name in the top bar, less crowded pages, and bigger buttons and fields.
+- Fixed: the Settings page was wider than a phone screen.
+
 ## v1.12.3
 
 - Restoring a backup no longer closes inPace (on the computer or the phone). It restores and takes you to the home page.

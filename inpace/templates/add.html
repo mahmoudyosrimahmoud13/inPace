@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Add a course') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Add a course{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Pick how you want to start. You can change everything later.{% endtrans %}</p>
+</div>
+
+<h2 class="add-h">{% trans trimmed %}I have the material{% endtrans %}</h2>
+<div class="add-grid">
+  <a class="card tile add-pick" href="/add/folder">
+    <span class="ico">{{ icon('folder') }}</span>
+    <span><b>{% trans trimmed %}A folder on this device{% endtrans %}</b>
+    <span>{% trans trimmed %}Videos, slides, PDFs and notes from a class or a course you downloaded. Neat or messy: inPace sorts it, and you fix anything it got wrong.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/add/files">
+    <span class="ico">{{ icon('upload') }}</span>
+    <span><b>{% trans trimmed %}Some files I pick{% endtrans %}</b>
+    <span>{% trans trimmed %}Choose a few files. inPace keeps a copy of them, so they work even if you delete the originals.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/open">
+    <span class="ico">{{ icon('open') }}</span>
+    <span><b>{% trans trimmed %}A course file someone gave me{% endtrans %}</b>
+    <span>{% trans trimmed %}A .lpack, .zip or .yaml course file.{% endtrans %}</span></span>
+  </a>
+</div>
+
+<h2 class="add-h">{% trans trimmed %}I want help making one{% endtrans %}</h2>
+<div class="add-grid">
+  <a class="card tile add-pick" href="/ai">
+    <span class="ico">{{ icon('spark') }}</span>
+    <span><b>{% trans trimmed %}With AI{% endtrans %}</b>
+    <span>{% trans trimmed %}From a topic, a book, a YouTube playlist, your notes or a syllabus.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/library">
+    <span class="ico">{{ icon('users') }}</span>
+    <span><b>{% trans trimmed %}From the course library{% endtrans %}</b>
+    <span>{% trans trimmed %}Free courses other learners shared.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/edit/new">
+    <span class="ico">{{ icon('pen') }}</span>
+    <span><b>{% trans trimmed %}Write it myself{% endtrans %}</b>
+    <span>{% trans trimmed %}Simple forms: a title, then modules and lessons. Paste video links or write the text.{% endtrans %}</span></span>
+  </a>
+</div>
+
+<details class="more add-advanced">
+  <summary>{% trans trimmed %}Advanced: write the course file yourself{% endtrans %}</summary>
+  <p class="small muted">{% trans trimmed %}For people who like plain text: a course is one course.yaml file, and lessons are written in Markdown. Make a course with the simple forms first, then open "Edit as YAML" from its edit page.{% endtrans %}
+    <a href="https://github.com/mahmoudyosrimahmoud13/inPace/blob/main/SPEC.md" target="_blank" rel="noopener">{% trans trimmed %}How course files work{% endtrans %}</a></p>
+</details>
+{% endblock %}

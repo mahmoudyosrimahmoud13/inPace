@@ -18,7 +18,7 @@
     <legend>{% trans trimmed %}How do you want to start?{% endtrans %}</legend>
     <label class="choice"><input type="radio" name="start" value="blank" {{ 'checked' if start == 'blank' }}><span><b>{% trans trimmed %}With a first lesson{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Write it now or later{% endtrans %}</span></span></label>
     <label class="choice"><input type="radio" name="start" value="links" {{ 'checked' if start == 'links' }}><span><b>{% trans trimmed %}From a list of videos or links{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}YouTube links or files on this computer, one per line{% endtrans %}</span></span></label>
-    <a class="choice" href="/courses#import-folder"><span><b>{% trans trimmed %}From a folder of videos{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}A course you already downloaded{% endtrans %}</span></span></a>
+    <a class="choice" href="/add/folder"><span><b>{% trans trimmed %}From a folder of videos{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}A course you already downloaded{% endtrans %}</span></span></a>
     <a class="choice" href="/ai"><span><b>{% trans trimmed %}With AI{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}From a topic, a book, a playlist and more{% endtrans %}</span></span></a>
   </fieldset>
 

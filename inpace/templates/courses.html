@@ -2,23 +2,11 @@
 {% block title %}{{ _('My courses') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}.</h1></div>
-<div class="grid">
-  <a class="card tile" href="/open"><span class="ico">{{ icon('open') }}</span><span><b>{% trans trimmed %}Add a course file{% endtrans %}</b><span>{% trans trimmed %}Open a .lpack, .zip or .yaml someone gave you.{% endtrans %}</span></span></a>
-  <a class="card tile" href="/ai"><span class="ico">{{ icon('spark') }}</span><span><b>{% trans trimmed %}Make a course with AI{% endtrans %}</b><span>{% trans trimmed %}Describe a topic, paste the AI's answer back.{% endtrans %}</span></span></a>
-  <a class="card tile" href="/edit/new"><span class="ico">{{ icon('pen') }}</span><span><b>{% trans trimmed %}Make one by hand{% endtrans %}</b><span>{% trans trimmed %}Simple forms, no code.{% endtrans %}</span></span></a>
-</div>
-
-<details class="card folder-import"{% if not rows %} open{% endif %}>
-  <summary><span class="ico">{{ icon('book') }}</span><span><b>{% trans trimmed %}Use a folder of videos on this computer{% endtrans %}</b><br>
-    <span class="small muted">{% trans trimmed %}Already downloaded a course? Each sub-folder becomes a module and each video, audio, PDF or web page a lesson. Nothing is copied, so even very big courses add in seconds.{% endtrans %}</span></span></summary>
-  <form method="post" action="/courses/from-folder" class="stack" style="margin-block-start:1rem">
-    <label>{% trans trimmed %}Folder{% endtrans %}
-      <span class="row pick-row"><input name="folder" id="import-folder" required dir="ltr" placeholder="{{ _('Full path of the course folder') }}">
-      <button type="button" class="btn" data-pick-folder="#import-folder">{% trans trimmed %}Choose folder{% endtrans %}</button></span></label>
-    <label>{% trans trimmed %}Course name (optional){% endtrans %}<input name="title" dir="auto" placeholder="{{ _('Leave empty to use the folder name') }}"></label>
-    <button class="btn primary">{% trans trimmed %}Add course{% endtrans %}</button>
-  </form>
-</details>
+<a class="card tile add-cta" href="/add">
+  <span class="ico">{{ icon('plus') }}</span>
+  <span><b>{% trans trimmed %}Add a course{% endtrans %}</b>
+  <span>{% trans trimmed %}From a folder or files you have, a course file, the library, AI, or write your own.{% endtrans %}</span></span>
+</a>
 
 {% if rows %}
 <div class="section">

@@ -13,7 +13,8 @@ A free, open-source app that helps you follow a course and lets someone you trus
 
 **Learn**
 - **Follow a course step by step.** Lessons, then tasks: upload your work, explain it in your own words, take a quiz. The next module unlocks when you finish.
-- **Add courses five ways:** with any AI chat (from a topic, a book, a playlist, a course you're taking, a project, your notes or an exam), with the course builder, by opening a course file someone shared, from a list of YouTube links, or from a folder of videos you already have (nothing is copied, even for a 60 GB course).
+- **Add a course the easy way:** press **Add**, then pick a folder of class material, some files, a course file, the course library, AI, or simple forms. No YAML or Markdown needed (it's there if you want it).
+- **Messy folders are fine:** inPace sorts your files by the week, lecture or chapter numbers in their names (or by kind: videos, slides, notes). You fix anything by dragging files between sections, or ask AI to sort them. Then choose: leave the files where they are (no extra space, even for a 60 GB course) or copy them into inPace.
 - **Videos, audio, PDFs, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
@@ -27,6 +28,7 @@ A free, open-source app that helps you follow a course and lets someone you trus
 **Find your way**
 - **Search anything** with **Ctrl+K** (or `/`): lessons, courses, tasks, people and pages. My courses also has its own search box.
 - **Course pictures** make your courses easy to tell apart. Add one in the builder, or put a `cover.jpg` in a course folder.
+- **On phones,** a tab bar at the bottom (Home, Courses, Add, Milestones, More) always shows where you are.
 - **Back and forward buttons** at the top left (or **Alt+← / Alt+→**, or your mouse's side buttons), since the app window has no browser buttons.
 - **Continue** where you left off from the sidebar, see the **course outline** on every lesson, and press **N** / **P** for the next and previous lesson.
 - **Keep courses tidy:** update a course when a newer file arrives (your progress is kept), refresh a folder course when you add videos, or delete a course you don't need.

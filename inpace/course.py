@@ -599,9 +599,8 @@ COVER_NAMES = {"cover", "folder", "poster", "thumbnail", "course"}  # a picture 
 SKIP_DIRS = {"node_modules", "__pycache__", "venv", ".venv", ".git", "dist", "build", ".idea", ".vscode"}
 
 
-def course_from_folder(folder: Path, title: str = "") -> Course:
-    """Each sub-folder becomes a module and each video, audio, page or note inside it a lesson.
-    Nothing is copied: the course points to the files where they are."""
+def folder_groups(folder: Path, title: str = "") -> list[tuple[str, list[Path]]]:
+    """The folder as it is: each sub-folder becomes a module and each video, audio, page or note inside it a lesson."""
     folder = Path(folder)
     if not folder.is_dir():
         raise CourseError(["That folder wasn't found. Copy its full path and paste it here."])
@@ -637,6 +636,19 @@ def course_from_folder(folder: Path, title: str = "") -> Course:
     if not groups:
         raise CourseError(["That folder has no videos, audio, web pages, PDFs, code or notes inside."])
 
+    return groups
+
+
+def course_from_folder(folder: Path, title: str = "") -> Course:
+    """Each sub-folder becomes a module and each video, audio, page or note inside it a lesson.
+    Nothing is copied: the course points to the files where they are."""
+    folder = Path(folder)
+    return course_from_groups(folder, title, folder_groups(folder, title))
+
+
+def course_from_groups(folder: Path, title: str, groups: list[tuple[str, list[Path]]]) -> Course:
+    """Make a course from sections of files (all inside the folder)."""
+    folder = Path(folder)
     modules, index = [], {}
     for mi, (mtitle, files) in enumerate(groups, start=1):
         lessons = []

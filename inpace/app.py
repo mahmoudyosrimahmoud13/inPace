@@ -18,7 +18,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, integrations, library, pace, races, record, updater
+from . import ai, checks, editor, encourage, exchange, integrations, library, organize, pace, races, record, updater
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -202,6 +202,15 @@ _ICONS = {
     "play": '<path d="M7 4.5v15l13-7.5z"/>',
     "code": '<path d="m8 7-5 5 5 5"/><path d="m16 7 5 5-5 5"/>',
     "link": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "folder": '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    "plus": '<path d="M12 5v14M5 12h14"/>',
+    "more": '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    "grip": '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
+    "x": '<path d="M6 6l12 12M18 6 6 18"/>',
+    "video": '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
+    "doc": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    "audio": '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+    "image": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
 }
 
 
@@ -389,14 +398,14 @@ def create_app(vault: Vault) -> Starlette:
         """Tempo's welcome tour. Each step points at something on the screen (or nothing, for the middle of the screen)."""
         steps = [
             (None, "wave", "Hi, I'm Tempo!", "I'll show you around inPace. It takes about a minute. Slow and steady, like me."),
-            ('.side a[href="/courses"]', "happy", "Your courses", "Everything you're learning lives here. Add a course from a file, a folder of videos you already have, a list of YouTube links, or try a sample course."),
-            ('.side a[href="/ai"]', "think", "Make a course", "Build your own course with simple forms, or let any AI chat write one from a topic, a book, a YouTube playlist, an exam, or your own notes."),
-            ('.side a[href="/milestones"]', "proud", "Milestones", "When you finish part of a course, save a milestone. It's a signed snapshot of your progress that nobody can quietly change."),
-            ('.side a[href="/people"]', "cheer", "Your checker", "Learning sticks when someone has your back. Add a friend, a parent or a mentor. Send them your milestone and they approve it. Swap friend codes on Telegram or WhatsApp."),
-            ('.side a[href="/races"]', "cheer", "Races", "Race your friends to keep each other going. Only approved milestones count, so it stays fair."),
-            (".side-bottom a", "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
-            (".theme-toggle", "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
-            ('.side a[href="/settings"]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
+            ('.side a[href="/courses"], .tabbar a[href="/courses"]', "happy", "Your courses", "Everything you're learning lives here. Add a course from a file, a folder of videos you already have, a list of YouTube links, or try a sample course."),
+            ('.side a[href="/add"], .tabbar a[href="/add"]', "think", "Add a course", "Add a folder of class material (inPace sorts it for you), a course file, a course from the library, or make one with simple forms or AI."),
+            ('.side a[href="/milestones"], .tabbar a[href="/milestones"]', "proud", "Milestones", "When you finish part of a course, save a milestone. It's a signed snapshot of your progress that nobody can quietly change."),
+            ('.side a[href="/people"], .tabbar [data-more-open]', "cheer", "Your checker", "Learning sticks when someone has your back. Add a friend, a parent or a mentor. Send them your milestone and they approve it. Swap friend codes on Telegram or WhatsApp."),
+            ('.side a[href="/races"], .tabbar [data-more-open]', "cheer", "Races", "Race your friends to keep each other going. Only approved milestones count, so it stays fair."),
+            (".side-bottom a, .tabbar [data-more-open]", "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
+            (".top .theme-toggle, .tabbar [data-more-open]", "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
+            ('.side a[href="/settings"], .tabbar [data-more-open]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
             (None, "proud", "You're all set!", "Start with a course and take the first step today. I'll be on your Home page, cheering you on."),
         ]
         return [{"target": tgt, "mood": mood, "title": say(title), "text": say(text)} for tgt, mood, title, text in steps]
@@ -716,6 +725,171 @@ def create_app(vault: Vault) -> Starlette:
         import anyio
         folder = await anyio.to_thread.run_sync(lambda: integrations.pick_folder(title))
         return JSONResponse({"folder": folder})
+
+    # ---- Add a course: the easy way --------------------------------------------------------------------
+    FIXED_TITLES = ("General", "Other materials", "Not sorted yet", "Videos", "Audio", "Slides and PDFs",
+                    "Web pages", "Notes", "Pictures", "Code", "Other files")
+
+    def _drafts() -> Path:
+        d = V.home / "drafts"
+        d.mkdir(exist_ok=True)
+        return d
+
+    def _source(form_or_query) -> tuple[Path | None, str, str]:
+        """(folder, folder text, draft id). A draft is files you picked, already copied into inPace."""
+        draft = str(form_or_query.get("draft", "")).strip()
+        if draft:
+            if not re.fullmatch(r"[0-9a-f]{16}", draft) or not (_drafts() / draft).is_dir():
+                return None, "", ""
+            return _drafts() / draft, "", draft
+        text = str(form_or_query.get("folder", "")).strip().strip('"')
+        return (Path(text).expanduser() if text else None), text, ""
+
+    async def add_hub(request: Request):
+        import shutil
+        import time
+        for d in _drafts().iterdir():  # files picked but never made into a course
+            if d.is_dir() and time.time() - d.stat().st_mtime > 2 * 86400:
+                shutil.rmtree(d, ignore_errors=True)
+        return page("add.html", request, ai=integrations.ai_settings(V))
+
+    def _organizer(request: Request, folder: Path, folder_text: str, draft: str, plan: dict, **extra) -> HTMLResponse:
+        import shutil
+        files = organize.all_files(folder, plan["title"]) if "allowed" not in extra else extra.pop("allowed")
+        used = {f for s in plan["sections"] for f in s["files"]}
+        info = organize.file_info(folder, sorted(files))
+        try:
+            free = shutil.disk_usage(V.home).free
+        except OSError:
+            free = 0
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        for sec in plan["sections"]:
+            if sec["title"] in FIXED_TITLES:
+                sec["title"] = say(sec["title"])
+        files_list = sorted(files, key=lambda f: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", f)])
+        cant = plan.get("cant_show")
+        if cant is None:
+            try:
+                cant = organize.guess_plan(folder)["cant_show"]
+            except CourseError:
+                cant = []
+        return page("add_organize.html", request, plan=plan, info=info, cant_show=cant, left_out=[f for f in files_list if f not in used],
+                    folder=folder_text, draft=draft, free=free, nice_size=organize.nice_size,
+                    ai=integrations.ai_settings(V), prompt=organize.ai_prompt(plan["title"], files_list, extra.get("notes", "")),
+                    **extra)
+
+    async def add_organize(request: Request):
+        if request.method == "GET":
+            folder, text, draft = _source(request.query_params)
+            title = str(request.query_params.get("title", ""))
+            if not folder:
+                return go("/add/folder", err="Choose a folder first.")
+            try:
+                plan = organize.guess_plan(folder, title)
+            except CourseError as e:
+                return go("/add/folder", err=e.problems[0])
+            if draft and not plan["sections"]:
+                return go("/add/files", err="None of those files can be shown in inPace.")
+            how = "folders" if plan["organized"] else ("numbers" if any(
+                s["title"].split(" ")[0] in ("Week", "Lecture", "Chapter", "Unit", "Module", "Part", "Session", "Lesson",
+                                             "Topic", "Day", "Section", "Lab", "Tutorial", "Class") or s["title"].startswith("ال")
+                for s in plan["sections"]) else ("kinds" if len(plan["sections"]) > 1 else "one"))
+            return _organizer(request, folder, text, draft, plan, how=how)
+        form = await request.form()
+        folder, text, draft = _source(form)
+        if not folder or not folder.is_dir():
+            return go("/add/folder", err="That folder wasn't found. Copy its full path and paste it here.")
+        try:
+            allowed = organize.all_files(folder)
+        except CourseError as e:
+            return go("/add/folder", err=e.problems[0])
+        try:
+            raw = json.loads(str(form.get("plan") or "{}"))
+        except ValueError:
+            raw = {}
+        plan = organize.clean_plan(folder, raw if isinstance(raw, dict) else {}, allowed)
+        action = str(form.get("action", "create"))
+        notes = str(form.get("notes", ""))
+        if action in ("ai_auto", "ai_paste"):
+            reply = str(form.get("reply", ""))
+            if action == "ai_auto":
+                from starlette.concurrency import run_in_threadpool
+                files_list = sorted(allowed)
+                try:
+                    reply = await run_in_threadpool(integrations.ask_ai, V, organize.ai_prompt(plan["title"], files_list, notes))
+                except RuntimeError as e:
+                    return _organizer(request, folder, text, draft, plan, allowed=allowed, notes=notes, ai_error=str(e), open_ai=True)
+            try:
+                plan = organize.merge_ai(organize.parse_ai(reply), folder, allowed, plan["title"])
+            except CourseError as e:
+                return _organizer(request, folder, text, draft, plan, allowed=allowed, notes=notes, reply=reply,
+                                  ai_error=e.problems[0], open_ai=True)
+            return _organizer(request, folder, text, draft, plan, allowed=allowed, notes=notes, how="ai")
+        try:
+            c = organize.course_from_plan(folder, plan)
+        except CourseError as e:
+            return _organizer(request, folder, text, draft, plan, allowed=allowed, problem=e.problems[0])
+        base, n = c.id, 1
+        while V.get_course(c.id):
+            n += 1
+            c.id = f"{base}-{n}"
+        import shutil
+        if draft:  # picked files: they already live in inPace, move them to the course's own folder
+            target = V.media_dir(c.id)
+            shutil.rmtree(target, ignore_errors=True)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(folder), str(target))
+            V.install_course(c)
+            return go(f"/courses?show={c.id}", ok=f"Added “{c.title}”.\nIts files are saved in inPace.")
+        V.set_media_root(c.id, str(folder))
+        V.install_course(c)
+        if form.get("storage") == "copy":
+            need = organize.plan_size(folder, plan)
+            try:
+                free = shutil.disk_usage(V.home).free
+            except OSError:
+                free = need + 1
+            if need > free:
+                return go(f"/courses?show={c.id}", err="There isn't enough free space to copy the files, so they stay where they are.")
+            cid = c.id
+            organize.start_copy(cid, folder, plan, V.media_dir(cid), done=lambda: V.set_media_root(cid, ""))
+            return go(f"/add/copying/{cid}")
+        return go(f"/courses?show={c.id}", ok=f"Added “{c.title}”.\nThe files stay where they are.")
+
+    async def add_folder(request: Request):
+        return page("add_folder.html", request)
+
+    async def add_files(request: Request):
+        if request.method == "GET":
+            return page("add_files.html", request)
+        import secrets
+        form = await request.form()
+        ups = [u for u in form.getlist("files") if getattr(u, "filename", "")]
+        if not ups:
+            return go("/add/files", err="Choose some files first.")
+        draft = secrets.token_hex(8)
+        root = _drafts() / draft
+        for up in ups:
+            parts = [x for x in re.split(r"[\\/]+", up.filename) if x not in ("", ".", "..")]
+            if not parts:
+                continue
+            dst = root.joinpath(*[re.sub(r'[<>:"|?*\x00-\x1f]', "_", x) for x in parts])
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            with open(dst, "wb") as out:
+                while chunk := await up.read(4 * 1024 * 1024):
+                    out.write(chunk)
+        from urllib.parse import quote as q
+        return RedirectResponse(f"/add/organize?draft={draft}&title={q(str(form.get('title', '')))}", 303)
+
+    async def add_copying(request: Request):
+        cid = request.path_params["cid"]
+        job = organize.JOBS.get(cid)
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        if not job or job["state"] == "done":
+            return go(f"/courses?show={cid}", ok=f"Added “{c.title}”.\nIts files are copied into inPace.")
+        return page("add_copying.html", request, c=c, job=job, nice_size=organize.nice_size)
 
     async def remove_course(request: Request):
         """Delete a course. A started course needs a tick in the box first, because its progress goes too."""
@@ -1924,6 +2098,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/setup", setup, methods=["GET", "POST"]),
         Route("/", needs_setup(home)),
         Route("/courses", needs_setup(courses)),
+        Route("/add", needs_setup(add_hub)),
+        Route("/add/folder", needs_setup(add_folder)),
+        Route("/add/files", needs_setup(add_files), methods=["GET", "POST"]),
+        Route("/add/organize", needs_setup(add_organize), methods=["GET", "POST"]),
+        Route("/add/copying/{cid}", needs_setup(add_copying)),
         Route("/courses/sample/{cid}", needs_setup(add_sample), methods=["POST"]),
         Route("/courses/from-folder", needs_setup(course_from_folder_route), methods=["POST"]),
         Route("/courses/{cid}/media-folder", needs_setup(set_media_folder), methods=["POST"]),

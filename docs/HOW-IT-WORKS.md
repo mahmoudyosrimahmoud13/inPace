@@ -61,9 +61,16 @@ inPace/
 
 A course is plain text: a `course.yaml` file with modules, lessons and tasks, plus lesson text in Markdown.
 
-**Ways a course gets in:**
+**Ways a course gets in** (all from the **Add a course** page):
 - **A course file** someone shared (`.lpack`, `.zip` or `.yaml`).
-- **A folder of videos** you already have. Each sub-folder becomes a module. Each video, audio file, PDF, web page or code project becomes a lesson. **Nothing is copied.** inPace only remembers where the folder is, so a 60 GB course is added in seconds.
+- **A folder** of course material (videos, slides as PDF, notes, code). inPace makes a first guess, then shows the **organizer**:
+  - A neat folder: each sub-folder is a section.
+  - A messy folder: files are grouped by the week, lecture or chapter numbers in their names ("Lecture 3", "lec3", "W03", "محاضرة 3"). Files without a number go to "General" at the top. With no numbers at all, files are grouped by kind (videos, slides and PDFs, notes).
+  - In the organizer you rename sections and lessons, drag files between sections (or use **Move to** and the arrows on a phone), add or remove sections, and leave files out.
+  - **Ask AI to sort it:** the AI sees only the file names. With an AI key in Settings inPace asks it directly; without one you copy the request into any AI chat and paste the answer back. Files the AI forgets go to "Not sorted yet", and file names it makes up are ignored.
+  - **Where the files live:** leave them where they are (the default: no extra space, and inPace only remembers where the folder is), or copy them into inPace (`media/<id>/`). Copying shows the size and the free space first, runs in the background, and the course works from the original folder until it finishes.
+  - Word, PowerPoint and Excel files can't be shown inside inPace, so the organizer lists them and suggests saving them as PDF.
+- **Some files you pick.** They're copied into inPace (`drafts/` first, then `media/<id>/`) and sorted in the same organizer. Handy on a phone.
 - **A list of links,** one per line. A line starting with `#` starts a new module.
 - **With AI.** inPace writes a prompt for a topic, a book, a playlist, a course you're taking, a project, your notes or an exam. You paste it into any AI chat and paste the answer back.
 - **By hand,** in the course builder.
@@ -156,6 +163,7 @@ Because of the link and the signature, nobody can change one milestone without b
 ## 7. Getting around
 
 - **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page. **My courses** also has a search box that filters your courses by title, description, module or lesson name.
+- **Phones and narrow windows:** the sidebar becomes a tab bar at the bottom: Home, Courses, Add, Milestones, and More (races, the library, people, open a file, settings, dark mode). The top bar shows the page you're on.
 - **Continue:** the sidebar card takes you back to the lesson you were last on.
 - **Course outline:** shown on every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
 - **Back and forward:** the app window has no browser buttons, so inPace has its own at the top left. **Alt+← / Alt+→** and the side buttons on a mouse work too.
