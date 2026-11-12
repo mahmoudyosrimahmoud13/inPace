@@ -220,7 +220,8 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
         except OfficeProblem as ex:
             inner = f'<p class="note warn">{e(t(str(ex)))}</p>'
         except Exception:
-            inner = f'<p class="note warn">{e(t("This file couldn\'t be read. It may be damaged."))}</p>'
+            msg = t("This file couldn't be read. It may be damaged.")
+            inner = f'<p class="note warn">{e(msg)}</p>'
         ext = name.rsplit(".", 1)[-1].lower()
         body = (f'<div class="office-head" dir="ltr"><span>{e(name)}</span>'
                 f'<a href="{url}" download="{e(name)}">{e(t("Download to open it in its own app"))}</a></div>'

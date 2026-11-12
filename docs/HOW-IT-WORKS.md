@@ -174,11 +174,14 @@ Because of the link and the signature, nobody can change one milestone without b
 
 ## 7. Getting around
 
-- **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page. **My courses** also has a search box that filters your courses by title, description, module or lesson name.
+- **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page. **My courses** also has a search box (from 4 courses) that filters your courses by title, description, module or lesson name.
 - **Phones and narrow windows:** the sidebar becomes a tab bar at the bottom: Home, Courses, Add, Milestones, and More (races, the library, people, open a file, settings, dark mode). The top bar shows the page you're on.
 - **Continue:** the sidebar card takes you back to the lesson you were last on.
 - **Course outline:** shown on every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
 - **Back and forward:** the app window has no browser buttons, so inPace has its own at the top left. **Alt+← / Alt+→** and the side buttons on a mouse work too.
+- **Back inside a course:** moving between lessons, the module tasks and the next module replaces the page instead of adding one (`location.replace`). So Back always takes you out to the course page, then to My courses, never through every lesson you read. This is the same on computers and on Android (the phone's back button follows the same history).
+- **After a module:** the module page says what's next and has **Start the next module**, so you don't have to go back to My courses. The course page has a **Continue** button too.
+- **My courses:** each course is one card: its picture, name, how far you are and the next lesson. Tap it to continue. Edit, share, update and delete are under **⋯**. Sample courses are folded away at the bottom.
 - **N / P:** next and previous lesson.
 - **Colors and dark mode:** Settings → Colors has seven color profiles, each with light and dark shades. The moon button switches dark mode.
 - **English and Arabic:** the whole app, right to left in Arabic.

@@ -603,7 +603,7 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
              !e.target.closest("[data-player]")) {
       // N and P: next and previous lesson.
       const a = document.querySelector(e.key === "n" ? "[data-key-next]" : "[data-key-prev]");
-      if (a) { e.preventDefault(); location.href = a.href; }
+      if (a) { e.preventDefault(); a.hasAttribute("data-replace") ? location.replace(a.href) : (location.href = a.href); }
     }
   });
 })();
@@ -914,3 +914,32 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
     btn.closest("form").querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
   });
 });
+
+// Moving inside a course (next lesson, previous, module tasks, next module) replaces the page
+// instead of adding one, so Back always takes you out to the course, not through every lesson.
+// [data-up] links go back when that's where you came from, so the course isn't opened twice.
+(() => {
+  const same = (a, b) => { try { const x = new URL(a, location.href), y = new URL(b, location.href);
+    return x.origin === y.origin && x.pathname === y.pathname; } catch (e) { return false; } };
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest("a[data-replace], a[data-up]");
+    if (!a || a.target) return;
+    e.preventDefault();
+    if (a.hasAttribute("data-up") && document.referrer && same(document.referrer, a.href) && history.length > 1) history.back();
+    else if (a.hasAttribute("data-up")) location.href = a.href;
+    else location.replace(a.href);
+  });
+  document.querySelectorAll("form[data-nav-form]").forEach((f) => {
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = f.querySelector("button"); if (btn) btn.disabled = true;
+      try {
+        const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "X-InPace-Nav": "1" } });
+        const data = await r.json();
+        if (data && data.go) { location.replace(data.go); return; }
+      } catch (err) { /* fall back to a normal submit */ }
+      f.submit();
+    });
+  });
+})();

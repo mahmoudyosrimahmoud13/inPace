@@ -4,18 +4,45 @@
 {% block main %}
 {% set lessons_left = mstate.lessons|rejectattr('done')|list %}
 <div class="page-head">
-  <p class="eyebrow"><a href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
+  <p class="eyebrow"><a data-up href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
   <h1 dir="auto">{{ module.title }}</h1>
   <p class="muted">{% trans trimmed %}To finish this module, read every lesson and complete these tasks.{% endtrans %}
   {% if mstate.status == 'done' %}<span class="chip good">{% trans trimmed %}Module done{% endtrans %}</span>{% endif %}</p>
 </div>
+{% if mstate.status == 'done' %}
+<div class="next tempo-say module-next">
+  {{ mascot('proud', 72) }}
+  <div class="module-next-body">
+  {% if after %}
+  <p class="next-title">{% trans trimmed %}Module done. On to the next one?{% endtrans %}</p>
+  <p class="muted" dir="auto" style="margin:0">{{ T('Next: {name}', name=after.title) }}</p>
+  <div class="row wrap">
+    <a class="btn primary big" data-replace href="{{ after.url }}">{% trans trimmed %}Start the next module{% endtrans %} {{ icon('arrow', 18) }}</a>
+    <a class="btn" href="/milestones">{% trans trimmed %}Save a milestone first{% endtrans %}</a>
+  </div>
+  {% elif finished %}
+  <p class="next-title">{% trans trimmed %}You finished the whole course!{% endtrans %}</p>
+  <div class="row wrap">
+    <a class="btn primary big" href="/milestones">{% trans trimmed %}Save a milestone{% endtrans %}</a>
+    <a class="btn" data-up href="/learn/{{ j.id }}">{% trans trimmed %}Back to the course{% endtrans %}</a>
+  </div>
+  {% else %}
+  <p class="next-title">{% trans trimmed %}Module complete. Save a milestone so your checker can see it.{% endtrans %}</p>
+  <div class="row wrap">
+    <a class="btn primary big" href="/milestones">{% trans trimmed %}Go to milestones{% endtrans %}</a>
+    <a class="btn" data-up href="/learn/{{ j.id }}">{% trans trimmed %}Back to the course{% endtrans %}</a>
+  </div>
+  {% endif %}
+  </div>
+</div>
+{% endif %}
 
 <section class="card task {{ 'done' if not lessons_left }}">
   <span class="ico">{{ icon('check' if not lessons_left else 'book') }}</span>
   <div>
     <div class="task-head"><h3>{% trans trimmed %}Read all lessons{% endtrans %}</h3>{% if not lessons_left %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% endif %}</div>
     <p class="muted" style="margin:0">{{ _('%s of %s done.')|format(mstate.lessons_done, mstate.lessons|length) }}
-    {% if lessons_left %}<a href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">{{ T('Continue with “{name}”', name=lessons_left[0].title) }}</a>{% endif %}</p>
+    {% if lessons_left %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">{{ T('Continue with “{name}”', name=lessons_left[0].title) }}</a>{% endif %}</p>
   </div>
 </section>
 
@@ -83,11 +110,4 @@
 </section>
 {% endfor %}
 
-{% if mstate.status == 'done' %}
-<div class="next tempo-say">
-  {{ mascot('proud', 72) }}
-  <p class="next-title">{% trans trimmed %}Module complete. Save a milestone so your checker can see it.{% endtrans %}</p>
-  <a class="btn primary big" href="/milestones">{% trans trimmed %}Go to milestones{% endtrans %}</a>
-</div>
-{% endif %}
 {% endblock %}

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.15.1
+
+- **Fixed: the tests failed on Python 3.10** (and the app wouldn't start on it) because of one line in the Office preview code that only newer Python understands. A new test now checks every file for this.
+- **Next module, one tap.** When you finish a module, its page says what's next and has **Start the next module**. No more going back to My courses and opening the course again.
+- **Back makes sense inside a course.** Next lesson, Previous, module tasks and the next module replace the page instead of piling up, so Back takes you to the course page and then My courses, not back through every lesson. Same on computers and phones.
+- **A Continue button on the course page,** to the next lesson or the module tasks.
+- **My courses is simpler:** one card per course with its picture, name, a progress bar and the next lesson. Tap the card to continue; Edit, share and delete are under **⋯**. The search box shows from 4 courses, and sample courses are folded away at the bottom.
+- **Phones:** the course trail fits the screen. Lesson names no longer run off the side, which also pushed the tab bar out of place.
+
+
 ## v1.15.0
 
 - **Turn a book into a course.** Add a course, then **A book (PDF)**. inPace reads the chapters and sections from the book's bookmarks: each chapter becomes a part of the course and each section a lesson that opens **only its own pages**. Long chapters are split into shorter lessons, the cover and contents start in "Left out", and a book with no bookmarks is split every 12 pages. You can rename, move and leave out parts before you add it.

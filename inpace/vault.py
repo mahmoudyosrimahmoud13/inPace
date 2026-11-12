@@ -331,11 +331,11 @@ class Vault:
             if status == "open" and next_step is None:
                 nxt = next((les for les in lessons if not les["done"]), None)
                 if nxt:
-                    next_step = {"kind": "lesson", "id": nxt["id"], "title": nxt["title"], "module": m["title"]}
+                    next_step = {"kind": "lesson", "id": nxt["id"], "title": nxt["title"], "module": m["title"], "mid": m["id"]}
                 else:
                     r = next(r for r in reqs if not r["done"])
                     next_step = {"kind": "requirement", "id": r["id"], "title": r["prompt"], "module": m["title"],
-                                 "lesson": lessons[-1]["id"]}
+                                 "mid": m["id"], "lesson": lessons[-1]["id"]}
             modules.append({"id": m["id"], "title": m["title"], "lessons": lessons, "requires": reqs,
                             "status": status, "lessons_done": ldone})
             unlocked = unlocked and complete

@@ -1,83 +1,84 @@
 {% extends "base.html" %}
 {% block title %}{{ _('My courses') }}{% endblock %}
+{% macro course_menu(r) %}{% set c = r.course %}
+<details class="menu course-menu">
+  <summary class="btn icon-btn" aria-label="{{ _('More') }}" title="{{ _('More') }}">{{ icon('more', 20) }}</summary>
+  <div class="menu-box">
+    <a href="/edit/{{ c.id }}"><b>{% trans trimmed %}Edit{% endtrans %}</b></a>
+    <p class="menu-h">{% trans trimmed %}Share{% endtrans %}</p>
+    <a href="/courses/{{ c.id }}/share">{% trans trimmed %}Send a link…{% endtrans %}</a>
+    <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
+    {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
+    {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
+    <a href="/courses/{{ c.id }}/publish">{% trans trimmed %}Publish to the library…{% endtrans %}</a>
+    <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
+    <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>
+    {% if r.media_root %}<form method="post" action="/courses/{{ c.id }}/refresh"><button class="link btn" style="justify-content:flex-start">{% trans trimmed %}Refresh from its folder{% endtrans %}</button></form>{% endif %}
+    <p class="menu-h"></p>
+    <a class="danger" href="/courses/{{ c.id }}/remove">{% trans trimmed %}Delete course…{% endtrans %}</a>
+  </div>
+</details>{% endmacro %}
 {% block main %}
-<div class="page-head"><h1>{% trans trimmed %}My courses{% endtrans %}.</h1></div>
-<a class="card tile add-cta" href="/add">
-  <span class="ico">{{ icon('plus') }}</span>
-  <span><b>{% trans trimmed %}Add a course{% endtrans %}</b>
-  <span>{% trans trimmed %}From a folder or files you have, a course file, the library, AI, or write your own.{% endtrans %}</span></span>
-</a>
+<div class="page-head courses-head">
+  <h1>{% trans trimmed %}My courses{% endtrans %}.</h1>
+  <a class="btn primary" href="/add">{{ icon('plus', 18) }}{% trans trimmed %}Add a course{% endtrans %}</a>
+</div>
 
 {% if rows %}
-<div class="section">
-<div class="row between course-tools">
-  <h2>{% trans trimmed %}Installed{% endtrans %}</h2>
-  {% if rows|length > 1 %}
-  <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search your courses and lessons') }}" aria-label="{{ _('Search your courses and lessons') }}"></label>
-  {% endif %}
-</div>
+{% if rows|length > 3 %}
+<label class="course-filter course-find">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search your courses and lessons') }}" aria-label="{{ _('Search your courses and lessons') }}"></label>
+{% endif %}
 <p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
+<div class="course-grid">
 {% for r in rows %}
 {% set c = r.course %}
-<article class="card course-row" data-course-search="{{ r.search }}">
-  {{ cover(c) }}
-  <div class="grow">
-    <h3 dir="auto">{{ c.title }}</h3>
-    {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
-    <div class="row small muted">
-      <span>{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</span>
-      {% if r.percent is not none %}<span class="chip">{{ T('{p}% done', p=r.percent) }}</span>{% endif %}
+<article class="card course-card{{ ' finished' if r.finished }}" data-course-search="{{ r.search }}">
+  {% if r.journey %}
+  <a class="course-main" href="/learn/{{ r.journey }}">
+  {% else %}
+  <form method="post" action="/courses/{{ c.id }}/start" class="course-start"><button class="course-main">
+  {% endif %}
+    {{ cover(c) }}
+    <span class="course-body">
+      <b class="course-title" dir="auto">{{ c.title }}</b>
+      {% if r.journey %}
+        <span class="bar" aria-hidden="true"><span style="width: {{ r.percent }}%"></span></span>
+        <span class="small muted course-meta" dir="auto">
+          {% if r.finished %}{{ icon('check', 14) }} {% trans trimmed %}Finished{% endtrans %}
+          {% elif r.next %}{{ T('{p}% · Next: {name}', p=r.percent, name=r.next.title if r.next.kind == 'lesson' else _('Module tasks')) }}
+          {% else %}{{ T('{p}% done', p=r.percent) }}{% endif %}</span>
+      {% else %}
+        <span class="small muted course-meta">{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }} · {% trans trimmed %}Not started{% endtrans %}</span>
+      {% endif %}
       {% if c.questions and not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
-    </div>
-  </div>
-  <div class="row">
-    {% if r.journey %}
-      <a class="btn primary" href="/learn/{{ r.journey }}">{% trans trimmed %}Open{% endtrans %}</a>
-    {% else %}
-      <form method="post" action="/courses/{{ c.id }}/start"><button class="btn primary">{% trans trimmed %}Start{% endtrans %}</button></form>
-    {% endif %}
-    <a class="btn" href="/edit/{{ c.id }}">{{ icon('pen', 18) }}{% trans trimmed %}Edit{% endtrans %}</a>
-    <details class="menu">
-      <summary class="btn">{% trans trimmed %}More{% endtrans %}</summary>
-      <div class="menu-box">
-        <p class="menu-h">{% trans trimmed %}Share{% endtrans %}</p>
-        <a href="/courses/{{ c.id }}/share"><b>{% trans trimmed %}Send a link…{% endtrans %}</b></a>
-        <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
-        {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
-        {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
-        <a href="/courses/{{ c.id }}/publish">{% trans trimmed %}Publish to the library…{% endtrans %}</a>
-        <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
-        <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>
-        {% if r.media_root %}<form method="post" action="/courses/{{ c.id }}/refresh"><button class="link btn" style="justify-content:flex-start">{% trans trimmed %}Refresh from its folder{% endtrans %}</button></form>{% endif %}
-        <p class="menu-h"></p>
-        <a class="danger" href="/courses/{{ c.id }}/remove">{% trans trimmed %}Delete course…{% endtrans %}</a>
-      </div>
-    </details>
-  </div>
+    </span>
+  {% if r.journey %}</a>{% else %}</button></form>{% endif %}
+  {{ course_menu(r) }}
 </article>
 {% endfor %}
 </div>
-{% endif %}
-
-<section class="card soft row between" style="margin-top:1.5rem">
-  <span><b>{% trans trimmed %}Course library{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Free courses made by other learners. Add one with a click, or share your own.{% endtrans %}</span></span>
-  <a class="btn" href="/library">{% trans trimmed %}Browse the library{% endtrans %}</a>
+{% else %}
+<section class="card empty-courses">
+  {{ mascot('wave', 72) }}
+  <div><b>{% trans trimmed %}No courses yet.{% endtrans %}</b>
+  <p class="muted" style="margin:.2rem 0 0">{% trans trimmed %}Add one from a folder, a book, the library or AI, or try a sample below.{% endtrans %}</p></div>
 </section>
+{% endif %}
 
 {% if samples %}
-<div class="section">
-<h2>{% trans trimmed %}Sample courses{% endtrans %}</h2>
-{% for c in samples %}
-<article class="card course-row flat">
-  {{ cover(c, sample=True) }}
-  <div class="grow">
-    <h3 dir="auto">{{ c.title }}</h3>
-    <p class="muted" dir="auto">{{ c.description }}</p>
-    <p class="small muted">{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</p>
-  </div>
-  <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">{% trans trimmed %}Add to my courses{% endtrans %}</button></form>
-</article>
-{% endfor %}
-</div>
+<details class="section samples" {{ 'open' if not rows }}>
+  <summary><h2>{{ T('Sample courses ({n})', n=samples|length) }}</h2></summary>
+  <ul class="sample-list">
+  {% for c in samples %}
+    <li>
+      {{ cover(c, sample=True) }}
+      <span class="grow"><b dir="auto">{{ c.title }}</b><br><span class="small muted">{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</span></span>
+      <form method="post" action="/courses/sample/{{ c.id }}"><button class="btn">{{ icon('plus', 18) }}{% trans trimmed %}Add{% endtrans %}</button></form>
+    </li>
+  {% endfor %}
+  </ul>
+</details>
 {% endif %}
+
+<p class="library-line">{{ icon('library', 18) }} <a href="/library">{% trans trimmed %}Find free courses in the course library{% endtrans %}</a></p>
 {% endblock %}

@@ -5,12 +5,17 @@
 {% set step = 104 %}
 <div class="page-head">
   {% if prog.course.extra.image %}{{ cover(prog.course, True) }}{% endif %}
-  <p class="eyebrow"><a href="/courses">{{ _('My courses') }}</a></p>
+  <p class="eyebrow"><a data-up href="/courses">{{ _('My courses') }}</a></p>
   <h1 dir="auto">{{ prog.course.title }}.</h1>
   <div class="row" style="margin-block-start: .9rem">
     <div class="bar grow" style="max-width: 460px"><span style="width: {{ prog.percent }}%"></span></div>
     <b>{{ prog.percent }}%</b>
   </div>
+  {% set nx = prog.next %}
+  {% if nx %}
+  <a class="btn primary big continue-btn" href="/learn/{{ j.id }}/{{ 'lesson/' ~ nx.id if nx.kind == 'lesson' else 'module/' ~ nx.mid }}">
+    <span><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ nx.title if nx.kind == 'lesson' else T('{name} tasks', name=nx.module) }}</b></span>{{ icon('arrow', 18) }}</a>
+  {% elif prog.finished %}<p><span class="chip good">{% trans trimmed %}Course finished{% endtrans %}</span></p>{% endif %}
 </div>
 
 {% if missing %}

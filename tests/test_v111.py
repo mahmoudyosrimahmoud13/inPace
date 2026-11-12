@@ -136,7 +136,7 @@ def test_course_picture_and_search(tmp_path):
     a.post("/courses/sample/python-basics")
     a.post("/courses/sample/python-basics-ar")
     page = html.unescape(a.get("/courses").text)
-    assert "data-course-filter" in page
+    assert "data-course-search" in page  # the search box shows from 4 courses
     assert "printing and simple math" in page  # lesson titles are searchable
     # Add a picture, see it, share it, remove it.
     r = a.post("/edit/python-basics/image", files={"image": ("me.png", PNG)}, follow_redirects=True)

@@ -5,18 +5,18 @@
 {% set idx = module.lessons.index(lesson) %}
 <div class="strip">
   <div>
-    <p class="eyebrow"><a href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a> › <span dir="auto">{{ module.title }}</span></p>
+    <p class="eyebrow"><a data-up href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a> › <span dir="auto">{{ module.title }}</span></p>
     <div class="row">
       <nav class="dots" aria-label="{{ _('Lessons in this module') }}">
         {% for l in mstate.lessons %}
-          <a href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}" {{ 'aria-current="page"' if l.id == lesson.id }}>{{ '%02d'|format(loop.index) }}</a>
+          <a data-replace href="/learn/{{ j.id }}/lesson/{{ l.id }}" class="{{ 'here' if l.id == lesson.id else ('done' if l.done) }}" title="{{ l.title }}" {{ 'aria-current="page"' if l.id == lesson.id }}>{{ '%02d'|format(loop.index) }}</a>
         {% endfor %}
       </nav>
       <span class="small muted">{{ _('Lesson %s of %s')|format(idx + 1, module.lessons|length) }}{% if lesson.minutes %} · {{ T('about {n} min', n=lesson.minutes) }}{% endif %}</span>
     </div>
   </div>
   {% set tdone = mstate.requires|selectattr('done')|list|length %}
-  <a class="btn" href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ mstate.requires|length }}</a>
+  <a class="btn" data-replace href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ mstate.requires|length }}</a>
 </div>
 
 <details class="card flat outline">
@@ -28,10 +28,10 @@
       <ul>
         {% for l in m.lessons %}
         <li class="{{ 'here' if l.id == lesson.id }}">
-          {% if m.status != 'locked' %}<a href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{% if l.done %}✓ {% endif %}{{ l.title }}</a>{% else %}<span class="muted" dir="auto">{{ l.title }}</span>{% endif %}
+          {% if m.status != 'locked' %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{% if l.done %}✓ {% endif %}{{ l.title }}</a>{% else %}<span class="muted" dir="auto">{{ l.title }}</span>{% endif %}
         </li>
         {% endfor %}
-        {% if m.requires and m.status != 'locked' %}<li><a href="/learn/{{ j.id }}/module/{{ m.id }}">{{ _('Module tasks') }}</a></li>{% endif %}
+        {% if m.requires and m.status != 'locked' %}<li><a data-replace href="/learn/{{ j.id }}/module/{{ m.id }}">{{ _('Module tasks') }}</a></li>{% endif %}
       </ul>
     </li>
     {% endfor %}
@@ -45,16 +45,16 @@
   </div>
   <div class="prose" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
   <div class="lesson-foot">
-    {% if prev_id %}<a class="btn ghost" data-key-prev title="{{ _('Previous lesson (P)') }}" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">{% trans trimmed %}Previous{% endtrans %}</a>{% else %}<span></span>{% endif %}
+    {% if prev_id %}<a class="btn ghost" data-key-prev title="{{ _('Previous lesson (P)') }}" data-replace href="/learn/{{ j.id }}/lesson/{{ prev_id }}">{% trans trimmed %}Previous{% endtrans %}</a>{% else %}<span></span>{% endif %}
     {% if not lstate.done %}
-      <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done">
+      <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done" data-nav-form>
         <input type="hidden" name="next" value="{{ next_id or '' }}">
         <button class="btn primary big">{{ _('Done, next lesson') if next_id else _('Done, go to tasks') }} {{ icon('arrow', 18) }}</button>
       </form>
     {% elif next_id %}
-      <a class="btn primary big" data-key-next title="{{ _('Next lesson (N)') }}" href="/learn/{{ j.id }}/lesson/{{ next_id }}">{{ _("Next lesson") }} {{ icon('arrow', 18) }}</a>
+      <a class="btn primary big" data-key-next title="{{ _('Next lesson (N)') }}" data-replace href="/learn/{{ j.id }}/lesson/{{ next_id }}">{{ _("Next lesson") }} {{ icon('arrow', 18) }}</a>
     {% else %}
-      <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _("Go to module tasks") }} {{ icon('arrow', 18) }}</a>
+      <a class="btn primary big" data-replace href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _("Go to module tasks") }} {{ icon('arrow', 18) }}</a>
     {% endif %}
   </div>
 </article>

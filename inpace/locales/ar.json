@@ -1367,5 +1367,18 @@
  "inPace can show .docx, .pptx and .xlsx files.": "يستطيع inPace عرض ملفات ‎.docx و‎.pptx و‎.xlsx.",
  "Front matter": "المقدمات",
  "Introduction": "مقدمة",
- "Documents and sheets": "مستندات وجداول"
+ "Documents and sheets": "مستندات وجداول",
+ "Module done. On to the next one?": "اكتملت الوحدة. ننتقل إلى التالية؟",
+ "Next: {name}": "التالي: {name}",
+ "Start the next module": "ابدأ الوحدة التالية",
+ "Save a milestone first": "احفظ محطة أولًا",
+ "You finished the whole course!": "أنهيت الدورة كلها!",
+ "Back to the course": "العودة إلى الدورة",
+ "Course finished": "اكتملت الدورة",
+ "{p}% · Next: {name}": "{p}% · التالي: {name}",
+ "Not started": "لم تبدأ بعد",
+ "No courses yet.": "لا توجد دورات بعد.",
+ "Add one from a folder, a book, the library or AI, or try a sample below.": "أضف دورة من مجلد أو كتاب أو من المكتبة أو بالذكاء الاصطناعي، أو جرّب دورة نموذجية بالأسفل.",
+ "Sample courses ({n})": "دورات نموذجية ({n})",
+ "Find free courses in the course library": "ابحث عن دورات مجانية في مكتبة الدورات"
 }

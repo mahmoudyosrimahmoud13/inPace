@@ -456,11 +456,16 @@ def create_app(vault: Vault) -> Starlette:
             jid = V.journey_for_course(c.id)
             words = [c.title, c.description] + [m["title"] for m in c.modules] + \
                     [les["title"] for m in c.modules for les in m["lessons"]]
+            prog = V.progress(jid) if jid else None
             rows.append({"course": c, "journey": jid,
-                         "percent": V.progress(jid)["percent"] if jid else None,
+                         "percent": prog["percent"] if prog else None,
+                         "next": prog["next"] if prog else None,
+                         "finished": bool(prog and prog["finished"]),
                          "search": " ".join(w for w in words if w).lower(),
                          "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"]),
                          "media_root": V.media_root(c.id)})
+        # Courses you're in the middle of first, then ones not started, then finished ones.
+        rows.sort(key=lambda r: 2 if r["finished"] else (0 if r["journey"] else 1))
         return page("courses.html", request, rows=rows, samples=samples)
 
     # ---- the course library ---------------------------------------------------
@@ -1357,8 +1362,18 @@ def create_app(vault: Vault) -> Starlette:
             return go(f"/learn/{j['id']}", err="Finish the module before this one first.")
         exams = [x for x in checks.my_exams(V, j["id"]) if course.find_requirement(x["exam"]["req"]) and
                  course.find_requirement(x["exam"]["req"])[0]["id"] == module["id"]]
+        # Where to go once this module is done: the first lesson left in the next module.
+        after, idx = None, [m["id"] for m in prog["modules"]].index(module["id"])
+        for m in prog["modules"][idx + 1:]:
+            if m["status"] == "locked":
+                break
+            left = next((les for les in m["lessons"] if not les["done"]), None)
+            if left or m["status"] != "done":
+                after = {"title": m["title"],
+                         "url": f"/learn/{j['id']}/lesson/{left['id']}" if left else f"/learn/{j['id']}/module/{m['id']}"}
+                break
         return page("module.html", request, j=j, course=course, module=module, mstate=mstate,
-                    has_answers=course.has_answers, exams=exams)
+                    has_answers=course.has_answers, exams=exams, after=after, finished=prog["finished"])
 
     async def take_exam(request: Request):
         j = journey_or_404(request.path_params["jid"])
@@ -1431,6 +1446,13 @@ def create_app(vault: Vault) -> Starlette:
                     req={"pass": 0, "id": ""}, result=result, passed=True, review=True)
 
     async def lesson_done(request: Request):
+        resp = await _lesson_done(request)
+        if request.headers.get("x-inpace-nav") and resp.status_code == 303:
+            # The page moves on with location.replace, so lessons don't pile up behind the Back button.
+            return JSONResponse({"go": resp.headers["location"]})
+        return resp
+
+    async def _lesson_done(request: Request):
         jid, lid = request.path_params["jid"], request.path_params["lid"]
         j = journey_or_404(jid)
         course = V.get_course(j["course_id"]) if j else None
