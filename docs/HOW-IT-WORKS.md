@@ -29,7 +29,7 @@ When you double-click inPace:
    - **Last resort:** a normal browser tab.
 
    To force one, set `INPACE_WINDOW`. To see which one would be picked, run `inpace --which-window`.
-4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 9](#9-updates).
+4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 10](#10-updates).
 
 ---
 
@@ -200,7 +200,40 @@ Friend invites, progress, replies, race invites and race updates can all travel 
 
 ---
 
-## 9. Updates
+## 9. The course library
+
+The [course library](https://github.com/mahmoudyosrimahmoud13/inpace-library) is a separate public GitHub repository. GitHub stores the courses, checks them and
+publishes them, so there's still no inPace server.
+
+**Adding a course from the library:**
+- **Course library** in the app downloads `library.json` from the library's GitHub Pages site. It only goes online
+  when you open that page, and it keeps a copy for an hour.
+- **Add** downloads the course file and checks its SHA-256 against the list before installing it.
+- A newer version goes through the normal update flow (section 3), so your progress is kept.
+
+**Publishing a course:**
+1. **More → Publish to the library** makes a `.zip` with the course (with answers), its small files such as the
+   cover picture, and `inpace-author.json`.
+2. That file is the author's name and key, signed together with the course's fingerprint. Change one letter of the
+   course and the signature stops matching.
+3. The submission form on GitHub opens with the details filled in. The author attaches the file and submits.
+4. A GitHub Action checks it:
+   - The course loads and the signature matches.
+   - It's under 20 MB, a license was chosen, and both promises were ticked.
+   - If the id already exists, it must be signed by the same key. That's how only the author can update a course.
+5. If it passes, the bot opens a pull request. A maintainer merges it, and another Action rebuilds `library.json`,
+   the course files and the library page.
+
+**Sharing a library course:** **More → Send a link** makes an inPace link that only holds the course id, title and
+author. The person who taps it lands on that course in their own Course library and adds it from there. If the
+course isn't in the library, the page offers to publish it or send the file.
+
+**Big videos:** a course can list `downloads:` in `course.yaml` (title, link, size). Learners see **Get this
+course's videos**, download them, and choose the folder. The lessons' relative paths then find every file.
+
+---
+
+## 10. Updates
 
 The first time you open inPace, it asks if it may keep itself up to date.
 
@@ -222,10 +255,11 @@ The first time you open inPace, it asks if it may keep itself up to date.
 
 ---
 
-## 10. When inPace goes online
+## 11. When inPace goes online
 
 Only for things you turn on or press:
 - The update check.
+- Opening the **Course library**, adding a course from it, or loading course pictures there.
 - Opening an online video you pressed play on.
 - Looking up YouTube titles when you paste links, if you tick that box.
 - A share button you click for Telegram, WhatsApp or email. That opens that app with your message ready.
@@ -235,7 +269,7 @@ Only for things you turn on or press:
 
 ---
 
-## 11. For developers: where the code is
+## 12. For developers: where the code is
 
 ```text
 inpace/
@@ -250,6 +284,7 @@ inpace/
   canon.py        the exact byte form that gets signed and fingerprinted
   exchange.py     progress, approval, card and pack files, and links that carry them
   links.py        opening inPace from inpace:// links on each kind of computer
+  library.py      the course library: signed course files, the list, downloads
   checks.py       what the checker sees: verifying a learner's history and files
   exam.py         quizzes and verified exams from a seed
   pace.py         weekly goals, streaks, breaks, finish dates

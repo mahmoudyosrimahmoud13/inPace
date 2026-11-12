@@ -194,3 +194,20 @@ as files.
 The learner picks N as the highest milestone every one of their checkers has replied about. The checker's app
 puts its stored milestones 1..N in front, keeps its stored `outline`, and then checks the whole chain as in §4.
 If it has fewer than N stored milestones it refuses and asks for the full file.
+
+## 12. Course library
+
+**Download links.** `downloads: [{title, url, size}]` in `course.yaml` (optional, up to 10, http/https only) says
+where to download course files that aren't inside the course file.
+
+**Signed submissions.** A library submission is a course `.zip` with answers, small files under `files/`, and
+`inpace-author.json`: `{kind: "library-course", course, version, hash, author, name, at, sig}`, where `hash` is the
+course fingerprint (§1) of the course as read back from the zip, `author` is the author's public key and `sig` signs
+everything else. The library accepts a course id only from the key that first published it.
+
+**library.json.** `{inpace: "library", v: 1, updated, courses: [{id, title, description, language, version, hash,
+modules, lessons, minutes, tags, license, author: {name, id, verified}, downloads, cover, pack, sha256, size,
+updated, link}]}`. Apps download `pack` only from the library's own site and install it only if its SHA-256 matches.
+
+**Course links.** `{inpace: "library-course", id, title, author}` sent as a link (§11) opens that course in the
+Course library.

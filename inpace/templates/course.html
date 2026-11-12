@@ -15,8 +15,18 @@
 
 {% if missing %}
 <section class="card note-card warn-card">
+  {% set dls = prog.course.extra.downloads %}
+  {% if dls and not media_root %}
+  <h2>{% trans trimmed %}Get this course's videos{% endtrans %}</h2>
+  <p>{% trans trimmed %}The videos and files aren't inside the course, so they don't take space until you want them. Download them, unzip them if needed, then choose the folder below.{% endtrans %}</p>
+  <div class="row wrap" style="margin-block-end:1rem">
+    {% for d in dls %}<a class="btn primary" href="{{ d.url }}" target="_blank" rel="noopener">{{ icon('upload', 18) }}{{ d.title }}{% if d.size %} · {{ d.size }}{% endif %}</a>{% endfor %}
+  </div>
+  {% else %}
   <h2>{% trans trimmed %}Where are this course's files?{% endtrans %}</h2>
   <p>{{ T('inPace can not find {n} of its videos or files. If they moved, or this course came from someone else, choose the folder where they are now.', n=missing|length) }}</p>
+  {% if dls %}<p class="small">{% trans trimmed %}Don't have them?{% endtrans %} {% for d in dls %}<a href="{{ d.url }}" target="_blank" rel="noopener">{{ d.title }}{% if d.size %} ({{ d.size }}){% endif %}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+  {% endif %}
   <form method="post" action="/courses/{{ j.course_id }}/media-folder" class="row pick-row">
     <input name="folder" id="course-folder" required dir="ltr" value="{{ media_root or '' }}" placeholder="{{ _('Full path of the course folder') }}">
     <button type="button" class="btn" data-pick-folder="#course-folder">{% trans trimmed %}Choose folder{% endtrans %}</button>

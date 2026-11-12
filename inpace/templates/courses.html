@@ -53,9 +53,11 @@
       <summary class="btn">{% trans trimmed %}More{% endtrans %}</summary>
       <div class="menu-box">
         <p class="menu-h">{% trans trimmed %}Share{% endtrans %}</p>
+        <a href="/courses/{{ c.id }}/share"><b>{% trans trimmed %}Send a link…{% endtrans %}</b></a>
         <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
         {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
         {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
+        <a href="/courses/{{ c.id }}/publish">{% trans trimmed %}Publish to the library…{% endtrans %}</a>
         <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
         <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>
         {% if r.media_root %}<form method="post" action="/courses/{{ c.id }}/refresh"><button class="link btn" style="justify-content:flex-start">{% trans trimmed %}Refresh from its folder{% endtrans %}</button></form>{% endif %}
@@ -70,8 +72,8 @@
 {% endif %}
 
 <section class="card soft row between" style="margin-top:1.5rem">
-  <span><b>{% trans trimmed %}Community course library{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Free courses made by other learners. Download one, then add it with “Add a course file”.{% endtrans %}</span></span>
-  <a class="btn" href="https://github.com/mahmoudyosrimahmoud13/inpace/tree/main/community-courses" target="_blank" rel="noopener">{% trans trimmed %}Browse the library{% endtrans %}</a>
+  <span><b>{% trans trimmed %}Course library{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Free courses made by other learners. Add one with a click, or share your own.{% endtrans %}</span></span>
+  <a class="btn" href="/library">{% trans trimmed %}Browse the library{% endtrans %}</a>
 </section>
 
 {% if samples %}

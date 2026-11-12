@@ -17,7 +17,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, integrations, pace, races, record, updater
+from . import ai, checks, editor, encourage, exchange, integrations, library, pace, races, record, updater
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -227,6 +227,18 @@ def cover(c, big: bool = False, sample: bool = False) -> Markup:
 
 
 env.globals["cover"] = cover
+
+
+def filesize(n) -> str:
+    n = float(n or 0)
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "bytes" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} GB"
+
+
+env.filters["filesize"] = filesize
 from .course import media_kind as _media_kind
 env.globals["media_kind"] = _media_kind
 env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
@@ -419,6 +431,90 @@ def create_app(vault: Vault) -> Starlette:
                          "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"]),
                          "media_root": V.media_root(c.id)})
         return page("courses.html", request, rows=rows, samples=samples)
+
+    # ---- the course library ---------------------------------------------------
+    async def library_page(request: Request):
+        """Courses other people shared in the inPace library. Only goes online when you open this page."""
+        from starlette.concurrency import run_in_threadpool
+        try:
+            index = await run_in_threadpool(library.load_index, V.home, request.query_params.get("refresh") == "1")
+        except library.LibraryProblem as e:
+            return page("library.html", request, problem=str(e), entries=[], index={})
+        entries = []
+        for e in index.get("courses", []):
+            local = V.get_course(str(e.get("id", "")))
+            state = "add" if not local else ("have" if local.hash == e.get("hash") else "update")
+            words = " ".join(str(x) for x in [e.get("id"), e.get("title"), e.get("description"), e.get("author", {}).get("name"),
+                                                " ".join(e.get("tags") or [])] if x).lower()
+            entries.append({**e, "state": state, "search": words})
+        show = str(request.query_params.get("show", ""))
+        if show and not any(e.get("id") == show for e in entries):
+            # A friend's link to a course we don't have in our list yet: look again.
+            if request.query_params.get("refresh") != "1":
+                return go("/library?refresh=1&show=" + quote(show))
+            return page("library.html", request, entries=entries, index=index, problem=None, report_url=library.REPORT_URL,
+                        site=library.SITE, show="", missing=True)
+        return page("library.html", request, entries=entries, index=index, problem=None,
+                    report_url=library.REPORT_URL, site=library.SITE, show=show)
+
+    async def library_add(request: Request):
+        from starlette.concurrency import run_in_threadpool
+        cid = request.path_params["cid"]
+        try:
+            index = await run_in_threadpool(library.load_index, V.home)
+            entry = library.find(index, cid)
+            if not entry:
+                return go("/library", err="That course isn't in the library anymore.")
+            data = await run_in_threadpool(library.download, entry)
+        except library.LibraryProblem as e:
+            return go("/library", err=str(e))
+        import io as _io
+        return _install_pack(request, _io.BytesIO(data), f"{cid}.zip")
+
+    async def share_course(request: Request):
+        """Send a course to someone. If it's in the library, a small link that adds it from there."""
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        entry = library.find(library.cached_index(V.home), cid)
+        share = None
+        if entry:
+            share = exchange.share_links(say("Try this course on inPace 🐢 Tap the link to add it:"),
+                                         library.share_data(entry), say("A course for you on inPace"))
+        return page("share_course.html", request, c=c, entry=entry, share=share,
+                    same=bool(entry and entry.get("hash") == c.hash))
+
+    async def publish_course(request: Request):
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        files = _course_files(c)
+        size = sum(p.stat().st_size for p in files.values())
+        img = c.extra.get("image")
+        big = {k: p for k, p in files.items() if k != img}
+        return page("publish.html", request, c=c, submit_url=library.submit_url(c),
+                    too_big=size > library.MAX_COURSE_BYTES and not c.extra.get("downloads"),
+                    needs_downloads=bool(big) and not c.extra.get("downloads"),
+                    big_size=sum(p.stat().st_size for p in big.values()),
+                    has_answers=bool(c.has_answers), repo=library.REPO)
+
+    async def publish_file(request: Request):
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        media = _course_files(c)
+        if sum(p.stat().st_size for p in media.values()) > library.MAX_COURSE_BYTES:
+            # Too big to carry: keep only the picture; learners get the rest from the download links.
+            img = c.extra.get("image")
+            media = {img: media[img]} if img in media else {}
+        try:
+            data = library.make_submission(V.identity, V.me["name"], c, media)
+        except library.LibraryProblem as e:
+            return go(f"/courses/{cid}/publish", err=str(e))
+        return download(data, f"{c.title} - for the inPace library.zip", "application/zip")
 
     async def sample_file(request: Request):
         """The picture of a sample course you haven't added yet."""
@@ -1399,7 +1495,7 @@ def create_app(vault: Vault) -> Starlette:
                 with zf.open(info) as src, open(target, "wb") as out:
                     shutil.copyfileobj(src, out, 1024 * 1024)
         lines = [f"Added the course “{c.title}”."]
-        if not c.has_answers:
+        if c.questions and not c.has_answers:
             lines.append("It came without answers, so practice quizzes are off.")
         if not inside and V.missing_media(c):
             lines.append("Its videos and other files aren't inside. Choose their folder on the course page.")
@@ -1497,6 +1593,8 @@ def create_app(vault: Vault) -> Starlette:
                                 then=f"/review/{learner}/{data['journey']['id']}")
                 V.store_received(data)
                 return go(f"/review/{learner}/{data['journey']['id']}")
+            if kind == "library-course":
+                return go("/library?show=" + quote(str(data.get("id", ""))))
             if kind == "race":
                 races.check_race(data)
                 if races.get_race(V, data["id"]):
@@ -1833,6 +1931,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
         Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),
+        Route("/library", needs_setup(library_page)),
+        Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
+        Route("/courses/{cid}/publish", needs_setup(publish_course)),
+        Route("/courses/{cid}/share", needs_setup(share_course)),
+        Route("/courses/{cid}/publish/file", needs_setup(publish_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/pdf", needs_setup(pdf_reader)),
         Route("/nav.json", needs_setup(nav_index)),

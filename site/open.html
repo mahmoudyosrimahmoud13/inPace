@@ -153,6 +153,15 @@
       name = String((d.checker && d.checker.name) || "Your checker");
       say(title, name + " replied to your progress", name + " ردّ على تقدّمك");
       say(what, "Open it in inPace to see their answer.", "افتحه في inPace لترى ردّه.");
+    } else if (kind === "library-course") {
+      var t = String(d.title || "a course");
+      say(title, "A course for you: " + t, "دورة لك: " + t);
+      say(what, "It's free in the inPace course library" + (d.author ? ", made by " + String(d.author) : "") + ". Open it in inPace to add it.",
+          "مجانية في مكتبة دورات inPace" + (d.author ? "، من إعداد " + String(d.author) : "") + ". افتحها في inPace لتضيفها.");
+      var see = document.createElement("p"); see.className = "small";
+      var a = document.createElement("a"); a.href = "https://mahmoudyosrimahmoud13.github.io/inpace-library/#" + encodeURIComponent(String(d.id || ""));
+      say(a, "See it in the library first", "شاهدها في المكتبة أولًا"); see.appendChild(a);
+      what.parentNode.insertBefore(see, what.nextSibling);
     } else if (kind === "race") {
       name = String((d.creator && d.creator.name) || "A friend");
       say(title, name + " invited you to a race on inPace", name + " دعاك إلى سباق على inPace");

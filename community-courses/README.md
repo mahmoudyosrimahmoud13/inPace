@@ -1,5 +1,9 @@
 # inPace community course library
 
+> **The library has moved to [inpace-library](https://github.com/mahmoudyosrimahmoud13/inpace-library).** You can now browse and add courses right inside inPace
+> (**Course library** in the sidebar) and publish yours with **More → Publish to the library**.
+> The courses below stay here for older versions of inPace.
+
 Free courses anyone can use with [inPace](../README.md).
 
 ## Use a course

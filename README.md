@@ -3,7 +3,7 @@
 <h1 align="center">inPace</h1>
 <p align="center"><b>Learn at your pace. Prove you kept it.</b><br>
 A free, open-source app that helps you follow a course and lets someone you trust check that you're really keeping up. Everything stays on your computer.</p>
-<p align="center"><a href="https://mahmoudyosrimahmoud13.github.io/inPace/"><b>Website</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inPace/guide.html"><b>Guide</b></a> · <a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><b>Download</b></a></p>
+<p align="center"><a href="https://mahmoudyosrimahmoud13.github.io/inPace/"><b>Website</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inPace/guide.html"><b>Guide</b></a> · <a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><b>Download</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><b>Course library</b></a></p>
 
 <p align="center"><img src="site/assets/shots/courses.jpg" width="820" alt="My courses in inPace: Python Basics and Reading club with their pictures, how much is done, and a search box."></p>
 
@@ -17,6 +17,12 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Videos, audio, PDFs, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
+
+**Share and find courses**
+- **[Course library](https://github.com/mahmoudyosrimahmoud13/inpace-library).** Browse free courses other learners made and add one with a click, right inside the app.
+- **Publish your own** with **More → Publish to the library**. It's signed with your inPace key, so only you can update it.
+- **Send a course as a short link.** A course from the library goes as a link, not a file, and your friend always gets the newest version.
+- **Courses with big videos** can point to a download link (Google Drive, MEGA, archive.org…). Learners download the videos, choose the folder, and every lesson finds its video.
 
 **Find your way**
 - **Search anything** with **Ctrl+K** (or `/`): lessons, courses, tasks, people and pages. My courses also has its own search box.
@@ -102,7 +108,7 @@ questions.yaml   the questions and all possible answers
 answers.yaml     which answers are right (left out when sharing with learners)
 ```
 
-A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the [community course library](community-courses).
+A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://github.com/mahmoudyosrimahmoud13/inpace-library)**, and you can share yours there too.
 
 ## For developers
 
@@ -113,7 +119,7 @@ pip install -e ".[test]"
 pytest
 ```
 
-Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#11-for-developers-where-the-code-is) has a map of the code.
+Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#12-for-developers-where-the-code-is) has a map of the code.
 
 **Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. The website in `site/` deploys on every push.
 

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Share a course') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{{ _('My courses') }}</a></p>
+  <h1 dir="auto">{{ T('Share “{title}”', title=c.title) }}.</h1>
+</div>
+
+{% if share %}
+<section class="card stack">
+  <h2>{% trans trimmed %}Send a link{% endtrans %}</h2>
+  <p class="small">{% trans trimmed %}This course is in the inPace library, so you can send a short link instead of a file. Your friend taps it and adds the course from the library, always the newest version.{% endtrans %}</p>
+  {% if not same %}<p class="note warn small">{% trans trimmed %}Your copy is different from the library's. The link gives your friend the library's version. To share your changes, publish them to the library or send the file below.{% endtrans %}</p>{% endif %}
+  {% with share=share, sid='course-link', label=_('Course link') %}{% include '_share.html' %}{% endwith %}
+</section>
+{% else %}
+<section class="card stack">
+  <h2>{% trans trimmed %}Want to share it with a link?{% endtrans %}</h2>
+  <p class="small">{% trans trimmed %}Courses in the inPace library can be shared as a short link, and anyone can find them. If this course is already in the library, open the Course library once so inPace knows.{% endtrans %}</p>
+  <div class="row wrap">
+    <a class="btn primary" href="/courses/{{ c.id }}/publish">{% trans trimmed %}Publish to the library{% endtrans %}</a>
+    <a class="btn" href="/library">{% trans trimmed %}Open the Course library{% endtrans %}</a>
+  </div>
+</section>
+{% endif %}
+
+<section class="card stack">
+  <h2>{% trans trimmed %}Or send the course file{% endtrans %}</h2>
+  <div class="row wrap">
+    <a class="btn" href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
+    {% if c.has_answers %}<a class="btn" href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

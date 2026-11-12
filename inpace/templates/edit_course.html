@@ -27,6 +27,10 @@
     <label>{% trans trimmed %}Title{% endtrans %}<input name="title" value="{{ c.title }}" dir="auto"></label>
     <label>{% trans trimmed %}Description{% endtrans %}<input name="description" value="{{ c.description }}" dir="auto"></label>
     <label>{% trans trimmed %}Lesson language{% endtrans %}<select name="language"><option value="en" {{ 'selected' if c.language != 'ar' }}>{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar" {{ 'selected' if c.language == 'ar' }}>{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
+    <label>{% trans trimmed %}Where to download the course's videos and files (optional){% endtrans %}
+      <textarea name="downloads" rows="3" dir="ltr" placeholder="All videos | https://drive.google.com/... | 2.3 GB">{% for d in c.extra.downloads or [] %}{{ d.title }} | {{ d.url }}{% if d.size %} | {{ d.size }}{% endif %}
+{% endfor %}</textarea>
+      <span class="small muted" style="font-weight:400">{% trans trimmed %}One link per line: a title, the link, and the size if you know it. Use this when the videos are too big to share inside the course file, for example a folder on Google Drive, Dropbox, MEGA or archive.org. Learners download them, then choose the folder in inPace.{% endtrans %}</span></label>
     <button class="btn">{% trans trimmed %}Save details{% endtrans %}</button>
   </form>
   <div class="stack" style="margin-top:1.5rem">

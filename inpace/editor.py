@@ -192,6 +192,13 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
         c.title = f.get("title", "").strip() or c.title
         c.description = f.get("description", "").strip()
         c.language = "ar" if f.get("language") == "ar" else "en"
+        if "downloads" in f:
+            from .course import downloads_from_lines
+            dl = downloads_from_lines(f.get("downloads", ""))
+            if dl:
+                c.extra["downloads"] = dl
+            else:
+                c.extra.pop("downloads", None)
     elif action == "add_module":
         mid = _unique("m", ids)
         lid = f"{mid}-l1"
@@ -359,6 +366,8 @@ def course_to_yaml(c: Course) -> str:
             "language": c.language, "modules": modules}
     if c.extra.get("image"):
         head["image"] = c.extra["image"]
+    if c.extra.get("downloads"):
+        head["downloads"] = c.extra["downloads"]
     if c.questions:
         qs = {}
         ans = c.answers or {}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Course library') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Course library{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}Free courses made and shared by other learners. Add one with a click: it's checked on the way, and your progress stays on this computer.{% endtrans %}</p>
+</div>
+
+{% if problem %}
+<section class="card empty">{{ mascot('think', 110) }}<p>{{ _(problem) }}</p>
+  <div class="row"><a class="btn primary" href="/library?refresh=1">{% trans trimmed %}Try again{% endtrans %}</a></div></section>
+{% else %}
+{% if missing %}<p class="note warn">{% trans trimmed %}The course in that link isn't in the library anymore.{% endtrans %}</p>{% endif %}
+{% if index.offline %}<p class="note warn">{% trans trimmed %}You're offline, so this is the list from the last time you looked.{% endtrans %}</p>{% endif %}
+<div class="row between course-tools">
+  <p class="muted small" style="margin:0">{{ T('{n} courses', n=entries|length) }} · <a href="/library?refresh=1">{% trans trimmed %}Refresh{% endtrans %}</a></p>
+  <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" value="{{ show or '' }}" placeholder="{{ _('Search the library') }}" aria-label="{{ _('Search the library') }}"></label>
+</div>
+<p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
+{% for e in entries %}
+<article class="card course-row{{ ' picked' if show and e.id == show }}" id="lib-{{ e.id }}" data-course-search="{{ e.search }}">
+  {% if e.cover %}<img class="cover" src="{{ e.cover }}" alt="" loading="lazy">{% else %}<span class="cover blank" style="--hue:{{ (e.id|length * 47) % 360 }}" aria-hidden="true">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
+  <div class="grow">
+    <h3 dir="auto">{{ e.title }}</h3>
+    {% if e.description %}<p class="muted" dir="auto">{{ e.description }}</p>{% endif %}
+    <div class="row small muted wrap">
+      <span>{{ T('{a} modules · {b} lessons', a=e.modules, b=e.lessons) }}</span>
+      {% if e.author %}<span>{{ T('by {name}', name=e.author.name) }}{% if e.author.verified %} ✓{% endif %}</span>{% endif %}
+      <span>{{ 'العربية' if e.language == 'ar' else 'English' }}</span>
+      {% for t in (e.tags or [])[:4] %}<span class="chip">{{ t }}</span>{% endfor %}
+      {% if e.downloads %}<span class="chip warn">{{ T('Videos download separately{size}', size=(' · ' ~ e.downloads[0].size) if e.downloads[0].size else '') }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="row">
+    {% if e.state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
+    {% else %}<form method="post" action="/library/{{ e.id }}/add"><button class="btn primary">{{ _('Update') if e.state == 'update' else _('Add') }}</button></form>{% endif %}
+    <a class="btn ghost small" href="{{ report_url }}?title={{ ('Report: ' ~ e.title)|urlencode }}&labels=report" target="_blank" rel="noopener">{% trans trimmed %}Report{% endtrans %}</a>
+  </div>
+</article>
+{% endfor %}
+{% endif %}
+
+<section class="card soft row between" style="margin-top:1.5rem">
+  <span><b>{% trans trimmed %}Share your own course{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}In My courses, open More on your course and choose Publish to the library.{% endtrans %}</span></span>
+  <a class="btn" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
+</section>
+{% endblock %}

@@ -927,3 +927,6 @@ main > .page { flex: 1 0 auto; width: 100%; }
 @media (max-width: 560px) { .course-row > .cover { width: 100%; } }
 label.course-filter { display: flex; flex-direction: row; align-items: center; margin: 0; font-weight: 400; }
 label.course-filter input { width: auto; border: 0; box-shadow: none; }
+.course-row.picked { box-shadow: 6px 6px 0 var(--sun); }
+.course-row > .grow { flex: 1 1 320px; min-width: 0; }
+.course-row .row.small { flex-wrap: wrap; }

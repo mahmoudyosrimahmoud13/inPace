@@ -76,6 +76,38 @@ def embed_id(ref: str) -> str:
     return m.group(1) if m else ""
 
 
+def parse_downloads(raw) -> list[dict]:
+    """Links where learners can download the course's own files (videos too big to share in the course file).
+    In course.yaml:  downloads: [{title: All videos, url: https://..., size: 2.3 GB}]"""
+    out = []
+    for d in raw if isinstance(raw, list) else []:
+        if isinstance(d, str):
+            d = {"url": d}
+        if not isinstance(d, dict) or not is_url(str(d.get("url", ""))):
+            continue
+        item = {"title": str(d.get("title") or "Course files").strip()[:120], "url": str(d["url"]).strip()}
+        if d.get("size"):
+            item["size"] = str(d["size"]).strip()[:20]
+        out.append(item)
+    return out[:10]
+
+
+def downloads_from_lines(text: str) -> list[dict]:
+    """The editor's box: one link per line, as  Title | https://link | size  (title and size optional)."""
+    out = []
+    for line in (text or "").splitlines():
+        parts = [p.strip() for p in line.split("|")]
+        url = next((p for p in parts if is_url(p)), None)
+        if not url:
+            continue
+        rest = [p for p in parts if p and p != url]
+        item = {"title": rest[0] if rest else "Course files", "url": url}
+        if len(rest) > 1:
+            item["size"] = rest[1]
+        out.append(item)
+    return parse_downloads(out)
+
+
 def safe_media_path(ref: str) -> str | None:
     """A file path inside the course (no going up a folder, no drive letters). None if it's not safe."""
     ref = (ref or "").strip().replace("\\", "/")
@@ -366,6 +398,9 @@ def load_course(files: dict[str, str]) -> Course:
         questions=questions,
         answers=answers or None,
     )
+    downloads = parse_downloads(raw.get("downloads"))
+    if downloads:
+        course.extra["downloads"] = downloads
     image = raw.get("image")
     if isinstance(image, str) and safe_media_path(image) and media_kind(image) == "image":
         course.extra["image"] = safe_media_path(image)  # the course's cover picture, a file next to the course
@@ -487,6 +522,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
     }
     if course.extra.get("image"):
         head["image"] = course.extra["image"]
+    if course.extra.get("downloads"):
+        head["downloads"] = course.extra["downloads"]
     if course.extra.get("media_index"):
         head["media_index"] = course.extra["media_index"]
     files["course.yaml"] = yaml.safe_dump(head, sort_keys=False, allow_unicode=True, width=100)

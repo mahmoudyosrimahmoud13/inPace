@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Publish to the library') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/courses">{{ _('My courses') }}</a></p>
+  <h1>{% trans trimmed %}Publish to the library{% endtrans %}.</h1>
+  <p class="lead" dir="auto">{{ T('Share “{title}” so anyone can add it to their inPace for free.', title=c.title) }}</p>
+</div>
+
+{% if needs_downloads %}
+<section class="card note-card warn-card">
+  <h2>{% trans trimmed %}Where will learners get the videos?{% endtrans %}</h2>
+  <p>{{ T('This course uses {size} of videos and files on your computer. The library only keeps the course itself, so upload the files somewhere people can download them (Google Drive, Dropbox, MEGA, archive.org…) and add the link.', size=big_size|filesize) }}</p>
+  <a class="btn primary" href="/edit/{{ c.id }}">{% trans trimmed %}Add a download link{% endtrans %}</a>
+  <p class="small muted">{% trans trimmed %}Only share videos you made yourself or have the right to share.{% endtrans %}</p>
+</section>
+{% endif %}
+{% if too_big %}<p class="note bad">{% trans trimmed %}This course is over 20 MB with its files. Put big videos on YouTube and use links in the lessons, then try again.{% endtrans %}</p>{% endif %}
+{% if not has_answers and c.questions %}<p class="note warn">{% trans trimmed %}This course has no answers, so practice quizzes won't work for others. Add answers in the editor first if you can.{% endtrans %}</p>{% endif %}
+
+<section class="card">
+  <ol class="howto">
+    <li>
+      <div><b>{% trans trimmed %}Download the course file{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}It's signed with your inPace key, so the library knows it's yours. Only you can publish updates to it later.{% endtrans %}</span></div>
+      <a class="btn primary" href="/courses/{{ c.id }}/publish/file">{{ icon('send', 18) }}{{ _('Download') }}</a>
+    </li>
+    <li>
+      <div><b>{% trans trimmed %}Open the submission form{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}It opens on GitHub with your course details filled in. You need a free GitHub account.{% endtrans %}</span></div>
+      <a class="btn" href="{{ submit_url }}" target="_blank" rel="noopener">{% trans trimmed %}Open the form{% endtrans %}</a>
+    </li>
+    <li>
+      <div><b>{% trans trimmed %}Drop the file into the form and submit{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}A bot checks it within a few minutes and replies in the form. When it passes, the library team adds it.{% endtrans %}</span></div>
+      <span></span>
+    </li>
+  </ol>
+  <p class="small muted">{% trans trimmed %}Please only share courses you made yourself (or made with AI), not copied from books or paid courses. Everything in the library is public, including quiz answers.{% endtrans %}</p>
+  <p class="small muted">{% trans trimmed %}To update your course later, change it in inPace and publish it again the same way.{% endtrans %}</p>
+</section>
+{% endblock %}

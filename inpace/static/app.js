@@ -644,7 +644,7 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   if (!box) return;
   const cards = [...document.querySelectorAll("[data-course-search]")];
   const none = document.querySelector("[data-course-none]");
-  box.addEventListener("input", () => {
+  const run = () => {
     const words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
     let shown = 0;
     cards.forEach((c) => {
@@ -653,5 +653,7 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
       shown += ok;
     });
     if (none) none.hidden = shown > 0;
-  });
+  };
+  box.addEventListener("input", run);
+  if (box.value) run();  // opened from a shared link: show that course
 })();
