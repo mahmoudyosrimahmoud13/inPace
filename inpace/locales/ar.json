@@ -1140,5 +1140,8 @@
  "Try this course on inPace 🐢 Tap the link to add it:": "جرّب هذه الدورة على inPace 🐢 اضغط الرابط لإضافتها:",
  "A course for you on inPace": "دورة لك على inPace",
  "On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.": "على أندرويد، احصل على الإصدارات الجديدة من موقع inPace. تبقى دوراتك وتقدّمك عندما تثبّت الإصدار الجديد فوق هذا.",
- "Get the newest version": "احصل على أحدث إصدار"
+ "Get the newest version": "احصل على أحدث إصدار",
+ "Restoring replaces everything on this phone with the backup.": "الاستعادة تستبدل كل شيء على هذا الهاتف بالنسخة الاحتياطية.",
+ "Backup restored.": "تمت استعادة النسخة الاحتياطية.",
+ "Restoring replaces everything on this computer with the backup.": "الاستعادة تستبدل كل شيء على هذا الجهاز بالنسخة الاحتياطية."
 }

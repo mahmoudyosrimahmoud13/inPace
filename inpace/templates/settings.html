@@ -81,16 +81,22 @@
   <p class="small muted">{% trans trimmed %}There's no way to open a backup without its password. Write it down somewhere safe.{% endtrans %}</p>
   <details class="more"><summary>{% trans trimmed %}Restore from a backup{% endtrans %}</summary>
     <form method="post" action="/settings/restore" enctype="multipart/form-data" class="stack" style="margin-block-start:.75rem">
-      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup. inPace closes afterwards; open it again.{% endtrans %}</p>
+      {% if on_phone() %}
+      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this phone with the backup.{% endtrans %}</p>
+      {% else %}
+      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup.{% endtrans %}</p>
+      {% endif %}
       <input type="file" name="file" required accept=".inpace-backup">
       <input type="password" name="password" required placeholder="{{ _("The backup's password") }}" autocomplete="current-password">
       <button class="btn danger">{% trans trimmed %}Restore{% endtrans %}</button>
     </form>
   </details>
 </section>
+{% if not on_phone() %}
 <section class="card" style="max-width:620px">
   <h2>{% trans trimmed %}Quit inPace{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}Stops inPace in the background. Your data stays safe in the folder above.{% endtrans %}</p>
   <form method="post" action="/quit"><button class="btn">{% trans trimmed %}Quit inPace{% endtrans %}</button></form>
 </section>
+{% endif %}
 {% endblock %}

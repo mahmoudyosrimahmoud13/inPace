@@ -1,9 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## v1.12.3
 
-- Android: a cleaner app icon (the inPace mark on yellow, which fits round and rounded-square icons) and a themed icon for Android 13+.
-- Android: a new app icon made with IconKitchen (in `mobile/icon/res`). The desktop app and website keep their icon.
+- Restoring a backup no longer closes inPace (on the computer or the phone). It restores and takes you to the home page.
+- Android: the "Quit inPace" button is hidden on phones (close the app like any other).
+- Android: a new app icon (made with IconKitchen) that fits round and rounded-square icons, plus a themed icon for Android 13+. The desktop app and website keep their icon.
 - Release pages list the Android download next to Windows, Mac and Linux.
 
 ## v1.12.2

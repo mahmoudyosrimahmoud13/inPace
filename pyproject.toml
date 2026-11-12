@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inpace"
-version = "1.12.2"
+version = "1.12.3"
 description = "Learn at your pace. Prove you kept it. A local, open-source learning accountability app."
 readme = "README.md"
 license = { text = "MIT" }

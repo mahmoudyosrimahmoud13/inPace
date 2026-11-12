@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -241,6 +242,7 @@ def filesize(n) -> str:
 env.filters["filesize"] = filesize
 from .course import media_kind as _media_kind
 env.globals["media_kind"] = _media_kind
+env.globals["on_phone"] = lambda: os.environ.get("INPACE_MOBILE") == "android"
 env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
 env.globals["TASK_ICON"] = {"practical": "upload", "explain": "pen", "quiz": "quiz"}
 
@@ -1813,12 +1815,9 @@ def create_app(vault: Vault) -> Starlette:
         except Exception:
             return go("/settings", err="This backup couldn't be read.")
         pace.restore_backup(V, raw, str(form.get("password", "")))
-        import os
-        import threading
-        threading.Timer(0.8, lambda: os._exit(0)).start()
-        return HTMLResponse('<!doctype html><meta charset="utf-8"><title>Restored</title>'
-                            '<body style="font-family:system-ui;padding:3rem"><h1>Backup restored</h1>'
-                            '<p>inPace closed itself so the restore takes effect. Open inPace again.</p></body>')
+        # Reopen the restored data right away (closing inPace instead looked like a crash).
+        V.__init__(V.home)
+        return go("/", ok="Backup restored.")
 
     async def ai_settings(request: Request):
         form = await request.form()

@@ -138,3 +138,32 @@ def test_download_links_in_courses(tmp_path):
     # The publish page reminds you when videos only live on your computer.
     c.post(f"/edit/{cid}", data={"action": "info", "title": "Docker", "description": "", "language": "en", "downloads": ""})
     assert "Where will learners get the videos?" in html.unescape(c.get(f"/courses/{cid}/publish").text)
+
+
+def test_restore_on_android_keeps_the_app_open(tmp_path, monkeypatch):
+    v, c = _course(tmp_path)
+    backup = c.post("/settings/backup", data={"password": "longpassword"}).content
+    fv, f = client(tmp_path, "Sara")
+    monkeypatch.setenv("INPACE_MOBILE", "android")
+    import os as _os
+    monkeypatch.setattr(_os, "_exit", lambda code: (_ for _ in ()).throw(AssertionError("closed the app")))
+    page = html.unescape(f.get("/settings").text)
+    assert "on this phone" in page and "Quit inPace" not in page
+    r = f.post("/settings/restore", data={"password": "longpassword"},
+               files={"file": ("me.inpace-backup", backup)}, follow_redirects=True)
+    assert "Backup restored." in html.unescape(r.text)
+    assert fv.me["name"] == "Omar" and fv.get_course("fastapi")
+
+
+def test_restore_on_the_computer_keeps_the_app_open(tmp_path, monkeypatch):
+    v, c = _course(tmp_path)
+    backup = c.post("/settings/backup", data={"password": "longpassword"}).content
+    fv, f = client(tmp_path, "Sara")
+    monkeypatch.delenv("INPACE_MOBILE", raising=False)
+    import os as _os
+    monkeypatch.setattr(_os, "_exit", lambda code: (_ for _ in ()).throw(AssertionError("closed the app")))
+    r = f.post("/settings/restore", data={"password": "longpassword"},
+               files={"file": ("me.inpace-backup", backup)}, follow_redirects=True)
+    assert "Backup restored." in html.unescape(r.text) and "Quit inPace" in html.unescape(f.get("/settings").text)
+    assert fv.me["name"] == "Omar" and fv.get_course("fastapi")
+    assert "Omar" in html.unescape(f.get("/").text)
