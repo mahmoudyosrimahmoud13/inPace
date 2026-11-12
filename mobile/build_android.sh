@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the inPace Android app (APK). Used by GitHub Actions, and works on your own computer too
-# (needs Flutter, Java 17 and the Android SDK; run: bash mobile/build_android.sh).
+# (needs Flutter, Java 21 and the Android SDK; run: bash mobile/build_android.sh).
 set -euo pipefail
 cd "$(dirname "$0")"
 
