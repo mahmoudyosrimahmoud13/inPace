@@ -40,7 +40,9 @@ def is_frozen() -> bool:
 
 
 def install_kind() -> str:
-    """source, deb, folder, windows or mac."""
+    """source, deb, folder, windows, mac or android."""
+    if os.environ.get("INPACE_MOBILE") == "android":
+        return "android"
     if not is_frozen():
         return "source"
     exe = Path(sys.executable).resolve()

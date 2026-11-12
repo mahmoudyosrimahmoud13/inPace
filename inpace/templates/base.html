@@ -55,7 +55,7 @@
   {% endif %}
   <main>
     <div class="page {% block width %}{% endblock %}">
-      {% if update and update.kind != 'source' %}
+      {% if update and update.kind not in ('source', 'android') %}
         {% if not update.setting %}
         <form class="update-bar" method="post" action="/updates/setting">
           <span>{% trans trimmed %}Keep inPace up to date automatically? It checks once a day and installs new versions for you. Nothing else leaves your computer.{% endtrans %}</span>

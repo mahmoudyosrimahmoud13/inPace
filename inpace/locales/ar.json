@@ -1138,5 +1138,7 @@
  "The course couldn't be downloaded. Check your internet connection.": "تعذّر تحميل الدورة. تحقق من اتصالك بالإنترنت.",
  "The downloaded course doesn't match the library's list. Try again later.": "الدورة المحمّلة لا تطابق قائمة المكتبة. حاول لاحقًا.",
  "Try this course on inPace 🐢 Tap the link to add it:": "جرّب هذه الدورة على inPace 🐢 اضغط الرابط لإضافتها:",
- "A course for you on inPace": "دورة لك على inPace"
+ "A course for you on inPace": "دورة لك على inPace",
+ "On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.": "على أندرويد، احصل على الإصدارات الجديدة من موقع inPace. تبقى دوراتك وتقدّمك عندما تثبّت الإصدار الجديد فوق هذا.",
+ "Get the newest version": "احصل على أحدث إصدار"
 }

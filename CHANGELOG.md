@@ -1,5 +1,9 @@
 # Changelog
 
+## Coming next: Android
+
+- The first steps of the Android app are in `mobile/` (see its README). It isn't released yet. You can build a test APK from **Actions → android → Run workflow**.
+
 ## v1.12.0
 
 - **Course library:** a new **Course library** page in the sidebar. Browse free courses other learners shared, search them, and add one with a click. inPace checks each course against the library's list before installing it, and offers newer versions through the normal update flow.

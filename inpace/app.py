@@ -1855,7 +1855,7 @@ def create_app(vault: Vault) -> Starlette:
         form = await request.form()
         choice = "auto" if form.get("choice") == "auto" else "off"
         V._set_meta("updates", choice)
-        if choice == "auto" and updater.install_kind() != "source":
+        if choice == "auto" and updater.install_kind() not in ("source", "android"):
             import threading
             threading.Thread(target=updater.run, args=(V,), kwargs={"force": True}, daemon=True).start()
             return go(_back(request), ok="Automatic updates are on. inPace checks once a day.")

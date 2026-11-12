@@ -32,7 +32,10 @@
 <section class="card" style="max-width:620px" id="updates">
   <h2>{% trans trimmed %}Updates{% endtrans %}</h2>
   <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>
-  {% if update.kind == 'source' %}
+  {% if update.kind == 'android' %}
+    <p class="small">{% trans trimmed %}On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.{% endtrans %}</p>
+    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/#download">{% trans trimmed %}Get the newest version{% endtrans %}</a>
+  {% elif update.kind == 'source' %}
     <p class="small">{% trans trimmed %}This copy runs from its code folder. Update it with git pull, and it uses the new code next time it starts.{% endtrans %}</p>
   {% else %}
     <form method="post" action="/updates/setting" class="row">
