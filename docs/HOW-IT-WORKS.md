@@ -175,6 +175,8 @@ Because of the link and the signature, nobody can change one milestone without b
 
 ## 8. Reminders and notifications
 
+<p align="center"><img src="../site/assets/shots/reminders.jpg" width="720" alt="The Reminders page: a weekend notification at 9:00 and a weekday alarm at 19:30."></p>
+
 **Setting reminders.** Open **Reminders** (in the sidebar, under **More** on a phone, or from Settings). A reminder has:
 - a time and the days it repeats on (or press **Every day**, **Weekdays** or **Weekends**),
 - a kind: **a notification** (a normal notification with a sound) or **an alarm** (rings until you stop it or snooze it for 10 minutes, like a clock alarm),

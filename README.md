@@ -41,6 +41,8 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Reminders and alarms.** Pick the times and days you study. Each reminder is a notification or an alarm that rings until you stop or snooze it, on your computer and your phone, even when inPace is closed. Tempo also nudges you when it helps: when he misses you after a week away, when your weekly goal is at risk, when questions are due for review, and when a finished module needs a milestone.
 - **Races.** Race friends. Only approved milestones count, so it stays fair.
 
+<p align="center"><img src="site/assets/shots/reminders.jpg" width="720" alt="The Reminders page: a weekend notification at 9:00 and a weekday alarm at 19:30."></p>
+
 **Proof that holds up**
 - **Verified exams.** Your checker's app makes the exam and keeps the answers. You take it once, offline, and their app grades it.
 - **See the real work.** Checkers can ask for any file you added, and inPace confirms it's the original.
