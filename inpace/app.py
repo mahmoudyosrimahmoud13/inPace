@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import threading
 from pathlib import Path
 from urllib.parse import quote
 
@@ -18,7 +19,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, integrations, library, organize, pace, races, record, updater
+from . import ai, checks, editor, encourage, exchange, integrations, library, notifier, organize, pace, races, record, reminders, updater
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -202,6 +203,8 @@ _ICONS = {
     "play": '<path d="M7 4.5v15l13-7.5z"/>',
     "code": '<path d="m8 7-5 5 5 5"/><path d="m16 7 5 5-5 5"/>',
     "link": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    "alarm": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.7 4 21M17.6 18.7 20 21"/>',
     "folder": '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     "library": '<path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m16 5.2 3.9-1 3.6 15.3-3.9 1z"/>',
     "plus": '<path d="M12 5v14M5 12h14"/>',
@@ -284,6 +287,9 @@ def create_app(vault: Vault) -> Starlette:
             ]
             base["active_path"] = request.url.path
             base["resume"] = _last_lesson()
+            away = reminders.touch(V)
+            if away:
+                V._set_meta("welcome_back", str(away))
         base.update(ctx)
         return HTMLResponse(env.get_template(name).render(**base))
 
@@ -306,7 +312,8 @@ def create_app(vault: Vault) -> Starlette:
         items = [{"t": say(n), "u": u, "k": say("Page")} for n, u in (
             ("Home", "/"), ("My courses", "/courses"), ("Milestones", "/milestones"), ("Races", "/races"),
             ("Make a course with AI", "/ai"), ("Make one by hand", "/edit/new"), ("People", "/people"),
-            ("Open a file", "/open"), ("Settings", "/settings"), ("Show the tour again", "/?tour=1"))]
+            ("Open a file", "/open"), ("Settings", "/settings"), ("Reminders and alarms", "/reminders"),
+            ("Show the tour again", "/?tour=1"))]
         for c in V.courses():
             jid = V.journey_for_course(c.id)
             items.append({"t": c.title, "u": f"/learn/{jid}" if jid else "/courses", "k": say("Course")})
@@ -392,8 +399,20 @@ def create_app(vault: Vault) -> Starlette:
             return go("/link?d=" + pending)
         cards = [journey_card(j) for j in V.journeys()]
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
-        return page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
-                    tour=_tour_steps() if show_tour else None)
+        resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
+                    tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
+                    reminders_set=bool(reminders.load(V)["items"]))
+        return resp
+
+    def _welcome_back() -> int | None:
+        """Back after a while: Tempo says so once, on Home."""
+        away = reminders.touch(V)
+        if away:
+            return away
+        days = V._meta("welcome_back", "") or ""
+        if days:
+            V._set_meta("welcome_back", "")
+        return int(days) if days.isdigit() else None
 
     def _tour_steps() -> list:
         """Tempo's welcome tour. Each step points at something on the screen (or nothing, for the middle of the screen)."""
@@ -891,6 +910,60 @@ def create_app(vault: Vault) -> Starlette:
         if not job or job["state"] == "done":
             return go(f"/courses?show={cid}", ok=f"Added “{c.title}”.\nIts files are copied into inPace.")
         return page("add_copying.html", request, c=c, job=job, nice_size=organize.nice_size)
+
+    # ---- Reminders and alarms ----------------------------------------------------------------------------
+    def _scheduler_status() -> str:
+        if os.environ.get("INPACE_MOBILE") == "android":
+            return "android"
+        st = V._meta("scheduler_status", "") or ""
+        return st.split(":")[0] if st else ""
+
+    async def reminders_page(request: Request):
+        if request.method == "POST":
+            form = await request.form()
+            action = str(form.get("action", ""))
+            if action == "add":
+                days = [int(d) for d in form.getlist("days") if str(d).isdigit() and int(d) in range(7)]
+                if not days:
+                    return go("/reminders", err="Choose at least one day.")
+                r = reminders.add(V, str(form.get("time", "")), days,
+                                  "alarm" if form.get("kind") == "alarm" else "notify", str(form.get("label", "")))
+                if not r:
+                    return go("/reminders", err="Choose a time for the reminder.")
+                msg = "Reminder added."
+            elif action in ("toggle", "delete"):
+                reminders.change(V, str(form.get("id", "")), action)
+                msg = "Reminder removed." if action == "delete" else "Saved."
+            elif action == "auto":
+                reminders.set_auto(V, {k: form.get(k) == "1" for k in reminders.AUTO_KINDS}, int(form.get("miss_days") or 7))
+                msg = "Saved."
+            else:
+                return go("/reminders")
+            from starlette.concurrency import run_in_threadpool
+            status = await run_in_threadpool(notifier.sync, V, True)
+            if status.startswith("error"):
+                return go("/reminders", ok=msg, err="Your computer's scheduler said no, so reminders only show while inPace is open.")
+            return go("/reminders", ok=msg)
+        d = reminders.load(V)
+        return page("reminders.html", request, r=d, status=_scheduler_status(), detail=V._meta("scheduler_status", "") or "")
+
+    async def reminders_plan(request: Request):
+        """For the Android app: everything to schedule (it asks again whenever you use inPace)."""
+        return JSONResponse(reminders.plan(V))
+
+    async def reminders_test(request: Request):
+        form = await request.form()
+        kind = "alarm" if form.get("kind") == "alarm" else "notify"
+        msg = reminders.reminder_message(V, {"label": say("Test: this is how a reminder looks")})
+        labels = {"stop": say("Stop"), "snooze": say("Snooze 10 min"), "open": say("Start studying")}
+        if kind == "alarm":
+            threading.Thread(target=notifier.alarm, args=(msg["title"], msg["body"], msg["url"], labels, V.home),
+                             daemon=True).start()
+            return go("/reminders", ok="The alarm is ringing. Stop it or snooze it.")
+        from starlette.concurrency import run_in_threadpool
+        ok = await run_in_threadpool(notifier.notify, msg["title"], msg["body"], msg["url"], V.home)
+        return go("/reminders", ok="Sent. Look for it in the corner of your screen.") if ok else \
+            go("/reminders", err="This computer didn't show the notification. Check that notifications are allowed for inPace.")
 
     async def remove_course(request: Request):
         """Delete a course. A started course needs a tick in the box first, because its progress goes too."""
@@ -2100,6 +2173,9 @@ def create_app(vault: Vault) -> Starlette:
         Route("/", needs_setup(home)),
         Route("/courses", needs_setup(courses)),
         Route("/add", needs_setup(add_hub)),
+        Route("/reminders", needs_setup(reminders_page), methods=["GET", "POST"]),
+        Route("/reminders/plan.json", needs_setup(reminders_plan)),
+        Route("/reminders/test", needs_setup(reminders_test), methods=["POST"]),
         Route("/add/folder", needs_setup(add_folder)),
         Route("/add/files", needs_setup(add_files), methods=["GET", "POST"]),
         Route("/add/organize", needs_setup(add_organize), methods=["GET", "POST"]),

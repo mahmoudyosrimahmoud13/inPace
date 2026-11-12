@@ -24,6 +24,11 @@
     {% endfor %}
   </form>
 </section>
+<section class="card" style="max-width:620px" id="reminders">
+  <div class="row">{{ icon('bell', 28) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}Reminders and alarms{% endtrans %}</h2>
+    <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Study reminders at the times you choose, and Tempo's notifications.{% endtrans %}</p></div>
+    <a class="btn primary" href="/reminders">{% trans trimmed %}Set reminders{% endtrans %}</a></div>
+</section>
 <section class="card tour-card" style="max-width:620px">
   <div class="row">{{ mascot('wave', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}The welcome tour{% endtrans %}</h2>
     <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Tempo shows you around inPace again.{% endtrans %}</p></div>

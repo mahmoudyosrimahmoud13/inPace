@@ -87,6 +87,16 @@ def _start_updates(vault: Vault) -> None:
     threading.Thread(target=loop, daemon=True).start()
 
 
+def _keep_reminders(vault: Vault) -> None:
+    """Keep the computer's scheduler in step with your reminders (for example after inPace was moved or updated)."""
+    try:
+        from . import notifier, reminders
+        if vault.is_set_up and reminders.any_active(vault):
+            notifier.sync(Vault(vault.home))  # its own connection: this runs next to the app
+    except Exception:
+        pass
+
+
 def _remember_port(home: Path, port: int) -> None:
     import json
     try:
@@ -103,8 +113,18 @@ def main() -> None:
     ap.add_argument("--no-browser", action="store_true", help="don't open a window or browser")
     ap.add_argument("--which-window", nargs="?", const="-", metavar="FILE",
                     help="say which app window would be used (optionally into FILE), then exit")
+    ap.add_argument("--remind", metavar="ID", help="show a reminder now (the computer's scheduler runs this)")
+    ap.add_argument("--check-reminders", action="store_true",
+                    help="show Tempo's automatic notifications that are due (the scheduler runs this every hour)")
     ap.add_argument("link", nargs="?", default=None, help="an inPace link to open (inpace://open/...)")
     args, _unknown = ap.parse_known_args()  # macOS may add its own arguments (-psn_...)
+    if args.remind or args.check_reminders:
+        # A small job for the scheduler: show a notification or an alarm, then exit. Never starts the app.
+        from .reminders import run_job
+        vault = Vault(args.home)
+        _quiet_streams(vault.home)
+        run_job(vault, args.remind, args.check_reminders)
+        return
     if args.which_window:
         from .window import which
         kind = which()
@@ -122,6 +142,7 @@ def main() -> None:
     _remember_port(vault.home, port)
     from .links import register, start_path
     threading.Thread(target=register, daemon=True).start()  # tapping inPace links opens this copy
+    threading.Thread(target=_keep_reminders, args=(vault,), daemon=True).start()
     url = f"http://127.0.0.1:{port}/" + start_path(args.link)
 
     # 127.0.0.1 means only this computer can reach it.

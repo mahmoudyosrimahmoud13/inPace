@@ -3,12 +3,21 @@
 {% block main %}
 <div class="hello">
   {% set t = cards[0].tempo if cards else ('wave', "Hi! I'm Tempo. Pick a course and we'll go one step at a time.", []) %}
+  {% if welcome_back %}{% set t = ('cheer', "Welcome back! It's been %s days. I missed you. Let's take one small step today.", [welcome_back]) %}{% endif %}
   {{ mascot(t[0], 104) }}
   <div>
     <h1>{{ _('Hi %s.')|format(me.name) }}</h1>
     <p class="bubble">{{ say(t[1], t[2]) }}</p>
   </div>
 </div>
+
+{% if cards and not reminders_set %}
+<a class="card tile rem-tip" href="/reminders">
+  <span class="ico">{{ icon('bell') }}</span>
+  <span><b>{% trans trimmed %}Want a reminder to study?{% endtrans %}</b>
+  <span>{% trans trimmed %}Pick a time and Tempo will remind you, with a notification or an alarm.{% endtrans %}</span></span>
+</a>
+{% endif %}
 
 {% if not cards %}
 <section class="card empty">

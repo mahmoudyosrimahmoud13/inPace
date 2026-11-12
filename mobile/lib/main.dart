@@ -3,30 +3,199 @@
 // The phone runs the same inPace app as the desktop: Python starts a small web server that only this phone can
 // reach (127.0.0.1), and this Flutter shell shows it full screen. Links to other apps (Telegram, WhatsApp,
 // email, the browser) open those apps, and inpace:// links open the right screen inside inPace.
+// Reminders, alarms and Tempo's nudges are scheduled here as Android notifications, from the plan the page
+// sends (see Reminders below and inpace/reminders.py), so they arrive even when inPace is closed.
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:app_links/app_links.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:serious_python/serious_python.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart'
     show WebViewPermissionResourceType;
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Reminders.init();
+  } catch (_) {} // inPace still works without notifications
   runApp(const InPaceApp());
+}
+
+// ---- Reminders, alarms and Tempo's nudges ------------------------------------------------------------------
+// The page sends a plan (inpace/reminders.py: plan()); every reminder time in the next 4 weeks and every
+// automatic nudge becomes a scheduled Android notification. The page sends the plan again whenever inPace is
+// used, so the schedule always matches your latest progress.
+class Reminders {
+  static final plugin = FlutterLocalNotificationsPlugin();
+  static const snoozeId = 900000; // snoozed alarms: a new plan never removes them
+  static const testId = 899999;
+  static Map<String, dynamic> labels = {};
+  static String? pendingPage; // a page to open, from a tapped notification
+  static void Function(String page)? onOpen;
+  static void Function(String text)? onToast;
+
+  static AndroidFlutterLocalNotificationsPlugin? get android =>
+      plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+  static Future<void> init() async {
+    await plugin.initialize(
+      settings: const InitializationSettings(android: AndroidInitializationSettings('ic_stat_inpace')),
+      onDidReceiveNotificationResponse: _tapped,
+    );
+    final launch = await plugin.getNotificationAppLaunchDetails();
+    final response = launch?.notificationResponse;
+    if (launch != null && launch.didNotificationLaunchApp && response != null) _tapped(response);
+  }
+
+  static void _tapped(NotificationResponse r) {
+    Map<String, dynamic> data = {};
+    try {
+      if (r.payload != null) data = jsonDecode(r.payload!) as Map<String, dynamic>;
+    } catch (_) {}
+    if (r.actionId == 'stop') return;
+    if (r.actionId == 'snooze') {
+      _snooze(data);
+      onToast?.call((labels['snoozed'] as String?) ?? 'Snoozed for 10 minutes.');
+      return;
+    }
+    final page = (data['url'] as String?) ?? '/';
+    if (onOpen != null) {
+      onOpen!(page);
+    } else {
+      pendingPage = page;
+    }
+  }
+
+  static String? takePending() {
+    final p = pendingPage;
+    pendingPage = null;
+    return p;
+  }
+
+  static NotificationDetails _details(String kind, String body) {
+    final style = BigTextStyleInformation(body);
+    if (kind == 'alarm') {
+      return NotificationDetails(
+        android: AndroidNotificationDetails(
+          'inpace_alarms', (labels['alarms'] as String?) ?? 'Alarms',
+          importance: Importance.max,
+          priority: Priority.max,
+          category: AndroidNotificationCategory.alarm,
+          fullScreenIntent: true,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          sound: const UriAndroidNotificationSound('content://settings/system/alarm_alert'),
+          additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT: keeps ringing until you act
+          timeoutAfter: 10 * 60 * 1000,
+          styleInformation: style,
+          actions: <AndroidNotificationAction>[
+            AndroidNotificationAction('snooze', (labels['snooze'] as String?) ?? 'Snooze 10 min',
+                showsUserInterface: true, cancelNotification: true),
+            AndroidNotificationAction('stop', (labels['stop'] as String?) ?? 'Stop', cancelNotification: true),
+          ],
+        ),
+      );
+    }
+    final tempo = kind == 'tempo';
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        tempo ? 'inpace_tempo' : 'inpace_reminders',
+        tempo ? ((labels['tempo'] as String?) ?? 'Tempo') : ((labels['channel'] as String?) ?? 'Reminders'),
+        importance: tempo ? Importance.defaultImportance : Importance.high,
+        priority: tempo ? Priority.defaultPriority : Priority.high,
+        category: AndroidNotificationCategory.reminder,
+        styleInformation: style,
+      ),
+    );
+  }
+
+  static Future<void> _at(int id, DateTime when, String title, String body, String kind, String url) async {
+    final at = tz.TZDateTime.from(when, tz.UTC);
+    final payload = jsonEncode({'url': url, 'title': title, 'body': body, 'kind': kind});
+    final mode = kind == 'alarm'
+        ? AndroidScheduleMode.alarmClock
+        : kind == 'tempo'
+            ? AndroidScheduleMode.inexactAllowWhileIdle
+            : AndroidScheduleMode.exactAllowWhileIdle;
+    try {
+      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body),
+          androidScheduleMode: mode, title: title, body: body, payload: payload);
+    } catch (_) {
+      // Not allowed to use exact times on this phone: a few minutes late is better than nothing.
+      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, title: title, body: body, payload: payload);
+    }
+  }
+
+  static DateTime _onOrAfter(DateTime after, int hour, int minute, DateTime now) {
+    final from = after.isAfter(now) ? after : now;
+    var when = DateTime(from.year, from.month, from.day, hour, minute);
+    if (!when.isAfter(from)) when = DateTime(from.year, from.month, from.day + 1, hour, minute);
+    return when;
+  }
+
+  static Future<void> sync(Map<String, dynamic> plan) async {
+    labels = Map<String, dynamic>.from((plan['labels'] as Map?) ?? {});
+    for (final p in await plugin.pendingNotificationRequests()) {
+      if (p.id < testId) await plugin.cancel(id: p.id);
+    }
+    final now = DateTime.now();
+    var id = 1;
+    for (final raw in (plan['reminders'] as List? ?? const [])) {
+      final r = raw as Map<String, dynamic>;
+      final hm = (r['time'] as String).split(':');
+      final days = (r['days'] as List).cast<int>(); // 0 = Monday
+      for (var i = 0; i < 28 && id < 400; i++) {
+        final when = DateTime(now.year, now.month, now.day + i, int.parse(hm[0]), int.parse(hm[1]));
+        if (!when.isAfter(now) || !days.contains(when.weekday - 1)) continue;
+        await _at(id++, when, r['title'] as String, r['body'] as String, r['kind'] as String, r['url'] as String);
+      }
+    }
+    final evening = ((plan['evening'] as String?) ?? '18:30').split(':');
+    for (final raw in (plan['auto'] as List? ?? const [])) {
+      final a = raw as Map<String, dynamic>;
+      final after = DateTime.parse(a['after'] as String).toLocal();
+      final when = _onOrAfter(after, int.parse(evening[0]), int.parse(evening[1]), now);
+      await _at(id++, when, a['title'] as String, a['body'] as String, 'tempo', a['url'] as String);
+    }
+  }
+
+  static Future<void> _snooze(Map<String, dynamic> data) async {
+    await _at(snoozeId + DateTime.now().second, DateTime.now().add(const Duration(minutes: 10)),
+        (data['title'] as String?) ?? 'inPace', (data['body'] as String?) ?? '', 'alarm', (data['url'] as String?) ?? '/');
+  }
+
+  static Future<bool> enabled() async => (await android?.areNotificationsEnabled()) ?? false;
+
+  static Future<bool> allow() async {
+    await android?.requestNotificationsPermission();
+    if ((await android?.canScheduleExactNotifications()) == false) await android?.requestExactAlarmsPermission();
+    return enabled();
+  }
+
+  static Future<void> test(String kind, Map<String, dynamic> message, Map<String, dynamic> newLabels) async {
+    labels = {...labels, ...newLabels};
+    if (!await enabled() && !await allow()) return;
+    final body = (message['body'] as String?) ?? '';
+    await plugin.show(id: testId, title: message['title'] as String?, body: body,
+        notificationDetails: _details(kind == 'alarm' ? 'alarm' : 'notify', body),
+        payload: jsonEncode({...message, 'kind': kind}));
+  }
 }
 
 class InPaceApp extends StatelessWidget {
@@ -95,6 +264,10 @@ class _ShellState extends State<Shell> {
       );
       await _waitUntilUp();
       _listenForLinks();
+      final fromNotification = Reminders.takePending();
+      if (fromNotification != null) _pendingLink = fromNotification.replaceFirst(RegExp(r'^/'), '');
+      Reminders.onOpen = (page) => _openPage(page.replaceFirst(RegExp(r'^/'), ''));
+      Reminders.onToast = _toast;
       _openWebView();
     } catch (e) {
       setState(() => _problem = '$e');
@@ -127,6 +300,14 @@ class _ShellState extends State<Shell> {
     final m = RegExp(r'(?:inpace://open/?|/open(?:\.html)?#)([A-Za-z0-9_-]{16,})').firstMatch(text);
     if (m == null) return;
     final path = 'link?d=${m.group(1)}';
+    if (_web == null) {
+      _pendingLink = path;
+    } else {
+      _web!.loadRequest(Uri.parse(_base + path));
+    }
+  }
+
+  void _openPage(String path) {
     if (_web == null) {
       _pendingLink = path;
     } else {
@@ -186,7 +367,22 @@ class _ShellState extends State<Shell> {
         await _pickFolder(msg['target'] as String);
       case 'share':
         await Share.share(msg['text'] as String);
+      case 'notifySync':
+        await Reminders.sync(Map<String, dynamic>.from(msg['plan'] as Map));
+      case 'notifyState':
+        await _sendNotifyState();
+      case 'notifyAllow':
+        await Reminders.allow();
+        await _sendNotifyState();
+      case 'notifyTest':
+        await Reminders.test(msg['kind'] as String, Map<String, dynamic>.from(msg['message'] as Map),
+            Map<String, dynamic>.from((msg['labels'] as Map?) ?? {}));
     }
+  }
+
+  Future<void> _sendNotifyState() async {
+    final on = await Reminders.enabled();
+    await _web?.runJavaScript('window.inpaceNotifyState && window.inpaceNotifyState(${jsonEncode({'enabled': on})})');
   }
 
   String _fileName(http.BaseResponse r, String url) {

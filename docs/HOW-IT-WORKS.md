@@ -10,7 +10,7 @@ inPace runs on your own computer or Android phone with no server, no account and
 ## The short version
 
 - **inPace is a small website that only lives on your computer.** When you open it, it starts a tiny web server that only your own computer can reach (`127.0.0.1`). It shows that server's pages in its own app window.
-- **The Android app is the same inPace.** It carries Python inside it and runs the very same server on the phone. A full-screen Flutter window shows its pages. See [section 12](#12-on-android).
+- **The Android app is the same inPace.** It carries Python inside it and runs the very same server on the phone. A full-screen Flutter window shows its pages. See [section 13](#13-on-android).
 - **Everything is saved in one folder** on your computer, called your data folder.
 - **Your progress is signed.** Each milestone is signed with a key that only your computer has, and it's linked to the milestone before it. If anyone changes the history later, the signatures stop matching.
 - **People check each other by swapping links or files.** You send your progress as a link (or a file). Your checker's inPace checks the signatures, and they send back a small approval the same way. Nothing goes through us.
@@ -30,7 +30,7 @@ When you double-click inPace:
    - **Last resort:** a normal browser tab.
 
    To force one, set `INPACE_WINDOW`. To see which one would be picked, run `inpace --which-window`.
-4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 10](#10-updates).
+4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 11](#11-updates).
 
 ---
 
@@ -173,7 +173,44 @@ Because of the link and the signature, nobody can change one milestone without b
 - **English and Arabic:** the whole app, right to left in Arabic.
 - **The welcome tour:** Tempo the turtle shows you around the first time. You can replay it from Settings.
 
-## 8. Links: opening inPace from other apps
+## 8. Reminders and notifications
+
+**Setting reminders.** Open **Reminders** (in the sidebar, under **More** on a phone, or from Settings). A reminder has:
+- a time and the days it repeats on (or press **Every day**, **Weekdays** or **Weekends**),
+- a kind: **a notification** (a normal notification with a sound) or **an alarm** (rings until you stop it or snooze it for 10 minutes, like a clock alarm),
+- an optional name, like "FastAPI after dinner". Without one it says "Time to study".
+
+The notification tells you what's next, for example *Next: "Lists" in Python Basics*, and tapping it opens inPace on that lesson.
+
+**Tempo's notifications.** Four automatic ones, each of which you can turn off on the Reminders page:
+
+| Kind | When |
+|---|---|
+| Tempo misses you | You haven't opened inPace for 7 days (you choose 1 to 14). He asks once more after twice as long, then stays quiet until you're back. |
+| Your weekly goal | In the last two days of a week, if you've saved fewer milestones than you planned (not during a break). |
+| Review time | Old questions are due for the daily review. |
+| Save your milestone | You finished a module but haven't saved a milestone since. It names your checker, if you have one. |
+
+They only come in the evening (5 pm to 10 pm on a computer, 6:30 pm on a phone), at most one of each kind a day. When you come back after 3 days or more, Tempo also says welcome back on Home.
+
+**How they arrive while inPace is closed.** inPace isn't running most of the time, so it hands the work to the device:
+
+| Device | How |
+|---|---|
+| Windows | Task Scheduler, tasks in an "inPace" folder. Notifications are Windows notifications; an alarm rings with Windows' alarm sound and has Snooze and Dismiss. |
+| Mac | launchd agents in `~/Library/LaunchAgents` (`org.inpace.*`). An alarm plays a sound and shows Snooze, Start studying and Stop. The first notification may ask you to allow notifications from Script Editor, which is what shows them. |
+| Linux | systemd user timers (`~/.config/systemd/user/inpace-*`), or cron if there's no systemd. Notifications use `notify-send`; an alarm rings with `paplay` and asks with `zenity` or `kdialog`. |
+| Android | Android's own notification schedule: every reminder time for the next 4 weeks, plus Tempo's notifications. inPace refreshes it whenever you use the app. Alarms ring until you press Stop or Snooze, also on the lock screen. |
+
+On a computer the scheduler runs a small part of inPace (`inpace --remind <id>` for a reminder, `inpace --check-reminders` every hour for Tempo's notifications). It shows the notification and exits; it never opens the app window by itself. inPace re-registers the tasks each time it starts, so moving or updating the app keeps them working. Running from source on Windows, reminders only work in the installed app.
+
+**Try it** on the Reminders page sends a test notification or rings a test alarm, so you can check that your device allows them.
+
+**Nothing goes online.** Every message is made from your own data folder. Your reminders are saved there too (in `vault.db`).
+
+---
+
+## 9. Links: opening inPace from other apps
 
 Friend invites, progress, replies, race invites and race updates can all travel as a link. You can send them in any chat or email.
 
@@ -209,7 +246,7 @@ Friend invites, progress, replies, race invites and race updates can all travel 
 
 ---
 
-## 9. The course library
+## 10. The course library
 
 The [course library](https://github.com/mahmoudyosrimahmoud13/inpace-library) is a separate public GitHub repository. GitHub stores the courses, checks them and
 publishes them, so there's still no inPace server.
@@ -242,7 +279,7 @@ course's videos**, download them, and choose the folder. The lessons' relative p
 
 ---
 
-## 10. Updates
+## 11. Updates
 
 The first time you open inPace, it asks if it may keep itself up to date.
 
@@ -265,7 +302,7 @@ The first time you open inPace, it asks if it may keep itself up to date.
 
 ---
 
-## 11. When inPace goes online
+## 12. When inPace goes online
 
 Only for things you turn on or press:
 - The update check.
@@ -279,7 +316,7 @@ Only for things you turn on or press:
 
 ---
 
-## 12. On Android
+## 13. On Android
 
 The phone app is the full inPace, not a smaller copy. The same Python code, pages and data format run on the phone.
 
@@ -303,6 +340,7 @@ The phone app is the full inPace, not a smaller copy. The same Python code, page
 | Record a voice note | Asks for the microphone the first time |
 | Play a video full screen, or press the back button | Works as you'd expect. Back goes back inside inPace. |
 | Press **More apps…** to share | Android's share sheet |
+| Set reminders | Android notifications and alarms (see [section 8](#8-reminders-and-notifications)). The first time, inPace asks to allow notifications. |
 
 **The layout** is the same pages as on a computer. On narrow screens the sidebar becomes a tab bar at the bottom (Home, Courses, Add, Milestones, More), and buttons and fields get bigger.
 
@@ -321,7 +359,7 @@ To build it on your own computer you need Flutter, Java 21 and the Android SDK, 
 
 ---
 
-## 13. For developers: where the code is
+## 14. For developers: where the code is
 
 ```text
 inpace/
@@ -346,6 +384,8 @@ inpace/
   updater.py      update check, download, verify, install
   integrations.py native folder picker, AI connections and other small OS helpers
   organize.py     sorting a neat or messy folder into a course plan, AI sorting, copying files in
+  reminders.py    reminders, alarms and Tempo's notifications: what's due, the messages, the Android plan
+  notifier.py     notifications and alarms on a computer, and its scheduler (Task Scheduler, launchd, systemd, cron)
   templates/      pages (Jinja)
   static/         CSS, JavaScript, fonts, icons, pdf.js
   locales/ar.json Arabic text

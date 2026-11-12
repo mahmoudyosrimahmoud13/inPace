@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.14.0
+
+- **Reminders and alarms.** Pick a time and the days you study (or Every day, Weekdays, Weekends). Each reminder is a notification or an **alarm that rings until you stop it or snooze it for 10 minutes**. They tell you the next lesson, and tapping one opens inPace right there.
+- **They work while inPace is closed,** on Windows (Task Scheduler), Mac (launchd), Linux (systemd or cron) and Android (Android's own notifications, also on the lock screen).
+- **Tempo's notifications**, each one can be turned off: Tempo misses you after 7 days away (you choose 1 to 14), your weekly goal is at risk, questions are ready for review, and a finished module needs a milestone. They come in the evening, at most one of each kind a day.
+- **Welcome back:** after 3 days or more away, Tempo says so on Home.
+- **Try it:** send a test notification or ring a test alarm from the Reminders page.
+- Fixed: the Add a course page named a button that's really called "Edit as one file".
+
 ## v1.13.2
 
 - Fixed: copying a course's files into inPace could say "done" a moment before it had finished. (A test on Mac caught this and stopped v1.13.1.)

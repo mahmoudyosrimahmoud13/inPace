@@ -24,6 +24,12 @@ def start_path(link: str | None) -> str:
     """The first page to show when inPace was opened with a link, or "" for Home."""
     if not link:
         return ""
+    import re
+    # inpace://go/<page>: a notification that opens a page of inPace (only pages, never other sites)
+    go = re.match(r"^inpace://go(/[A-Za-z0-9/_.?=&%-]*)$", link.strip())
+    if go:
+        page = go.group(1)
+        return page.lstrip("/") if "//" not in page and ".." not in page else ""
     from .exchange import link_body
     body = link_body(link if link.startswith("inpace:") or "#" in link else "inpace:" + link)
     return f"link?d={body}" if body else ""

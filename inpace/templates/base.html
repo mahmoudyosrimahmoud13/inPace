@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=22">
+<link rel="stylesheet" href="/static/style.css?v=23">
 </head>
 <body>
 <header class="top">
@@ -48,6 +48,7 @@
       <p class="side-empty">{% trans trimmed %}Nobody yet{% endtrans %}</p>
     {% endfor %}
     <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}</a>
+    <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <div class="side-bottom">
       <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
@@ -105,7 +106,7 @@
   {% if me %}
   {% set p = active_path %}
   {% set waiting = checking|sum(attribute='waiting') if checking else 0 %}
-  {% set more_on = p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') %}
+  {% set more_on = p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') %}
   <nav class="tabbar" aria-label="{{ _('Main') }}">
     <a href="/" class="{{ 'on' if p == '/' }}" {{ 'aria-current=page' if p == '/' }}>{{ icon('home', 22) }}<span>{{ _("Home") }}</span></a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}<span>{{ _("Courses") }}</span></a>
@@ -119,6 +120,7 @@
     <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}</a>
     <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}{% if waiting %}<em class="badge">{{ waiting }}</em>{% endif %}</a>
     <a href="/open" class="{{ 'on' if p.startswith('/open') }}">{{ icon('open', 22) }}{{ _("Open a file") }}</a>
+    <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon', 22) }}</span><span class="when-dark">{{ icon('sun', 22) }}</span>{{ _('Switch light or dark mode') }}</button>
   </dialog>
@@ -128,6 +130,6 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
-<script src="/static/app.js?v=16"></script>
+<script src="/static/app.js?v=17"></script>
 </body>
 </html>

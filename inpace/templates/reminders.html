@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Reminders and alarms') }}{% endblock %}
+{% set DAYS = [_('Mon'), _('Tue'), _('Wed'), _('Thu'), _('Fri'), _('Sat'), _('Sun')] %}
+{% macro days_text(days) %}{% if days|length == 7 %}{{ _('Every day') }}{% elif days == [0, 1, 2, 3, 4] %}{{ _('Weekdays') }}{% elif days == [5, 6] %}{{ _('Weekends') }}{% else %}{% for d in days %}{{ DAYS[d] }}{{ '، ' if lang == 'ar' and not loop.last else ', ' if not loop.last }}{% endfor %}{% endif %}{% endmacro %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/settings">{% trans trimmed %}Settings{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Reminders and alarms{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Tempo reminds you to study at the times you choose, and nudges you when it helps.{% endtrans %}</p>
+</div>
+
+{% if status == 'android' %}
+<div class="note warn rem-allow" data-notify-ask hidden>
+  <span>{% trans trimmed %}Allow notifications, so reminders can reach you even when inPace is closed.{% endtrans %}</span>
+  <button type="button" class="btn primary" data-notify-allow>{% trans trimmed %}Allow notifications{% endtrans %}</button>
+</div>
+{% elif status == 'ok' %}
+<p class="note ok">{% trans trimmed %}Reminders work even when inPace is closed.{% endtrans %}</p>
+{% elif status in ('unsupported', 'error') %}
+<div class="note warn"><p style="margin:0">{% trans trimmed %}On this computer, reminders only show while inPace is open.{% endtrans %}</p>
+  <p class="small" style="margin:.3rem 0 0" dir="ltr">{{ detail }}</p></div>
+{% endif %}
+
+<section class="section">
+  <h2>{% trans trimmed %}Your reminders{% endtrans %}</h2>
+  {% for x in r['items'] %}
+  <article class="card rem-row {{ '' if x.on else 'off' }}">
+    <span class="rem-icon" aria-hidden="true">{{ icon('bell' if x.kind == 'notify' else 'alarm', 26) }}</span>
+    <div class="grow">
+      <p class="rem-time" dir="ltr">{{ x.time }}</p>
+      <p class="rem-what"><b dir="auto">{{ x.label or _('Time to study') }}</b></p>
+      <p class="small muted">{{ days_text(x.days) }} · {{ _('Alarm') if x.kind == 'alarm' else _('Notification') }}{% if not x.on %} · {{ _('Off') }}{% endif %}</p>
+    </div>
+    <form method="post"><input type="hidden" name="id" value="{{ x.id }}">
+      <button class="btn {{ '' if x.on else 'primary' }}" name="action" value="toggle">{{ _('Turn off') if x.on else _('Turn on') }}</button>
+      <button class="btn icon-btn" name="action" value="delete" aria-label="{{ _('Delete') }}" title="{{ _('Delete') }}">{{ icon('x', 18) }}</button>
+    </form>
+  </article>
+  {% else %}
+  <div class="card rem-empty">{{ mascot('think', 80) }}
+    <p>{% trans trimmed %}No reminders yet. Pick a time you're usually free, like after dinner, and Tempo will remind you.{% endtrans %}</p></div>
+  {% endfor %}
+</section>
+
+<form method="post" class="card stack" id="add">
+  <h2 style="margin:0">{% trans trimmed %}Add a reminder{% endtrans %}</h2>
+  <input type="hidden" name="action" value="add">
+  <label>{% trans trimmed %}Time{% endtrans %}<input type="time" name="time" value="19:00" required class="rem-time-input"></label>
+  <fieldset class="rem-days">
+    <legend>{% trans trimmed %}Days{% endtrans %}</legend>
+    <div class="rem-day-chips">
+      {% for d in DAYS %}<label class="chip-check"><input type="checkbox" name="days" value="{{ loop.index0 }}" checked><span>{{ d }}</span></label>{% endfor %}
+    </div>
+    <div class="row small">
+      <button type="button" class="btn" data-days="0,1,2,3,4,5,6">{{ _('Every day') }}</button>
+      <button type="button" class="btn" data-days="0,1,2,3,4">{{ _('Weekdays') }}</button>
+      <button type="button" class="btn" data-days="5,6">{{ _('Weekends') }}</button>
+    </div>
+  </fieldset>
+  <fieldset class="source-pick">
+    <legend>{% trans trimmed %}How should it remind you?{% endtrans %}</legend>
+    <label class="choice"><input type="radio" name="kind" value="notify" checked><span><b>{% trans trimmed %}A notification{% endtrans %}</b><br>
+      <span class="small muted">{% trans trimmed %}A normal notification with a sound.{% endtrans %}</span></span></label>
+    <label class="choice"><input type="radio" name="kind" value="alarm"><span><b>{% trans trimmed %}An alarm{% endtrans %}</b><br>
+      <span class="small muted">{% trans trimmed %}Rings until you stop it or snooze it for 10 minutes, like a clock alarm.{% endtrans %}</span></span></label>
+  </fieldset>
+  <label>{% trans trimmed %}Name (optional){% endtrans %}<input name="label" maxlength="80" dir="auto" placeholder="{{ _('For example: FastAPI after dinner') }}"></label>
+  <button class="btn primary big">{% trans trimmed %}Add the reminder{% endtrans %}</button>
+</form>
+
+<form method="post" class="card stack" id="tempo">
+  <input type="hidden" name="action" value="auto">
+  <div class="row">{{ mascot('happy', 64) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}Tempo's notifications{% endtrans %}</h2>
+    <p class="small muted" style="margin:.2rem 0 0">{% trans trimmed %}Tempo only speaks up when it helps. Turn off any you don't want.{% endtrans %}</p></div></div>
+  <label class="check"><input type="checkbox" name="miss" value="1" {{ 'checked' if r.auto.miss }}>
+    <span><b>{% trans trimmed %}Tempo misses you{% endtrans %}</b><br><span class="small muted rem-miss">{% trans trimmed %}When you haven't opened inPace for{% endtrans %}
+      <select name="miss_days" aria-label="{{ _('Days') }}">{% for n in range(1, 15) %}<option value="{{ n }}" {{ 'selected' if n == r.miss_days }}>{{ n }}</option>{% endfor %}</select>
+      {% trans trimmed %}days. He asks once more a while later, then stays quiet.{% endtrans %}</span></span></label>
+  <label class="check"><input type="checkbox" name="goal" value="1" {{ 'checked' if r.auto.goal }}>
+    <span><b>{% trans trimmed %}Your weekly goal{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Near the end of the week, if you're behind on the milestones you planned.{% endtrans %}</span></span></label>
+  <label class="check"><input type="checkbox" name="review" value="1" {{ 'checked' if r.auto.review }}>
+    <span><b>{% trans trimmed %}Review time{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}When old questions are ready for a quick review.{% endtrans %}</span></span></label>
+  <label class="check"><input type="checkbox" name="milestone" value="1" {{ 'checked' if r.auto.milestone }}>
+    <span><b>{% trans trimmed %}Save your milestone{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}When you finished a module but haven't saved a milestone yet.{% endtrans %}</span></span></label>
+  <p class="small muted" style="margin:0">{% trans trimmed %}These come in the evening, at most one of each kind a day.{% endtrans %}</p>
+  <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
+</form>
+
+<section class="card stack">
+  <h2 style="margin:0">{% trans trimmed %}Try it{% endtrans %}</h2>
+  <p class="small muted" style="margin:0">{% trans trimmed %}See how a reminder looks and sounds on this device.{% endtrans %}</p>
+  <form method="post" action="/reminders/test" class="row">
+    <button class="btn" name="kind" value="notify" data-notify-test="notify">{{ icon('bell', 18) }}{% trans trimmed %}Send a test notification{% endtrans %}</button>
+    <button class="btn" name="kind" value="alarm" data-notify-test="alarm">{{ icon('alarm', 18) }}{% trans trimmed %}Test the alarm{% endtrans %}</button>
+  </form>
+</section>
+{% endblock %}

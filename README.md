@@ -38,6 +38,7 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **A checker you trust.** Send your friend link on Telegram, WhatsApp or email. They tap it, inPace opens and adds you, and one more tap sends theirs back. Then send your progress the same way. Your friend, parent or mentor sees what you did and approves it. They don't need to know the subject.
 - **Links instead of files.** Friend invites, progress and replies go as links that open inPace straight on the right screen. Progress links only carry what your checker hasn't seen yet, so they stay small. When something is too big for a link, inPace makes a file instead.
 - **Weekly goals and breaks.** Set a pace, see your streak and finish date. Planned breaks don't count against you.
+- **Reminders and alarms.** Pick the times and days you study. Each reminder is a notification or an alarm that rings until you stop or snooze it, on your computer and your phone, even when inPace is closed. Tempo also nudges you when it helps: when he misses you after a week away, when your weekly goal is at risk, when questions are due for review, and when a finished module needs a milestone.
 - **Races.** Race friends. Only approved milestones count, so it stays fair.
 
 **Proof that holds up**
@@ -64,6 +65,7 @@ The **Android app** is the whole of inPace, not a smaller version: the same cour
 - **Add your class material** from files you pick or a folder on your phone, sorted for you.
 - **Send progress** to your checker on WhatsApp or Telegram, and inPace links open straight in the app.
 - **Move between phone and computer** with a backup.
+- **Reminders and alarms** arrive as Android notifications, even when the app is closed.
 - **Updating:** download the new APK and tap *Update*. Your courses and progress stay.
 
 ## How it works
@@ -138,7 +140,7 @@ pip install -e ".[test]"
 pytest
 ```
 
-Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#13-for-developers-where-the-code-is) has a map of the code.
+Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#14-for-developers-where-the-code-is) has a map of the code.
 
 **Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. A second workflow builds the Android APK (signed with the release key from the repository secrets) and adds it to the same release. The website in `site/` deploys on every push.
 

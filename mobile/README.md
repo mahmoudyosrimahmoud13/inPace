@@ -16,7 +16,7 @@ mobile/
 ```
 
 How the app works (start-up, data folder, files, links, permissions, updates): see
-[How inPace works → On Android](../docs/HOW-IT-WORKS.md#12-on-android). Screenshots are on the
+[How inPace works → On Android](../docs/HOW-IT-WORKS.md#13-on-android). Screenshots are on the
 [website](https://mahmoudyosrimahmoud13.github.io/inPace/#phone).
 
 The Android project files (`android/`) aren't kept in git. GitHub makes them fresh with `flutter create` on every
@@ -53,6 +53,7 @@ pick the background color `#FFD43B`, and download the Android files. Unzip, and 
 - The top bar fits phone screens
 - A tab bar at the bottom (Home, Courses, Add, Milestones, More), calmer pages and bigger buttons
 - Restoring a backup keeps the app open
+- Reminders, alarms (ring until Stop or Snooze, also on the lock screen) and Tempo's notifications, scheduled with flutter_local_notifications
 - On version tags, the APKs are added to the GitHub release, and the website has an Android download button
 
 ## Next

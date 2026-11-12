@@ -46,13 +46,59 @@ if 'android:scheme="mailto"' not in m:
         m = m.replace("</queries>", wanted + "    </queries>", 1)
     else:
         m = m.replace("</manifest>", "    <queries>\n" + wanted + "    </queries>\n</manifest>", 1)
+# Reminders and alarms (flutter_local_notifications): permissions, the plugin's receivers, and an activity that
+# can show a ringing alarm over the lock screen.
+for p in ("android.permission.POST_NOTIFICATIONS", "android.permission.VIBRATE", "android.permission.RECEIVE_BOOT_COMPLETED",
+          "android.permission.USE_EXACT_ALARM", "android.permission.USE_FULL_SCREEN_INTENT", "android.permission.WAKE_LOCK"):
+    if p not in m:
+        m = m.replace("<application", f'<uses-permission android:name="{p}"/>\n    <application', 1)
+if "SCHEDULE_EXACT_ALARM" not in m:  # Android 12 (Android 13+ uses USE_EXACT_ALARM above)
+    m = m.replace("<application", '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>\n    <application', 1)
+receivers = """
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+"""
+if "ScheduledNotificationReceiver" not in m:
+    m = m.replace("</application>", receivers + "    </application>", 1)
+if "showWhenLocked" not in m:
+    m = re.sub(r'(<activity\b(?=[^>]*MainActivity))', r'\1 android:showWhenLocked="true" android:turnScreenOn="true"', m, count=1)
 manifest.write_text(m, encoding="utf-8")
+
+# The small notification icon (white inPace mark), kept even when unused resources are removed from release builds.
+res = ROOT / "src" / "main" / "res"
+(res / "drawable").mkdir(parents=True, exist_ok=True)
+(res / "drawable" / "ic_stat_inpace.xml").write_text("""<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="58" android:viewportHeight="58">
+    <group android:translateX="0" android:translateY="1">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:strokeLineCap="round" android:pathData="M15,42L42,16"/>
+        <path android:fillColor="#FFFFFFFF" android:pathData="M8,42a7,7 0 1,0 14,0a7,7 0 1,0 -14,0"/>
+        <path android:fillColor="#FFFFFFFF" android:pathData="M22,29a7,7 0 1,0 14,0a7,7 0 1,0 -14,0"/>
+        <path android:fillColor="#FFFFFFFF" android:pathData="M33,16a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"/>
+    </group>
+</vector>
+""", encoding="utf-8")
+(res / "raw").mkdir(parents=True, exist_ok=True)
+(res / "raw" / "keep.xml").write_text(
+    '<?xml version="1.0" encoding="utf-8"?>\n<resources xmlns:tools="http://schemas.android.com/tools" '
+    'tools:keep="@drawable/ic_stat_inpace" />\n', encoding="utf-8")
 
 for name in ("build.gradle.kts", "build.gradle"):
     g = ROOT / name
     if g.exists():
         t = g.read_text(encoding="utf-8")
         t = re.sub(r"minSdk(?:Version)?\s*=?\s*flutter\.minSdkVersion", "minSdk = 24" if name.endswith("kts") else "minSdkVersion 24", t)
+        # The notifications plugin uses newer Java date and time classes; "desugaring" brings them to older Androids.
+        if name.endswith("kts") and "isCoreLibraryDesugaringEnabled" not in t:
+            t = t.replace("compileOptions {", "compileOptions {\n        isCoreLibraryDesugaringEnabled = true", 1)
+            t = t.rstrip() + '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
         g.write_text(t, encoding="utf-8")
 print("Android project ready:", manifest)
 

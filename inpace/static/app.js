@@ -709,6 +709,39 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
     }, true);
   });
 
+  // Reminders: the app schedules Android notifications from inPace's plan (reminders, alarms and Tempo's
+  // nudges). The plan is sent again whenever you use inPace (at most every 30 minutes), so it stays up to date.
+  const onReminders = location.pathname === "/reminders";
+  const syncPlan = async (force) => {
+    let last = 0;
+    try { last = +localStorage.getItem("inpace-plan-at") || 0; } catch (e) {}
+    if (!force && Date.now() - last < 30 * 60e3) return;
+    try {
+      const r = await fetch("/reminders/plan.json");
+      if (!r.ok) return;
+      send({ type: "notifySync", plan: await r.json() });
+      try { localStorage.setItem("inpace-plan-at", String(Date.now())); } catch (e) {}
+    } catch (e) {}
+  };
+  syncPlan(onReminders);
+  window.inpaceNotifyState = (state) => {
+    const ask = document.querySelector("[data-notify-ask]");
+    if (ask) ask.hidden = !!(state && state.enabled);
+    if (state && state.enabled) syncPlan(true);
+  };
+  if (onReminders) send({ type: "notifyState" });
+  document.querySelectorAll("[data-notify-allow]").forEach((btn) =>
+    btn.addEventListener("click", () => send({ type: "notifyAllow" })));
+  document.querySelectorAll("[data-notify-test]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      try {
+        const plan = await (await fetch("/reminders/plan.json")).json();
+        send({ type: "notifyTest", kind: btn.dataset.notifyTest, message: plan.test, labels: plan.labels });
+      } catch (err) {}
+    });
+  });
+
   // "More apps…" opens Android's share sheet.
   document.querySelectorAll("[data-share]").forEach((btn) => {
     btn.hidden = false;
@@ -873,3 +906,11 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   sheet.querySelector("[data-more-close]").addEventListener("click", close);
   sheet.addEventListener("click", (e) => { if (e.target === sheet) close(); });  // tap outside
 })();
+
+// Reminders: "Every day", "Weekdays" and "Weekends" tick the right days.
+document.querySelectorAll("[data-days]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const on = btn.dataset.days.split(",");
+    btn.closest("form").querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
+  });
+});
