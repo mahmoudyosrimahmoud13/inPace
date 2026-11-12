@@ -943,3 +943,19 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
     });
   });
 })();
+
+// "⋯" menus: only one open at a time; a tap outside or Escape closes it.
+(() => {
+  const menus = () => document.querySelectorAll("details.menu[open]");
+  document.addEventListener("toggle", (e) => {
+    const d = e.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("menu") || !d.open) return;
+    menus().forEach((m) => { if (m !== d) m.open = false; });
+  }, true);
+  document.addEventListener("click", (e) => {
+    menus().forEach((m) => { if (!m.contains(e.target)) m.open = false; });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") menus().forEach((m) => { m.open = false; m.querySelector("summary")?.focus(); });
+  });
+})();

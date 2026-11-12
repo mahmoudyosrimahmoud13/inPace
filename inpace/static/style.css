@@ -1186,3 +1186,14 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
   .course-body { padding-inline-end: 1rem; }
 }
 .course-card:has(details[open]) { z-index: 20; }
+
+/* Phones: a "⋯" menu opens as a sheet above the tab bar, so every item can be reached,
+   even for the last course in the list. Tapping outside it closes it. */
+@media (max-width: 640px) {
+  details.menu[open] > summary::before { content: ""; position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 39; cursor: default; }
+  details.menu[open] > .menu-box, .course-menu[open] .menu-box {
+    position: fixed; inset-inline: .75rem; top: auto; bottom: calc(var(--tabbar, 0px) + .75rem + env(safe-area-inset-bottom));
+    min-width: 0; max-width: none; width: auto; max-height: min(75vh, calc(100vh - var(--tabbar, 0px) - 6rem)); overflow-y: auto;
+    overscroll-behavior: contain; z-index: 40; padding: .5rem; }
+  details.menu[open] > .menu-box a, details.menu[open] > .menu-box .btn { padding-block: .8rem; }
+}
