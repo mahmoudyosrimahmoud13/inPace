@@ -223,3 +223,21 @@ main.opener { min-height: 70vh; padding: clamp(32px, 6vw, 72px) clamp(16px, 4vw,
 .private-note { margin-block-start: 2rem; }
 @media (max-width: 700px) { .open-card { grid-template-columns: 1fr; } .open-tempo { width: 130px; } }
 button.btn { font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Latest version, downloads and visits */
+.stats { list-style: none; padding: 0; margin: 1.6rem 0 0; display: flex; flex-wrap: wrap; gap: .7rem; }
+.stats li { display: flex; align-items: baseline; gap: .4rem; background: var(--surface); color: var(--ink); border: 3px solid var(--line);
+  padding: .35rem .8rem; font-size: .95rem; }
+.stats b { font-size: 1.25rem; }
+/* What's new */
+.whatsnew { border-top: 3px solid var(--line); }
+.wn-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.2rem; margin-block-end: 1rem; }
+.wn-head h2 { margin: 0; }
+.wn-date { color: var(--muted); margin: 0; }
+.wn-notes { background: var(--surface); border: 3px solid var(--line); box-shadow: var(--hard) var(--line); padding: 1.2rem 1.6rem; max-width: 900px; text-align: left; }
+.wn-notes > ul { padding-inline-start: 1.1rem; margin: 0; }
+.wn-notes li { margin: .45rem 0; } .wn-notes ul ul { margin: .3rem 0; }
+.wn-notes p { margin: .5rem 0; }
+.wn-notes code { font-family: "JetBrains Mono", monospace; font-size: .9em; background: var(--cream); padding: 0 .25rem; }
+.wn-more { display: flex; flex-wrap: wrap; gap: .8rem; margin-block-start: 1.4rem; }
+.wn-lang { color: var(--muted); margin: 0 0 .8rem; }

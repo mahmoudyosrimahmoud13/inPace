@@ -6,6 +6,7 @@
 - **Publish your own course:** **More → Publish to the library…** makes a course file signed with your inPace key and opens the library's submission form with your details filled in. A bot checks it and opens a pull request. Only your key can publish updates to your course.
 - **Send a course as a link:** **More → Send a link…**. A course from the library goes as a short link, and your friend lands on it in their Course library. Courses that aren't in the library can still be sent as files.
 - **Download links for big courses:** add where to download a course's videos (Google Drive, Dropbox, MEGA, archive.org…) in **Edit → Course details**. Learners see **Get this course's videos**, download them, and choose the folder. Big videos stay out of the library file automatically.
+- **Website:** the home page now shows the latest version, its release notes, how many times inPace was downloaded, and a visit counter (GoatCounter, no cookies).
 - The library lives at [https://github.com/mahmoudyosrimahmoud13/inpace-library](https://github.com/mahmoudyosrimahmoud13/inpace-library). The built-in Python and FastAPI courses are its first courses.
 
 ## v1.11.1

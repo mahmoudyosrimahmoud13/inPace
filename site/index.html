@@ -9,7 +9,7 @@
 <meta property="og:description" content="A free, offline learning app with a turtle who cheers you on. Windows, Mac and Linux.">
 <meta property="og:image" content="assets/shots/home.jpg">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <script>
   // Pick Arabic for Arabic-speaking visitors, or whatever they chose last time.
   (function () {
@@ -61,6 +61,11 @@
       </a>
       <a class="btn big" href="guide.html"><span class="en">Read the guide</span><span class="ar">اقرأ الدليل</span></a>
     </div>
+    <ul class="stats" id="stats" aria-live="polite">
+      <li id="st-ver" hidden><b></b><span class="en">latest version</span><span class="ar">أحدث إصدار</span></li>
+      <li id="st-dl" hidden><b></b><span class="en">downloads</span><span class="ar">تحميل</span></li>
+      <li id="st-visits" hidden><b></b><span class="en">visits</span><span class="ar">زيارة</span></li>
+    </ul>
   </div>
   <div class="hero-art">
     <figure class="frame tilt">
@@ -70,6 +75,18 @@
     <img class="hero-tempo" src="assets/tempo-wave.svg" width="300" height="216" alt="Tempo the turtle waving">
     <p class="bubble"><span class="en">Slow and steady wins the race!</span><span class="ar">ببطء وثبات تفوز بالسباق!</span></p>
   </div>
+</section>
+
+<!-- What's new: filled from the latest GitHub release -->
+<section class="whatsnew" id="new" hidden>
+  <div class="wn-head">
+    <h2><span class="en">What's new in </span><span class="ar">الجديد في </span><bdi id="wn-ver"></bdi></h2>
+    <p class="wn-date" id="wn-date"></p>
+  </div>
+  <p class="ar small wn-lang">ملاحظات الإصدار مكتوبة بالإنجليزية.</p>
+  <div class="wn-notes" id="wn-notes" dir="ltr"></div>
+  <p class="wn-more"><a class="btn" id="wn-link" href="https://github.com/mahmoudyosrimahmoud13/inpace/releases"><span class="en">All releases</span><span class="ar">كل الإصدارات</span></a>
+    <a class="btn primary" href="#download"><span class="en">Download it</span><span class="ar">حمّله</span></a></p>
 </section>
 
 <!-- How it works: a real sequence, so it's numbered -->
@@ -232,7 +249,7 @@
 <!-- Download -->
 <section class="download" id="download">
   <h2><span class="en">Download inPace.</span><span class="ar">حمّل inPace.</span></h2>
-  <p class="sub"><span class="en">Always the newest version. Free forever.</span><span class="ar">دائمًا أحدث نسخة. مجاني للأبد.</span></p>
+  <p class="sub"><span class="en">Always the newest version. Free forever.</span><span class="ar">دائمًا أحدث نسخة. مجاني للأبد.</span> <bdi id="dl-ver"></bdi></p>
   <ul class="os-list">
     <li class="os" data-os="windows">
       <h3>Windows</h3>
@@ -300,6 +317,7 @@
     <a href="https://github.com/mahmoudyosrimahmoud13/inpace/issues/new"><span class="en">Report a problem</span><span class="ar">أبلغ عن مشكلة</span></a> ·
     <span class="en">MIT license</span><span class="ar">رخصة MIT</span>
   </p>
+  <p class="small"><span class="en">Visits to this website are counted with GoatCounter: no cookies and nothing about you. The app itself never tracks you.</span><span class="ar">تُحسب زيارات هذا الموقع بـ GoatCounter: بدون ملفات تعريف ارتباط وبدون أي شيء عنك. والتطبيق نفسه لا يتتبعك أبدًا.</span></p>
 </footer>
 
 <script>
@@ -325,5 +343,71 @@
     document.getElementById("main-os").textContent = label;
   })();
 </script>
+<script>
+  // Latest release, its notes, and total downloads, from GitHub (kept for an hour to stay under GitHub's limits).
+  (function () {
+    var API = "https://api.github.com/repos/mahmoudyosrimahmoud13/inpace/releases?per_page=100";
+    function esc(t) { return t.replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
+    function inline(t) {
+      return esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+    }
+    function md(text) {   // just the bits the changelog uses: bullets (nested by two spaces), bold, code, links
+      var out = "", depth = 0;
+      text.split("\n").forEach(function (line) {
+        var m = line.match(/^(\s*)[-*] (.*)$/);
+        if (m) {
+          var d = Math.floor(m[1].length / 2) + 1;
+          while (depth < d) { out += "<ul>"; depth++; }
+          while (depth > d) { out += "</ul>"; depth--; }
+          out += "<li>" + inline(m[2]) + "</li>";
+        } else if (line.trim()) {
+          while (depth > 0) { out += "</ul>"; depth--; }
+          out += "<p>" + inline(line.trim()) + "</p>";
+        }
+      });
+      while (depth > 0) { out += "</ul>"; depth--; }
+      return out;
+    }
+    function show(rels) {
+      var latest = rels.filter(function (r) { return !r.draft && !r.prerelease; })[0];
+      if (!latest) return;
+      var total = 0;
+      rels.forEach(function (r) { (r.assets || []).forEach(function (a) { total += a.download_count || 0; }); });
+      var ver = latest.tag_name, lang = document.documentElement.lang === "ar" ? "ar" : "en";
+      var date = new Date(latest.published_at).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-US", {year: "numeric", month: "long", day: "numeric"});
+      var v = document.getElementById("st-ver"); v.querySelector("b").textContent = ver; v.hidden = false;
+      var d = document.getElementById("st-dl"); d.querySelector("b").textContent = total.toLocaleString(); d.hidden = false;
+      document.getElementById("dl-ver").textContent = "· " + ver;
+      var body = latest.body || "", at = body.indexOf("## What's new");
+      var notes = (at >= 0 ? body.slice(at + 13) : body).split(/\n## /)[0].split(/\n---/)[0].trim();
+      if (!notes) return;
+      document.getElementById("wn-ver").textContent = ver;
+      document.getElementById("wn-date").textContent = date;
+      document.getElementById("wn-notes").innerHTML = md(notes);
+      document.getElementById("wn-link").href = latest.html_url;
+      document.getElementById("new").hidden = false;
+    }
+    try {
+      var c = JSON.parse(localStorage.getItem("inpace-releases") || "null");
+      if (c && Date.now() - c.at < 3600e3) { show(c.data); return; }
+    } catch (e) {}
+    fetch(API, {headers: {Accept: "application/vnd.github+json"}}).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (data) {
+        var slim = data.map(function (r) { return {tag_name: r.tag_name, draft: r.draft, prerelease: r.prerelease, published_at: r.published_at,
+          html_url: r.html_url, body: r.body, assets: (r.assets || []).map(function (a) { return {download_count: a.download_count}; })}; });
+        try { localStorage.setItem("inpace-releases", JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
+        show(slim);
+      }).catch(function () {});
+  })();
+  // Visits (GoatCounter: no cookies, nothing personal).
+  (function () {
+    var GC = "https://inpace.goatcounter.com";
+    fetch(GC + "/counter/TOTAL.json").then(function (r) { return r.ok ? r.json() : Promise.reject(); }).then(function (j) {
+      var el = document.getElementById("st-visits"); el.querySelector("b").textContent = j.count; el.hidden = false;
+    }).catch(function () {});
+  })();
+</script>
+<script data-goatcounter="https://inpace.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>

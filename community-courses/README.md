@@ -1,6 +1,6 @@
 # inPace community course library
 
-> **The library has moved to [inpace-library](https://github.com/mahmoudyosrimahmoud13/inpace-library).** You can now browse and add courses right inside inPace
+> **The library has moved to the [inPace course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/).** You can now browse and add courses right inside inPace
 > (**Course library** in the sidebar) and publish yours with **More → Publish to the library**.
 > The courses below stay here for older versions of inPace.
 

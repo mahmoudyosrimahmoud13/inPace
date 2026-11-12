@@ -19,7 +19,7 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
 **Share and find courses**
-- **[Course library](https://github.com/mahmoudyosrimahmoud13/inpace-library).** Browse free courses other learners made and add one with a click, right inside the app.
+- **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/).** Browse free courses other learners made and add one with a click, right inside the app.
 - **Publish your own** with **More → Publish to the library**. It's signed with your inPace key, so only you can update it.
 - **Send a course as a short link.** A course from the library goes as a link, not a file, and your friend always gets the newest version.
 - **Courses with big videos** can point to a download link (Google Drive, MEGA, archive.org…). Learners download the videos, choose the folder, and every lesson finds its video.
@@ -108,7 +108,7 @@ questions.yaml   the questions and all possible answers
 answers.yaml     which answers are right (left out when sharing with learners)
 ```
 
-A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://github.com/mahmoudyosrimahmoud13/inpace-library)**, and you can share yours there too.
+A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)**, and you can share yours there too.
 
 ## For developers
 
