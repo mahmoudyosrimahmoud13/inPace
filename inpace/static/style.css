@@ -1039,3 +1039,8 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
   :root:not([data-theme=light]) .more-sheet .when-dark { display: inline-flex; }
   :root:not([data-theme=light]) .more-sheet .when-light { display: none; }
 }
+
+/* v1.13: the computer's sidebar matches the phone's tab bar (same icons, same yellow for the page you're on) */
+.side a svg { opacity: 1; }
+.side a.on, .side a.on:hover { background: var(--sun); color: #111; outline: 2.5px solid var(--line); outline-offset: -2.5px; }
+.side a.on svg { color: #111; }

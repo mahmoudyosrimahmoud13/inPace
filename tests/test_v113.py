@@ -65,10 +65,10 @@ def test_copy_files_into_inpace(tmp_path):
     r = c.post("/add/organize", data={"folder": str(d), "plan": json.dumps(plan), "storage": "copy"}, follow_redirects=False)
     assert r.headers["location"].startswith("/add/copying/")
     cid = r.headers["location"].rsplit("/", 1)[1]
-    for _ in range(50):
-        if organize.JOBS[cid]["state"] == "done":
-            break
+    deadline = time.time() + 30  # test machines can be slow (Mac runners especially)
+    while organize.JOBS[cid]["state"] == "copying" and time.time() < deadline:
         time.sleep(.05)
+    assert organize.JOBS[cid]["state"] == "done", organize.JOBS[cid]
     assert (v.media_dir(cid) / "Lecture 1 - Intro.pdf").exists() and not v.media_root(cid)
     (d / "Lecture 1 - Intro.pdf").unlink()  # the original can go now
     assert v.find_media(cid, "Lecture 1 - Intro.pdf") == v.media_dir(cid) / "Lecture 1 - Intro.pdf"

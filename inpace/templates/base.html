@@ -35,20 +35,20 @@
     <a class="continue" href="{{ resume.url }}"><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ resume.lesson }}</b><span class="small muted" dir="auto">{{ resume.course }}</span></a>
     {% endif %}
     <p class="side-h">{% trans trimmed %}My learning{% endtrans %}</p>
-    <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home') }}{{ _("Home") }}</a>
-    <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book') }}{{ _("My courses") }}</a>
-    <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield') }}{{ _("Milestones") }}</a>
-    <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag') }}{{ _("Races") }}</a>
-    <a href="/add" class="{{ 'on' if p.startswith('/add') or p.startswith('/ai') or p.startswith('/edit') }}">{{ icon('plus') }}{{ _("Add a course") }}</a>
-    <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('users') }}{{ _("Course library") }}</a>
+    <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home', 22) }}{{ _("Home") }}</a>
+    <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}{{ _("My courses") }}</a>
+    <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield', 22) }}{{ _("Milestones") }}</a>
+    <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
+    <a href="/add" class="{{ 'on' if p.startswith('/add') or p.startswith('/ai') or p.startswith('/edit') }}">{{ icon('plus', 22) }}{{ _("Add a course") }}</a>
+    <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}</a>
     <p class="side-h">{% trans trimmed %}People I check on{% endtrans %}</p>
     {% for x in checking %}
       <a href="/people#p-{{ x.id[:12] }}" class="person-link">{{ avatar(x, 24) }}<span>{{ display_name(x) }}</span>{% if x.waiting %}<em class="badge">{{ x.waiting }}</em>{% endif %}</a>
     {% else %}
       <p class="side-empty">{% trans trimmed %}Nobody yet{% endtrans %}</p>
     {% endfor %}
-    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users') }}{{ _("People") }}</a>
-    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings') }}{{ _("Settings") }}</a>
+    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <div class="side-bottom">
       <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </div>
@@ -115,12 +115,12 @@
   </nav>
   <dialog class="more-sheet" data-more-sheet aria-label="{{ _('More') }}">
     <div class="sheet-head"><b>{{ _("More") }}</b><button type="button" class="btn icon-btn" data-more-close aria-label="{{ _('Close') }}">{{ icon('x', 20) }}</button></div>
-    <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag') }}{{ _("Races") }}</a>
-    <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('users') }}{{ _("Course library") }}</a>
-    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users') }}{{ _("People") }}{% if waiting %}<em class="badge">{{ waiting }}</em>{% endif %}</a>
-    <a href="/open" class="{{ 'on' if p.startswith('/open') }}">{{ icon('open') }}{{ _("Open a file") }}</a>
-    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings') }}{{ _("Settings") }}</a>
-    <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon') }}</span><span class="when-dark">{{ icon('sun') }}</span>{{ _('Switch light or dark mode') }}</button>
+    <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
+    <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}</a>
+    <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}{% if waiting %}<em class="badge">{{ waiting }}</em>{% endif %}</a>
+    <a href="/open" class="{{ 'on' if p.startswith('/open') }}">{{ icon('open', 22) }}{{ _("Open a file") }}</a>
+    <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
+    <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon', 22) }}</span><span class="when-dark">{{ icon('sun', 22) }}</span>{{ _('Switch light or dark mode') }}</button>
   </dialog>
   {% endif %}
 {% if tour %}

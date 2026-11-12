@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.13.2
+
+- Fixed: copying a course's files into inPace could say "done" a moment before it had finished. (A test on Mac caught this and stopped v1.13.1.)
+- Android: fixed the build that sometimes failed while downloading Python ("Unable to determine the current character"). The downloads for each kind of phone wrote the same file at the same time; now they run one after another.
+- The computer's sidebar now matches the phone: the same icons at the same size, and the page you're on is highlighted in yellow. The course library has its own icon (it used to share one with People).
+- On Android, this is the first version with everything from v1.13.0: the easy **Add a course** page, sorting messy folders, and the tab bar at the bottom.
+
+## v1.13.1
+
+- Not released: a test failed on Mac. Everything it had is in v1.13.2.
+
 ## v1.13.0
 
 - **Add a course, the easy way.** One **Add a course** page with every way in: a folder, some files, a course file, the library, AI, or simple forms. Writing YAML and Markdown yourself is still there, under Advanced.

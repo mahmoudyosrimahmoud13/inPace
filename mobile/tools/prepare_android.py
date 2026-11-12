@@ -82,6 +82,12 @@ subprojects {{
         // Skip the release "lint" check of each plugin: it only looks for code warnings, and newer lint
         // versions can crash on older Java ("List.removeLast()"), which would stop the whole build.
         tasks.matching {{ it.name.startsWith("lintVital") }}.configureEach {{ enabled = false }}
+        // serious_python downloads the Python runtime for each kind of phone at the same time, and every
+        // download writes the same notes file (build/.../download-task/etags.json). Two writing at once
+        // corrupt it ("Unable to determine the current character ... int value of 0"). One at a time:
+        val pyDownloads = tasks.names.filter {{ it.startsWith("downloadDistArchive_") }}.sorted()
+        pyDownloads.zipWithNext {{ before, after -> tasks.named(after).configure {{ mustRunAfter(before) }} }}
+        if (pyDownloads.size > 1) println("inPace: Python downloads run one at a time: ${{pyDownloads.joinToString()}}")
     }}
 }}
 

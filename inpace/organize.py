@@ -256,10 +256,16 @@ def start_copy(job_id: str, folder: Path, plan: dict, target: Path, done=None) -
                         b.write(chunk)
                         job["done"] += len(chunk)
                 shutil.copystat(src, dst, follow_symlinks=True)
-            job["state"] = "done"
-            if done:
-                done()
         except OSError as e:
             job["state"], job["error"] = "failed", str(e)
+            return
+        # Finish everything (like forgetting the original folder) before saying "done", because
+        # the progress page and the tests act as soon as they see "done".
+        if done:
+            try:
+                done()
+            except Exception:  # the files are copied either way, and inPace looks in its own copy first
+                pass
+        job["state"] = "done"
 
     threading.Thread(target=run, daemon=True).start()
