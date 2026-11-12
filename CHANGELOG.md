@@ -2,7 +2,8 @@
 
 ## Coming next: Android
 
-- The first steps of the Android app are in `mobile/` (see its README). It isn't released yet. You can build a test APK from **Actions → android → Run workflow**.
+- **inPace for Android** (in `mobile/`, built with Flutter): the full app on your phone, with downloads you can send or save, Android's file and folder pickers, voice notes, full-screen videos, the share sheet, inPace links, and the back button. Build a test APK from **Actions → android → Run workflow**; from the next version tag on, the APKs are attached to each release and the website has an Android download button.
+- The app's top bar now fits phone screens.
 
 ## v1.12.0
 

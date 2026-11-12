@@ -265,3 +265,4 @@ button.btn { font: inherit; font-weight: 700; cursor: pointer; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .theme .sun { display: block; } :root:not([data-theme=light]) .theme .moon { display: none; } }
 @media (max-width: 760px) { .theme { margin-inline-start: auto; } .theme + .lang { margin-inline-start: 0; } }
 .stats li[hidden], [hidden] { display: none !important; }
+.chip-new { font-size: .7rem; vertical-align: middle; border: 2px solid currentColor; padding: 0 .35rem; margin-inline-start: .3rem; }

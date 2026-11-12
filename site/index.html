@@ -261,6 +261,12 @@
       <p><span class="en">Double-click to install, then find <b>inPace</b> in your apps.</span><span class="ar">انقر مرتين للتثبيت، ثم ستجد <b>inPace</b> بين تطبيقاتك.</span></p>
       <a class="btn primary" href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest/download/inPace-linux.deb"><span class="en">Download .deb</span><span class="ar">حمّل ملف ‎.deb</span></a>
     </li>
+    <li class="os" data-os="android">
+      <h3>Android <span class="chip-new"><span class="en">new</span><span class="ar">جديد</span></span></h3>
+      <p><span class="en">Android 7 or newer. Open the file, allow installing from this source if asked, then open <b>inPace</b>.</span><span class="ar">أندرويد 7 أو أحدث. افتح الملف، واسمح بالتثبيت من هذا المصدر إذا طُلب منك، ثم افتح <b>inPace</b>.</span></p>
+      <a class="btn primary" href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest/download/inPace-android-arm64-v8a.apk"><span class="en">Download for Android</span><span class="ar">حمّل لأندرويد</span></a>
+      <p class="small"><a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><span class="en">Older phone? Other versions</span><span class="ar">هاتف أقدم؟ نسخ أخرى</span></a></p>
+    </li>
     <li class="os" data-os="linux">
       <h3><span class="en">Other Linux</span><span class="ar">لينكس آخر</span></h3>
       <p><span class="en">Unpack it, then run <b>inPace</b>.</span><span class="ar">فك الضغط، ثم شغّل <b>inPace</b>.</span></p>
@@ -338,7 +344,8 @@
   // Point the big button at the right download for this computer.
   (function () {
     var ua = navigator.userAgent, os = null, label = "";
-    if (/Windows/i.test(ua)) { os = "windows"; label = "Windows"; }
+    if (/Android/i.test(ua)) { os = "android"; label = "Android"; }
+    else if (/Windows/i.test(ua)) { os = "windows"; label = "Windows"; }
     else if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua)) { os = "mac"; label = "Mac"; }
     else if (/Ubuntu|Debian|Mint|Zorin|Pop!_OS|elementary/i.test(ua)) { os = "ubuntu"; label = "Ubuntu / Debian"; }
     else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { os = "ubuntu"; label = "Linux (.deb)"; }

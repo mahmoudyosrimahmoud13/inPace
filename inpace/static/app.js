@@ -657,3 +657,60 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   box.addEventListener("input", run);
   if (box.value) run();  // opened from a shared link: show that course
 })();
+
+// ---- Android app ---------------------------------------------------------------------------------
+// In the Android app there is no browser, so downloads, folder picking and sharing go through the app
+// (window.InPaceAndroid, provided by the Flutter shell).
+(() => {
+  const bridge = window.InPaceAndroid;
+  if (!bridge) return;
+  document.documentElement.classList.add("android");
+  const send = (msg) => bridge.postMessage(JSON.stringify(msg));
+  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$)/;
+
+  // Downloads: the app saves or shares the file.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin) return;
+    if (a.hasAttribute("download") || DOWNLOADS.test(url.pathname)) {
+      e.preventDefault();
+      send({ type: "download", url: url.href });
+    }
+  }, true);
+
+  // Forms that answer with a file (backups): fetch it here and hand the file to the app.
+  document.addEventListener("submit", async (e) => {
+    const form = e.target;
+    if (!form.matches('form[action="/settings/backup"]')) return;
+    e.preventDefault();
+    const r = await fetch(form.action, { method: "POST", body: new FormData(form) });
+    if (!r.ok || !(r.headers.get("content-disposition") || "").includes("attachment")) { location.href = r.url; return; }
+    const cd = r.headers.get("content-disposition") || "";
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+    const name = m ? decodeURIComponent(m[1]) : "inPace file";
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    send({ type: "file", name, data: btoa(bin) });
+  }, true);
+
+  // "Choose folder" uses Android's folder picker.
+  window.inpaceFolderPicked = (selector, path) => {
+    const input = document.querySelector(selector);
+    if (input && path) { input.value = path; input.dispatchEvent(new Event("input")); }
+  };
+  document.querySelectorAll("[data-pick-folder]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopImmediatePropagation();
+      send({ type: "pickFolder", target: btn.dataset.pickFolder });
+    }, true);
+  });
+
+  // "More apps…" opens Android's share sheet.
+  document.querySelectorAll("[data-share]").forEach((btn) => {
+    btn.hidden = false;
+    btn.addEventListener("click", () => send({ type: "share", text: document.querySelector(btn.dataset.share).value }));
+  });
+})();

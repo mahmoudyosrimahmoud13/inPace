@@ -11,10 +11,15 @@ ROOT = Path(__file__).resolve().parent.parent / "android" / "app"
 manifest = ROOT / "src" / "main" / "AndroidManifest.xml"
 m = manifest.read_text(encoding="utf-8")
 
-perms = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']
+perms = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS',
+         # course folders on the phone (videos, PDFs, pages) are read where they are
+         'android.permission.MANAGE_EXTERNAL_STORAGE', 'android.permission.READ_MEDIA_VIDEO',
+         'android.permission.READ_MEDIA_AUDIO', 'android.permission.READ_MEDIA_IMAGES']
 for p in perms:
     if p not in m:
         m = m.replace("<application", f'<uses-permission android:name="{p}"/>\n    <application', 1)
+if "READ_EXTERNAL_STORAGE" not in m:
+    m = m.replace("<application", '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <application', 1)
 
 m = re.sub(r'android:label="[^"]*"', 'android:label="inPace"', m, count=1)
 if "usesCleartextTraffic" not in m:
@@ -32,13 +37,15 @@ if 'android:scheme="inpace"' not in m:
     m = re.sub(r"(<activity[^>]*MainActivity[\s\S]*?</intent-filter>)", lambda x: x.group(1) + link_filter, m, count=1)
 
 # Let url_launcher see which apps can open links (Android 11+ package visibility).
-if "<queries>" not in m:
-    m = m.replace("</manifest>", """    <queries>
-        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https"/></intent>
+wanted = """        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https"/></intent>
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="mailto"/></intent>
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="tg"/></intent>
-    </queries>
-</manifest>""", 1)
+"""
+if 'android:scheme="mailto"' not in m:
+    if "</queries>" in m:
+        m = m.replace("</queries>", wanted + "    </queries>", 1)
+    else:
+        m = m.replace("</manifest>", "    <queries>\n" + wanted + "    </queries>\n</manifest>", 1)
 manifest.write_text(m, encoding="utf-8")
 
 for name in ("build.gradle.kts", "build.gradle"):

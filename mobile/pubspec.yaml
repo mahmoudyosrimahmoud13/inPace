@@ -12,13 +12,27 @@ dependencies:
   serious_python: ^6.0.0
   webview_flutter: ^4.10.0
   webview_flutter_android: ^4.3.0
+  webview_flutter_platform_interface: ^2.10.0
   url_launcher: ^6.3.0
   path_provider: ^2.1.4
   app_links: ^6.3.0
   http: ^1.2.2
+  file_picker: ^8.1.2
+  permission_handler: ^11.3.1
+  share_plus: ^10.1.2
+  flutter_file_dialog: ^3.0.2
 
 dev_dependencies:
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# The app icon (made by: dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "../packaging/icon.png"
+  adaptive_icon_background: "#FFD43B"
+  adaptive_icon_foreground: "../packaging/icon.png"
 
 flutter:
   uses-material-design: true

@@ -96,7 +96,8 @@
   // Point the download button at the right file for this computer.
   var ua = navigator.userAgent, base = "https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest/download/";
   var dl = null, label = "";
-  if (/Windows/i.test(ua)) { dl = "inPace-windows.zip"; label = "Windows"; }
+  if (/Android/i.test(ua)) { dl = "inPace-android-arm64-v8a.apk"; label = "Android"; }
+  else if (/Windows/i.test(ua)) { dl = "inPace-windows.zip"; label = "Windows"; }
   else if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua)) { dl = "inPace-mac.dmg"; label = "Mac"; }
   else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { dl = "inPace-linux.deb"; label = "Linux (.deb)"; }
   if (dl) { document.getElementById("download").href = base + dl; document.getElementById("dl-os").textContent = label; }

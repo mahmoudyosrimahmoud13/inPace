@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=20">
+<link rel="stylesheet" href="/static/style.css?v=21">
 </head>
 <body>
 <header class="top">
@@ -106,6 +106,6 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
-<script src="/static/app.js?v=14"></script>
+<script src="/static/app.js?v=15"></script>
 </body>
 </html>

@@ -23,14 +23,19 @@ runs on every version tag.
 - Starts inPace on the phone and shows it full screen, with a start screen while it loads
 - Links to Telegram, WhatsApp, email and websites open those apps
 - `inpace://` links open the right screen (friend links, progress, course links)
-- The phone's back button goes back inside inPace
-- Voice notes can use the microphone
+- The phone's back button goes back inside inPace (and leaves full-screen video)
+- Downloads (progress files, course files, backups, contact cards…): **Send it** (share sheet) or **Save it on this phone**
+- "Add a file" buttons open Android's file picker
+- "Choose folder" opens Android's folder picker, after asking for "All files access" (needed to read course videos where they are)
+- Voice notes ask for the microphone
+- Videos can go full screen
+- "More apps…" opens Android's share sheet
+- The inPace app icon
 - No desktop update prompts on Android; Settings points to the website for new versions
+- The top bar fits phone screens
+- On version tags, the APKs are added to the GitHub release, and the website has an Android download button
 
 ## Next
 
-- Downloads (progress files, backups, course files): save them and open Android's share sheet
-- Opening files: Android's file picker for "Open a file" and uploads
-- Course folders on the phone: Android's folder picker for video courses
-- Phone-size layout fixes, page by page
-- Attach the APKs to the release and add an Android button on the website
+- Settings page: one row is still a little too wide on small phones
+- Test on real phones and fix what the first builds show

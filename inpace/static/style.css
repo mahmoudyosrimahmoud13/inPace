@@ -930,3 +930,14 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 .course-row.picked { box-shadow: 6px 6px 0 var(--sun); }
 .course-row > .grow { flex: 1 1 320px; min-width: 0; }
 .course-row .row.small { flex-wrap: wrap; }
+/* Phones: keep the top bar on one line */
+@media (max-width: 560px) {
+  .top { padding-inline: .6rem; }
+  .top .me span, .search-btn span, .search-btn kbd { display: none; }
+  .search-btn { padding: .4rem; margin-inline-start: auto; }
+  .search-btn + .theme-toggle { margin-inline-start: .4rem; }
+  .theme-toggle { width: 34px; height: 34px; }
+  .brand { font-size: 1.1rem; }
+  .brand img { width: 26px; height: 26px; }
+}
+@media (max-width: 560px) { .page .row { flex-wrap: wrap; } .page { overflow-wrap: anywhere; } }

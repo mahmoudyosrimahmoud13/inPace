@@ -7,6 +7,9 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     name: Build Android APK
@@ -39,6 +42,8 @@ jobs:
           find app/src -name "__pycache__" -type d -prune -exec rm -rf {} +
       - name: Get Flutter packages
         run: flutter pub get
+      - name: App icon
+        run: dart run flutter_launcher_icons
       - name: Package Python and its libraries for Android
         run: dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt
       - name: Build the APK
@@ -55,3 +60,8 @@ jobs:
         with:
           name: inPace-android
           path: mobile/out/*.apk
+      - name: Add the APKs to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile/out/*.apk
