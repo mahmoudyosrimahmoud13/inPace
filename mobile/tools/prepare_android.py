@@ -120,3 +120,30 @@ props = ROOT.parent / "gradle.properties"
 t = props.read_text(encoding="utf-8") if props.exists() else ""
 if "org.gradle.parallel" not in t:
     props.write_text(t.rstrip() + "\norg.gradle.parallel=false\n", encoding="utf-8")
+
+# Release signing: one fixed key, so a new version installs over the old one and keeps people's data.
+# GitHub passes the key's path and passwords in INPACE_KEYSTORE / INPACE_KEYSTORE_PASSWORD (from repository secrets).
+app_kts = ROOT / "build.gradle.kts"
+if app_kts.exists():
+    t = app_kts.read_text(encoding="utf-8")
+    if "inPace release key" not in t:
+        signing = """
+    // inPace release key (see .github/workflows/android.yml); without it, builds are signed with a test key
+    signingConfigs {
+        create("release") {
+            val ks = file(System.getenv("INPACE_KEYSTORE") ?: "no-keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = System.getenv("INPACE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("INPACE_KEY_ALIAS") ?: "inpace"
+                keyPassword = System.getenv("INPACE_KEY_PASSWORD") ?: System.getenv("INPACE_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+"""
+        t = t.replace("    buildTypes {", signing + "\n    buildTypes {", 1)
+        t = t.replace('signingConfig = signingConfigs.getByName("debug")',
+                      'signingConfig = if (file(System.getenv("INPACE_KEYSTORE") ?: "no-keystore").exists()) '
+                      'signingConfigs.getByName("release") else signingConfigs.getByName("debug")', 1)
+        app_kts.write_text(t, encoding="utf-8")
+        print("Release signing ready")

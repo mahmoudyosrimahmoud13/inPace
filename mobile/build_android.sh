@@ -25,8 +25,13 @@ echo "== 4. Python and its libraries for Android"
 dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt
 
 echo "== 5. The APKs"
+# Same version as inPace itself. The build number must grow with every release, or Android refuses the update.
+VERSION=$(python3 -c "import re;print(re.search(r'\"(.+?)\"', open('../inpace/__init__.py').read()).group(1))")
+BUILD_NUMBER=$(python3 -c "a,b,c=(int(x) for x in '$VERSION'.split('.')[:3]);print(a*10000+b*100+c)")
+echo "Version $VERSION (build $BUILD_NUMBER)"
 # 64-bit phones (arm64) cover nearly every Android phone from the last 7 years.
-flutter build apk --release --target-platform android-arm64 --split-per-abi
+flutter build apk --release --target-platform android-arm64 --split-per-abi \
+  --build-name "$VERSION" --build-number "$BUILD_NUMBER"
 
 mkdir -p out
 for f in build/app/outputs/flutter-apk/app-*-release.apk; do

@@ -1,8 +1,8 @@
 # Changelog
 
-## Coming next: Android
+## v1.12.2
 
-- **inPace for Android** (in `mobile/`, built with Flutter): the full app on your phone, with downloads you can send or save, Android's file and folder pickers, voice notes, full-screen videos, the share sheet, inPace links, and the back button. Build a test APK from **Actions → android → Run workflow**; from the next version tag on, the APKs are attached to each release and the website has an Android download button.
+- **inPace for Android** (in `mobile/`, built with Flutter): the full app on your phone, with downloads you can send or save, Android's file and folder pickers, voice notes, full-screen videos, the share sheet, inPace links, and the back button. Download `inPace-android-arm64-v8a.apk` from this release or the website (Android 7 or newer).
 - The app's top bar now fits phone screens.
 
 ## v1.12.0
