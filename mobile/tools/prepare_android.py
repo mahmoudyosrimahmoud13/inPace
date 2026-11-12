@@ -55,3 +55,53 @@ for name in ("build.gradle.kts", "build.gradle"):
         t = re.sub(r"minSdk(?:Version)?\s*=?\s*flutter\.minSdkVersion", "minSdk = 24" if name.endswith("kts") else "minSdkVersion 24", t)
         g.write_text(t, encoding="utf-8")
 print("Android project ready:", manifest)
+
+# Some plugins (file_picker…) are compiled against an older Android SDK than the libraries they use need,
+# which fails the release check ("checkReleaseAarMetadata"). Compile every plugin against a new SDK.
+COMPILE_SDK = 36
+root = ROOT.parent
+kts = root / "build.gradle.kts"
+groovy = root / "build.gradle"
+if kts.exists():
+    t = kts.read_text(encoding="utf-8")
+    if "inPace: compile plugins" not in t:
+        block = f"""// inPace: compile plugins against a new Android SDK
+subprojects {{
+    afterEvaluate {{
+        extensions.findByName("android")?.let {{ ext ->
+            // Called by name, so this file doesn't need the Android Gradle plugin's classes.
+            runCatching {{
+                ext.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType).invoke(ext, {COMPILE_SDK})
+            }}
+        }}
+    }}
+}}
+
+"""
+        # Must come before "evaluationDependsOn", which evaluates the projects early.
+        i = t.find("subprojects")
+        t = t[:i] + block + t[i:] if i >= 0 else t + "\n" + block
+        kts.write_text(t, encoding="utf-8")
+elif groovy.exists():
+    t = groovy.read_text(encoding="utf-8")
+    if "inPace: compile plugins" not in t:
+        block = f"""// inPace: compile plugins against a new Android SDK
+subprojects {{
+    afterEvaluate {{ p ->
+        if (p.hasProperty("android")) {{ p.android {{ compileSdkVersion {COMPILE_SDK} }} }}
+    }}
+}}
+
+"""
+        i = t.find("subprojects")
+        t = t[:i] + block + t[i:] if i >= 0 else t + "\n" + block
+        groovy.write_text(t, encoding="utf-8")
+
+for name in ("build.gradle.kts", "build.gradle"):
+    g = ROOT / name
+    if g.exists():
+        t = g.read_text(encoding="utf-8")
+        t = re.sub(r"compileSdk\s*=\s*flutter\.compileSdkVersion", f"compileSdk = {COMPILE_SDK}", t)
+        t = re.sub(r"compileSdkVersion\s+flutter\.compileSdkVersion", f"compileSdkVersion {COMPILE_SDK}", t)
+        g.write_text(t, encoding="utf-8")
+print("Plugins compile against Android SDK", COMPILE_SDK)
