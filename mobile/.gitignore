@@ -1,0 +1,9 @@
+# Made fresh by build_android.sh
+android/
+build/
+out/
+app/src/inpace/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock

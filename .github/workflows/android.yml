@@ -31,31 +31,8 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Make the Android project
-        run: |
-          flutter create --org org.inpace --project-name inpace_mobile --platforms=android .
-          python3 tools/prepare_android.py
-      - name: Put inPace (the Python app) inside
-        run: |
-          rm -rf app/src/inpace
-          cp -r ../inpace app/src/inpace
-          find app/src -name "__pycache__" -type d -prune -exec rm -rf {} +
-      - name: Get Flutter packages
-        run: flutter pub get
-      - name: App icon
-        run: dart run flutter_launcher_icons
-      - name: Package Python and its libraries for Android
-        run: dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt
-      - name: Build the APK
-        run: flutter build apk --release --split-per-abi
-      - name: Name the files
-        run: |
-          mkdir -p out
-          for f in build/app/outputs/flutter-apk/app-*-release.apk; do
-            abi=$(basename "$f" | sed -e 's/app-//' -e 's/-release.apk//')
-            cp "$f" "out/inPace-android-$abi.apk"
-          done
-          ls -la out
+      - name: Build the APKs
+        run: bash build_android.sh
       - uses: actions/upload-artifact@v4
         with:
           name: inPace-android

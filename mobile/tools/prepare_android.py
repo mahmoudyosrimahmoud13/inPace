@@ -68,11 +68,16 @@ if kts.exists():
         block = f"""// inPace: compile plugins against a new Android SDK
 subprojects {{
     afterEvaluate {{
-        extensions.findByName("android")?.let {{ ext ->
+        val ext = extensions.findByName("android")
+        if (ext != null) {{
             // Called by name, so this file doesn't need the Android Gradle plugin's classes.
-            runCatching {{
+            val setter = ext.javaClass.methods.firstOrNull {{ it.name == "setCompileSdk" && it.parameterCount == 1 }}
+            if (setter != null) {{
+                setter.invoke(ext, {COMPILE_SDK})
+            }} else {{
                 ext.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType).invoke(ext, {COMPILE_SDK})
             }}
+            println("inPace: ${{project.name}} compiles against Android SDK {COMPILE_SDK}")
         }}
     }}
 }}
