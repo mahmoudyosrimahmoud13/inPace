@@ -21,9 +21,11 @@ def changes_for(version: str) -> str:
 def main() -> None:
     version, repo = sys.argv[1], sys.argv[2]
     base = f"https://github.com/{repo}/releases/download/{version}"
+    site = "https://mahmoudyosrimahmoud13.github.io/inPace"
+    docs = f"https://github.com/{repo}/blob/main/docs/HOW-IT-WORKS.md"
     print(f"""## Download inPace {version}
 
-| Your computer | Download | How to open |
+| Your device | Download | How to open |
 |---|---|---|
 | **Windows** 10 or 11 | [inPace-windows.zip]({base}/inPace-windows.zip) | Unzip, then double-click **inPace.exe** |
 | **Mac** (Apple Silicon: M1 or newer) | [inPace-mac.dmg]({base}/inPace-mac.dmg) | Open it, drag **inPace** into Applications |
@@ -31,22 +33,31 @@ def main() -> None:
 | **Other Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |
 | **Android** 7 or newer | [inPace-android-arm64-v8a.apk]({base}/inPace-android-arm64-v8a.apk) | Open it on your phone and tap **Install** |
 
-**First time opening it?** The app isn't signed yet, so your computer may warn you once:
+The Android file may appear a few minutes after the others, because it's built separately.
+
+**First time opening it?** The apps aren't signed by Apple or Microsoft yet, so your device may warn you once:
 - **Windows:** "Windows protected your PC" → click **More info** → **Run anyway**.
 - **Mac:** "can't be opened" → right-click inPace → **Open** → **Open**.
 - **Android:** if your phone asks, allow installing apps from your browser or Files app.
 
-The Android file may appear a few minutes after the others, because it's built separately.
+**Reminders:** the first time, allow notifications. On Android, open **More → Reminders** and tap **Allow notifications**. On a Mac, the first reminder may ask to allow notifications from "Script Editor", which is what shows them.
 
-Your data stays on your device. Updating is safe: just download the new version, and your courses and progress are still there.
+**Updating is safe.** Your courses and progress stay.
+- **Computer:** inPace updates itself if you said yes, or download the new version above.
+- **Android:** download the new APK and tap **Update**. Every version is signed with the same key, so it installs over the old one.
+
+Your data stays on your device. Nothing goes online unless you press something that needs it.
 
 ## What's new
 
 {changes_for(version)}
 
 ---
-Website: https://mahmoudyosrimahmoud13.github.io/inPace/ · Need help or found a bug? [Open an issue](https://github.com/{repo}/issues/new).
+[Website]({site}/) · [Guide]({site}/guide.html) · [How inPace works]({docs}) · [Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/) · [Open an issue](https://github.com/{repo}/issues/new)
+
+Checking a download? Its SHA-256 fingerprint is in `SHA256SUMS` below (the Android file isn't listed there yet).
 """)
+
 
 
 if __name__ == "__main__":
