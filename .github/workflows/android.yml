@@ -27,6 +27,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Start with a clean Gradle download cache
+        run: rm -rf ~/.gradle/caches/*/download* ~/.gradle/caches/download* || true
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

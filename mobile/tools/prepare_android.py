@@ -110,3 +110,10 @@ for name in ("build.gradle.kts", "build.gradle"):
         t = re.sub(r"compileSdkVersion\s+flutter\.compileSdkVersion", f"compileSdkVersion {COMPILE_SDK}", t)
         g.write_text(t, encoding="utf-8")
 print("Plugins compile against Android SDK", COMPILE_SDK)
+
+# Download one thing at a time: parallel downloads of the Python runtime can corrupt Gradle's download cache
+# ("Unable to determine the current character ... int value of 0").
+props = ROOT.parent / "gradle.properties"
+t = props.read_text(encoding="utf-8") if props.exists() else ""
+if "org.gradle.parallel" not in t:
+    props.write_text(t.rstrip() + "\norg.gradle.parallel=false\n", encoding="utf-8")

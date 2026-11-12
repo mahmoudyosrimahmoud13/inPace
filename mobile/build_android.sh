@@ -25,7 +25,8 @@ echo "== 4. Python and its libraries for Android"
 dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt
 
 echo "== 5. The APKs"
-flutter build apk --release --split-per-abi
+# 64-bit phones (arm64) cover nearly every Android phone from the last 7 years.
+flutter build apk --release --target-platform android-arm64 --split-per-abi
 
 mkdir -p out
 for f in build/app/outputs/flutter-apk/app-*-release.apk; do
