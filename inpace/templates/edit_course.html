@@ -29,6 +29,18 @@
     <label>{% trans trimmed %}Lesson language{% endtrans %}<select name="language"><option value="en" {{ 'selected' if c.language != 'ar' }}>{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar" {{ 'selected' if c.language == 'ar' }}>{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
     <button class="btn">{% trans trimmed %}Save details{% endtrans %}</button>
   </form>
+  <div class="stack" style="margin-top:1.5rem">
+    <b>{% trans trimmed %}Course picture{% endtrans %}</b>
+    <p class="small muted" style="margin:0">{% trans trimmed %}Shown on My courses and at the top of the course. It's saved with the course, so it goes along when you share it with its files.{% endtrans %}</p>
+    <div class="cover-edit">
+      {{ cover(c) }}
+      <form method="post" action="/edit/{{ c.id }}/image" enctype="multipart/form-data" class="row wrap">
+        <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required data-autosubmit>
+        <button class="btn">{{ _('Change picture') if c.extra.image else _('Add a picture') }}</button>
+      </form>
+      {% if c.extra.image %}<form method="post" action="/edit/{{ c.id }}/image"><input type="hidden" name="remove" value="1"><button class="btn ghost danger">{% trans trimmed %}Remove picture{% endtrans %}</button></form>{% endif %}
+    </div>
+  </div>
 </details>
 
 {% for m in c.modules %}

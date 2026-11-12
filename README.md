@@ -5,6 +5,8 @@
 A free, open-source app that helps you follow a course and lets someone you trust check that you're really keeping up. Everything stays on your computer.</p>
 <p align="center"><a href="https://mahmoudyosrimahmoud13.github.io/inPace/"><b>Website</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inPace/guide.html"><b>Guide</b></a> · <a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><b>Download</b></a></p>
 
+<p align="center"><img src="site/assets/shots/courses.jpg" width="820" alt="My courses in inPace: Python Basics and Reading club with their pictures, how much is done, and a search box."></p>
+
 ---
 
 ## What it does
@@ -17,13 +19,16 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
 **Find your way**
-- **Search anything** with **Ctrl+K** (or `/`): lessons, courses, tasks, people and pages.
-- **Continue** where you left off from the sidebar, see the **course outline** on every lesson, and use **Alt+← / Alt+→** to move between lessons.
+- **Search anything** with **Ctrl+K** (or `/`): lessons, courses, tasks, people and pages. My courses also has its own search box.
+- **Course pictures** make your courses easy to tell apart. Add one in the builder, or put a `cover.jpg` in a course folder.
+- **Back and forward buttons** at the top left (or **Alt+← / Alt+→**, or your mouse's side buttons), since the app window has no browser buttons.
+- **Continue** where you left off from the sidebar, see the **course outline** on every lesson, and press **N** / **P** for the next and previous lesson.
 - **Keep courses tidy:** update a course when a newer file arrives (your progress is kept), refresh a folder course when you add videos, or delete a course you don't need.
 
 **Stay on track**
 - **Milestones.** Each one is signed by you and linked to the one before it, so your history can't be quietly rewritten.
-- **A checker you trust.** Send your friend code on Telegram or WhatsApp, then send your progress file. Your friend, parent or mentor sees what you did and approves it. They don't need to know the subject.
+- **A checker you trust.** Send your friend link on Telegram, WhatsApp or email. They tap it, inPace opens and adds you, and one more tap sends theirs back. Then send your progress the same way. Your friend, parent or mentor sees what you did and approves it. They don't need to know the subject.
+- **Links instead of files.** Friend invites, progress and replies go as links that open inPace straight on the right screen. Progress links only carry what your checker hasn't seen yet, so they stay small. When something is too big for a link, inPace makes a file instead.
 - **Weekly goals and breaks.** Set a pace, see your streak and finish date. Planned breaks don't count against you.
 - **Races.** Race friends. Only approved milestones count, so it stays fair.
 
@@ -65,8 +70,8 @@ inPace opens in its own window. Everything stays on your computer.
 
 ## How the checking works
 
-1. You and your checker connect: in **People**, send your **friend code** on Telegram or WhatsApp and they paste it in (swapping contact-card files works too).
-2. You learn, then **save a milestone** and **download your progress file**.
+1. You and your checker connect: in **People**, send your **friend link** on Telegram, WhatsApp or email. They tap it, add you, and tap once to send theirs back. (Pasting the link, or swapping contact-card files, works too.)
+2. You learn, then **save a milestone** and **send your progress link** (or download the progress file).
 3. You send it to your checker any way you like: WhatsApp, email, USB.
 4. Your checker opens it. inPace tells them if anything was changed since they last checked.
 5. They approve (or ask a question, or flag a problem) and send back a small reply file.
@@ -108,7 +113,7 @@ pip install -e ".[test]"
 pytest
 ```
 
-Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#10-for-developers-where-the-code-is) has a map of the code.
+Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#11-for-developers-where-the-code-is) has a map of the code.
 
 **Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. The website in `site/` deploys on every push.
 
@@ -117,5 +122,7 @@ Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No 
 ## License
 
 MIT. Free to use, change and share.
+
+The pictures of the sample courses were added by the project owner.
 
 The PDF reader uses Mozilla's [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), included in `inpace/static/pdfjs/` with its license.

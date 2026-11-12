@@ -357,6 +357,8 @@ def course_to_yaml(c: Course) -> str:
         modules.append(mod)
     head = {"id": c.id, "title": c.title, "version": c.version, "description": c.description,
             "language": c.language, "modules": modules}
+    if c.extra.get("image"):
+        head["image"] = c.extra["image"]
     if c.questions:
         qs = {}
         ans = c.answers or {}

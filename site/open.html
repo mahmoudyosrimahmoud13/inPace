@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Open in inPace</title>
+<meta name="description" content="Someone sent you an inPace link. Open it in the inPace app.">
+<meta property="og:title" content="Open in inPace">
+<meta property="og:description" content="Someone sent you an inPace link: a friend invite, progress to check, or a reply.">
+<meta property="og:image" content="assets/shots/home.jpg">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=3">
+<script>
+  (function () {
+    var lang = null;
+    try { lang = localStorage.getItem("inpace-site-lang"); } catch (e) {}
+    if (!lang) lang = (navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en";
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  })();
+</script>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="./">
+    <img src="assets/icon.svg" alt="" width="36" height="36">
+    <span><span class="in">in</span><b>Pace</b></span>
+  </a>
+  <nav class="links" aria-label="Page">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a>
+    <a href="guide.html"><span class="en">Guide</span><span class="ar">الدليل</span></a>
+  </nav>
+  <button class="lang" type="button" id="lang"><span class="en">عربي</span><span class="ar">English</span></button>
+</header>
+
+<main class="opener">
+  <section class="open-card" id="card" aria-live="polite">
+    <img class="open-tempo" id="tempo" src="assets/tempo-wave.svg" width="300" height="216" alt="">
+    <div class="open-body">
+      <h1 id="title"><span class="en">Opening your link…</span><span class="ar">جارٍ فتح الرابط…</span></h1>
+      <p class="lead" id="what"></p>
+
+      <div id="actions" hidden>
+        <ol class="open-steps">
+          <li>
+            <a class="btn primary big" id="open-app" href="#"><span class="en">Open in inPace</span><span class="ar">افتح في inPace</span></a>
+            <p class="small"><span class="en">Your browser may ask if it can open inPace. Say yes.</span><span class="ar">قد يسألك المتصفح إن كان يمكنه فتح inPace. وافق.</span></p>
+          </li>
+          <li>
+            <p><b><span class="en">Nothing opened?</span><span class="ar">لم يُفتح شيء؟</span></b>
+              <span class="en">Copy the link, open inPace, and paste it into <b>People → Add a friend</b>, or into <b>Open a file</b>.</span><span class="ar">انسخ الرابط، وافتح inPace، والصقه في <b>الأشخاص ← أضف صديقًا</b>، أو في <b>افتح ملفًا</b>.</span></p>
+            <button class="btn" type="button" id="copy"><span class="en">Copy the link</span><span class="ar">انسخ الرابط</span></button>
+          </li>
+        </ol>
+
+        <div class="open-get">
+          <h2><span class="en">Don't have inPace yet?</span><span class="ar">ليس لديك inPace بعد؟</span></h2>
+          <p><span class="en">It's free, works offline and keeps everything on your computer. Install it, then come back and tap <b>Open in inPace</b>.</span><span class="ar">مجاني، ويعمل بدون إنترنت، ويحفظ كل شيء على جهازك. ثبّته، ثم عد إلى هنا واضغط <b>افتح في inPace</b>.</span></p>
+          <p class="cta">
+            <a class="btn primary" id="download" href="./#download"><span class="en">Download inPace</span><span class="ar">حمّل inPace</span><small id="dl-os"></small></a>
+            <a class="btn" href="./"><span class="en">What is inPace?</span><span class="ar">ما هو inPace؟</span></a>
+          </p>
+        </div>
+      </div>
+
+      <p class="small private-note"><span class="en">This page reads the link only inside your browser. Nothing in it is sent to this website or anywhere else.</span><span class="ar">هذه الصفحة تقرأ الرابط داخل متصفحك فقط. لا يُرسل شيء منه إلى هذا الموقع أو إلى أي مكان آخر.</span></p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p class="word"><span class="in">in</span>Pace</p>
+  <p class="small">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a> ·
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a>
+  </p>
+</footer>
+
+<script>
+(function () {
+  var html = document.documentElement;
+  document.getElementById("lang").addEventListener("click", function () {
+    var next = html.lang === "ar" ? "en" : "ar";
+    html.lang = next; html.dir = next === "ar" ? "rtl" : "ltr";
+    try { localStorage.setItem("inpace-site-lang", next); } catch (e) {}
+  });
+
+  // Point the download button at the right file for this computer.
+  var ua = navigator.userAgent, base = "https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest/download/";
+  var dl = null, label = "";
+  if (/Windows/i.test(ua)) { dl = "inPace-windows.zip"; label = "Windows"; }
+  else if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua)) { dl = "inPace-mac.dmg"; label = "Mac"; }
+  else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { dl = "inPace-linux.deb"; label = "Linux (.deb)"; }
+  if (dl) { document.getElementById("download").href = base + dl; document.getElementById("dl-os").textContent = label; }
+
+  // Both languages for each message. Names come from the link and are only ever set as text.
+  function say(el, en, ar) {
+    el.textContent = "";
+    var a = document.createElement("span"); a.className = "en"; a.textContent = en;
+    var b = document.createElement("span"); b.className = "ar"; b.textContent = ar;
+    el.appendChild(a); el.appendChild(b);
+  }
+  var title = document.getElementById("title"), what = document.getElementById("what");
+
+  function broken() {
+    document.getElementById("tempo").src = "assets/tempo-think.svg";
+    say(title, "This link is cut off.", "هذا الرابط ناقص.");
+    say(what, "Part of it was lost on the way. Ask for it again, and copy the whole message this time.",
+        "ضاع جزء منه في الطريق. اطلبه مرة أخرى، وانسخ الرسالة كاملة هذه المرة.");
+  }
+
+  var body = (location.hash || "").replace(/^#/, "").replace(/[^A-Za-z0-9_-]/g, "");
+  if (body.length < 16) { broken(); return; }
+
+  document.getElementById("open-app").href = "inpace://open/" + body;
+  document.getElementById("copy").addEventListener("click", function () {
+    var btn = this, text = location.href;
+    var done = function () {
+      var old = btn.innerHTML;
+      say(btn, "Copied!", "تم النسخ!");
+      setTimeout(function () { btn.innerHTML = old; }, 1800);
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done);
+    else { var t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); done(); }
+  });
+
+  function decode(b64) {
+    var s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64.length + 3) % 4));
+    var bytes = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+    return new Response(stream).text().then(JSON.parse);
+  }
+
+  function show(d) {
+    var kind = d && d.inpace, name;
+    document.getElementById("actions").hidden = false;
+    if (kind === "contact") {
+      name = String(d.name || "Someone");
+      say(title, name + " wants to add you on inPace", name + " يريد إضافتك على inPace");
+      say(what, "inPace is a learning app where friends keep each other on track. Open the link to connect with " + name + ".",
+          "inPace تطبيق تعلّم يساعد فيه الأصدقاء بعضهم على الالتزام. افتح الرابط لتتصل بـ " + name + ".");
+    } else if (kind === "progress") {
+      name = String((d.learner && d.learner.name) || "Someone");
+      var course = String((d.journey && d.journey.course && d.journey.course.title) || "");
+      var n = (d.milestones || []).length;
+      say(title, name + " sent you their progress", name + " أرسل لك تقدّمه");
+      say(what, (course ? course + ": " : "") + n + (n === 1 ? " new milestone" : " new milestones") + " to check. Open it in inPace to see exactly what they did.",
+          (course ? course + ": " : "") + n + " " + (n === 1 ? "محطة جديدة" : "محطات جديدة") + " للمراجعة. افتحه في inPace لترى ما فعله بالضبط.");
+    } else if (kind === "approval") {
+      name = String((d.checker && d.checker.name) || "Your checker");
+      say(title, name + " replied to your progress", name + " ردّ على تقدّمك");
+      say(what, "Open it in inPace to see their answer.", "افتحه في inPace لترى ردّه.");
+    } else if (kind === "race") {
+      name = String((d.creator && d.creator.name) || "A friend");
+      say(title, name + " invited you to a race on inPace", name + " دعاك إلى سباق على inPace");
+      say(what, "“" + String(d.name || "") + "”. Open it in inPace to join.", "«" + String(d.name || "") + "». افتحه في inPace لتنضم.");
+    } else if (kind === "race_update") {
+      say(title, "A race update", "تحديث سباق");
+      say(what, "Open it in inPace to see where everyone is.", "افتحه في inPace لترى أين وصل الجميع.");
+    } else if (kind === "exam") {
+      say(title, "You got a verified exam", "وصلك اختبار موثّق");
+      say(what, "Open it in inPace. You can take it once.", "افتحه في inPace. يمكنك أداؤه مرة واحدة.");
+    } else {
+      say(title, "You got an inPace link", "وصلك رابط inPace");
+      say(what, "Open it in inPace to see what it is.", "افتحه في inPace لترى محتواه.");
+    }
+  }
+
+  if (!("DecompressionStream" in window)) { show(null); return; }
+  decode(body).then(show, broken);
+})();
+</script>
+</body>
+</html>

@@ -74,6 +74,8 @@ def main() -> None:
         with open(plist_path, "rb") as f:
             info = plistlib.load(f)
         info["NSMicrophoneUsageDescription"] = "inPace uses the microphone only when you record a voice note for a task."
+        # Tapping an inpace:// link in a chat, an email or the inPace website opens the app.
+        info["CFBundleURLTypes"] = [{"CFBundleURLName": "org.inpace.link", "CFBundleURLSchemes": ["inpace"]}]
         with open(plist_path, "wb") as f:
             plistlib.dump(info, f)
         # Changing Info.plist breaks the app's built-in signature; sign it again (ad hoc) so it still opens.
@@ -119,7 +121,8 @@ def build_deb() -> Path:
     (stage / "usr" / "share" / "applications" / "inpace.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=inPace\n"
         "Comment=Learn at your pace. Prove you kept it.\n"
-        "Exec=/opt/inpace/inPace\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
+        "Exec=/opt/inpace/inPace %u\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
+        "MimeType=x-scheme-handler/inpace;\n"
         "StartupWMClass=inpace\n"
         "Keywords=learning;study;course;accountability;\n", encoding="utf-8")
     size_kb = sum(p.stat().st_size for p in stage.rglob("*") if p.is_file() and not p.is_symlink()) // 1024

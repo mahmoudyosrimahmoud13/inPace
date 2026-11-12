@@ -3,6 +3,7 @@ title: أساسيات بايثون
 version: 1
 language: ar
 description: دورة قصيرة للبداية. تعرّف على بايثون، واكتب أول سطور برمجية، واستخدم المتغيرات والقوائم.
+image: cover.jpg
 modules:
   - id: m1
     title: أول خطوة مع بايثون

@@ -132,6 +132,8 @@ for the whole path and then for shorter and shorter endings of it, so a moved or
 When files are missing, inPace asks for the folder where they are now. `media_index: {path: size}` in
 `course.yaml` lists the course's files (made automatically when a folder becomes a course).
 
+**Course picture.** `image: <path>` in `course.yaml` (optional) is a picture file next to the course (jpg, png, webp, gif), found like any other course file. It is not part of the fingerprint. A shared pack includes it under `files/`.
+
 **Pack with files:** an optional `files/` folder inside the `.lpack` carries the course's files
 (`files/<path inside the course>`), extracted to `<home>/media/<course>/` on install.
 
@@ -179,3 +181,16 @@ total, percent, passed}], requests: [{sha256, name}], at, sig}`, signed by the c
 A zip with `inpace-files.json` (`"inpace": "files"`, `learner`, `journey`, `files: [{sha256, name}]`, `sig` by
 the learner) and each file at `files/<sha256>`. The checker accepts a file only if its SHA-256 matches and the
 same fingerprint appears in an `evidence_added` event of that learner's milestones.
+
+## 11. Links
+
+Any inPace file small enough can travel as a link instead: `https://mahmoudyosrimahmoud13.github.io/inPace/open#BODY`
+or `inpace://open/BODY`, where `BODY` is the file's JSON (compact, UTF-8), compressed with zlib and written in
+URL-safe base64 without padding. The older `inpace:BODY` code form is still read. Apps read the first such
+link or code found anywhere in a pasted message. Links are offered up to 3,500 characters; bigger files are sent
+as files.
+
+**Progress updates.** A progress file may carry `since: N` and only the milestones after N (and no `outline`).
+The learner picks N as the highest milestone every one of their checkers has replied about. The checker's app
+puts its stored milestones 1..N in front, keeps its stored `outline`, and then checks the whole chain as in §4.
+If it has fewer than N stored milestones it refuses and asks for the full file.

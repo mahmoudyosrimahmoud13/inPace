@@ -5,10 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=19">
 </head>
 <body>
 <header class="top">
+  <span class="nav-btns" role="group" aria-label="{{ _('Go back or forward') }}">
+    <button type="button" class="nav-btn" data-nav-back title="{{ _('Back (Alt+←)') }}" aria-label="{{ _('Back') }}">{{ icon('back', 20) }}</button>
+    <button type="button" class="nav-btn" data-nav-fwd title="{{ _('Forward (Alt+→)') }}" aria-label="{{ _('Forward') }}">{{ icon('forward', 20) }}</button>
+  </span>
   <a class="brand" href="/">
     <img src="/static/icon.svg" alt="" width="30" height="30">
     <span><span class="in">{% trans trimmed %}in{% endtrans %}</span><b>{% trans trimmed %}Pace{% endtrans %}</b></span>
@@ -101,6 +105,6 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=13"></script>
 </body>
 </html>

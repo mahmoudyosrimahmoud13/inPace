@@ -49,8 +49,14 @@
 {% if reply_file %}
 <section class="card result good">
   <h2>{% trans trimmed %}Your reply is ready{% endtrans %}</h2>
+  {% if reply_share %}
+  <p>{{ T('Send it to {name}. When they tap the link, inPace opens your reply.', name=display_name(person)) }}</p>
+  {% with share=reply_share, sid='reply-link', label=_('Your reply') %}{% include '_share.html' %}{% endwith %}
+  <p class="small muted"><a href="/outbox/{{ reply_file|urlencode }}">{% trans trimmed %}Or download it as a file{% endtrans %}</a></p>
+  {% else %}
   <p>{{ T('Download it and send it back to {name} the same way they sent theirs.', name=display_name(person)) }}</p>
   <a class="btn primary big" href="/outbox/{{ reply_file|urlencode }}">{{ icon('send', 18) }}{{ _("Download reply file") }}</a>
+  {% endif %}
 </section>
 {% endif %}
 

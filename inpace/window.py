@@ -57,8 +57,17 @@ def _pywebview(url: str) -> bool:
             webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
         except Exception:
             pass
-        webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600))
-        webview.start()
+        win = webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600))
+        if sys.platform == "darwin":
+            # Mac sends inpace:// links to the running app; show them in this window.
+            from .links import mac_listen
+            base = url.split("/", 3)
+            base = "/".join(base[:3]) + "/"
+            listen = lambda: mac_listen(lambda path: win.load_url(base + path))  # noqa: E731
+            listen()
+            webview.start(listen)
+        else:
+            webview.start()
         return True
     except Exception as e:
         print(f"pywebview window failed: {e}")

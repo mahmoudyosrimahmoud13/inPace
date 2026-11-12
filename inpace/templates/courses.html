@@ -22,15 +22,23 @@
 
 {% if rows %}
 <div class="section">
-<h2>{% trans trimmed %}Installed{% endtrans %}</h2>
+<div class="row between course-tools">
+  <h2>{% trans trimmed %}Installed{% endtrans %}</h2>
+  {% if rows|length > 1 %}
+  <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search your courses and lessons') }}" aria-label="{{ _('Search your courses and lessons') }}"></label>
+  {% endif %}
+</div>
+<p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
 {% for r in rows %}
 {% set c = r.course %}
-<article class="card course-row">
+<article class="card course-row" data-course-search="{{ r.search }}">
+  {{ cover(c) }}
   <div class="grow">
     <h3 dir="auto">{{ c.title }}</h3>
     {% if c.description %}<p class="muted" dir="auto">{{ c.description }}</p>{% endif %}
     <div class="row small muted">
       <span>{{ T('{a} modules · {b} lessons', a=c.modules|length, b=c.lesson_count) }}</span>
+      {% if r.percent is not none %}<span class="chip">{{ T('{p}% done', p=r.percent) }}</span>{% endif %}
       {% if c.questions and not c.has_answers %}<span class="chip warn">{% trans trimmed %}No answers included{% endtrans %}</span>{% endif %}
     </div>
   </div>
@@ -71,6 +79,7 @@
 <h2>{% trans trimmed %}Sample courses{% endtrans %}</h2>
 {% for c in samples %}
 <article class="card course-row flat">
+  {{ cover(c, sample=True) }}
   <div class="grow">
     <h3 dir="auto">{{ c.title }}</h3>
     <p class="muted" dir="auto">{{ c.description }}</p>

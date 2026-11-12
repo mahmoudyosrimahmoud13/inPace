@@ -45,14 +45,14 @@
   </div>
   <div class="prose" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
   <div class="lesson-foot">
-    {% if prev_id %}<a class="btn ghost" data-key-prev href="/learn/{{ j.id }}/lesson/{{ prev_id }}">{% trans trimmed %}Previous{% endtrans %}</a>{% else %}<span></span>{% endif %}
+    {% if prev_id %}<a class="btn ghost" data-key-prev title="{{ _('Previous lesson (P)') }}" href="/learn/{{ j.id }}/lesson/{{ prev_id }}">{% trans trimmed %}Previous{% endtrans %}</a>{% else %}<span></span>{% endif %}
     {% if not lstate.done %}
       <form method="post" action="/learn/{{ j.id }}/lesson/{{ lesson.id }}/done">
         <input type="hidden" name="next" value="{{ next_id or '' }}">
         <button class="btn primary big">{{ _('Done, next lesson') if next_id else _('Done, go to tasks') }} {{ icon('arrow', 18) }}</button>
       </form>
     {% elif next_id %}
-      <a class="btn primary big" data-key-next href="/learn/{{ j.id }}/lesson/{{ next_id }}">{{ _("Next lesson") }} {{ icon('arrow', 18) }}</a>
+      <a class="btn primary big" data-key-next title="{{ _('Next lesson (N)') }}" href="/learn/{{ j.id }}/lesson/{{ next_id }}">{{ _("Next lesson") }} {{ icon('arrow', 18) }}</a>
     {% else %}
       <a class="btn primary big" href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _("Go to module tasks") }} {{ icon('arrow', 18) }}</a>
     {% endif %}

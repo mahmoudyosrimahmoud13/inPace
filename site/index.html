@@ -9,7 +9,7 @@
 <meta property="og:description" content="A free, offline learning app with a turtle who cheers you on. Windows, Mac and Linux.">
 <meta property="og:image" content="assets/shots/home.jpg">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 <script>
   // Pick Arabic for Arabic-speaking visitors, or whatever they chose last time.
   (function () {
@@ -100,8 +100,8 @@
         <dd><span class="en">Your history, courses, uploaded work and settings are saved in <code>Documents/inPace</code>. Your own video folders stay where they are and are never copied.</span><span class="ar">سجلك ودوراتك وأعمالك المرفوعة وإعداداتك محفوظة في <code>Documents/inPace</code>. ومجلدات الفيديو عندك تبقى في مكانها ولا تُنسخ أبدًا.</span></dd></div>
       <div><dt><span class="en">Your milestones are signed</span><span class="ar">محطاتك موقّعة</span></dt>
         <dd><span class="en">Each one is signed with a key that never leaves your computer and linked to the one before. Change anything later and the signatures stop matching.</span><span class="ar">كل محطة موقّعة بمفتاح لا يغادر جهازك، ومرتبطة بالتي قبلها. وأي تغيير لاحق يجعل التوقيعات لا تتطابق.</span></dd></div>
-      <div><dt><span class="en">Checking is just swapping files</span><span class="ar">المتابعة مجرد تبادل ملفات</span></dt>
-        <dd><span class="en">You send a progress file, your checker's app verifies every signature, and they send back a small approval file. Nothing goes through us.</span><span class="ar">ترسل ملف تقدّمك، فيتحقق تطبيق متابِعك من كل توقيع، ثم يرسل لك ملف موافقة صغيرًا. لا يمر شيء عبرنا.</span></dd></div>
+      <div><dt><span class="en">Checking is just swapping links</span><span class="ar">المتابعة مجرد تبادل روابط</span></dt>
+        <dd><span class="en">You send your progress as a link in any chat, your checker's app verifies every signature, and they send back a small approval link. Nothing goes through us.</span><span class="ar">ترسل تقدّمك كرابط في أي محادثة، فيتحقق تطبيق متابِعك من كل توقيع، ثم يرسل لك رابط موافقة صغيرًا. لا يمر شيء عبرنا.</span></dd></div>
     </dl>
     <p><a href="https://github.com/mahmoudyosrimahmoud13/inpace/blob/HEAD/docs/HOW-IT-WORKS.md"><span class="en">Read the full explanation of how inPace works</span><span class="ar">اقرأ الشرح الكامل لطريقة عمل inPace (بالإنجليزية)</span></a></p>
   </div>
@@ -160,10 +160,18 @@
     <figure class="frame"><img src="assets/shots/search.jpg" width="1920" height="1230" loading="lazy" alt="The search box open over the home page, finding the lesson Printing and simple math, in the Ocean colors."></figure>
   </div>
 
+  <div class="feature wide">
+    <div class="feature-text">
+      <h3><span class="en">Your courses, tidy</span><span class="ar">دوراتك مرتّبة</span></h3>
+      <p><span class="en">Give each course a picture, see how far along you are, and find any course or lesson with a quick search. Got a newer version? See what changed and update it without losing your progress.</span><span class="ar">أعطِ كل دورة صورة، واعرف أين وصلت فيها، واعثر على أي دورة أو درس ببحث سريع. وصلتك نسخة أحدث؟ شاهد ما تغيّر وحدّثها دون أن تفقد تقدّمك.</span></p>
+    </div>
+    <figure class="frame"><img src="assets/shots/courses.jpg" width="1920" height="1230" loading="lazy" alt="My courses: Python Basics and Reading club with their pictures, how much is done, and a search box."></figure>
+  </div>
+
   <ul class="grid">
     <li class="card">
-      <h3><span class="en">Friend codes</span><span class="ar">أكواد الأصدقاء</span></h3>
-      <p><span class="en">Send your code on Telegram or WhatsApp with one click. Your friend pastes it, and you're connected. No accounts.</span><span class="ar">أرسل كودك على تيليجرام أو واتساب بضغطة. يلصقه صديقك، فتصبحان متصلين. بدون حسابات.</span></p>
+      <h3><span class="en">Friend links</span><span class="ar">روابط الأصدقاء</span></h3>
+      <p><span class="en">Send your link on Telegram, WhatsApp or email. Your friend taps it, inPace opens and adds you, and one tap sends theirs back. No accounts.</span><span class="ar">أرسل رابطك على تيليجرام أو واتساب أو البريد. يضغطه صديقك فيفتح inPace ويضيفك، وبضغطة واحدة يرسل لك رابطه. بدون حسابات.</span></p>
     </li>
     <li class="card">
       <h3><span class="en">Races with friends</span><span class="ar">سباقات مع الأصدقاء</span></h3>
@@ -188,10 +196,6 @@
     <li class="card">
       <h3><span class="en">A record anyone can check</span><span class="ar">سجل يمكن لأي شخص التحقق منه</span></h3>
       <p><span class="en">Share one web page with your whole learning history. It checks its own signatures, right in the browser.</span><span class="ar">شارك صفحة ويب واحدة فيها كل رحلة تعلّمك. تفحص توقيعاتها بنفسها داخل المتصفح.</span></p>
-    </li>
-    <li class="card">
-      <h3><span class="en">Courses that stay up to date</span><span class="ar">دورات تبقى محدّثة</span></h3>
-      <p><span class="en">Got a newer version of a course? See what changed and update it without losing your progress. Added videos to a folder? Refresh it. Done with a course? Delete it.</span><span class="ar">وصلتك نسخة أحدث من دورة؟ شاهد ما تغيّر وحدّثها دون أن تفقد تقدّمك. أضفت فيديوهات لمجلد؟ حدّثه. انتهيت من دورة؟ احذفها.</span></p>
     </li>
     <li class="card">
       <h3><span class="en">Your colors</span><span class="ar">ألوانك</span></h3>

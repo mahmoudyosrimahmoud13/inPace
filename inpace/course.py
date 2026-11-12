@@ -366,6 +366,9 @@ def load_course(files: dict[str, str]) -> Course:
         questions=questions,
         answers=answers or None,
     )
+    image = raw.get("image")
+    if isinstance(image, str) and safe_media_path(image) and media_kind(image) == "image":
+        course.extra["image"] = safe_media_path(image)  # the course's cover picture, a file next to the course
     index = raw.get("media_index")
     if isinstance(index, dict):
         course.extra["media_index"] = {str(k): _int(v, 0) for k, v in index.items() if safe_media_path(str(k))}
@@ -482,6 +485,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
         "language": course.language,
         "modules": modules,
     }
+    if course.extra.get("image"):
+        head["image"] = course.extra["image"]
     if course.extra.get("media_index"):
         head["media_index"] = course.extra["media_index"]
     files["course.yaml"] = yaml.safe_dump(head, sort_keys=False, allow_unicode=True, width=100)
@@ -553,6 +558,7 @@ def _nice_title(name: str) -> str:
 
 
 LESSON_EXT = MEDIA_EXT + (".md",)
+COVER_NAMES = {"cover", "folder", "poster", "thumbnail", "course"}  # a picture with one of these names is the cover
 SKIP_DIRS = {"node_modules", "__pycache__", "venv", ".venv", ".git", "dist", "build", ".idea", ".vscode"}
 
 
@@ -565,6 +571,8 @@ def course_from_folder(folder: Path, title: str = "") -> Course:
 
     def usable(p: Path) -> bool:
         if not p.is_file() or p.name.startswith(".") or p.name in ("course.yaml", "questions.yaml", "answers.yaml"):
+            return False
+        if p.parent == folder and p.stem.lower() in COVER_NAMES and media_kind(p.name) == "image":
             return False
         return p.suffix.lower() == ".md" or media_kind(p.name) not in ("", "folder", "link")
 
@@ -614,5 +622,10 @@ def course_from_folder(folder: Path, title: str = "") -> Course:
     c = Course(id=_slug(name) or "course", title=name, version="1", description="", language="en",
                modules=modules, questions={}, answers=None)
     c.extra["media_index"] = index
+    cover = next((p for p in sorted(folder.iterdir()) if p.is_file() and p.stem.lower() in COVER_NAMES
+                  and media_kind(p.name) == "image"), None)
+    if cover:
+        c.extra["image"] = cover.name
+        index[cover.name] = cover.stat().st_size
     c.hash = fingerprint(c.public_dict())
     return c

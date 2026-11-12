@@ -13,7 +13,7 @@ def test_friend_code_round_trip(tmp_path):
     bv, b = client(tmp_path, "Sara")
     page = a.get("/people").text
     msg = html.unescape(re.search(r'<textarea id="my-code"[^>]*>(.*?)</textarea>', page, re.S).group(1))
-    assert "inpace:" in msg and "t.me/share/url" in page and "wa.me" in page
+    assert "/open#" in msg and "t.me/share/url" in page and "wa.me" in page
     # Pasting the whole chat message, even broken over lines, works.
     r = b.post("/open", data={"code": "Omar said:\n" + msg[:40] + "\n" + msg[40:], "from": "people"})
     assert "How are you connected?" in html.unescape(r.text) and "Omar" in html.unescape(r.text)

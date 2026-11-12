@@ -22,14 +22,22 @@
   <ol class="howto">
     <li class="{{ 'done' if c.milestones and not c.has_new }}">
       <div><b>{% trans trimmed %}Save a milestone{% endtrans %}</b><br><span class="muted small">{{ _('You have new progress to save.') if c.has_new else (_('Up to date.') if c.milestones else _('Do a lesson or task first.')) }}</span></div>
-      {% if c.has_new %}<form method="post" action="/milestones/{{ c.journey.id }}/save"><button class="btn primary">Save milestone {{ c.milestones|length + 1 }}</button></form>{% else %}<span></span>{% endif %}
+      {% if c.has_new %}<form method="post" action="/milestones/{{ c.journey.id }}/save"><button class="btn primary">{{ T('Save milestone {n}', n=c.milestones|length + 1) }}</button></form>{% else %}<span></span>{% endif %}
     </li>
-    <li>
-      <div><b>{% trans trimmed %}Send your progress file{% endtrans %}</b><br><span class="muted small">{{ T('To {name}, by WhatsApp, email or USB.', name=checkers|map(attribute='name')|join(' ' ~ _('or') ~ ' ') or _('your checker')) }}</span></div>
+    <li class="send-step">
+      {% if c.send %}
+      <div class="grow stack">
+        <div><b>{% trans trimmed %}Send your progress{% endtrans %}</b><br><span class="muted small">{{ T('To {name}. The link only carries what they haven\'t seen yet.', name=checkers|map(attribute='name')|join(' ' ~ _('or') ~ ' ') or _('your checker')) }}</span></div>
+        {% with share=c.send, sid='send-' ~ c.journey.id, label=_('Your progress link') %}{% include '_share.html' %}{% endwith %}
+        <span class="small muted"><a href="/milestones/{{ c.journey.id }}/export">{% trans trimmed %}Or download the full progress file{% endtrans %}</a></span>
+      </div>
+      {% else %}
+      <div><b>{% trans trimmed %}Send your progress file{% endtrans %}</b><br><span class="muted small">{% if c.milestones %}{{ T('To {name}, by WhatsApp, email or USB. It\'s too big for a link this time.', name=checkers|map(attribute='name')|join(' ' ~ _('or') ~ ' ') or _('your checker')) }}{% else %}{{ T('To {name}, by WhatsApp, email or USB.', name=checkers|map(attribute='name')|join(' ' ~ _('or') ~ ' ') or _('your checker')) }}{% endif %}</span></div>
       {% if c.milestones %}<a class="btn" href="/milestones/{{ c.journey.id }}/export">{{ icon('send', 18) }}{{ _("Download") }}</a>{% else %}<span class="muted small">{% trans trimmed %}After your first milestone{% endtrans %}</span>{% endif %}
+      {% endif %}
     </li>
     <li>
-      <div><b>{% trans trimmed %}Open their reply{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Their approval, an exam, or a question.{% endtrans %}</span></div>
+      <div><b>{% trans trimmed %}Open their reply{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Tap the link they send back, or open their file here.{% endtrans %}</span></div>
       <a class="btn" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </li>
   </ol>

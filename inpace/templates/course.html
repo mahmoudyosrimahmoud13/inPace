@@ -4,6 +4,7 @@
 {% set xs = [28, 70, 38, 76, 24, 62] %}
 {% set step = 104 %}
 <div class="page-head">
+  {% if prog.course.extra.image %}{{ cover(prog.course, True) }}{% endif %}
   <p class="eyebrow"><a href="/courses">{{ _('My courses') }}</a></p>
   <h1 dir="auto">{{ prog.course.title }}.</h1>
   <div class="row" style="margin-block-start: .9rem">

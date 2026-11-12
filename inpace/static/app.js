@@ -21,6 +21,17 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   });
 });
 
+// "More apps…" opens the system share menu where the window supports it (Signal, Messenger, Mail…).
+if (navigator.share) {
+  document.querySelectorAll("[data-share]").forEach((btn) => {
+    btn.hidden = false;
+    btn.addEventListener("click", () => {
+      const text = document.querySelector(btn.dataset.share).value;
+      navigator.share({ text }).catch(() => {});
+    });
+  });
+}
+
 document.querySelectorAll("[data-wordcount]").forEach((box) => {
   const need = +box.dataset.wordcount;
   const out = box.form.querySelector("[data-wordcount-out]");
@@ -587,10 +598,60 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
     const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); open(); }
     else if (e.key === "/" && !typing && !e.target.closest("[data-player]")) { e.preventDefault(); open(); }
-    else if (e.altKey && !typing && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
-      const fwd = (e.key === "ArrowRight") !== (document.dir === "rtl");
-      const a = document.querySelector(fwd ? "[data-key-next]" : "[data-key-prev]");
+    else if (!typing && !e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "n" || e.key === "p") &&
+             !e.target.closest("[data-player]")) {
+      // N and P: next and previous lesson.
+      const a = document.querySelector(e.key === "n" ? "[data-key-next]" : "[data-key-prev]");
       if (a) { e.preventDefault(); location.href = a.href; }
     }
+  });
+})();
+
+// Back and forward: the app window has no browser buttons, so inPace has its own (top left),
+// plus Alt+← / Alt+→ and the side buttons on a mouse.
+(() => {
+  const back = document.querySelector("[data-nav-back]"), fwd = document.querySelector("[data-nav-fwd]");
+  if (!back) return;
+  const goBack = () => (history.length > 1 ? history.back() : (location.pathname !== "/" && (location.href = "/")));
+  const goFwd = () => history.forward();
+  back.addEventListener("click", goBack);
+  fwd.addEventListener("click", goFwd);
+  // Show which way you can go, where the window can tell.
+  const nav = window.navigation;
+  const sync = () => {
+    if (!nav || nav.canGoBack === undefined) return;
+    back.disabled = !nav.canGoBack && location.pathname === "/";
+    fwd.disabled = !nav.canGoForward;
+  };
+  sync();
+  if (nav) nav.addEventListener("currententrychange", sync);
+  document.addEventListener("keydown", (e) => {
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return;
+    // Left is always back, like in a browser, also in Arabic.
+    if (e.key === "ArrowLeft") { e.preventDefault(); goBack(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); goFwd(); }
+  });
+  window.addEventListener("mouseup", (e) => {
+    if (e.button === 3) { e.preventDefault(); goBack(); }
+    else if (e.button === 4) { e.preventDefault(); goFwd(); }
+  });
+})();
+
+// My courses: type to find a course by its title, description, modules or lessons.
+(() => {
+  const box = document.querySelector("[data-course-filter]");
+  if (!box) return;
+  const cards = [...document.querySelectorAll("[data-course-search]")];
+  const none = document.querySelector("[data-course-none]");
+  box.addEventListener("input", () => {
+    const words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    cards.forEach((c) => {
+      const ok = words.every((w) => c.dataset.courseSearch.includes(w));
+      c.hidden = !ok;
+      shown += ok;
+    });
+    if (none) none.hidden = shown > 0;
   });
 })();

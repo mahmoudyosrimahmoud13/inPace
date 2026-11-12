@@ -39,20 +39,40 @@ def read_inpace_file(raw: bytes) -> dict:
 # ---------------------------------------------------------------------------
 
 CODE_PREFIX = "inpace:"
-_CODE_RE = re.compile(r"inpace:([A-Za-z0-9_-]{16,})")
+# A link opens the inPace website, which hands the data to the app. Everything after "#" stays in the
+# browser: it is never sent to the website.
+WEB_LINK = "https://mahmoudyosrimahmoud13.github.io/inPace/open#"
+APP_LINK = "inpace://open/"
+# Longest link we offer to send in a chat message. Telegram allows 4096 characters per message.
+LINK_LIMIT = 3500
+# inpace:BODY (old codes), inpace://open/BODY (app links), .../open#BODY or .../open.html#BODY (web links)
+_CODE_RE = re.compile(r"(?:inpace:(?://open/?)?|/open(?:\.html)?#)([A-Za-z0-9_-]{16,})")
+
+
+def _body(data: dict) -> str:
+    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(zlib.compress(raw, 9)).rstrip(b"=").decode("ascii")
 
 
 def to_code(data: dict) -> str:
-    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    return CODE_PREFIX + base64.urlsafe_b64encode(zlib.compress(raw, 9)).rstrip(b"=").decode("ascii")
+    return CODE_PREFIX + _body(data)
+
+
+def to_link(data: dict) -> str:
+    return WEB_LINK + _body(data)
+
+
+def link_body(text: str) -> str | None:
+    """The data part of any inPace code or link found in the text, or None."""
+    m = _CODE_RE.search(re.sub(r"\s+", "", text or ""))
+    return m.group(1) if m else None
 
 
 def from_code(text: str) -> dict:
-    """Find an inPace code anywhere in pasted text (a whole chat message is fine)."""
-    m = _CODE_RE.search(re.sub(r"\s+", "", text or ""))
-    if not m:
-        raise FileProblem("That doesn't look like an inPace code. It starts with inpace:")
-    body = m.group(1)
+    """Find an inPace code or link anywhere in pasted text (a whole chat message is fine)."""
+    body = link_body(text)
+    if not body:
+        raise FileProblem("That doesn't look like an inPace link or code.")
     try:
         z = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
         d = zlib.decompressobj()
@@ -60,15 +80,18 @@ def from_code(text: str) -> dict:
         if d.unconsumed_tail or not d.eof:
             raise ValueError("too big or cut off")
     except Exception:
-        raise FileProblem("This code is cut off or damaged. Copy the whole message again.")
+        raise FileProblem("This link is cut off or damaged. Copy the whole message again.")
     return read_inpace_file(raw)
 
 
-def share_links(intro: str, code: str) -> dict:
-    """Links that open Telegram or WhatsApp with the message ready to send."""
-    return {"code": code, "message": f"{intro}\n{code}",
-            "telegram": f"https://t.me/share/url?url={quote(code, safe='')}&text={quote(intro, safe='')}",
-            "whatsapp": f"https://wa.me/?text={quote(intro + chr(10) + code, safe='')}"}
+def share_links(intro: str, data: dict | str, subject: str = "inPace") -> dict:
+    """Ready-to-send links for chat apps and email. `data` is an inPace file (dict) or an old-style code."""
+    link = to_link(data) if isinstance(data, dict) else WEB_LINK + (link_body(data) or "")
+    message = f"{intro}\n{link}"
+    return {"code": link, "link": link, "message": message, "fits": len(link) <= LINK_LIMIT,
+            "telegram": f"https://t.me/share/url?url={quote(link, safe='')}&text={quote(intro, safe='')}",
+            "whatsapp": f"https://wa.me/?text={quote(message, safe='')}",
+            "email": f"mailto:?subject={quote(subject, safe='')}&body={quote(message, safe='')}"}
 
 
 def dump(data: dict) -> bytes:
@@ -125,20 +148,60 @@ def check_chain(milestones: list[dict], learner_id: str | None = None) -> list[s
 # Progress files (learner -> checker)
 # ---------------------------------------------------------------------------
 
-def make_progress_file(v: Vault, journey: str) -> dict:
+def checkers_have(v: Vault, journey: str) -> int:
+    """How many of your milestones every one of your checkers already has. A checker who replied about
+    milestone N had the whole history up to N, so an update for them only needs what came after."""
+    checkers = [p["id"] for p in v.my_checkers()]
+    if not checkers:
+        return 0
+    have = {c: 0 for c in checkers}
+    for m in v.milestones(journey):
+        for a in m["approvals"]:
+            if a["checker"] in have:
+                have[a["checker"]] = max(have[a["checker"]], m["seq"])
+    return min(have.values())
+
+
+def make_progress_file(v: Vault, journey: str, since: int = 0) -> dict:
+    """Your progress for your checker. With `since`, only the milestones after that number are included
+    (the checker already has the rest), which keeps it small enough to send as a link."""
     j = v.journey(journey)
     course = v.get_course(j["course_id"])
     ms = v.milestones(journey)
-    return {
+    since = max(0, min(since, len(ms) - 1))
+    data = {
         "inpace": "progress",
         "v": APP_VERSION,
         "learner": v.me,
         "journey": {"id": journey, "started_at": j["started_at"],
                     "course": {"id": course.id, "title": course.title, "version": course.version, "hash": course.hash}},
-        "milestones": [{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms],
-        "outline": course_outline(course),
+        "milestones": [{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms[since:]],
         "created_at": now_utc(),
     }
+    if since:
+        data["since"] = since
+    else:
+        data["outline"] = course_outline(course)
+    return data
+
+
+def complete_progress(v: Vault, data: dict) -> dict:
+    """Checker side: an update that only has the newest milestones gets the earlier ones from the copy we
+    already have. The whole history is then checked as usual, so nothing is taken on trust."""
+    since = int(data.get("since") or 0)
+    if not since:
+        return data
+    name = (data.get("learner") or {}).get("name", "This learner")
+    stored = v.received_one(data["learner"]["id"], data["journey"]["id"])
+    old = stored["data"]["milestones"] if stored else []
+    if len(old) < since:
+        raise FileProblem(f"This link only has {name}'s newest milestones, and this computer doesn't have the "
+                          f"earlier ones. Ask {name} to send the full progress file (Milestones → Download).")
+    full = dict(data)
+    full["milestones"] = old[:since] + list(data["milestones"])
+    full.pop("since", None)
+    full["outline"] = data.get("outline") or stored["data"].get("outline")
+    return full
 
 
 def review_progress(v: Vault, data: dict) -> dict:

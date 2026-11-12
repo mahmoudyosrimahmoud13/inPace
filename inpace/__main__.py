@@ -103,7 +103,8 @@ def main() -> None:
     ap.add_argument("--no-browser", action="store_true", help="don't open a window or browser")
     ap.add_argument("--which-window", nargs="?", const="-", metavar="FILE",
                     help="say which app window would be used (optionally into FILE), then exit")
-    args = ap.parse_args()
+    ap.add_argument("link", nargs="?", default=None, help="an inPace link to open (inpace://open/...)")
+    args, _unknown = ap.parse_known_args()  # macOS may add its own arguments (-psn_...)
     if args.which_window:
         from .window import which
         kind = which()
@@ -119,7 +120,9 @@ def main() -> None:
     _start_updates(vault)
     port = free_port(args.port)
     _remember_port(vault.home, port)
-    url = f"http://127.0.0.1:{port}/"
+    from .links import register, start_path
+    threading.Thread(target=register, daemon=True).start()  # tapping inPace links opens this copy
+    url = f"http://127.0.0.1:{port}/" + start_path(args.link)
 
     # 127.0.0.1 means only this computer can reach it.
     config = uvicorn.Config(create_app(vault), host="127.0.0.1", port=port, log_level="warning")

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Opening the link') }}{% endblock %}
+{% block main %}
+<form class="card stack empty" method="post" action="/open" id="link-form">
+  {{ mascot('wave', 110) }}
+  <h1>{% trans trimmed %}Opening the link…{% endtrans %}</h1>
+  <input type="hidden" name="code" value="{{ code }}">
+  <input type="hidden" name="from" value="people">
+  <noscript><button class="btn primary big">{% trans trimmed %}Open it{% endtrans %}</button></noscript>
+</form>
+<script>document.getElementById("link-form").submit();</script>
+{% endblock %}

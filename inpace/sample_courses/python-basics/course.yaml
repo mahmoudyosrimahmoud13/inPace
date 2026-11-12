@@ -3,6 +3,7 @@ title: Python Basics
 version: 1
 language: en
 description: A short starter course. Learn what Python is, write your first lines, and use variables and lists.
+image: cover.jpg
 modules:
   - id: m1
     title: Your first Python

@@ -3,6 +3,8 @@
   <div class="row wrap">
     <a class="btn tg" href="{{ share.telegram }}" target="_blank" rel="noopener">{{ icon('send', 18) }}{{ _('Send on Telegram') }}</a>
     <a class="btn wa" href="{{ share.whatsapp }}" target="_blank" rel="noopener">{{ _('Send on WhatsApp') }}</a>
+    <a class="btn" href="{{ share.email }}">{{ _('Email') }}</a>
     <button type="button" class="btn" data-copy="#{{ sid }}">{{ _('Copy') }}</button>
+    <button type="button" class="btn" data-share="#{{ sid }}" hidden>{{ _('More apps…') }}</button>
   </div>
 </div>

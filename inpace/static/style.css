@@ -895,3 +895,35 @@ main > .page { flex: 1 0 auto; width: 100%; }
 .swatch-card .chips i { flex: 1; }
 .swatch-card:has(input:checked) { box-shadow: var(--hard); outline: 3px solid var(--line); outline-offset: 2px; }
 .swatch-card:focus-within { outline: 3px solid var(--focus); }
+
+/* v1.11: links to send */
+.howto li.send-step > .grow { grid-column: 2 / -1; }
+.send-back { box-shadow: 6px 6px 0 var(--sun); }
+.share-box .row.wrap { gap: .5rem; }
+
+/* Back and forward (the app window has no browser buttons) */
+.nav-btns { display: inline-flex; gap: .35rem; }
+.nav-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; cursor: pointer;
+  background: var(--surface); color: var(--ink); border: 2.5px solid var(--line); box-shadow: 2px 2px 0 var(--line); }
+[dir=rtl] .nav-btn { box-shadow: -2px 2px 0 var(--line); }
+[dir=rtl] .nav-btn svg { transform: scaleX(-1); }
+.nav-btn:hover:not(:disabled) { background: var(--sun); color: #111; }
+.nav-btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+.nav-btn:disabled { opacity: .35; cursor: default; box-shadow: none; }
+@media (max-width: 560px) { .top { gap: .5rem; } .nav-btn { width: 32px; height: 32px; } }
+
+/* Course pictures and course search */
+.cover { width: 112px; aspect-ratio: 16 / 10; object-fit: cover; flex: none; border: 2.5px solid var(--line); background: var(--raised); }
+.cover.big { width: 100%; height: 170px; aspect-ratio: auto; margin-block-end: 1.2rem; object-position: center 40%; }
+.cover.blank { display: grid; place-items: center; font-weight: 800; font-size: 2rem; color: #111;
+  background: hsl(var(--hue) 75% 72%); }
+.course-tools { align-items: center; gap: 1rem; flex-wrap: wrap; margin-block-end: 1rem; }
+.course-tools h2 { margin: 0; }
+.course-filter { display: inline-flex; align-items: center; gap: .5rem; flex: 1 1 260px; max-width: 420px; padding: .2rem .7rem;
+  background: var(--surface); border: 2.5px solid var(--line); }
+.course-filter input { border: 0; outline: 0; background: transparent; padding: .45rem 0; flex: 1; min-width: 0; font: inherit; box-shadow: none; }
+.course-filter:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cover-edit { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+@media (max-width: 560px) { .course-row > .cover { width: 100%; } }
+label.course-filter { display: flex; flex-direction: row; align-items: center; margin: 0; font-weight: 400; }
+label.course-filter input { width: auto; border: 0; box-shadow: none; }

@@ -203,3 +203,23 @@ main > .chapter { display: grid; grid-template-columns: auto 1fr 1.1fr; gap: cla
 @media (max-width: 560px) { main > .chapter { grid-template-columns: 1fr; } .guide-head { flex-direction: column; align-items: flex-start; } }
 main > .chapter { max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }
 main > .chapter:last-child { border-bottom: 0; }
+
+/* Open a link (open.html) */
+main.opener { min-height: 70vh; padding: clamp(32px, 6vw, 72px) clamp(16px, 4vw, 40px); }
+.open-card { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: start;
+  background: var(--surface); border: 3px solid var(--line); box-shadow: 10px 10px 0 var(--sun); padding: clamp(24px, 4vw, 48px); }
+[dir=rtl] .open-card { box-shadow: -10px 10px 0 var(--sun); }
+.open-tempo { width: 100%; }
+.open-body h1 { font-size: clamp(1.9rem, 4.4vw, 3rem); overflow-wrap: anywhere; }
+[dir=rtl] .open-body h1 { line-height: 1.35; }
+.open-body .lead { margin-block-start: .9rem; color: var(--muted); }
+.open-steps { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; gap: 1.4rem; }
+.open-steps p { margin: .6rem 0; max-width: 36em; }
+.open-steps .small, .private-note { font-size: .92rem; color: var(--muted); }
+.open-get { margin-block-start: 2.2rem; padding-block-start: 1.6rem; border-top: 3px dashed var(--line); }
+.open-get h2 { font-size: 1.5rem; margin-block-end: .5rem; }
+.open-get p { margin: .4rem 0; max-width: 36em; }
+.open-get .cta { display: flex; flex-wrap: wrap; gap: .8rem; margin-block-start: 1rem; }
+.private-note { margin-block-start: 2rem; }
+@media (max-width: 700px) { .open-card { grid-template-columns: 1fr; } .open-tempo { width: 130px; } }
+button.btn { font: inherit; font-weight: 700; cursor: pointer; }

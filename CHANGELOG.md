@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.11.0
+
+- **Links instead of codes and files:**
+  - Your friend link, progress, replies, race invites and race updates are now links you can send in any chat or email.
+  - Tapping one opens the inPace website, which says what it is ("Layla wants to add you on inPace") and opens inPace straight on the right screen.
+  - No inPace yet? The same page offers the download for that computer.
+- **Open from any app:** inPace now handles `inpace://` links on Windows, Mac and Linux, so a link in Telegram, WhatsApp, email or the browser opens the app.
+- **Connected both ways in one tap:** after you add someone, inPace offers **Send your link back**, with the same share buttons.
+- **More ways to share:** Telegram, WhatsApp, **Email**, Copy, and **More apps…** (the system share menu) where the window supports it.
+- **Small progress links:**
+  - The link only carries the milestones your checkers haven't seen yet.
+  - Their app joins it to the history it already has and checks the whole history, as always.
+  - If it's ever too big for a link, inPace offers the file instead.
+- **Easier back and forth:**
+  - **Back and forward buttons** at the top left of every page.
+  - **Alt+← / Alt+→** and the mouse side buttons also go back and forward.
+  - **N / P** now go to the next and previous lesson (they used to be Alt+→ / Alt+←).
+- **Search your courses:** a search box on My courses finds a course by its title, description, modules or lesson names. Each started course also shows how much is done.
+- **Course pictures:** add a picture to any course (Edit → Course details → Add a picture). It shows on My courses and at the top of the course, and goes along when you share the course. A folder course picks up a `cover.jpg` (or `folder.jpg`, `poster.png`…) by itself. Courses without a picture get a coloured tile with their first letter. The sample Python courses now come with a picture.
+- Old `inpace:` codes and files still work.
+
 ## Docs (after v1.10.0)
 
 - **New: [How inPace works](docs/HOW-IT-WORKS.md)**, a plain-words explanation of the app window, the data folder, courses and media, updating and deleting courses, milestones and checking, updates, and when inPace goes online, plus a map of the code.

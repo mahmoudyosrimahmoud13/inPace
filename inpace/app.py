@@ -174,6 +174,8 @@ def avatar(p: dict, size: int = 36) -> Markup:
 env.globals["avatar"] = avatar
 
 _ICONS = {
+    "back": '<path d="M15 5l-7 7 7 7"/>',
+    "forward": '<path d="M9 5l7 7-7 7"/>',
     "home": '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     "book": '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/>',
     "flag": '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
@@ -210,6 +212,21 @@ def icon(name: str, size: int = 20) -> Markup:
 
 
 env.globals["icon"] = icon
+
+
+def cover(c, big: bool = False, sample: bool = False) -> Markup:
+    """The course's picture, or a coloured tile with its first letter when it has none."""
+    cls = "cover big" if big else "cover"
+    img = (c.extra or {}).get("image")
+    if img:
+        base = "/sample-file" if sample else "/m"
+        return Markup('<img class="{}" src="{}/{}/{}" alt="" loading="lazy">').format(cls, base, quote(c.id), quote(img))
+    hue = sum(ord(ch) for ch in c.id) % 360
+    letter = (c.title.strip()[:1] or "?").upper()
+    return Markup('<span class="{} blank" style="--hue:{}" aria-hidden="true">{}</span>').format(cls, hue, letter)
+
+
+env.globals["cover"] = cover
 from .course import media_kind as _media_kind
 env.globals["media_kind"] = _media_kind
 env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
@@ -346,6 +363,9 @@ def create_app(vault: Vault) -> Starlette:
     async def home(request: Request):
         if not V.is_set_up:
             return go("/setup")
+        pending = V._meta("pending_link", "") or ""
+        if pending:
+            return go("/link?d=" + pending)
         cards = [journey_card(j) for j in V.journeys()]
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
         return page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
@@ -388,11 +408,30 @@ def create_app(vault: Vault) -> Starlette:
                     pass
         lang = V._meta("lang", "en") or "en"
         samples.sort(key=lambda c: c.language != lang)  # courses in your language first
-        rows = [{"course": c, "journey": V.journey_for_course(c.id),
-                 "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"]),
-                 "media_root": V.media_root(c.id)}
-                for c in installed]
+        rows = []
+        for c in installed:
+            jid = V.journey_for_course(c.id)
+            words = [c.title, c.description] + [m["title"] for m in c.modules] + \
+                    [les["title"] for m in c.modules for les in m["lessons"]]
+            rows.append({"course": c, "journey": jid,
+                         "percent": V.progress(jid)["percent"] if jid else None,
+                         "search": " ".join(w for w in words if w).lower(),
+                         "has_files": any(media_mod.media_refs(les) for m in c.modules for les in m["lessons"]),
+                         "media_root": V.media_root(c.id)})
         return page("courses.html", request, rows=rows, samples=samples)
+
+    async def sample_file(request: Request):
+        """The picture of a sample course you haven't added yet."""
+        cid, rel = request.path_params["cid"], request.path_params["path"]
+        root = (SAMPLES / cid / "files").resolve()
+        try:
+            p = (root / rel).resolve()
+            p.relative_to(root)
+        except (ValueError, OSError):
+            return Response("Not found", status_code=404)
+        if not p.is_file() or _media_kind(p.name) != "image":
+            return Response("Not found", status_code=404)
+        return FileResponse(p, headers={"X-Content-Type-Options": "nosniff"})
 
     async def add_sample(request: Request):
         cid = request.path_params["cid"]
@@ -400,6 +439,15 @@ def create_app(vault: Vault) -> Starlette:
         if not folder.is_dir():
             return go("/courses", err="That sample course wasn't found.")
         c = V.install_course(load_course(files_from_folder(folder)))
+        files = folder / "files"  # the course picture and any other files that come with it
+        if files.is_dir():
+            import shutil
+            dest = V.media_dir(c.id)
+            for f in files.rglob("*"):
+                if f.is_file():
+                    target = dest / f.relative_to(files)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(f, target)
         return go("/courses", ok=f"Added “{c.title}”. Press Start when you're ready.")
 
     async def start_course(request: Request):
@@ -428,6 +476,15 @@ def create_app(vault: Vault) -> Starlette:
             safe = re.sub(r"[^\w .,()-]+", "", f"{c.title}{suffix} (with files).lpack", flags=re.UNICODE).strip()
             return FileResponse(tmp, filename=safe, media_type="application/zip",
                                 background=BackgroundTask(lambda: Path(tmp).unlink(missing_ok=True)))
+        img = c.extra.get("image")
+        cov = V.find_media(c.id, img) if img else None
+        if cov and cov.is_file():
+            # The course picture always goes along: it's small, and the course looks right for the next person.
+            import tempfile
+            with tempfile.TemporaryDirectory() as td:
+                out = Path(td) / "c.lpack"
+                write_pack_with_media(c, with_answers, {img: cov}, out)
+                return download(out.read_bytes(), f"{c.title}{suffix}.lpack")
         return download(course_to_pack(c, with_answers), f"{c.title}{suffix}.lpack")
 
     def _course_files_view(cid: str):
@@ -490,6 +547,10 @@ def create_app(vault: Vault) -> Starlette:
                                 out[(ref.rstrip("/") + "/" + f.relative_to(p).as_posix()).lstrip("/").replace(":", "")] = f
                     elif p:
                         out[ref.lstrip("/").replace(":", "")] = p
+        img = c.extra.get("image")
+        cov = V.find_media(c.id, img) if img else None
+        if cov and cov.is_file():
+            out[img] = cov
         return out
 
     async def media_file(request: Request):
@@ -995,6 +1056,15 @@ def create_app(vault: Vault) -> Starlette:
     # ---- milestones -----------------------------------------------------------
     async def milestones(request: Request):
         cards = [journey_card(j) for j in V.journeys()]
+        for c in cards:
+            c["send"] = None
+            if c["milestones"]:
+                jid = c["journey"]["id"]
+                since = exchange.checkers_have(V, jid)
+                sh = exchange.share_links(say("My progress on inPace 🐢 Tap the link to check it:"),
+                                          exchange.make_progress_file(V, jid, since), say("My progress on inPace"))
+                if sh["fits"]:
+                    c["send"] = sh
         return page("milestones.html", request, cards=cards, checkers=V.my_checkers())
 
     async def save_milestone(request: Request):
@@ -1078,11 +1148,11 @@ def create_app(vault: Vault) -> Starlette:
             except exchange.FileProblem as e:
                 sync_msg = str(e)
         b = races.board(V, rid)
-        invite = exchange.share_links(say("Join my race on inPace 🐢 Open inPace, choose Open, and paste this code:"),
-                                      exchange.to_code(races.get_race(V, rid)["race"]))
+        invite = exchange.share_links(say("Join my race on inPace 🐢 Tap the link:"),
+                                      races.get_race(V, rid)["race"], say("Join my race on inPace"))
         try:
-            update = exchange.share_links(say("My inPace race update. Paste it in inPace → Open:"),
-                                          exchange.to_code(races.make_update(V, rid)))
+            update = exchange.share_links(say("My inPace race update. Tap the link:"),
+                                          races.make_update(V, rid), say("My inPace race update"))
         except Exception:
             update = None
         return page("race.html", request, b=b, rid=rid, sync_msg=sync_msg, cheers=races.CHEERS,
@@ -1207,6 +1277,37 @@ def create_app(vault: Vault) -> Starlette:
             return go(back, err=e.problems[0])
         return go(back, ok="Added to the lesson.")
 
+    async def edit_course_image(request: Request):
+        """Add, change or remove the course's cover picture. It's saved with the course's own files."""
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        folder = V.media_dir(cid)
+        if form.get("remove"):
+            old = c.extra.pop("image", None)
+            if old and old.startswith("cover.") and (folder / old).exists():
+                (folder / old).unlink()
+            editor.save(V, c)
+            return go(f"/edit/{cid}", ok="Removed the picture.")
+        up = form.get("image")
+        if not up or not getattr(up, "filename", ""):
+            return go(f"/edit/{cid}", err="Choose a picture first.")
+        ext = Path(up.filename).suffix.lower()
+        if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+            return go(f"/edit/{cid}", err="Choose a JPG, PNG, WebP or GIF picture.")
+        data = await up.read()
+        if len(data) > 8 * 1024 * 1024:
+            return go(f"/edit/{cid}", err="That picture is too big. Choose one under 8 MB.")
+        folder.mkdir(parents=True, exist_ok=True)
+        for old in folder.glob("cover.*"):
+            old.unlink()
+        (folder / f"cover{ext}").write_bytes(data)
+        c.extra["image"] = f"cover{ext}"
+        editor.save(V, c)
+        return go(f"/edit/{cid}", ok="Saved the picture.")
+
     async def edit_lesson(request: Request):
         cid, lid = request.path_params["cid"], request.path_params["lid"]
         c = V.get_course(cid)
@@ -1227,9 +1328,10 @@ def create_app(vault: Vault) -> Starlette:
                 by_course.setdefault(r["course"], []).append({"person": p, "rec": r,
                                                               "percent": (r["data"]["milestones"][-1]["body"]["summary"]["percent"]
                                                                           if r["data"]["milestones"] else 0)})
-        share = exchange.share_links(say("Add me on inPace 🐢 Open inPace, go to People, and paste this code:"),
-                                     exchange.to_code(exchange.make_contact_card(V)))
-        return page("people.html", request, people=rows, by_course=by_course, share=share)
+        share = exchange.share_links(say("Add me on inPace 🐢 Tap the link:"), exchange.make_contact_card(V),
+                                     say("Add me on inPace"))
+        added = V.person(str(request.query_params.get("added", "")))
+        return page("people.html", request, people=rows, by_course=by_course, share=share, added=added)
 
     async def my_card(request: Request):
         return download(exchange.dump(exchange.make_contact_card(V)), f"{V.me['name']} - contact card.inpace",
@@ -1258,7 +1360,7 @@ def create_app(vault: Vault) -> Starlette:
         nxt = str(form.get("then", ""))
         if nxt.startswith("/review/") or nxt == "/open":
             return go(nxt, ok=f"Added {card['name']}.")
-        return go("/people", ok=f"Added {card['name']}.")
+        return go(f"/people?added={card['id']}", ok=f"Added {card['name']}.")
 
     async def edit_person(request: Request):
         pid = request.path_params["pid"]
@@ -1302,6 +1404,17 @@ def create_app(vault: Vault) -> Starlette:
         if not inside and V.missing_media(c):
             lines.append("Its videos and other files aren't inside. Choose their folder on the course page.")
         return go("/courses", ok="\n".join(lines))
+
+    async def open_link(request: Request):
+        """inPace was opened from a link (inpace://open/...). Hand the data to Open, like a pasted code."""
+        body = exchange.link_body("inpace:" + str(request.query_params.get("d", "")))
+        if not body:
+            return go("/", err="That link is cut off or damaged. Copy the whole message again.")
+        if not V.is_set_up:
+            V._set_meta("pending_link", body)  # opened before setup: come back to it right after
+            return go("/setup")
+        V._set_meta("pending_link", "")
+        return page("link.html", request, code="inpace:" + body)
 
     async def open_file(request: Request):
         if request.method == "GET":
@@ -1370,6 +1483,7 @@ def create_app(vault: Vault) -> Starlette:
                 return page("add_person.html", request, card=data, card_json=_json.dumps(data),
                             existing=V.person(data["id"]), then="/people")
             if kind == "progress":
+                data = exchange.complete_progress(V, data)
                 learner = data["learner"]["id"]
                 if learner == V.identity.id:
                     return go("/open", err="That's your own progress file. Send it to your checker.")
@@ -1498,8 +1612,18 @@ def create_app(vault: Vault) -> Starlette:
                                            rec["data"]["journey"]["course"]["hash"]) if course else []
         all_events = [e for m in report["milestones"] for e in m["body"]["events"]]
         weekly = pace.weeks(all_events, [m["body"]["created_at"] for m in report["milestones"]])
+        reply_file = request.query_params.get("file")
+        reply_share = None
+        if reply_file and (V.home / "outbox" / Path(reply_file).name).exists():
+            try:
+                sh = exchange.share_links(say("My reply on inPace 🐢 Tap the link to open it:"),
+                                          exchange.read_inpace_file((V.home / "outbox" / Path(reply_file).name).read_bytes()),
+                                          say("My reply on inPace"))
+                reply_share = sh if sh["fits"] else None
+            except exchange.FileProblem:
+                pass
         return page("review.html", request, person=person, rec=rec, report=report, names=names, weekly=weekly,
-                    reply_file=request.query_params.get("file"), receipts=V.receipts(lid, jid),
+                    reply_file=reply_file, reply_share=reply_share, receipts=V.receipts(lid, jid),
                     graded=graded, have_files=checks.has_received_files(V), course=course, quizzes=quizzes,
                     sent=checks.sent_exams(V, lid, jid), course_diffs=diffs,
                     similar=checks.similar_writeups(V, rec["data"]), all_files=checks.evidence_in(rec["data"]))
@@ -1708,6 +1832,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/media-folder", needs_setup(set_media_folder), methods=["POST"]),
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
+        Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/pdf", needs_setup(pdf_reader)),
         Route("/nav.json", needs_setup(nav_index)),
@@ -1744,11 +1869,13 @@ def create_app(vault: Vault) -> Starlette:
         Route("/edit/{cid}", needs_setup(edit_course), methods=["GET", "POST"]),
         Route("/edit/{cid}/lesson/{lid}", needs_setup(edit_lesson)),
         Route("/edit/{cid}/lesson/{lid}/media", needs_setup(edit_lesson_media), methods=["POST"]),
+        Route("/edit/{cid}/image", needs_setup(edit_course_image), methods=["POST"]),
         Route("/edit/{cid}/yaml", needs_setup(edit_yaml), methods=["GET", "POST"]),
         Route("/edit/{cid}/preview", needs_setup(lesson_preview), methods=["POST"]),
         Route("/people", needs_setup(people)),
         Route("/people/card", needs_setup(my_card)),
         Route("/people/add", needs_setup(add_person), methods=["POST"]),
+        Route("/link", open_link),
         Route("/people/add-learner", needs_setup(add_person_from_progress), methods=["POST"]),
         Route("/people/{pid}", needs_setup(edit_person), methods=["POST"]),
         Route("/open", needs_setup(open_file), methods=["GET", "POST"]),

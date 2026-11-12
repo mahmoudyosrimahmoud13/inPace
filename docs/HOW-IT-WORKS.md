@@ -12,7 +12,7 @@ inPace runs on your own computer with no server, no account and no cloud. This p
 - **inPace is a small website that only lives on your computer.** When you open it, it starts a tiny web server that only your own computer can reach (`127.0.0.1`). It shows that server's pages in its own app window.
 - **Everything is saved in one folder** on your computer, called your data folder.
 - **Your progress is signed.** Each milestone is signed with a key that only your computer has, and it's linked to the milestone before it. If anyone changes the history later, the signatures stop matching.
-- **People check each other by swapping files.** You send a progress file. Your checker's inPace checks the signatures, and they send back a small approval file. Nothing goes through us.
+- **People check each other by swapping links or files.** You send your progress as a link (or a file). Your checker's inPace checks the signatures, and they send back a small approval the same way. Nothing goes through us.
 
 ---
 
@@ -29,7 +29,7 @@ When you double-click inPace:
    - **Last resort:** a normal browser tab.
 
    To force one, set `INPACE_WINDOW`. To see which one would be picked, run `inpace --which-window`.
-4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 8](#8-updates).
+4. **It checks for updates once a day,** but only if you said yes the first time. Details are in [section 9](#9-updates).
 
 ---
 
@@ -67,6 +67,8 @@ A course is plain text: a `course.yaml` file with modules, lessons and tasks, pl
 - **A list of links,** one per line. A line starting with `#` starts a new module.
 - **With AI.** inPace writes a prompt for a topic, a book, a playlist, a course you're taking, a project, your notes or an exam. You paste it into any AI chat and paste the answer back.
 - **By hand,** in the course builder.
+
+**Course pictures.** `image:` in `course.yaml` points to a picture next to the course. A picture added in the builder is saved as `media/<id>/cover.*`. A folder course uses a `cover`, `folder`, `poster`, `thumbnail` or `course` picture at the top of the folder. The picture goes inside the course file when you share it.
 
 **Finding the files.** For each lesson file, inPace looks in this order:
 1. The exact path, if the course gives a full path.
@@ -137,9 +139,9 @@ Because of the link and the signature, nobody can change one milestone without b
 
 **The checking loop:**
 
-1. You and your checker connect with a **friend code**. You can send it on Telegram or WhatsApp in one click. Swapping contact-card files works too.
-2. You **save a milestone** and **make a progress file**.
-3. You send the file any way you like.
+1. You and your checker connect with a **friend link**. You send it on Telegram, WhatsApp or email in one click. They tap it, inPace adds you, and one more tap sends their link back to you. Pasting the link, or swapping contact-card files, works too.
+2. You **save a milestone**.
+3. You **send your progress link**, or a progress file if it's too big for a link (see [section 8](#8-links-opening-inpace-from-other-apps)).
 4. **Your checker's inPace checks every signature and link.** It warns them if anything changed since they last looked.
 5. They **approve, ask a question, or flag a problem.** Their reply is a small signed file that you open in inPace.
 
@@ -153,17 +155,52 @@ Because of the link and the signature, nobody can change one milestone without b
 
 ## 7. Getting around
 
-- **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page.
+- **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page. **My courses** also has a search box that filters your courses by title, description, module or lesson name.
 - **Continue:** the sidebar card takes you back to the lesson you were last on.
 - **Course outline:** shown on every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
-- **Alt+→ / Alt+←:** next and previous lesson.
+- **Back and forward:** the app window has no browser buttons, so inPace has its own at the top left. **Alt+← / Alt+→** and the side buttons on a mouse work too.
+- **N / P:** next and previous lesson.
 - **Colors and dark mode:** Settings → Colors has seven color profiles, each with light and dark shades. The moon button switches dark mode.
 - **English and Arabic:** the whole app, right to left in Arabic.
 - **The welcome tour:** Tempo the turtle shows you around the first time. You can replay it from Settings.
 
+## 8. Links: opening inPace from other apps
+
+Friend invites, progress, replies, race invites and race updates can all travel as a link. You can send them in any chat or email.
+
+**What a link looks like:** `https://mahmoudyosrimahmoud13.github.io/inPace/open#…`
+- Everything after `#` is the inPace data, compressed (zlib, then base64).
+- Browsers never send the part after `#` to the website, so GitHub never sees it.
+- The link carries the same signed data a file would, so checking works exactly the same.
+
+**What happens when someone taps it:**
+1. The inPace website opens. It reads the link inside the browser and says what it is, for example "Layla wants to add you on inPace".
+2. **Open in inPace** opens `inpace://open/…`. That starts inPace, or restarts it, straight on the right screen.
+3. If inPace isn't installed, the same page shows the download for that computer.
+4. If nothing opens, they can copy the link and paste it into **People → Add a friend** or **Open a file**.
+
+**How the computer knows `inpace://` links belong to inPace:**
+
+| Computer | How |
+|---|---|
+| Windows | inPace adds a per-user registry entry on every start. No admin rights needed. |
+| Mac | Declared in the app's `Info.plist`. Links reach the running app as Apple events. |
+| Ubuntu / Debian (`.deb`) | Declared in the installed `inpace.desktop`. |
+| Other Linux and running from source | inPace writes `~/.local/share/applications/inpace-link.desktop`, unless another app already handles these links. |
+
+**Only what's new:**
+- A checker who replied about milestone N already has the whole history up to N.
+- So a progress link only carries the milestones after the last one **all** your checkers have replied to, and it skips the course outline.
+- The checker's app joins the new part to the copy it already has, then checks the **whole** history as usual. Nothing is taken on trust.
+- If their copy is missing, inPace asks for the full progress file.
+
+**Too big:** a link is offered only up to 3,500 characters, which fits in a Telegram message. Above that, inPace says so and you send the file instead.
+
+**Privacy:** a link sent in a chat app passes through that app, just like a file would.
+
 ---
 
-## 8. Updates
+## 9. Updates
 
 The first time you open inPace, it asks if it may keep itself up to date.
 
@@ -185,19 +222,20 @@ The first time you open inPace, it asks if it may keep itself up to date.
 
 ---
 
-## 9. When inPace goes online
+## 10. When inPace goes online
 
 Only for things you turn on or press:
 - The update check.
 - Opening an online video you pressed play on.
 - Looking up YouTube titles when you paste links, if you tick that box.
-- A friend-code link you click to share on Telegram or WhatsApp. That opens their app.
+- A share button you click for Telegram, WhatsApp or email. That opens that app with your message ready.
+- Opening an inPace link shows the inPace website first. The data after `#` stays in your browser.
 
 **The AI course maker** never sends anything by itself. You copy the prompt and paste it yourself.
 
 ---
 
-## 10. For developers: where the code is
+## 11. For developers: where the code is
 
 ```text
 inpace/
@@ -210,7 +248,8 @@ inpace/
   media.py        players and viewers for each kind of lesson file
   identity.py     keys and signatures (Ed25519)
   canon.py        the exact byte form that gets signed and fingerprinted
-  exchange.py     progress, approval, card and pack files
+  exchange.py     progress, approval, card and pack files, and links that carry them
+  links.py        opening inPace from inpace:// links on each kind of computer
   checks.py       what the checker sees: verifying a learner's history and files
   exam.py         quizzes and verified exams from a seed
   pace.py         weekly goals, streaks, breaks, finish dates
