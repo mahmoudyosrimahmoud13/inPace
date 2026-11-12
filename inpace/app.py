@@ -637,7 +637,14 @@ def create_app(vault: Vault) -> Starlette:
         except ValueError:
             start = 0
         CURRENT["lang"] = V._meta("lang", "en") or "en"
-        return page("pdf_viewer.html", request, src=src, key=key, start=max(start, 1),
+
+        def num(name: str) -> int:
+            v = request.query_params.get(name, "")
+            return int(v) if v.isdigit() and 0 < int(v) < 100000 else 0
+        first, last = num("from"), num("to")
+        if last and first > last:
+            first, last = last, first
+        return page("pdf_viewer.html", request, src=src, key=key, start=max(start, 1), first=first or 1, last=last,
                     file_name=request.query_params.get("name", "PDF")[:200], standalone=request.query_params.get("full") == "1")
 
     async def media_position(request: Request):
@@ -660,12 +667,16 @@ def create_app(vault: Vault) -> Starlette:
             V._set_meta(f"pos:{key}", "0" if done else f"{t:.1f}")
         return Response(status_code=204)
 
-    def _course_files(c: Course) -> dict:
-        """Every file of the course that's on this computer, by its path inside the course."""
+    def _course_files(c: Course, include_book: bool = False) -> dict:
+        """Every file of the course that's on this computer, by its path inside the course.
+        A book course's book is left out unless asked for: people share the course, and each uses their own copy."""
         out = {}
+        book = c.extra.get("book")
         for m in c.modules:
             for les in m["lessons"]:
                 for ref in media_mod.media_refs(les):
+                    if book and ref == book and not include_book:
+                        continue
                     p = V.find_media(c.id, ref)
                     if p and p.is_dir():
                         for f in p.rglob("*"):
@@ -748,12 +759,27 @@ def create_app(vault: Vault) -> Starlette:
 
     # ---- Add a course: the easy way --------------------------------------------------------------------
     FIXED_TITLES = ("General", "Other materials", "Not sorted yet", "Videos", "Audio", "Slides and PDFs",
-                    "Web pages", "Notes", "Pictures", "Code", "Other files")
+                    "Documents and sheets", "Web pages", "Notes", "Pictures", "Code", "Other files")
+
+    def _book_words(text: str) -> str:
+        """Names inPace makes up for parts of a book, in the app's language."""
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        if text in ("Front matter", "Introduction"):
+            return say(text)
+        m = re.fullmatch(r"Pages (\d+)–(\d+)", text)
+        return t("Pages {a} to {b}", a=m.group(1), b=m.group(2)) if m else text
 
     def _drafts() -> Path:
         d = V.home / "drafts"
         d.mkdir(exist_ok=True)
         return d
+
+    def _book(form_or_query, folder: Path | None) -> str:
+        """The book's file name in that folder (a PDF), or ""."""
+        name = str(form_or_query.get("book", "")).strip()
+        if not name or not folder or "/" in name or "\\" in name or name.startswith(".") or not name.lower().endswith(".pdf"):
+            return ""
+        return name if (folder / name).is_file() else ""
 
     def _source(form_or_query) -> tuple[Path | None, str, str]:
         """(folder, folder text, draft id). A draft is files you picked, already copied into inPace."""
@@ -773,11 +799,28 @@ def create_app(vault: Vault) -> Starlette:
                 shutil.rmtree(d, ignore_errors=True)
         return page("add.html", request, ai=integrations.ai_settings(V))
 
-    def _organizer(request: Request, folder: Path, folder_text: str, draft: str, plan: dict, **extra) -> HTMLResponse:
+    def _organizer(request: Request, folder: Path, folder_text: str, draft: str, plan: dict, book: str = "",
+                   **extra) -> HTMLResponse:
         import shutil
-        files = organize.all_files(folder, plan["title"]) if "allowed" not in extra else extra.pop("allowed")
+        if book:
+            full = organize.book_plan(folder / book, plan["title"])
+            files = set(full["names"])
+            info = organize.book_info(folder / book, full)
+            for ref in info:
+                info[ref]["name"] = _book_words(info[ref]["name"])
+            for sec in plan["sections"]:
+                sec["title"] = _book_words(sec["title"])
+            names = plan.get("names") or {}
+            for ref, name in list(names.items()):
+                names[ref] = _book_words(name)
+                if ref in info:
+                    info[ref] = {**info[ref], "name": names[ref]}
+            extra.pop("allowed", None)
+            plan.setdefault("cant_show", [])
+        else:
+            files = organize.all_files(folder, plan["title"]) if "allowed" not in extra else extra.pop("allowed")
+            info = organize.file_info(folder, sorted(files))
         used = {f for s in plan["sections"] for f in s["files"]}
-        info = organize.file_info(folder, sorted(files))
         try:
             free = shutil.disk_usage(V.home).free
         except OSError:
@@ -788,12 +831,12 @@ def create_app(vault: Vault) -> Starlette:
                 sec["title"] = say(sec["title"])
         files_list = sorted(files, key=lambda f: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", f)])
         cant = plan.get("cant_show")
-        if cant is None:
+        if cant is None and not book:
             try:
                 cant = organize.guess_plan(folder)["cant_show"]
             except CourseError:
                 cant = []
-        return page("add_organize.html", request, plan=plan, info=info, cant_show=cant, left_out=[f for f in files_list if f not in used],
+        return page("add_organize.html", request, plan=plan, info=info, cant_show=cant, book=book, left_out=[f for f in files_list if f not in used],
                     folder=folder_text, draft=draft, free=free, nice_size=organize.nice_size,
                     ai=integrations.ai_settings(V), prompt=organize.ai_prompt(plan["title"], files_list, extra.get("notes", "")),
                     **extra)
@@ -804,6 +847,13 @@ def create_app(vault: Vault) -> Starlette:
             title = str(request.query_params.get("title", ""))
             if not folder:
                 return go("/add/folder", err="Choose a folder first.")
+            book = _book(request.query_params, folder)
+            if book:
+                try:
+                    plan = organize.book_plan(folder / book, title)
+                except CourseError as e:
+                    return go("/add/book", err=e.problems[0])
+                return _organizer(request, folder, text, draft, plan, book=book, how=plan["how"])
             try:
                 plan = organize.guess_plan(folder, title)
             except CourseError as e:
@@ -819,10 +869,15 @@ def create_app(vault: Vault) -> Starlette:
         folder, text, draft = _source(form)
         if not folder or not folder.is_dir():
             return go("/add/folder", err="That folder wasn't found. Copy its full path and paste it here.")
+        book = _book(form, folder)
         try:
-            allowed = organize.all_files(folder)
+            if book:
+                book_full = organize.book_plan(folder / book)
+                allowed = set(book_full["names"])
+            else:
+                allowed = organize.all_files(folder)
         except CourseError as e:
-            return go("/add/folder", err=e.problems[0])
+            return go("/add/book" if book else "/add/folder", err=e.problems[0])
         try:
             raw = json.loads(str(form.get("plan") or "{}"))
         except ValueError:
@@ -846,9 +901,15 @@ def create_app(vault: Vault) -> Starlette:
                                   ai_error=e.problems[0], open_ai=True)
             return _organizer(request, folder, text, draft, plan, allowed=allowed, notes=notes, how="ai")
         try:
-            c = organize.course_from_plan(folder, plan)
+            if book:
+                info = organize.book_info(folder / book, book_full)
+                for ref in info:
+                    info[ref]["name"] = _book_words(info[ref]["name"])
+                c = organize.course_from_book(folder, book, plan, info)
+            else:
+                c = organize.course_from_plan(folder, plan)
         except CourseError as e:
-            return _organizer(request, folder, text, draft, plan, allowed=allowed, problem=e.problems[0])
+            return _organizer(request, folder, text, draft, plan, book=book, allowed=allowed, problem=e.problems[0])
         base, n = c.id, 1
         while V.get_course(c.id):
             n += 1
@@ -900,6 +961,32 @@ def create_app(vault: Vault) -> Starlette:
                     out.write(chunk)
         from urllib.parse import quote as q
         return RedirectResponse(f"/add/organize?draft={draft}&title={q(str(form.get('title', '')))}", 303)
+
+    async def add_book(request: Request):
+        """A book (PDF): pick the file (inPace keeps a copy) or give the path of one to leave where it is."""
+        if request.method == "GET":
+            return page("add_book.html", request)
+        import secrets
+        form = await request.form()
+        title = str(form.get("title", ""))
+        from urllib.parse import quote as q
+        path = str(form.get("path", "")).strip().strip('"')
+        if path:
+            p = Path(path).expanduser()
+            if not p.is_file() or p.suffix.lower() != ".pdf":
+                return go("/add/book", err="That PDF wasn't found. Copy its full path and paste it here.")
+            return RedirectResponse(f"/add/organize?folder={q(str(p.parent))}&book={q(p.name)}&title={q(title)}", 303)
+        up = form.get("book")
+        if not up or not getattr(up, "filename", "") or not up.filename.lower().endswith(".pdf"):
+            return go("/add/book", err="Choose a PDF first.")
+        draft = secrets.token_hex(8)
+        root = _drafts() / draft
+        root.mkdir(parents=True)
+        name = re.sub(r'[<>:"|?*\x00-\x1f/\\]', "_", up.filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]) or "book.pdf"
+        with open(root / name, "wb") as out:
+            while chunk := await up.read(4 * 1024 * 1024):
+                out.write(chunk)
+        return RedirectResponse(f"/add/organize?draft={draft}&book={q(name)}&title={q(title)}", 303)
 
     async def add_copying(request: Request):
         cid = request.path_params["cid"]
@@ -1117,12 +1204,49 @@ def create_app(vault: Vault) -> Starlette:
             out.append(line)
         return "\n".join(out)
 
+    async def _ai_sources(form) -> dict:
+        """Your own book or files for an AI course: uploaded ones are kept in a draft folder until the course is saved,
+        a folder or PDF on this device stays where it is. Returns {"draft", "path", "folder", "names"}."""
+        import secrets
+        draft = str(form.get("src_draft", "")).strip()
+        path = str(form.get("src_path", "")).strip().strip('"')
+        ups = [u for u in form.getlist("src_files") if getattr(u, "filename", "")]
+        if ups:
+            draft = secrets.token_hex(8)
+            root = _drafts() / draft
+            root.mkdir(parents=True)
+            for up in ups[:200]:
+                name = re.sub(r'[<>:"|?*\x00-\x1f/\\]', "_", up.filename.replace("\\", "/").rsplit("/", 1)[-1]).strip(". ")
+                if not name:
+                    continue
+                with open(root / name, "wb") as out:
+                    while chunk := await up.read(4 * 1024 * 1024):
+                        out.write(chunk)
+            path = ""
+        if draft and re.fullmatch(r"[0-9a-f]{16}", draft) and (_drafts() / draft).is_dir():
+            folder = _drafts() / draft
+            return {"draft": draft, "path": "", "folder": folder,
+                    "names": sorted(p.name for p in folder.iterdir() if p.is_file() and _media_kind(p.name))}
+        if path:
+            p = Path(path).expanduser()
+            if p.is_file() and _media_kind(p.name):
+                return {"draft": "", "path": str(p), "folder": p.parent, "names": [p.name]}
+            if p.is_dir():
+                try:
+                    names = sorted(organize.all_files(p))
+                except CourseError:
+                    names = []
+                return {"draft": "", "path": str(p), "folder": p, "names": names[:200]}
+        return {"draft": "", "path": "", "folder": None, "names": []}
+
     async def ai_page(request: Request):
         ctx: dict = {"step": 1, "form": {}}
         if request.method == "POST":
             form = await request.form()
             action = form.get("action")
-            ctx["form"] = dict(form)
+            ctx["form"] = {k: v for k, v in form.items() if isinstance(v, str)}
+            src = await _ai_sources(form)
+            ctx["src"] = src
             if action == "auto":
                 from starlette.concurrency import run_in_threadpool
                 prompt = str(form.get("prompt", ""))
@@ -1141,10 +1265,12 @@ def create_app(vault: Vault) -> Starlette:
                     # Fill in missing video titles from YouTube (only because you ticked the box: this goes online).
                     from starlette.concurrency import run_in_threadpool
                     extra["videos"] = await run_in_threadpool(_titled_videos, extra["videos"])
+                described = organize.describe_sources(src["folder"], src["names"]) if src["folder"] else []
                 ctx["prompt"] = ai.build_prompt(str(form.get("topic", "")), str(form.get("level", "beginner")),
                                                 int(form.get("weeks") or 4), int(form.get("hours") or 3),
                                                 str(form.get("language", "English")), str(form.get("notes", "")),
-                                                source=str(form.get("source", "topic")), **extra)
+                                                source=str(form.get("source", "topic")), sources=described, **extra)
+                ctx["src_books"] = [d for d in described if d.get("toc") is not None]
                 ctx["step"] = 2
             elif action in ("check", "save"):
                 text = strip_fences(str(form.get("reply", "")))
@@ -1158,7 +1284,20 @@ def create_app(vault: Vault) -> Starlette:
                     if action == "save":
                         if V.get_course(course.id):
                             course.id = f"{course.id}-{now_utc()[:10]}"
+                        books = [n for n in src["names"] if n.lower().endswith(".pdf") and any(
+                            str(les.get("media", "")).startswith(n + "#") for m in course.modules for les in m["lessons"])]
+                        if books:
+                            course.extra["book"] = books[0]  # shared courses never carry the book itself
                         V.install_course(course)
+                        if src["draft"]:  # your uploaded files become the course's own files
+                            import shutil
+                            target = V.media_dir(course.id)
+                            target.mkdir(parents=True, exist_ok=True)
+                            for f in src["folder"].iterdir():
+                                shutil.move(str(f), str(target / f.name))
+                            shutil.rmtree(src["folder"], ignore_errors=True)
+                        elif src["path"]:
+                            V.set_media_root(course.id, str(src["folder"]))
                         return go("/courses", ok=f"Saved “{course.title}”. It's ready to start.")
                     ctx["preview"] = course
         return page("ai.html", request, ai=integrations.ai_settings(V), providers=integrations.PROVIDERS, **ctx)
@@ -2178,6 +2317,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/reminders/test", needs_setup(reminders_test), methods=["POST"]),
         Route("/add/folder", needs_setup(add_folder)),
         Route("/add/files", needs_setup(add_files), methods=["GET", "POST"]),
+        Route("/add/book", needs_setup(add_book), methods=["GET", "POST"]),
         Route("/add/organize", needs_setup(add_organize), methods=["GET", "POST"]),
         Route("/add/copying/{cid}", needs_setup(add_copying)),
         Route("/courses/sample/{cid}", needs_setup(add_sample), methods=["POST"]),

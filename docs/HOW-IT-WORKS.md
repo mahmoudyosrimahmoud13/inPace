@@ -70,10 +70,19 @@ A course is plain text: a `course.yaml` file with modules, lessons and tasks, pl
   - In the organizer you rename sections and lessons, drag files between sections (or use **Move to** and the arrows on a phone), add or remove sections, and leave files out.
   - **Ask AI to sort it:** the AI sees only the file names. With an AI key in Settings inPace asks it directly; without one you copy the request into any AI chat and paste the answer back. Files the AI forgets go to "Not sorted yet", and file names it makes up are ignored.
   - **Where the files live:** leave them where they are (the default: no extra space, and inPace only remembers where the folder is), or copy them into inPace (`media/<id>/`). Copying shows the size and the free space first, runs in the background, and the course works from the original folder until it finishes.
-  - Word, PowerPoint and Excel files can't be shown inside inPace, so the organizer lists them and suggests saving them as PDF.
+  - Word, PowerPoint and Excel files (`.docx`, `.pptx`, `.xlsx`) come in as lessons and are grouped as "Documents and sheets". Only old formats (`.doc`, `.ppt`, `.xls`, OpenDocument) can't be shown, so the organizer lists them and suggests saving them as the new formats or as PDF.
+- **A book (PDF).** inPace reads the book's bookmarks with [pypdf](https://pypdf.readthedocs.io/) (`organize.book_plan`):
+  - Each top-level chapter is a section. Each sub-section is a lesson that points to its own pages, like `book.pdf#pages=12-19`.
+  - Pages between a chapter's start and its first sub-section become an "Introduction" lesson. A chapter longer than 30 pages with no sub-sections is split into 12-page lessons.
+  - The pages before chapter 1 (cover, contents) start in "Left out".
+  - A book with no bookmarks is split every 12 pages, in sections of 60 pages, and you rename them.
+  - The same organizer opens, so you can fix anything. The course remembers which file is the book (`book:` in `course.yaml`).
+  - A password-protected or damaged PDF gets a plain message instead of an error.
 - **Some files you pick.** They're copied into inPace (`drafts/` first, then `media/<id>/`) and sorted in the same organizer. Handy on a phone.
 - **A list of links,** one per line. A line starting with `#` starts a new module.
 - **With AI.** inPace writes a prompt for a topic, a book, a playlist, a course you're taking, a project, your notes or an exam. You paste it into any AI chat and paste the answer back.
+  - **Attach your book or files** (optional). They're copied into `drafts/` (or left where they are, if you give a folder path) and become part of the course when you save it.
+  - The prompt then lists each file by name and kind. For a PDF with bookmarks it lists the chapters with their page numbers (up to 3 books), and tells the AI to point lessons at `"<file>#pages=A-B"`. So the AI builds lessons that open the right pages instead of making up text.
 - **By hand,** in the course builder.
 
 **Course pictures.** `image:` in `course.yaml` points to a picture next to the course. A picture added in the builder is saved as `media/<id>/cover.*`. A folder course uses a `cover`, `folder`, `poster`, `thumbnail` or `course` picture at the top of the folder. The picture goes inside the course file when you share it.
@@ -111,6 +120,8 @@ Every file is served by the local server under `/m/<course>/<path>`. That keeps 
 | Video | inPace's own player. It saves your position every few seconds, so you continue from the same second, even after you close the app. |
 | Audio | A simple player that also remembers your position. |
 | PDF | The built-in PDF reader ([pdf.js](https://mozilla.github.io/pdf.js/), bundled, works offline). It has page buttons, zoom, fit to width and full screen, and it remembers your page. |
+| Part of a PDF | `book.pdf#pages=5-7` opens the same reader limited to pages 5 to 7. Each part remembers its own page. |
+| Word, PowerPoint, Excel | A light, read-only preview made inside inPace (`office.py`): headings, lists, tables and pictures; slides in order; each sheet as a table (up to 500 rows and 40 columns). It reads the file's XML with Python's own tools, refuses files that try XML tricks, and caps sizes. A button downloads the file to open in its own app. |
 | Code | Coloured code with a Copy button. A project folder shows all its code files. |
 | Web page (HTML) | Runs in a locked box (a sandbox), so it can't touch the rest of the app. |
 | YouTube, Vimeo | Loads only when you press play, using YouTube's privacy-enhanced mode (youtube-nocookie). Nothing is fetched before you press play. |
@@ -300,6 +311,8 @@ The first time you open inPace, it asks if it may keep itself up to date.
 | Run from source | Asks you to `git pull`. |
 | Android | Doesn't update itself. Settings points to the website: download the new APK and tap **Update**. |
 
+**When a release is still being built.** A release can appear on GitHub a few minutes before all its files are uploaded. If the file for your computer or `SHA256SUMS` isn't there yet, inPace doesn't count that as a failed update. Settings says the update is on its way, and inPace checks again in an hour instead of the next day.
+
 **If you say no,** Settings → Updates still shows you when a new version is out.
 
 ---
@@ -354,8 +367,9 @@ The phone app is the full inPace, not a smaller copy. The same Python code, page
 1. `flutter create` makes the Android project fresh. It isn't kept in git.
 2. `mobile/tools/prepare_android.py` adjusts it: the app name, permissions, `inpace://` links, the minimum Android version (7), the signing key, and the plugins' Android SDK. It also makes the Python downloads run one at a time, because running them together corrupted a shared download file.
 3. The icon comes from `mobile/icon/res` (made with IconKitchen).
-4. `serious_python` packages Python, PyNaCl and inPace itself (`mobile/app/src`).
-5. `flutter build apk` makes `inPace-android-arm64-v8a.apk` for 64-bit phones, which is nearly every Android phone from the last 7 years. It's attached to the GitHub release.
+4. `serious_python` packages Python, PyNaCl, pypdf and inPace itself (`mobile/app/src`). pypdf is pure Python, so books work on phones without anything compiled.
+5. `flutter build apk` makes `inPace-android-arm64-v8a.apk` for 64-bit phones, which is nearly every Android phone from the last 7 years. If the build fails once (often a download hiccup), it cleans up and tries one more time. The job has 90 minutes.
+6. It waits until the main release workflow has published the release with its `SHA256SUMS`, then adds the APK to it. (It used to create the release itself when it finished first, which made computers see a release with no files for a while.)
 
 To build it on your own computer you need Flutter, Java 21 and the Android SDK, then run `bash mobile/build_android.sh`.
 
@@ -382,14 +396,16 @@ inpace/
   pace.py         weekly goals, streaks, breaks, finish dates
   races.py        races between friends
   record.py       the shareable learning record page
-  ai.py           AI prompts for each kind of source
+  ai.py           AI prompts for each kind of source, and the list of files and book chapters you attach
   updater.py      update check, download, verify, install
   integrations.py native folder picker, AI connections and other small OS helpers
-  organize.py     sorting a neat or messy folder into a course plan, AI sorting, copying files in
+  organize.py     sorting a neat or messy folder or a PDF book into a course plan, AI sorting, copying files in
+  office.py       light, read-only previews of Word, PowerPoint and Excel files
   reminders.py    reminders, alarms and Tempo's notifications: what's due, the messages, the Android plan
   notifier.py     notifications and alarms on a computer, and its scheduler (Task Scheduler, launchd, systemd, cron)
   templates/      pages (Jinja)
   static/         CSS, JavaScript, fonts, icons, pdf.js
+  sample_courses/ ready-made courses, including "A tour of inPace" with one of every kind of lesson
   locales/ar.json Arabic text
 packaging/        PyInstaller builds for Windows, Mac, .deb and .tar.gz
 mobile/           the Android app: Flutter shell (lib/main.dart), build script, icon, project fixes

@@ -38,23 +38,25 @@
   pdfjs.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.mjs";
   const SRC = {{ src|tojson }}, KEY = {{ key|tojson }};
   let startPage = {{ start }};
+  // A lesson can show only part of a book (course file: "book.pdf#pages=19-35"). Page numbers stay the book's own.
+  let FIRST = {{ first or 1 }}, LAST = {{ last or 0 }};
   const box = document.getElementById("pages"), num = document.getElementById("num"), count = document.getElementById("count");
   let pdf, scale = 0, pages = [], current = 1, lastSaved = 0;
   const save = (beacon) => {
     if (!KEY || !pdf || current === lastSaved) return;
     lastSaved = current;
     const body = new FormData();
-    body.append("key", KEY); body.append("t", String(current === 1 ? 0 : current)); body.append("d", "0");
+    body.append("key", KEY); body.append("t", String(current === FIRST ? 0 : current)); body.append("d", "0");
     beacon && navigator.sendBeacon ? navigator.sendBeacon("/media-pos", body) : fetch("/media-pos", { method: "POST", body }).catch(() => {});
   };
   const fitScale = (vp) => Math.min(2.5, (box.clientWidth - 40) / vp.width);
   async function layout() {
-    const first = await pdf.getPage(1);
+    const first = await pdf.getPage(FIRST);
     const base = first.getViewport({ scale: 1 });
     if (!scale) scale = fitScale(base);
     box.innerHTML = "";
     pages = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
+    for (let i = FIRST; i <= LAST; i++) {
       const div = document.createElement("div");
       div.className = "pdf-page";
       div.dataset.n = i;
@@ -83,13 +85,13 @@
   }
   const io = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting && draw(e.target)), { root: box, rootMargin: "600px 0px" });
   const go = (n) => {
-    n = Math.max(1, Math.min(pdf.numPages, n));
-    const jump = () => { box.scrollTop = pages[n - 1].offsetTop - 16; current = n; num.value = n; };
+    n = Math.max(FIRST, Math.min(LAST, n));
+    const jump = () => { box.scrollTop = pages[n - FIRST].offsetTop - 16; current = n; num.value = n; };
     jump(); requestAnimationFrame(jump);
   };
   box.addEventListener("scroll", () => {
     const mid = box.scrollTop + box.clientHeight / 3;
-    let n = 1;
+    let n = FIRST;
     for (const p of pages) { if (p.offsetTop <= mid) n = +p.dataset.n; else break; }
     if (n !== current) { current = n; num.value = n; }
   });
@@ -98,7 +100,7 @@
   document.getElementById("next").onclick = () => go(current + 1);
   document.getElementById("in").onclick = () => rezoom(Math.min(4, scale * 1.2));
   document.getElementById("out").onclick = () => rezoom(Math.max(0.3, scale / 1.2));
-  document.getElementById("fit").onclick = async () => rezoom(fitScale((await pdf.getPage(1)).getViewport({ scale: 1 })));
+  document.getElementById("fit").onclick = async () => rezoom(fitScale((await pdf.getPage(FIRST)).getViewport({ scale: 1 })));
   document.getElementById("full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
   num.addEventListener("change", () => go(parseInt(num.value || "1", 10)));
   document.addEventListener("keydown", (e) => {
@@ -112,10 +114,13 @@
   addEventListener("pagehide", () => save(true));
   try {
     pdf = await pdfjs.getDocument({ url: SRC, isEvalSupported: false }).promise;
-    count.textContent = pdf.numPages;
-    num.max = pdf.numPages;
+    FIRST = Math.min(Math.max(1, FIRST), pdf.numPages);
+    LAST = LAST ? Math.min(Math.max(FIRST, LAST), pdf.numPages) : pdf.numPages;
+    const part = FIRST > 1 || LAST < pdf.numPages;
+    count.textContent = part ? `${LAST} (${FIRST}–${LAST})` : pdf.numPages;
+    num.min = FIRST; num.max = LAST; num.value = FIRST; current = FIRST;
     await layout();
-    if (startPage > 1 && startPage <= pdf.numPages) {
+    if (startPage > FIRST && startPage <= LAST) {
       // Continue on the page you stopped at (retry a few times while the pages settle, unless you scroll first).
       let touched = false;
       ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) => box.addEventListener(ev, () => (touched = true), { once: true }));

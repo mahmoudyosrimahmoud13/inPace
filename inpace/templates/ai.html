@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Make a course with AI') }}{% endblock %}
+{% macro src_fields() %}{% if src and (src.draft or src.path) %}<input type="hidden" name="src_draft" value="{{ src.draft }}"><input type="hidden" name="src_path" value="{{ src.path }}">{% endif %}{% endmacro %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Make a course with AI{% endtrans %}.</h1></div>
 <ol class="steps">
@@ -9,7 +10,7 @@
 </ol>
 
 {% if step == 1 %}
-<form method="post" class="card stack" style="max-width:680px">
+<form method="post" class="card stack" style="max-width:680px" enctype="multipart/form-data">
   <input type="hidden" name="action" value="prompt">
   {% set src = form.source or 'topic' %}
   <fieldset class="source-pick">
@@ -53,6 +54,14 @@
   <div class="stack" data-for-source="exam">
     <label>{% trans trimmed %}Which exam or certificate?{% endtrans %}<input name="exam" dir="auto" value="{{ form.exam or '' }}" placeholder="{{ _('For example: AWS Certified Cloud Practitioner') }}" data-required></label>
   </div>
+  <fieldset class="ai-sources">
+    <legend>{% trans trimmed %}Attach your book or files (optional){% endtrans %}</legend>
+    <p class="small muted" style="margin:0">{% trans trimmed %}The AI gets the book's chapters with their page numbers and the names of your files, never their text. Each lesson then opens the right pages of your book, or the right file, above the AI's explanation.{% endtrans %}</p>
+    <label>{% trans trimmed %}Files (a PDF book, slides, notes, videos…){% endtrans %}<input type="file" name="src_files" multiple></label>
+    <details class="more"><summary>{% trans trimmed %}Or use a book or folder where it is{% endtrans %}</summary>
+      <label style="margin-block-start:.5rem">{% trans trimmed %}Full path of a PDF or a folder{% endtrans %}<input name="src_path" dir="ltr" value="{{ form.src_path or '' }}" placeholder="/home/you/Books/mml-book.pdf"></label>
+    </details>
+  </fieldset>
   <label>{% trans trimmed %}Your level{% endtrans %}
     <select name="level">
       <option value="beginner">{% trans trimmed %}Complete beginner{% endtrans %}</option>
@@ -84,19 +93,24 @@
 {% if step == 2 %}
 <section class="card stack">
   <p class="lead">{% trans trimmed %}Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.{% endtrans %}</p>
+  {% if src and src.names %}
+  <div class="note ok ai-attached"><b>{% trans trimmed %}Attached to the course:{% endtrans %}</b>
+    <ul class="small">{% for n in src.names[:12] %}<li dir="auto">{{ n }}{% for b in src_books or [] if b.file == n %} · {{ T('{n} pages', n=b.pages) }}{% if b.toc %} · {{ T('{n} chapters and sections found', n=b.toc|length) }}{% endif %}{% endfor %}</li>{% endfor %}
+    {% if src.names|length > 12 %}<li>{{ T('and {n} more', n=src.names|length - 12) }}</li>{% endif %}</ul></div>
+  {% endif %}
   <textarea id="prompt" class="mono" rows="14" readonly dir="ltr">{{ prompt }}</textarea>
   <div class="row"><button class="btn primary big" data-copy="#prompt">{% trans trimmed %}Copy prompt{% endtrans %}</button></div>
 </section>
 {% if ai_error %}<div class="note bad">{{ ai_error }}</div>{% endif %}
 {% if ai.provider %}
 <form method="post" class="card soft row between">
-  <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>
+  <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>{{ src_fields() }}
   <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. {{ _('This can take a few minutes.') }}</span></span>
   <button class="btn primary" data-busy="Making your course...">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
 </form>
 {% endif %}
 <form method="post" class="card stack">
-  <input type="hidden" name="action" value="check">
+  <input type="hidden" name="action" value="check">{{ src_fields() }}
   <label>{% trans trimmed %}Paste the AI's answer here
     {% endtrans %}<textarea name="reply" rows="10" required dir="ltr" placeholder="{{ _('Paste everything the AI wrote') }}"></textarea>
   </label>
@@ -127,14 +141,14 @@
     </ol>
     <p class="small muted">{{ T('{n} questions. Answers are kept in a separate file.', n=preview.questions|length) }}</p>
     <form method="post">
-      <input type="hidden" name="action" value="save">
+      <input type="hidden" name="action" value="save">{{ src_fields() }}
       <textarea name="reply" hidden>{{ reply }}</textarea>
       <button class="btn primary big">{% trans trimmed %}Save course{% endtrans %}</button>
     </form>
   </section>
   {% endif %}
   <form method="post" class="card stack">
-    <input type="hidden" name="action" value="check">
+    <input type="hidden" name="action" value="check">{{ src_fields() }}
     <label>{{ _('Paste a fixed answer') if problems else _('Change something? Paste a new answer') }}
       <textarea name="reply" rows="8" dir="ltr">{{ reply if problems }}</textarea>
     </label>

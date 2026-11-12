@@ -91,11 +91,15 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+class NotReady(RuntimeError):
+    """The new release is still being put together (its files arrive a few minutes apart)."""
+
+
 def download(release: dict, kind: str, folder: Path) -> Path:
     """Download this computer's file from the release and make sure it's exactly what was published."""
-    name = ASSETS[kind]
-    if name not in release["assets"] or "SHA256SUMS" not in release["assets"]:
-        raise RuntimeError("This release doesn't have a download for this computer yet.")
+    name = ASSETS.get(kind, "")
+    if not name or name not in release["assets"] or "SHA256SUMS" not in release["assets"]:
+        raise NotReady("This release doesn't have a download for this computer yet.")
     folder.mkdir(parents=True, exist_ok=True)
     sums = folder / "SHA256SUMS"
     _download(release["assets"]["SHA256SUMS"], sums)
@@ -208,7 +212,7 @@ def run(vault, force: bool = False) -> dict:
     """Check, download and (when no password is needed) install. Saves what happened for the app to show."""
     kind = install_kind()
     status = {"state": "none", "checked": int(time.time())}
-    if kind == "source":
+    if kind in ("source", "android"):  # git pull / the website: nothing to install from here
         return status
     last = int(vault._meta("update_checked", "0") or 0)
     if not force and time.time() - last < CHECK_EVERY:
@@ -225,6 +229,10 @@ def run(vault, force: bool = False) -> dict:
             else:
                 install(kind, file)
                 status = {"state": "installed", "version": rel["version"]}
+    except NotReady:
+        # A new version is being published right now: look again in an hour instead of tomorrow.
+        status = {"state": "waiting", "checked": int(time.time())}
+        vault._set_meta("update_checked", str(int(time.time() - CHECK_EVERY + 3600)))
     except Exception as e:  # never let an update problem get in the way of learning
         status = {"state": "failed", "error": str(e)[:200], "checked": int(time.time())}
     vault._set_meta("update_status", json.dumps(status))

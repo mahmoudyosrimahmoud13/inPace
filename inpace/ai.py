@@ -119,13 +119,47 @@ def _source(kind: str, f: dict) -> tuple[str, str, str]:
     return f"Topic: {topic}", "", topic
 
 
+def sources_text(sources: list[dict]) -> tuple[str, str]:
+    """The learner's own files attached to the course: what the AI is told about them, and how to use them."""
+    if not sources:
+        return "", ""
+    lines = ["\nMy own files are attached to this course. Lessons can show them right inside inPace:"]
+    for s in sources:
+        if s.get("toc") is not None:
+            lines.append(f'- "{s["file"]}": a PDF book of {s["pages"]} pages.' +
+                         (" Its chapters and sections, with their pages:" if s["toc"] else " It has no chapter list."))
+            for level, title, a, b in s["toc"]:
+                lines.append(f'{"  " * (level + 1)}- {title} (pages {a}-{b})')
+        else:
+            kinds = {"video": "a video", "audio": "audio", "pdf": "a PDF", "office": "a Word, PowerPoint or Excel file",
+                     "html": "a web page", "image": "a picture", "code": "code", "folder": "a folder of code", "note": "notes"}
+            lines.append(f'- "{s["file"]}" ({kinds.get(s["kind"], "a file")})')
+    rules = (
+        "- Use my attached files. Each lesson that teaches part of a PDF book gets a line `media: \"<file>#pages=A-B\"`\n"
+        "  (for example `media: \"book.pdf#pages=19-35\"`), with the pages that lesson covers, taken from the page numbers\n"
+        "  above. inPace then shows only those pages above the lesson text, and remembers where the learner stopped.\n"
+        "  Never use pages beyond the book's last page. If a book has no chapter list, split its pages in order.\n"
+        "- A lesson about one of my other files gets `media: \"<file name>\"`, written exactly as listed above.\n"
+        "- Put `media:` right under the lesson's title. The lesson text then explains, summarises and adds examples:\n"
+        "  don't tell the learner to go and open the file, it's already on screen.\n"
+        "- Explain in your own words. Never copy sentences or long passages from my files.\n")
+    return "\n".join(lines) + "\n", rules
+
+
 def build_prompt(topic: str, level: str, weeks: int, hours: int, language: str, notes: str = "",
-                 source: str = "topic", **fields) -> str:
-    """The prompt to paste into an AI chat. source: topic, book, material (my notes) or exam."""
+                 source: str = "topic", sources: list[dict] | None = None, **fields) -> str:
+    """The prompt to paste into an AI chat. source: topic, book, material (my notes) or exam.
+    sources: the learner's own files attached to the course (see sources_text)."""
     weeks = max(1, min(int(weeks or 4), 52))
     modules = max(2, min(weeks, 12))
     lang_code = "ar" if language.lower().startswith(("ar", "عرب")) else "en"
     block, rules, _ = _source(source if source in SOURCES else "topic", {"topic": topic, **fields})
+    files_block, files_rules = sources_text(sources or [])
+    if files_block and source == "book":
+        # The book itself is attached: its pages are shown, so no "Read: Chapter 3" lines are needed.
+        rules = "\n".join(r for r in rules.split("\n") if "Start every lesson with a line like" not in r)
+    block += files_block
+    rules += files_rules
     return TEMPLATE.format(
         source_block=block,
         source_rules=rules,

@@ -8,10 +8,13 @@ mobile/
   pubspec.yaml              Flutter packages (serious_python runs Python, webview_flutter shows the app)
   lib/main.dart             start Python, wait until it answers, show it; links, back button, microphone
   app/src/main.py           the Python side: starts inPace on the port Flutter chose
-  app/src/requirements.txt  Python libraries (PyNaCl has a ready Android build on pypi.flet.dev)
+  app/src/requirements.txt  Python libraries (PyNaCl has a ready Android build on pypi.flet.dev;
+                            pypdf, for books, is pure Python)
   tools/prepare_android.py  fixes up the generated Android project: name, permissions, inpace:// links,
                             signing key, plugin SDK, Python downloads one at a time
   build_android.sh          the whole build, used by GitHub and on your own computer
+                            (on GitHub a failed build is retried once, and the APK is added
+                            to the release only after the release is published)
   icon/res/                 the app icon (made with IconKitchen)
 ```
 

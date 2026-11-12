@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Add a book') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Add a book{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Pick a PDF book. inPace reads its chapters and sections, and makes each one a lesson that opens on its own pages and remembers where you stopped.{% endtrans %}</p>
+</div>
+<form method="post" enctype="multipart/form-data" class="card stack" data-upload-form>
+  <label>{% trans trimmed %}The book (a PDF file){% endtrans %}<input type="file" name="book" accept=".pdf,application/pdf" required data-upload-files></label>
+  <p class="small muted" style="margin:0" data-upload-size hidden></p>
+  <label>{% trans trimmed %}Course name (optional){% endtrans %}<input name="title" dir="auto" placeholder="{{ _('Leave empty to use the file name') }}"></label>
+  <button class="btn primary big">{% trans trimmed %}Next: check the chapters{% endtrans %}</button>
+  <p class="small muted" style="margin:0" data-upload-wait hidden>{% trans trimmed %}Saving your files… big videos take a moment.{% endtrans %}</p>
+</form>
+<details class="card more">
+  <summary>{% trans trimmed %}Leave the book where it is instead{% endtrans %}</summary>
+  <form method="post" class="stack" style="margin-block-start:.75rem">
+    <p class="small muted" style="margin:0">{% trans trimmed %}inPace keeps no copy and uses no extra space. If you move or rename the book later, inPace asks you where it went.{% endtrans %}</p>
+    <label>{% trans trimmed %}Full path of the PDF{% endtrans %}<input name="path" required dir="ltr" placeholder="/home/you/Books/mml-book.pdf"></label>
+    <label>{% trans trimmed %}Course name (optional){% endtrans %}<input name="title" dir="auto"></label>
+    <button class="btn">{% trans trimmed %}Next: check the chapters{% endtrans %}</button>
+  </form>
+</details>
+<p class="small muted">{% trans trimmed %}Most books made on a computer have chapter bookmarks. A scanned book has none, so inPace splits it into parts of 12 pages that you can rename.{% endtrans %}
+  {% trans trimmed %}Sharing a book course never sends the book itself: each person uses their own copy.{% endtrans %}</p>
+{% endblock %}

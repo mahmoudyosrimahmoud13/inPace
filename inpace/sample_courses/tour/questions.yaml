@@ -1,0 +1,30 @@
+q1:
+  text: A lesson's file is "book.pdf#pages=10-14". What does the lesson show?
+  show: 4
+  options:
+    a: Only pages 10 to 14 of the book
+    b: Those five pages, and it remembers where you stopped
+    c: The whole book from page 1
+    d: Page 10 only
+    e: A download link to the book
+    f: The book's table of contents
+q2:
+  text: Which of these can a lesson show inside inPace?
+  show: 4
+  options:
+    a: A PowerPoint file (.pptx)
+    b: An Excel file (.xlsx)
+    c: Only text, nothing else
+    d: An old .doc file from the 1990s
+    e: Only YouTube videos
+    f: Nothing until you go online
+q3:
+  text: Where does inPace keep your progress?
+  show: 4
+  options:
+    a: On your own device
+    b: In one folder you can back up
+    c: On inPace's servers
+    d: In your email
+    e: In the course library
+    f: In a social network

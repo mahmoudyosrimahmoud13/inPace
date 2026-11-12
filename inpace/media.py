@@ -17,7 +17,7 @@ import re
 from typing import Callable
 from urllib.parse import quote, unquote
 
-from .course import embed_id, is_url, local_ref, media_kind
+from .course import embed_id, is_url, local_ref, media_kind, page_range
 
 Tr = Callable[[str], str]
 
@@ -150,6 +150,9 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
     ref = html.unescape(ref).strip()
     if not is_url(ref):
         ref = unquote(ref)  # Markdown writes spaces in paths as %20
+    pages = None
+    if not is_url(ref):
+        ref, pages = page_range(ref)
     kind = media_kind(ref)
     e = html.escape
     cap = f"<figcaption>{e(label)}</figcaption>" if label else ""
@@ -205,6 +208,23 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
         else:
             body = (f'<div class="code-file-head" dir="ltr"><span>{e(name)}</span>'
                     f'<a href="{url}?view=1" target="_blank" rel="noopener">{e(t("Open it"))}</a></div>' + code_block(path, name, url, t))
+    elif kind == "office":  # Word, PowerPoint, Excel: a light preview, and the file to open in its own app
+        path = files.find(rel) if files else None
+        name = rel.rsplit("/", 1)[-1]
+        try:
+            from .office import OfficeProblem, preview
+        except Exception:  # no XML parser in this Python: offer the file only
+            OfficeProblem, preview = ValueError, None
+        try:
+            inner = preview(path) if path and preview else ""
+        except OfficeProblem as ex:
+            inner = f'<p class="note warn">{e(t(str(ex)))}</p>'
+        except Exception:
+            inner = f'<p class="note warn">{e(t("This file couldn\'t be read. It may be damaged."))}</p>'
+        ext = name.rsplit(".", 1)[-1].lower()
+        body = (f'<div class="office-head" dir="ltr"><span>{e(name)}</span>'
+                f'<a href="{url}" download="{e(name)}">{e(t("Download to open it in its own app"))}</a></div>'
+                f'<div class="office office-{e(ext)}">{inner}</div>')
     elif kind == "image":
         body = f'<img src="{url}" alt="{e(label)}" loading="lazy">'
     elif kind == "html":
@@ -212,7 +232,13 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
                 f'<button type="button" class="btn small-btn" data-fullscreen>{e(t("Full screen"))}</button>')
     else:  # pdf: inPace's own reader (works in every app window, remembers your page)
         name = rel.rstrip("/").rsplit("/", 1)[-1]
+        if pages:  # only part of the book; each part remembers its own page
+            key += f"#{pages[0]}-{pages[1]}"
+            where = t("Page {a}").format(a=pages[0]) if pages[0] == pages[1] else t("Pages {a} to {b}").format(a=pages[0], b=pages[1])
+            cap = cap or f'<figcaption>{e(where)}</figcaption>'
         q = f"src={quote(url, safe='')}&key={quote(key, safe='')}&name={quote(name, safe='')}"
+        if pages:
+            q += f"&from={pages[0]}&to={pages[1]}"
         body = (f'<div class="frame-wrap tall"><iframe src="/pdf?{q}" loading="lazy" title="{e(label or name)}" allowfullscreen></iframe></div>'
                 f'<a class="small" href="/pdf?{q}&full=1">{e(t("Open the PDF on its own page"))}</a>')
     return f'<figure class="media {kind}">{body}{cap}</figure>'
@@ -257,7 +283,7 @@ def media_refs(lesson: dict) -> set[str]:
     """Paths of the course's own files that a lesson uses."""
     refs = set()
     if lesson.get("media") and not is_url(lesson["media"]):
-        refs.add(lesson["media"])
+        refs.add(page_range(lesson["media"])[0])  # "book.pdf#pages=3-9" uses the file book.pdf
     for m in re.finditer(r"!\[[^\]]*\]\(\s*(?:<([^>]+)>|([^)\s]+))", lesson.get("content", "")):
         rel = local_ref(m.group(1) or m.group(2))
         if rel and media_kind(rel):

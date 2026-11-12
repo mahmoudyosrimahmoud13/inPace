@@ -53,6 +53,7 @@
       {% endif %}
     </form>
     <form method="post" action="/updates/check" style="margin-block-start:.6rem"><button class="btn" data-busy="{{ _('Checking…') }}">{% trans trimmed %}Check now{% endtrans %}</button></form>
+    {% if update.status.state == 'waiting' %}<p class="small muted">{% trans trimmed %}A new version is being published right now. inPace looks again in an hour.{% endtrans %}</p>{% endif %}
     {% if update.status.state == 'failed' %}<p class="small muted">{{ T('Last check didn’t work: {why}', why=_(update.status.error or '')) }}</p>{% endif %}
     <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>
   {% endif %}

@@ -15,7 +15,9 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Follow a course step by step.** Lessons, then tasks: upload your work, explain it in your own words, take a quiz. The next module unlocks when you finish.
 - **Add a course the easy way:** press **Add**, then pick a folder of class material, some files, a course file, the course library, AI, or simple forms. No YAML or Markdown needed (it's there if you want it).
 - **Messy folders are fine:** inPace sorts your files by the week, lecture or chapter numbers in their names (or by kind: videos, slides, notes). You fix anything by dragging files between sections, or ask AI to sort them. Then choose: leave the files where they are (no extra space, even for a 60 GB course) or copy them into inPace.
-- **Videos, audio, PDFs, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.
+- **Turn a book into a course.** Give inPace a PDF book: each chapter becomes a part of the course and each section a lesson that opens only its own pages (`book.pdf#pages=12-19`). Your place is saved in each part.
+- **Videos, audio, PDFs, Word, PowerPoint, Excel, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Word, PowerPoint and Excel files show as a light, read-only preview right in the lesson, with a button to open them in their own app. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.
+- **AI courses around your own material.** Attach a book or some files when you make a course with AI. They become part of the course, and the prompt tells the AI the book's chapters and pages so each lesson opens the right part.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
@@ -131,7 +133,7 @@ questions.yaml   the questions and all possible answers
 answers.yaml     which answers are right (left out when sharing with learners)
 ```
 
-A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)**, and you can share yours there too.
+A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Sample courses are built in: **A tour of inPace**, a short course with one of every kind of lesson (video, audio, pictures, code, an interactive page, part of a book, slides, a Word file, a spreadsheet, tasks and a quiz), *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)**, and you can share yours there too.
 
 ## For developers
 
@@ -156,4 +158,4 @@ MIT. Free to use, change and share.
 
 The pictures of the sample courses were added by the project owner.
 
-The PDF reader uses Mozilla's [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), included in `inpace/static/pdfjs/` with its license.
+Reading book bookmarks uses [pypdf](https://github.com/py-pdf/pypdf) (BSD). The PDF reader uses Mozilla's [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), included in `inpace/static/pdfjs/` with its license.

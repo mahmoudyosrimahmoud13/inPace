@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.15.0
+
+- **Turn a book into a course.** Add a course, then **A book (PDF)**. inPace reads the chapters and sections from the book's bookmarks: each chapter becomes a part of the course and each section a lesson that opens **only its own pages**. Long chapters are split into shorter lessons, the cover and contents start in "Left out", and a book with no bookmarks is split every 12 pages. You can rename, move and leave out parts before you add it.
+- **Parts of a PDF in any lesson.** A lesson can show pages 5 to 7 of a PDF instead of the whole file (`media: book.pdf#pages=5-7`). The reader remembers your page in each part.
+- **Word, PowerPoint and Excel files open inside lessons** (.docx, .pptx, .xlsx): a light, read-only preview with headings, lists, tables, pictures, slides in order and each sheet as a table, plus a button to open the file in its own app. It all runs inside inPace, with nothing sent anywhere. Old formats (.doc, .ppt, .xls) still need saving as the new ones or as PDF.
+- **AI courses from your own book or files.** On the AI page, attach a book or some files. They become part of the course, and the prompt now tells the AI each file, the book's pages and its chapters, so the AI makes lessons that open the right pages.
+- **A tour of inPace:** a new sample course with one of everything: video, audio, pictures, code, an interactive page, part of a book, slides, a Word file, a spreadsheet, tasks and a quiz.
+- **Updates:** fixed a problem where a computer could see a new version before its download was ready, count it as a failed update and wait a whole day. Now it says the update is on its way and checks again in an hour.
+- **Android builds are sturdier:** the build tries once more after a hiccup, has more time, and adds the APK to the release only after the release is ready. Reading PDFs uses pypdf, which is pure Python, so it works on phones too.
+
 ## v1.14.0
 
 - **Reminders and alarms.** Pick a time and the days you study (or Every day, Weekdays, Weekends). Each reminder is a notification or an **alarm that rings until you stop it or snooze it for 10 minutes**. They tell you the next lesson, and tapping one opens inPace right there.

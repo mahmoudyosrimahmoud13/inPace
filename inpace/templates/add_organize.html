@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Sort your course') }}{% endblock %}
-{% macro kind_icon(kind) %}{{ icon({'video': 'video', 'audio': 'audio', 'pdf': 'doc', 'note': 'pen', 'html': 'link', 'image': 'image', 'code': 'code', 'folder': 'code'}.get(kind, 'file'), 20) }}{% endmacro %}
+{% macro kind_icon(kind) %}{{ icon({'video': 'video', 'audio': 'audio', 'pdf': 'doc', 'office': 'doc', 'note': 'pen', 'html': 'link', 'image': 'image', 'code': 'code', 'folder': 'code'}.get(kind, 'file'), 20) }}{% endmacro %}
 {% macro file_row(rel) %}{% set f = info[rel] %}
 <li class="org-file" draggable="true" data-file="{{ rel }}" data-size="{{ f.size }}">
   <span class="org-grip" aria-hidden="true">{{ icon('grip', 18) }}</span>
   <span class="org-ico" title="{{ f.kind }}">{{ kind_icon(f.kind) }}</span>
   <span class="org-main">
     <input class="org-name" value="{{ (plan.names or {}).get(rel) or f.name }}" data-default="{{ f.name }}" dir="auto" aria-label="{{ _('Lesson title') }}">
-    <span class="small muted org-meta" dir="auto">{{ f.file }} · {{ nice_size(f.size) }}</span>
+    <span class="small muted org-meta" dir="auto">{% if f.pages %}{{ T('Pages {a}', a=f.file) }} · {{ T('{n} pages', n=f.pages) if f.pages > 1 else _('1 page') }}{% else %}{{ f.file }} · {{ nice_size(f.size) }}{% endif %}</span>
   </span>
   <span class="org-tools">
-    <select data-move aria-label="{{ _('Move to') }}"></select>
+    <select data-move dir="auto" aria-label="{{ _('Move to') }}"></select>
     <button type="button" class="btn icon-btn" data-file-up aria-label="{{ _('Move up') }}">{{ icon('up', 18) }}</button>
     <button type="button" class="btn icon-btn" data-file-down aria-label="{{ _('Move down') }}">{{ icon('down', 18) }}</button>
   </span>
@@ -23,6 +23,8 @@
     {% if how == 'folders' %}{% trans trimmed %}Your folder was already sorted, so each sub-folder is a section.{% endtrans %}
     {% elif how == 'numbers' %}{% trans trimmed %}Your files were mixed together, so inPace sorted them by the week, lecture or chapter numbers in their names.{% endtrans %}
     {% elif how == 'kinds' %}{% trans trimmed %}Your files had no week or lecture numbers, so inPace sorted them by kind: videos, slides, notes.{% endtrans %}
+    {% elif how == 'book' %}{% trans trimmed %}inPace read the book's chapters and sections from its bookmarks. Each lesson shows only its own pages.{% endtrans %}
+    {% elif how == 'pages' %}{% trans trimmed %}This PDF has no bookmarks, so inPace split it into parts of 12 pages. Rename them to match the chapters.{% endtrans %}
     {% elif how == 'ai' %}{% trans trimmed %}This is how the AI sorted your files.{% endtrans %}
     {% else %}{% trans trimmed %}All your files are in one section.{% endtrans %}{% endif %}
     {% trans trimmed %}Check it, then fix anything: rename, drag files between sections, or use "Move to".{% endtrans %}
@@ -33,6 +35,7 @@
 <form method="post" action="/add/organize" class="stack" data-organizer>
   <input type="hidden" name="folder" value="{{ folder }}">
   <input type="hidden" name="draft" value="{{ draft }}">
+  <input type="hidden" name="book" value="{{ book or '' }}">
   <input type="hidden" name="plan" data-plan>
   <div class="card stack">
     <label>{% trans trimmed %}Course name{% endtrans %}<input name="title" data-title value="{{ plan.title }}" required dir="auto"></label>
@@ -57,18 +60,19 @@
 
   <section class="card soft org-sec org-out" data-out>
     <div class="org-sec-head"><h2>{% trans trimmed %}Left out{% endtrans %}</h2></div>
-    <p class="small muted">{% trans trimmed %}Files here won't be in the course. Move a file here to leave it out.{% endtrans %}</p>
+    <p class="small muted">{% if book %}{% trans trimmed %}Parts here won't be in the course. The cover and contents start here; move them up if you want them.{% endtrans %}{% else %}{% trans trimmed %}Files here won't be in the course. Move a file here to leave it out.{% endtrans %}{% endif %}</p>
     <ol class="org-files" data-files>{% for rel in left_out %}{{ file_row(rel) }}{% endfor %}</ol>
   </section>
 
   {% if cant_show %}
   <details class="card more">
     <summary>{{ T("{n} files can't be shown in inPace", n=cant_show|length) }}</summary>
-    <p class="small muted">{% trans trimmed %}Word, PowerPoint and Excel files can't open inside inPace. Save them as PDF in the same folder, then add the folder again.{% endtrans %}</p>
+    <p class="small muted">{% trans trimmed %}Old Office files (.doc, .ppt, .xls) and OpenDocument files can't open inside inPace. Save them as .docx, .pptx, .xlsx or PDF in the same folder, then add the folder again.{% endtrans %}</p>
     <ul class="small" dir="auto">{% for f in cant_show[:30] %}<li>{{ f }}</li>{% endfor %}</ul>
   </details>
   {% endif %}
 
+  {% if not book %}
   <details class="card more org-ai" {{ 'open' if open_ai }}>
     <summary>{{ icon('spark', 18) }} {% trans trimmed %}Ask AI to sort it{% endtrans %}</summary>
     <div class="stack" style="margin-block-start:.75rem">
@@ -89,6 +93,7 @@
       {% endif %}
     </div>
   </details>
+  {% endif %}
 
   {% if not draft %}
   <fieldset class="card stack org-store">

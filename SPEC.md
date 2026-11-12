@@ -122,8 +122,27 @@ https://youtu.be/...              <- a YouTube or Vimeo link alone on a line bec
 ```
 
 Kinds: video (`.mp4 .webm .m4v .mov .ogv .mkv`), audio (`.mp3 .m4a .aac .ogg .oga .opus .wav .flac .weba`),
-web page (`.html .htm`), picture, PDF, code (`.py .js .ts .java .go .sql .yaml .json .ipynb Dockerfile` and more,
-shown with colours), a project folder (a path ending in `/`: all its code files), YouTube, Vimeo, and any other link.
+web page (`.html .htm`), picture, PDF, office (`.docx .pptx .xlsx .xlsm`: a read-only preview plus a download
+button), code (`.py .js .ts .java .go .sql .yaml .json .ipynb Dockerfile` and more, shown with colours), a project
+folder (a path ending in `/`: all its code files), YouTube, Vimeo, and any other link.
+
+**Part of a PDF.** A PDF path may end in `#pages=A-B` (or `#pages=A` for one page), both 1-based and inclusive:
+`media: "book.pdf#pages=12-19"`. The reader shows only those pages and keeps a separate reading position for each
+range. The range is not part of the file's path: lookups, `media_index`, copying and packs use the plain file.
+
+```yaml
+book: small-steps.pdf          # optional: the course was made from this book
+modules:
+  - id: m1
+    title: "Chapter 1: Learning a little every day"
+    lessons:
+      - {title: Introduction, media: "small-steps.pdf#pages=2-2"}
+      - {title: 1.1 Why small steps work, media: "small-steps.pdf#pages=3-3"}
+```
+
+`book: <path>` (optional) names the PDF a course was made from. It is not part of the fingerprint, and a shared
+pack leaves the book's file out (books are often large and not yours to share): the learner points inPace to
+their own copy.
 
 **Files stay where they are.** inPace never copies a course's files unless asked. Paths are looked up, in order:
 the file itself (full paths), the course's own small files (`<home>/media/<course>/`, added in the editor or

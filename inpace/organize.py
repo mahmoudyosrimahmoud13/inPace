@@ -11,8 +11,8 @@ import shutil
 import threading
 from pathlib import Path
 
-from .course import (COVER_NAMES, SKIP_DIRS, CourseError, Course, _natural, _nice_title, course_from_groups,
-                     folder_groups, media_kind, strip_fences)
+from .course import (COVER_NAMES, SKIP_DIRS, CourseError, Course, _natural, _nice_title, _slug, course_from_groups,
+                     folder_groups, media_kind, page_range, strip_fences)
 
 # Words that usually number the parts of a course, in English and Arabic.
 _PART_WORDS = {
@@ -27,9 +27,9 @@ _PART_WORDS = {
 _PART_RE = re.compile(
     r"(?<![A-Za-z؀-ۿ])(" + "|".join(sorted((re.escape(w) for w in _PART_WORDS), key=len, reverse=True)) +
     r")[\s._\-#]*0*(\d{1,3})(?!\d)", re.I)
-_TYPE_SECTIONS = [("video", "Videos"), ("audio", "Audio"), ("pdf", "Slides and PDFs"), ("html", "Web pages"),
+_TYPE_SECTIONS = [("video", "Videos"), ("audio", "Audio"), ("pdf", "Slides and PDFs"), ("office", "Documents and sheets"), ("html", "Web pages"),
                   ("note", "Notes"), ("image", "Pictures"), ("code", "Code"), ("folder", "Code"), ("other", "Other files")]
-CANT_SHOW = (".ppt", ".pptx", ".doc", ".docx", ".xls", ".xlsx", ".odt", ".odp", ".key", ".pages", ".rtf", ".epub",
+CANT_SHOW = (".ppt", ".doc", ".xls", ".odt", ".odp", ".ods", ".key", ".pages", ".numbers", ".rtf", ".epub",
              ".zip", ".rar", ".7z")
 
 
@@ -170,7 +170,8 @@ def course_from_plan(folder: Path, plan: dict) -> Course:
 
 
 def plan_size(folder: Path, plan: dict) -> int:
-    return sum(_size(Path(folder) / f.rstrip("/")) for s in plan["sections"] for f in s["files"])
+    files = {page_range(f)[0] for s in plan["sections"] for f in s["files"]}
+    return sum(_size(Path(folder) / f.rstrip("/")) for f in files)
 
 
 def nice_size(n: int) -> str:
@@ -233,8 +234,13 @@ JOBS: dict[str, dict] = {}
 
 def start_copy(job_id: str, folder: Path, plan: dict, target: Path, done=None) -> None:
     files = []
+    seen = set()
     for s in plan["sections"]:
         for f in s["files"]:
+            f = page_range(f)[0]  # a part of a book is the book's file
+            if f in seen:
+                continue
+            seen.add(f)
             p = Path(folder) / f.rstrip("/")
             if p.is_dir():
                 files += [(x, x.relative_to(folder)) for x in p.rglob("*") if x.is_file()]
@@ -269,3 +275,182 @@ def start_copy(job_id: str, folder: Path, plan: dict, target: Path, done=None) -
         job["state"] = "done"
 
     threading.Thread(target=run, daemon=True).start()
+
+
+# ---- a book (PDF): its bookmarks become modules and lessons -----------------------------------------------
+
+BOOK_SPLIT = 12          # pages per lesson when a part of the book has no smaller bookmarks
+BOOK_LONG = 30           # a chapter longer than this, with no sections, is split into parts
+
+
+def _book_reader(pdf: Path):
+    try:
+        from pypdf import PdfReader
+        r = PdfReader(str(pdf))
+        if r.is_encrypted and not r.decrypt(""):
+            raise CourseError(["This PDF is protected with a password. Save a copy without the password, then try again."])
+        return r
+    except CourseError:
+        raise
+    except Exception:
+        raise CourseError(["This PDF couldn't be read. It may be damaged."])
+
+
+def book_outline(pdf: Path) -> tuple[list[dict], int]:
+    """The book's bookmarks ("Chapter 2", "2.1 ...") with their pages, and the number of pages."""
+    r = _book_reader(pdf)
+    total = len(r.pages)
+    items: list[dict] = []
+
+    def walk(nodes, level: int) -> None:
+        for n in nodes:
+            if isinstance(n, list):
+                walk(n, level + 1)
+                continue
+            try:
+                page = r.get_destination_page_number(n) + 1
+            except Exception:
+                continue
+            title = re.sub(r"\s+", " ", str(getattr(n, "title", "") or "")).strip()[:150]
+            if title and 1 <= page <= total:
+                items.append({"level": level, "title": title, "page": page})
+    try:
+        walk(r.outline, 0)
+    except Exception:
+        items = []
+    # Some books put everything under one bookmark with the book's name: use the level below it.
+    while items and sum(1 for i in items if i["level"] == items[0]["level"]) == 1 and any(i["level"] > items[0]["level"] for i in items):
+        top = items[0]["level"]
+        items = [{**i, "level": i["level"] - 1} for i in items[1:] if i["level"] > top]
+    return items, total
+
+
+def _pages_ref(name: str, a: int, b: int) -> str:
+    return f"{name}#pages={a}-{b}"
+
+
+def _split(name: str, title: str, a: int, b: int, size: int = BOOK_SPLIT) -> list[tuple[str, str]]:
+    parts = []
+    n = 1
+    for start in range(a, b + 1, size):
+        end = min(b, start + size - 1)
+        parts.append((_pages_ref(name, start, end), f"{title} ({n})" if b - a + 1 > size else title))
+        n += 1
+    return parts
+
+
+def book_plan(pdf: Path, title: str = "") -> dict:
+    """Chapters become sections (modules) and their parts become lessons, each showing its own pages.
+    A book without bookmarks is split into lessons of 12 pages."""
+    pdf = Path(pdf)
+    items, total = book_outline(pdf)
+    name = pdf.name
+    title = title.strip() or _nice_title(pdf.name)
+    names: dict[str, str] = {}
+    sections: list[dict] = []
+    left: list[str] = []
+    if items:
+        top = min(i["level"] for i in items)
+        chapters = [k for k, i in enumerate(items) if i["level"] == top]
+        if chapters and items[chapters[0]]["page"] > 1:  # the cover, contents and preface: left out to start with
+            ref = _pages_ref(name, 1, items[chapters[0]]["page"] - 1)
+            names[ref] = "Front matter"
+            left.append(ref)
+        for n, k in enumerate(chapters):
+            ch = items[k]
+            nxt = items[chapters[n + 1]]["page"] if n + 1 < len(chapters) else total + 1
+            end = max(ch["page"], nxt - 1)
+            subs = [i for i in items[k + 1:chapters[n + 1] if n + 1 < len(chapters) else len(items)]
+                    if i["level"] == top + 1 and ch["page"] <= i["page"] <= end]
+            lessons: list[tuple[str, str]] = []
+            if subs:
+                if subs[0]["page"] > ch["page"]:
+                    lessons.append((_pages_ref(name, ch["page"], subs[0]["page"] - 1), "Introduction"))
+                for j, s in enumerate(subs):
+                    s_end = max(s["page"], (subs[j + 1]["page"] - 1) if j + 1 < len(subs) else end)
+                    lessons.append((_pages_ref(name, s["page"], s_end), s["title"]))
+            elif end - ch["page"] + 1 > BOOK_LONG:
+                lessons += _split(name, ch["title"], ch["page"], end)
+            else:
+                lessons.append((_pages_ref(name, ch["page"], end), ch["title"]))
+            seen = set()
+            files = []
+            for ref, t in lessons:
+                if ref in seen:
+                    continue
+                seen.add(ref)
+                names[ref] = t
+                files.append(ref)
+            sections.append({"title": ch["title"], "files": files})
+        how = "book"
+    else:
+        for start in range(1, total + 1, BOOK_SPLIT * 5):
+            end = min(total, start + BOOK_SPLIT * 5 - 1)
+            files = []
+            for ref, _ in _split(name, "", start, end):
+                a, b = page_range(ref)[1]
+                names[ref] = f"Pages {a}–{b}"
+                files.append(ref)
+            sections.append({"title": f"Pages {start}–{end}", "files": files})
+        how = "pages"
+    return {"title": title, "sections": sections, "names": names, "left_out": left, "organized": False,
+            "cant_show": [], "how": how, "pages": total}
+
+
+def book_info(pdf: Path, plan: dict) -> dict[str, dict]:
+    """What the organizer shows for each part of the book."""
+    size = Path(pdf).stat().st_size
+    total = max(plan.get("pages") or 1, 1)
+    out = {}
+    for ref, title in plan["names"].items():
+        a, b = page_range(ref)[1]
+        n = b - a + 1
+        out[ref] = {"name": title, "file": f"{a}–{b}", "kind": "pdf", "size": size * n // total, "pages": n}
+    return out
+
+
+def course_from_book(folder: Path, book: str, plan: dict, info: dict[str, dict]) -> Course:
+    if not plan["sections"]:
+        raise CourseError(["Keep at least one part of the book in the course."])
+    names = plan.get("names") or {}
+    modules = []
+    for mi, s in enumerate(plan["sections"], start=1):
+        lessons = []
+        for li, ref in enumerate(s["files"], start=1):
+            pages = info.get(ref, {}).get("pages", 1)
+            lessons.append({"id": f"m{mi}-l{li}", "title": names.get(ref) or info.get(ref, {}).get("name") or ref,
+                            "content": "", "minutes": max(5, min(240, pages * 4)), "media": ref})
+        modules.append({"id": f"m{mi}", "title": s["title"], "lessons": lessons, "requires": []})
+    from .canon import fingerprint
+    name = plan["title"].strip() or _nice_title(book)
+    c = Course(id=_slug(name) or "book", title=name, version="1", description="", language="en",
+               modules=modules, questions={}, answers=None)
+    c.extra["book"] = book
+    c.extra["media_index"] = {book: (Path(folder) / book).stat().st_size}
+    c.hash = fingerprint(c.public_dict())
+    return c
+
+
+def book_toc(pdf: Path, limit: int = 160) -> tuple[list[tuple[int, str, int, int]], int]:
+    """The book's contents for an AI request: (level, title, first page, last page), and the number of pages."""
+    items, total = book_outline(pdf)
+    out = []
+    for i, it in enumerate(items[:limit]):
+        nxt = next((j["page"] for j in items[i + 1:] if j["level"] <= it["level"]), total + 1)
+        out.append((it["level"], it["title"], it["page"], max(it["page"], nxt - 1)))
+    return out, total
+
+
+def describe_sources(folder: Path, names: list[str]) -> list[dict]:
+    """What the AI should know about the files attached to a course (names, pages, chapters)."""
+    out = []
+    for name in names[:200]:
+        p = Path(folder) / name
+        item = {"file": name, "kind": _kind(name)}
+        if item["kind"] == "pdf" and p.is_file() and len([x for x in out if x.get("toc") is not None]) < 3:
+            try:
+                item["toc"], item["pages"] = book_toc(p)
+            except CourseError:
+                pass
+        out.append(item)
+    return out

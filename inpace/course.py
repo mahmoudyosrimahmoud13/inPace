@@ -34,13 +34,14 @@ AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac", "
 HTML_EXT = (".html", ".htm")
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
 DOC_EXT = (".pdf",)
+OFFICE_EXT = (".docx", ".pptx", ".xlsx", ".xlsm")  # shown as a light, view-only preview (office.py)
 CODE_EXT = (".py", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".java", ".kt", ".c", ".h", ".cpp", ".hpp", ".cc",
             ".cs", ".go", ".rs", ".rb", ".php", ".swift", ".scala", ".dart", ".lua", ".r", ".jl", ".sh", ".bash",
             ".zsh", ".ps1", ".bat", ".sql", ".css", ".scss", ".less", ".vue", ".svelte", ".json", ".yaml", ".yml",
             ".toml", ".ini", ".cfg", ".conf", ".xml", ".env", ".txt", ".ipynb", ".tf", ".gradle", ".dockerignore",
             ".gitignore", ".csv", ".log", ".proto", ".graphql")
 CODE_NAMES = ("dockerfile", "makefile", "procfile", "jenkinsfile", "vagrantfile", "gemfile", "rakefile")
-MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT + CODE_EXT
+MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT + OFFICE_EXT + CODE_EXT
 _YT = re.compile(r"^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,15})")
 _VIMEO = re.compile(r"^https?://(?:www\.)?(?:player\.)?vimeo\.com/(?:video/)?(\d{5,12})")
 
@@ -50,7 +51,7 @@ def is_url(ref: str) -> bool:
 
 
 def media_kind(ref: str) -> str:
-    """video, audio, html, image, pdf, youtube, vimeo, link, or '' for anything else."""
+    """video, audio, html, image, pdf, office, youtube, vimeo, link, code, folder, or '' for anything else."""
     ref = (ref or "").strip()
     if _YT.match(ref):
         return "youtube"
@@ -58,7 +59,7 @@ def media_kind(ref: str) -> str:
         return "vimeo"
     low = ref.lower().split("?")[0].split("#")[0]
     for kind, exts in (("video", VIDEO_EXT), ("audio", AUDIO_EXT), ("html", HTML_EXT), ("image", IMAGE_EXT),
-                       ("pdf", DOC_EXT)):
+                       ("pdf", DOC_EXT), ("office", OFFICE_EXT)):
         if low.endswith(exts):
             return kind
     if is_url(ref):
@@ -119,9 +120,21 @@ def safe_media_path(ref: str) -> str | None:
     return "/".join(parts)
 
 
+_PAGES = re.compile(r"#pages?=(\d{1,5})(?:-(\d{1,5}))?$")
+
+
+def page_range(ref: str) -> tuple[str, tuple[int, int] | None]:
+    """"book.pdf#pages=19-35" -> ("book.pdf", (19, 35)): a lesson that shows only part of a PDF."""
+    m = _PAGES.search(ref or "")
+    if not m:
+        return ref, None
+    a, b = int(m.group(1)), int(m.group(2) or m.group(1))
+    return ref[:m.start()], (min(a, b), max(a, b))
+
+
 def local_ref(ref: str) -> str | None:
     """A file on this computer: a path inside the course folder, or a full path the course points to."""
-    ref = (ref or "").strip().replace("\\", "/")
+    ref = page_range((ref or "").strip())[0].replace("\\", "/")
     if not ref or is_url(ref):
         return None
     if ref.startswith(("/", "~/")) or re.match(r"^[A-Za-z]:/", ref):
@@ -331,7 +344,10 @@ def load_course(files: dict[str, str]) -> Course:
                 problems.append(f"Lesson {li} in module {mi}: the media '{media}' must be a web link or a file path.")
                 media = ""
             elif media and not is_url(media):
-                media = local_ref(media) or ""
+                base, pages = page_range(media)
+                media = local_ref(base) or ""
+                if media and pages and media_kind(media) == "pdf":
+                    media += f"#pages={pages[0]}-{pages[1]}"  # a part of a book
             content = rl.get("content")
             if content is None and rl.get("file"):
                 fname = str(rl["file"]).replace("\\", "/")
@@ -401,6 +417,9 @@ def load_course(files: dict[str, str]) -> Course:
     downloads = parse_downloads(raw.get("downloads"))
     if downloads:
         course.extra["downloads"] = downloads
+    book = raw.get("book")
+    if isinstance(book, str) and safe_media_path(book) and media_kind(book) == "pdf":
+        course.extra["book"] = safe_media_path(book)  # the book the lessons show parts of (not shared with the course)
     image = raw.get("image")
     if isinstance(image, str) and safe_media_path(image) and media_kind(image) == "image":
         course.extra["image"] = safe_media_path(image)  # the course's cover picture, a file next to the course
@@ -524,6 +543,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
         head["image"] = course.extra["image"]
     if course.extra.get("downloads"):
         head["downloads"] = course.extra["downloads"]
+    if course.extra.get("book"):
+        head["book"] = course.extra["book"]
     if course.extra.get("media_index"):
         head["media_index"] = course.extra["media_index"]
     files["course.yaml"] = yaml.safe_dump(head, sort_keys=False, allow_unicode=True, width=100)

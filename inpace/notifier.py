@@ -16,7 +16,6 @@ import base64
 import hashlib
 import json
 import os
-import plistlib
 import shutil
 import subprocess
 import sys
@@ -160,6 +159,7 @@ def _sync_cron(items: list[dict], cmd: list[str], quiet: bool = False) -> str:
 # ---- Mac: launchd agents ---------------------------------------------------------------------------------
 
 def mac_plists(items: list[dict], cmd: list[str]) -> dict[str, bytes]:
+    import plistlib  # only on a Mac (it needs Python's XML parser, which phones may not have)
     out = {}
     for e in items:
         label = f"org.inpace.{e['name']}"

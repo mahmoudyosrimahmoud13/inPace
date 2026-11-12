@@ -1,0 +1,93 @@
+id: tour
+title: A tour of inPace
+version: 1
+language: en
+description: "A short course that shows every kind of lesson inPace can hold: text, code, video, audio, YouTube, parts of a book, Word, PowerPoint and Excel files, web pages and pictures, then tasks and a quiz."
+image: cover.jpg
+downloads:
+  - title: inPace for every device
+    url: https://mahmoudyosrimahmoud13.github.io/inPace/#download
+modules:
+  - id: m1
+    title: Start here
+    lessons:
+      - id: m1-l1
+        title: Welcome to the tour
+        file: lessons/m1-l1.md
+        minutes: 5
+      - id: m1-l2
+        title: Code you can copy
+        file: lessons/m1-l2.md
+        minutes: 5
+  - id: m2
+    title: Watch and listen
+    lessons:
+      - id: m2-l1
+        title: A video lesson
+        file: lessons/m2-l1.md
+        minutes: 3
+      - id: m2-l2
+        title: An audio lesson
+        file: lessons/m2-l2.md
+        minutes: 2
+      - id: m2-l3
+        title: A YouTube lesson
+        file: lessons/m2-l3.md
+        minutes: 3
+  - id: m3
+    title: Read a book
+    lessons:
+      - id: m3-l1
+        title: "1.1 Why small steps work"
+        media: "small-steps.pdf#pages=3-3"
+        minutes: 4
+      - id: m3-l2
+        title: "1.2 Pick a time, not a mood"
+        media: "small-steps.pdf#pages=4-4"
+        minutes: 4
+      - id: m3-l3
+        title: "Chapter 2: Practice that sticks"
+        file: lessons/m3-l3.md
+        minutes: 8
+      - id: m3-l4
+        title: The whole book
+        file: lessons/m3-l4.md
+        minutes: 10
+  - id: m4
+    title: Word, PowerPoint and Excel
+    lessons:
+      - id: m4-l1
+        title: A Word document
+        media: study-notes.docx
+        minutes: 4
+      - id: m4-l2
+        title: A slide deck
+        media: meet-inpace.pptx
+        minutes: 4
+      - id: m4-l3
+        title: A spreadsheet
+        media: study-plan.xlsx
+        minutes: 3
+  - id: m5
+    title: Try it yourself
+    lessons:
+      - id: m5-l1
+        title: A web page you can use
+        file: lessons/m5-l1.md
+        minutes: 4
+      - id: m5-l2
+        title: What's next
+        file: lessons/m5-l2.md
+        minutes: 3
+    requires:
+      - id: m5-practical
+        type: practical
+        prompt: "Proof of work: add any file you made today (a photo of your notes, a screenshot or a document), or record a voice note."
+      - id: m5-explain
+        type: explain
+        prompt: In your own words, what is a milestone, and why does a checker make it more useful?
+        min_words: 25
+      - id: m5-quiz
+        type: quiz
+        questions: [q1, q2, q3]
+        pass: 70

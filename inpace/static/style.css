@@ -1075,3 +1075,29 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
   .rem-row form { width: 100%; }
   .rem-row form .btn:first-child { flex: 1; }
 }
+
+/* v1.15: Word, PowerPoint and Excel previews */
+.media.office { display: block; }
+.office-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .5rem .8rem; background: var(--raised);
+  border: 2.5px solid var(--line); border-block-end: 0; font-weight: 700; font-size: .9rem; }
+.office { border: 2.5px solid var(--line); background: var(--surface); padding: 1.2rem 1.4rem; max-height: 75vh; overflow: auto; }
+.office img { max-width: 100%; height: auto; }
+.office-table { overflow: auto; margin-block: .6rem; }
+.office table { border-collapse: collapse; font-size: .9rem; }
+.office td, .office th { border: 1px solid var(--hair); padding: .3rem .55rem; vertical-align: top; text-align: start; }
+.office th { background: var(--raised); color: var(--muted); font-weight: 600; font-size: .78rem; }
+.office td.num { text-align: end; font-variant-numeric: tabular-nums; }
+.office-xlsx, .office-pptx { background: var(--raised); }
+.office-slide { position: relative; background: var(--surface); border: 2px solid var(--line); padding: 1rem 1.2rem 1rem 3rem;
+  margin-block-end: 1rem; aspect-ratio: 16 / 9; overflow: auto; }
+[dir=rtl] .office-slide { padding: 1rem 3rem 1rem 1.2rem; }
+.office-slide h3 { font-size: 1.25rem; margin-block-end: .6rem; }
+.office-slide ul { margin: 0; padding-inline-start: 1.2rem; }
+.office-slide .lvl1 { margin-inline-start: 1.2rem; } .office-slide .lvl2 { margin-inline-start: 2.4rem; }
+.office-slide .lvl3, .office-slide .lvl4 { margin-inline-start: 3.6rem; }
+.office-slide img { max-height: 45%; display: block; margin-block: .6rem; }
+.office-slide-n { position: absolute; inset-inline-start: .8rem; top: .9rem; margin: 0; font-weight: 800; color: var(--muted); }
+.office-sheet { background: var(--surface); border: 2px solid var(--line); margin-block-end: .6rem; }
+.office-sheet summary { padding: .5rem .8rem; font-weight: 700; cursor: pointer; }
+.office-sheet .office-table { margin: 0 .8rem .8rem; }
+@media (max-width: 560px) { .office { padding: .8rem; } .office-slide { aspect-ratio: auto; padding-inline-start: 2.4rem; } }

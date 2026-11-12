@@ -11,7 +11,7 @@ def _messy(tmp_path):
     d = tmp_path / "Algorithms class"
     d.mkdir()
     for name in ("Lecture 1 - Intro.pdf", "lec2_sorting.pdf", "Lecture 03 Graphs.mp4", "L4 trees.pdf",
-                 "Lecture 4 trees recording.mp4", "syllabus.pdf", "slides.pptx"):
+                 "Lecture 4 trees recording.mp4", "syllabus.pdf", "slides.ppt"):
         (d / name).write_bytes(b"x" * 10)
     (d / "notes.md").write_text("# My notes\nHello", encoding="utf-8")
     return d
@@ -22,7 +22,7 @@ def test_messy_folder_is_sorted_by_lecture_numbers(tmp_path):
     titles = [s["title"] for s in plan["sections"]]
     assert titles == ["General", "Lecture 1", "Lecture 2", "Lecture 3", "Lecture 4"]
     assert plan["sections"][4]["files"] == ["L4 trees.pdf", "Lecture 4 trees recording.mp4"]
-    assert plan["cant_show"] == ["slides.pptx"] and not plan["organized"]
+    assert plan["cant_show"] == ["slides.ppt"] and not plan["organized"]
 
 
 def test_no_numbers_sorts_by_kind_and_subfolders_stay(tmp_path):
