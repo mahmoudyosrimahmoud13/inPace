@@ -1160,7 +1160,6 @@
  "Write it myself": "أكتبها بنفسي",
  "Simple forms: a title, then modules and lessons. Paste video links or write the text.": "نماذج بسيطة: عنوان، ثم وحدات ودروس. الصق روابط الفيديو أو اكتب النص.",
  "Advanced: write the course file yourself": "متقدم: اكتب ملف الدورة بنفسك",
- "For people who like plain text: a course is one course.yaml file, and lessons are written in Markdown. Make a course with the simple forms first, then open \"Edit as YAML\" from its edit page.": "لمن يحب النص العادي: الدورة ملف course.yaml واحد، والدروس تُكتب بصيغة Markdown. اصنع الدورة بالنماذج البسيطة أولًا، ثم افتح \"تعديل كـ YAML\" من صفحة تعديلها.",
  "How course files work": "كيف تعمل ملفات الدورات",
  "Copying the files into inPace": "نسخ الملفات إلى inPace",
  "Copying files": "نسخ الملفات",
@@ -1241,5 +1240,6 @@
  "Keep at least one file in the course.": "أبقِ ملفًا واحدًا على الأقل في الدورة.",
  "That answer has no plan in it. Copy the whole answer from the AI chat.": "هذا الرد ليس فيه خطة. انسخ الرد كاملًا من محادثة الذكاء الاصطناعي.",
  "That answer isn't complete JSON. Ask the AI to answer with the JSON only, then paste it again.": "هذا الرد ليس JSON كاملًا. اطلب من الذكاء الاصطناعي أن يرد بـ JSON فقط، ثم الصقه مرة أخرى.",
- "That answer has no sections. Ask the AI again.": "هذا الرد ليس فيه أقسام. اسأل الذكاء الاصطناعي مرة أخرى."
+ "That answer has no sections. Ask the AI again.": "هذا الرد ليس فيه أقسام. اسأل الذكاء الاصطناعي مرة أخرى.",
+ "For people who like plain text: a course is one course.yaml file, and lessons are written in Markdown. Make a course with the simple forms first, then press \"Edit as one file\" on its edit page.": "لمن يحب النص العادي: الدورة ملف course.yaml واحد، والدروس تُكتب بصيغة Markdown. اصنع الدورة بالنماذج البسيطة أولًا، ثم اضغط \"عدّل كملف واحد\" في صفحة تعديلها."
 }

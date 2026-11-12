@@ -266,3 +266,27 @@ button.btn { font: inherit; font-weight: 700; cursor: pointer; }
 @media (max-width: 760px) { .theme { margin-inline-start: auto; } .theme + .lang { margin-inline-start: 0; } }
 .stats li[hidden], [hidden] { display: none !important; }
 .chip-new { font-size: .7rem; vertical-align: middle; border: 2px solid currentColor; padding: 0 .35rem; margin-inline-start: .3rem; }
+
+/* On your phone */
+.phone { padding-block: 4rem 3rem; }
+.phone-head { max-width: 46rem; margin-block-end: 2rem; }
+.phone-head p { font-size: 1.1rem; color: var(--muted); margin: 0; }
+.phones { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2.4vw, 32px); }
+.phones li { display: flex; flex-direction: column; gap: .35rem; }
+.phones img { width: 100%; height: auto; border: 3px solid var(--line); border-radius: 22px; background: var(--surface);
+  box-shadow: var(--hard-sm) var(--line); margin-block-end: .6rem; }
+[dir=rtl] .phones img { box-shadow: -4px 4px 0 var(--line); }
+.phones b { font-size: 1.05rem; }
+.phones li > span { color: var(--muted); font-size: .95rem; }
+.phone-facts { margin: 2.5rem 0 1.5rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem 2.5rem; max-width: 72rem; }
+.phone-facts dt { font-weight: 800; margin-block-end: .2rem; }
+.phone-facts dd { margin: 0; color: var(--muted); }
+.phone .cta { display: flex; flex-wrap: wrap; gap: .8rem; }
+@media (max-width: 860px) {
+  /* Swipe through the screens, two at a time */
+  .phones { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 46%; overflow-x: auto; scroll-snap-type: x mandatory;
+    padding-block-end: .8rem; padding-inline: 2px 8px; }
+  .phones li { scroll-snap-align: start; }
+  .phone-facts { grid-template-columns: 1fr; }
+}
+.chapter .phone-shot { max-width: 300px; justify-self: center; border-radius: 22px; overflow: hidden; }

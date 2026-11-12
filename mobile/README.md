@@ -1,4 +1,4 @@
-# inPace for Android (in progress)
+# inPace for Android
 
 The phone runs the same inPace app as the desktop. Python starts inPace's small web server on the phone
 (`127.0.0.1`, only the phone can reach it), and this Flutter app shows it full screen.
@@ -9,14 +9,23 @@ mobile/
   lib/main.dart             start Python, wait until it answers, show it; links, back button, microphone
   app/src/main.py           the Python side: starts inPace on the port Flutter chose
   app/src/requirements.txt  Python libraries (PyNaCl has a ready Android build on pypi.flet.dev)
-  tools/prepare_android.py  fixes up the generated Android project: name, permissions, inpace:// links
+  tools/prepare_android.py  fixes up the generated Android project: name, permissions, inpace:// links,
+                            signing key, plugin SDK, Python downloads one at a time
+  build_android.sh          the whole build, used by GitHub and on your own computer
+  icon/res/                 the app icon (made with IconKitchen)
 ```
+
+How the app works (start-up, data folder, files, links, permissions, updates): see
+[How inPace works → On Android](../docs/HOW-IT-WORKS.md#12-on-android). Screenshots are on the
+[website](https://mahmoudyosrimahmoud13.github.io/inPace/#phone).
 
 The Android project files (`android/`) aren't kept in git. GitHub makes them fresh with `flutter create` on every
 build, and `tools/prepare_android.py` adjusts them.
 
-**Build:** GitHub → **Actions → android → Run workflow**. The APKs appear under the run's **Artifacts**. It also
-runs on every version tag.
+**Build:** GitHub → **Actions → android → Run workflow**. The APKs appear under the run's **Artifacts**. On every
+version tag it also runs, signs the APK with the release key (secrets `ANDROID_KEYSTORE_BASE64` and
+`ANDROID_KEYSTORE_PASSWORD`) and adds it to the release. Keep the key file and its password safe: every update must
+be signed with the same key, or Android refuses to install it over the old version.
 
 ## The app icon
 

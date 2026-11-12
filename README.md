@@ -2,7 +2,7 @@
 
 <h1 align="center">inPace</h1>
 <p align="center"><b>Learn at your pace. Prove you kept it.</b><br>
-A free, open-source app that helps you follow a course and lets someone you trust check that you're really keeping up. Everything stays on your computer.</p>
+A free, open-source app that helps you follow a course and lets someone you trust check that you're really keeping up. For Windows, Mac, Linux and Android. Everything stays on your device.</p>
 <p align="center"><a href="https://mahmoudyosrimahmoud13.github.io/inPace/"><b>Website</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inPace/guide.html"><b>Guide</b></a> · <a href="https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest"><b>Download</b></a> · <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><b>Course library</b></a></p>
 
 <p align="center"><img src="site/assets/shots/courses.jpg" width="820" alt="My courses in inPace: Python Basics and Reading club with their pictures, how much is done, and a search box."></p>
@@ -50,11 +50,27 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Make it look your way:** seven color profiles, light and dark mode, English and Arabic (right to left), and a welcome tour with Tempo the turtle that you can replay any time.
 - **Updates itself** if you allow it, and **encrypted backups** you can restore on any computer.
 
+## On your phone
+
+<p align="center">
+<img src="site/assets/shots/phone-home.jpg" width="200" alt="inPace on a phone: the home page with a course 60% done and the tab bar at the bottom.">
+<img src="site/assets/shots/phone-lesson.jpg" width="200" alt="A Python lesson on a phone.">
+<img src="site/assets/shots/phone-sort.jpg" width="200" alt="Sorting a messy class folder on a phone.">
+<img src="site/assets/shots/phone-more.jpg" width="200" alt="The More menu on a phone.">
+</p>
+
+The **Android app** is the whole of inPace, not a smaller version: the same courses, milestones, races and checkers, with no account and no internet needed.
+- **A tab bar at the bottom** (Home, Courses, Add, Milestones, More) that always shows where you are.
+- **Add your class material** from files you pick or a folder on your phone, sorted for you.
+- **Send progress** to your checker on WhatsApp or Telegram, and inPace links open straight in the app.
+- **Move between phone and computer** with a backup.
+- **Updating:** download the new APK and tap *Update*. Your courses and progress stay.
+
 ## How it works
 
-inPace is a small website that only lives on your computer. When you open it, it starts a tiny server that only your computer can reach, and shows it in its own app window. Everything is saved in one folder (`Documents/inPace`). Your milestones are signed with a key that never leaves that folder, and checking happens by swapping files with people you choose. No server, no account, no cloud.
+inPace is a small website that only lives on your computer. When you open it, it starts a tiny server that only your computer can reach, and shows it in its own app window. Everything is saved in one folder (`Documents/inPace`). Your milestones are signed with a key that never leaves that folder, and checking happens by swapping files with people you choose. No server, no account, no cloud. The Android app carries Python inside it and runs the same server on the phone.
 
-**Read the full explanation in [How inPace works](docs/HOW-IT-WORKS.md).** It covers the app window, the data folder, courses and media, updating and deleting courses, milestones and checking, updates, and when inPace goes online.
+**Read the full explanation in [How inPace works](docs/HOW-IT-WORKS.md).** It covers the app window, the data folder, courses and media, sorting your own material, milestones and checking, links, the course library, updates, when inPace goes online, and how the Android app works.
 
 ## Download
 
@@ -64,8 +80,9 @@ Go to the [Releases page](https://github.com/mahmoudyosrimahmoud13/inpace/releas
 - **Mac:** `inPace-mac.dmg`. Open it and drag inPace into Applications.
 - **Ubuntu / Debian:** `inPace-linux.deb`. Double-click it to install (or run `sudo apt install ./inPace-linux.deb`), then open inPace from your apps.
 - **Other Linux:** `inPace-linux.tar.gz`. Unpack it and run `inPace`.
+- **Android 7 or newer:** `inPace-android-arm64-v8a.apk`. Open it on your phone and tap *Install*. If your phone asks, allow installing apps from your browser or Files app.
 
-inPace opens in its own window. Everything stays on your computer.
+inPace opens in its own window. Everything stays on your device.
 
 (Using the plain Linux `.tar.gz`? For the app window, install `python3-gi` and `gir1.2-webkit2-4.1` once: `sudo apt install python3-gi gir1.2-webkit2-4.1`. Without them, inPace opens in Chrome or Edge as an app window, or in a browser tab.)
 
@@ -121,9 +138,11 @@ pip install -e ".[test]"
 pytest
 ```
 
-Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#12-for-developers-where-the-code-is) has a map of the code.
+Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No JavaScript framework, no build step. Tests run on Windows, macOS and Linux on every push. [How inPace works](docs/HOW-IT-WORKS.md#13-for-developers-where-the-code-is) has a map of the code.
 
-**Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. The website in `site/` deploys on every push.
+**Making a release:** push a version tag (`git tag v1.10.0` then `git push --tags`). GitHub tests everything, builds the Windows, Mac and Linux apps, checks that each one starts, and attaches them to a new release with a `SHA256SUMS` file that the updater checks. A second workflow builds the Android APK (signed with the release key from the repository secrets) and adds it to the same release. The website in `site/` deploys on every push.
+
+**The Android app** is in [`mobile/`](mobile/README.md): a Flutter shell that runs inPace's Python server on the phone. Build it from GitHub (**Actions → android → Run workflow**) or locally with `bash mobile/build_android.sh` (needs Flutter, Java 21 and the Android SDK).
 
 **Translations:** interface text lives in `inpace/locales/`. Add a language by copying `ar.json`.
 

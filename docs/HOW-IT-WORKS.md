@@ -1,6 +1,6 @@
 # How inPace works
 
-inPace runs on your own computer with no server, no account and no cloud. This page explains what happens when you use it, in plain words.
+inPace runs on your own computer or Android phone with no server, no account and no cloud. This page explains what happens when you use it, in plain words.
 
 - **Using the app?** The [guide](https://mahmoudyosrimahmoud13.github.io/inPace/guide.html) shows every feature step by step.
 - **Want the exact file formats?** See [SPEC.md](../SPEC.md).
@@ -10,6 +10,7 @@ inPace runs on your own computer with no server, no account and no cloud. This p
 ## The short version
 
 - **inPace is a small website that only lives on your computer.** When you open it, it starts a tiny web server that only your own computer can reach (`127.0.0.1`). It shows that server's pages in its own app window.
+- **The Android app is the same inPace.** It carries Python inside it and runs the very same server on the phone. A full-screen Flutter window shows its pages. See [section 12](#12-on-android).
 - **Everything is saved in one folder** on your computer, called your data folder.
 - **Your progress is signed.** Each milestone is signed with a key that only your computer has, and it's linked to the milestone before it. If anyone changes the history later, the signatures stop matching.
 - **People check each other by swapping links or files.** You send your progress as a link (or a file). Your checker's inPace checks the signatures, and they send back a small approval the same way. Nothing goes through us.
@@ -258,6 +259,7 @@ The first time you open inPace, it asks if it may keep itself up to date.
 | Ubuntu / Debian (`.deb`) | Installs the new package. Linux asks for your password once. |
 | Other Linux (`.tar.gz`) | Swaps the app folder. |
 | Run from source | Asks you to `git pull`. |
+| Android | Doesn't update itself. Settings points to the website: download the new APK and tap **Update**. |
 
 **If you say no,** Settings → Updates still shows you when a new version is out.
 
@@ -277,7 +279,49 @@ Only for things you turn on or press:
 
 ---
 
-## 12. For developers: where the code is
+## 12. On Android
+
+The phone app is the full inPace, not a smaller copy. The same Python code, pages and data format run on the phone.
+
+**How it starts**
+1. The app is a small [Flutter](https://flutter.dev) shell (`mobile/`). It has Python 3.12 and inPace's libraries inside it (through [serious_python](https://pub.dev/packages/serious_python)).
+2. It picks a free port and starts inPace's server on `127.0.0.1`, exactly like on a computer. Only the phone itself can reach it.
+3. It waits until the server answers (`/ping`), showing a start screen meanwhile, then shows the pages full screen in a web view.
+4. The pages know they're on a phone (`INPACE_MOBILE=android`), so they hide things that only make sense on a computer, like the update bar and the **Quit** button.
+
+**Your data** lives in the app's private storage, in an `inPace` folder with the same layout as [section 2](#2-your-data-folder). Other apps can't read it. Uninstalling the app deletes it, so make a backup first.
+
+**What the Flutter shell adds,** because there's no browser around the pages:
+
+| You do | On the phone |
+|---|---|
+| Tap a link to a website, Telegram, WhatsApp or email | Opens in that app |
+| Open an `inpace://` link from another app | inPace opens on that screen (friend links, progress, course links) |
+| Download a file inPace made (progress, course file, backup, contact card) | A menu: **Send it** (the share sheet) or **Save it on this phone** |
+| Press **Add a file** or **Some files I pick** | Android's file picker. The files are copied into inPace. |
+| Press **Choose folder** | Android's folder picker. The first time, Android asks for "All files access", which inPace needs to read videos where they are. It only reads the folders you choose. |
+| Record a voice note | Asks for the microphone the first time |
+| Play a video full screen, or press the back button | Works as you'd expect. Back goes back inside inPace. |
+| Press **More apps…** to share | Android's share sheet |
+
+**The layout** is the same pages as on a computer. On narrow screens the sidebar becomes a tab bar at the bottom (Home, Courses, Add, Milestones, More), and buttons and fields get bigger.
+
+**Updates and the signing key.** Every APK is signed with the same inPace release key, so a new version installs over the old one and keeps your data. Android refuses an update signed with a different key. The key lives in the repository's GitHub secrets (`ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`). Tag builds stop if it's missing.
+
+**Phone and computer** don't sync by themselves. Your signing key and history move with a backup: make one in Settings on one device and restore it on the other.
+
+**How it's built** (`.github/workflows/android.yml`, on every version tag or by hand):
+1. `flutter create` makes the Android project fresh. It isn't kept in git.
+2. `mobile/tools/prepare_android.py` adjusts it: the app name, permissions, `inpace://` links, the minimum Android version (7), the signing key, and the plugins' Android SDK. It also makes the Python downloads run one at a time, because running them together corrupted a shared download file.
+3. The icon comes from `mobile/icon/res` (made with IconKitchen).
+4. `serious_python` packages Python, PyNaCl and inPace itself (`mobile/app/src`).
+5. `flutter build apk` makes `inPace-android-arm64-v8a.apk` for 64-bit phones, which is nearly every Android phone from the last 7 years. It's attached to the GitHub release.
+
+To build it on your own computer you need Flutter, Java 21 and the Android SDK, then run `bash mobile/build_android.sh`.
+
+---
+
+## 13. For developers: where the code is
 
 ```text
 inpace/
@@ -300,13 +344,15 @@ inpace/
   record.py       the shareable learning record page
   ai.py           AI prompts for each kind of source
   updater.py      update check, download, verify, install
-  integrations.py native folder picker and other small OS helpers
+  integrations.py native folder picker, AI connections and other small OS helpers
+  organize.py     sorting a neat or messy folder into a course plan, AI sorting, copying files in
   templates/      pages (Jinja)
   static/         CSS, JavaScript, fonts, icons, pdf.js
   locales/ar.json Arabic text
 packaging/        PyInstaller builds for Windows, Mac, .deb and .tar.gz
+mobile/           the Android app: Flutter shell (lib/main.dart), build script, icon, project fixes
 site/             the website (GitHub Pages)
 tests/            pytest, run on Windows, Mac and Linux on every push
 ```
 
-**Releases:** push a tag like `v1.10.0`. GitHub runs the tests, builds the apps, checks that each one starts, writes `SHA256SUMS` and publishes the release. The website deploys from `site/` on every push to main.
+**Releases:** push a tag like `v1.10.0`. GitHub runs the tests, builds the apps, checks that each one starts, writes `SHA256SUMS` and publishes the release. A second workflow builds the Android APK and adds it to the same release. The website deploys from `site/` on every push to main.
