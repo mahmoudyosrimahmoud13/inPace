@@ -393,6 +393,17 @@
       var v = document.getElementById("st-ver"); v.querySelector("b").textContent = ver; v.hidden = false;
       var d = document.getElementById("st-dl"); d.querySelector("b").textContent = total.toLocaleString(); d.hidden = false;
       document.getElementById("dl-ver").textContent = "· " + ver;
+      // The Android app is new: until a release carries it, say it's coming instead of linking to a missing file.
+      var hasApk = (latest.assets || []).some(function (a) { return /^inPace-android/.test(a.name || ""); });
+      var card = document.querySelector('.os[data-os="android"]');
+      if (card && !hasApk) {
+        var btn = card.querySelector(".btn");
+        btn.removeAttribute("href"); btn.classList.remove("primary"); btn.setAttribute("aria-disabled", "true");
+        btn.innerHTML = '<span class="en">Coming soon</span><span class="ar">قريبًا</span>';
+        var more = card.querySelector(".small"); if (more) more.hidden = true;
+        var main = document.getElementById("main-download");
+        if (main && /android/.test(main.href)) { main.href = "#download"; document.getElementById("main-os").textContent = ""; }
+      }
       var body = latest.body || "", at = body.indexOf("## What's new");
       var notes = (at >= 0 ? body.slice(at + 13) : body).split(/\n## /)[0].split(/\n---/)[0].trim();
       if (!notes) return;
@@ -403,14 +414,14 @@
       document.getElementById("new").hidden = false;
     }
     try {
-      var c = JSON.parse(localStorage.getItem("inpace-releases") || "null");
+      var c = JSON.parse(localStorage.getItem("inpace-releases2") || "null");
       if (c && Date.now() - c.at < 3600e3) { show(c.data); return; }
     } catch (e) {}
     fetch(API, {headers: {Accept: "application/vnd.github+json"}}).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function (data) {
         var slim = data.map(function (r) { return {tag_name: r.tag_name, draft: r.draft, prerelease: r.prerelease, published_at: r.published_at,
-          html_url: r.html_url, body: r.body, assets: (r.assets || []).map(function (a) { return {download_count: a.download_count}; })}; });
-        try { localStorage.setItem("inpace-releases", JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
+          html_url: r.html_url, body: r.body, assets: (r.assets || []).map(function (a) { return {name: a.name, download_count: a.download_count}; })}; });
+        try { localStorage.setItem("inpace-releases2", JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
         show(slim);
       }).catch(function () {});
   })();
