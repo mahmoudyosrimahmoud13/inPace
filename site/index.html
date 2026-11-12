@@ -413,17 +413,17 @@
       document.getElementById("wn-link").href = latest.html_url;
       document.getElementById("new").hidden = false;
     }
-    try {
-      var c = JSON.parse(localStorage.getItem("inpace-releases2") || "null");
-      if (c && Date.now() - c.at < 3600e3) { show(c.data); return; }
-    } catch (e) {}
+    // Saved for 5 minutes, so a new release shows up quickly. (The name changes when this changes, so old saved copies are skipped.)
+    var KEY = "inpace-releases3", c = null;
+    try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+    if (c && Date.now() - c.at < 5 * 60e3) { show(c.data); return; }
     fetch(API, {headers: {Accept: "application/vnd.github+json"}}).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function (data) {
         var slim = data.map(function (r) { return {tag_name: r.tag_name, draft: r.draft, prerelease: r.prerelease, published_at: r.published_at,
           html_url: r.html_url, body: r.body, assets: (r.assets || []).map(function (a) { return {name: a.name, download_count: a.download_count}; })}; });
-        try { localStorage.setItem("inpace-releases2", JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
+        try { localStorage.setItem(KEY, JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
         show(slim);
-      }).catch(function () {});
+      }).catch(function () { if (c) show(c.data); });  // GitHub busy or offline: show the last saved copy
   })();
   // Visits (GoatCounter: no cookies, nothing personal).
   (function () {
