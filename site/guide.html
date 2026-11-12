@@ -6,7 +6,7 @@
 <title>inPace guide · How it works, step by step</title>
 <meta name="description" content="How to use inPace: add a course, learn with videos and code, save milestones, get checked by someone you trust, race friends and make your own courses.">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <script>
   (function () {
     var lang = null;
@@ -16,6 +16,11 @@
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   })();
+</script>
+<script>
+  // Light or dark: the visitor's choice, or else their computer's setting.
+  (function () { var t = null; try { t = localStorage.getItem("inpace-site-theme"); } catch (e) {}
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); })();
 </script>
 </head>
 <body class="guide">
@@ -30,6 +35,7 @@
     <a href="./#download"><span class="en">Download</span><span class="ar">التحميل</span></a>
     <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a>
   </nav>
+  <button class="theme" type="button" id="theme" aria-label="Light or dark mode" title="Light or dark mode"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
   <button class="lang" type="button" id="lang"><span class="en">عربي</span><span class="ar">English</span></button>
 </header>
 
@@ -245,5 +251,17 @@
   });
 </script>
 <script data-goatcounter="https://inpace.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+  (function () {
+    var b = document.getElementById("theme"), html = document.documentElement;
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var now = html.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = now === "dark" ? "light" : "dark";
+      html.setAttribute("data-theme", next);
+      try { localStorage.setItem("inpace-site-theme", next); } catch (e) {}
+    });
+  })();
+</script>
 </body>
 </html>
