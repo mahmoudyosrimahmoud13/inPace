@@ -59,7 +59,9 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get install -y -q python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1 > /dev/null
+            # Refresh the package list first: GitHub's machine image can point at package versions that are gone.
+            sudo apt-get update -q > /dev/null
+            sudo apt-get install -y -q --fix-missing python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1 > /dev/null
             APP=dist/inPace; WANT=gtk
           elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace; WANT=pywebview
           else APP=dist/inPace.exe; WANT=pywebview; fi

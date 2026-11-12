@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.11.1
+
+- **New sample course: FastAPI, from first API to production.** 12 modules and 35 lessons with code: parameters and validation, responses and errors, dependency injection, SQLAlchemy and Alembic, passwords and JWT logins, async and background work, testing, project structure and settings, WebSockets and streaming, pagination and caching, Docker and monitoring, and a final portfolio project. Every module ends with a practical task, an explain task and a quiz. It's also in the community course library.
+- **Fixed the Linux release build:** the app window check now refreshes the package list before installing, so it no longer fails when GitHub's machine has an old list.
+- Includes everything from v1.11.0 (its release build didn't finish).
+
 ## v1.11.0
 
 - **Links instead of codes and files:**

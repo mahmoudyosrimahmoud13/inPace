@@ -12,6 +12,7 @@ Free courses anyone can use with [inPace](../README.md).
 | Course | Language | Modules |
 |---|---|---|
 | [Python Basics](python-basics) | English | 2 |
+| [FastAPI: from first API to production](fastapi) | English | 12 |
 
 ## Add your course
 

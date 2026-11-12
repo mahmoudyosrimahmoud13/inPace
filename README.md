@@ -102,7 +102,7 @@ questions.yaml   the questions and all possible answers
 answers.yaml     which answers are right (left out when sharing with learners)
 ```
 
-A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. A sample course, *Python Basics*, is built in. More free courses are in the [community course library](community-courses).
+A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Three sample courses are built in: *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the [community course library](community-courses).
 
 ## For developers
 
