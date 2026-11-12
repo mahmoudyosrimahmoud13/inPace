@@ -19,7 +19,13 @@ find app/src -name "__pycache__" -type d -prune -exec rm -rf {} +
 
 echo "== 3. Flutter packages and the app icon"
 flutter pub get
-dart run flutter_launcher_icons
+# Made your own icon with IconKitchen? Put its "res" folder at mobile/icon/res and it's used instead.
+if [ -d icon/res ]; then
+  echo "Using the icon from mobile/icon/res"
+  cp -r icon/res/. android/app/src/main/res/
+else
+  dart run flutter_launcher_icons
+fi
 
 echo "== 4. Python and its libraries for Android"
 dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt

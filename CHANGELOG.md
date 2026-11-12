@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Android: a cleaner app icon (the inPace mark on yellow, which fits round and rounded-square icons) and a themed icon for Android 13+.
+- Android: a new app icon made with IconKitchen (in `mobile/icon/res`). The desktop app and website keep their icon.
+- Release pages list the Android download next to Windows, Mac and Linux.
+
 ## v1.12.2
 
 - **inPace for Android** (in `mobile/`, built with Flutter): the full app on your phone, with downloads you can send or save, Android's file and folder pickers, voice notes, full-screen videos, the share sheet, inPace links, and the back button. Download `inPace-android-arm64-v8a.apk` from this release or the website (Android 7 or newer).

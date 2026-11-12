@@ -18,6 +18,15 @@ build, and `tools/prepare_android.py` adjusts them.
 **Build:** GitHub → **Actions → android → Run workflow**. The APKs appear under the run's **Artifacts**. It also
 runs on every version tag.
 
+## The app icon
+
+The Android icon is the one made with IconKitchen, in `mobile/icon/res` (the build copies it into the app).
+If that folder is removed, the build makes an icon from `packaging/android-icon/foreground.png` instead.
+
+To use your own icon from [IconKitchen](https://icon.kitchen): upload `packaging/android-icon/inpace-mark.svg`,
+pick the background color `#FFD43B`, and download the Android files. Unzip, and put the `res` folder from it at
+`mobile/icon/res`. The next build uses it.
+
 ## Done
 
 - Starts inPace on the phone and shows it full screen, with a start screen while it loads

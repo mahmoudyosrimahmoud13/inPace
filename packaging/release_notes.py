@@ -29,12 +29,16 @@ def main() -> None:
 | **Mac** (Apple Silicon: M1 or newer) | [inPace-mac.dmg]({base}/inPace-mac.dmg) | Open it, drag **inPace** into Applications |
 | **Ubuntu / Debian** | [inPace-linux.deb]({base}/inPace-linux.deb) | Double-click to install, then find **inPace** in your apps |
 | **Other Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |
+| **Android** 7 or newer | [inPace-android-arm64-v8a.apk]({base}/inPace-android-arm64-v8a.apk) | Open it on your phone and tap **Install** |
 
 **First time opening it?** The app isn't signed yet, so your computer may warn you once:
 - **Windows:** "Windows protected your PC" → click **More info** → **Run anyway**.
 - **Mac:** "can't be opened" → right-click inPace → **Open** → **Open**.
+- **Android:** if your phone asks, allow installing apps from your browser or Files app.
 
-Your data stays on your computer. Updating is safe: just download the new version, and your courses and progress are still there.
+The Android file may appear a few minutes after the others, because it's built separately.
+
+Your data stays on your device. Updating is safe: just download the new version, and your courses and progress are still there.
 
 ## What's new
 
