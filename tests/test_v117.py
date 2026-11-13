@@ -447,3 +447,27 @@ def test_share_a_picture_of_your_island(tmp_path):
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 20
     r = c.post("/island/share.png", data={"png": "data:image/png;base64," + base64.b64encode(png).decode()})
     assert r.content == png and "Island.png" in r.headers["content-disposition"]
+
+
+# ---- a change always shows right away ------------------------------------------------------------------
+
+def test_messages_go_before_the_section_so_the_page_loads_again(tmp_path):
+    v, c, jid = _python(tmp_path)
+    r = c.post("/settings/colors", data={"accent": "mint"}, headers={"X-InPace-Nav": "1"})
+    go = r.json()["go"]
+    assert go == "/settings?ok=Colors%20saved.#colors"  # not "/settings#colors?ok=…", which only scrolls
+    garden.set_on(v, True)
+    for _ in range(3):
+        _plant(v, goal=90)
+    r = c.post("/island/buy", data={"kind": "theme", "key": "beach"}, headers={"X-InPace-Nav": "1"})
+    assert r.json()["go"].startswith("/island?ok=") and r.json()["go"].endswith("#shop")
+    r = c.post("/island/buy", data={"kind": "decor", "key": "lighthouse"}, follow_redirects=False)
+    assert "#shop" in r.headers["location"] and r.headers["location"].index("?") < r.headers["location"].index("#")
+    js = open("inpace/static/app.js", encoding="utf-8").read()
+    assert "goFresh(data.go)" in js and "location.reload()" in js
+
+
+def test_diagrams_have_zoom_and_full_screen():
+    js = open("inpace/static/app.js", encoding="utf-8").read()
+    for part in ('data-z="in"', 'data-z="out"', 'data-z="fit"', 'data-z="full"', "requestFullscreen", "pinch"):
+        assert part in js

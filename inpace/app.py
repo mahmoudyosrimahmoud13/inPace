@@ -471,14 +471,13 @@ def create_app(vault: Vault) -> Starlette:
         return go("/settings#colors", ok="Colors saved.")
 
     def go(url: str, ok: str | None = None, err: str | None = None, yay: str | None = None) -> RedirectResponse:
-        if yay:
-            url = (url.split("#")[0] + ("&" if "?" in url else "?") + "yay=" + yay +
-                   ("#" + url.split("#")[1] if "#" in url else ""))
-        if ok:
-            url += ("&" if "?" in url else "?") + "ok=" + quote(ok)
-        if err:
-            url += ("&" if "?" in url else "?") + "err=" + quote(err)
-        return RedirectResponse(url, status_code=303)
+        """Redirect after a form, with a message. The message goes before any #section: after the "#" the
+        browser would only scroll, not load the page again, so the change wouldn't show."""
+        base, _, section = url.partition("#")
+        extra = [f"{k}={quote(v)}" for k, v in (("yay", yay), ("ok", ok), ("err", err)) if v]
+        if extra:
+            base += ("&" if "?" in base else "?") + "&".join(extra)
+        return RedirectResponse(base + ("#" + section if section else ""), status_code=303)
 
     def download(data: bytes, filename: str, mime: str = "application/octet-stream") -> Response:
         safe = re.sub(r"[^\w .,()-]+", "", filename, flags=re.UNICODE).strip() or "file"

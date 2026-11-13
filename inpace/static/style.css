@@ -230,8 +230,24 @@ label.check input { width: 18px; height: 18px; flex: none; accent-color: var(--a
 .prose ul, .prose ol { padding-inline: 1.6em; }
 .prose :not(pre) > code { direction: ltr; unicode-bidi: isolate; }
 .prose pre.mermaid { background: var(--surface); color: var(--ink); text-align: center; white-space: pre-wrap; font-family: var(--mono, monospace); }
-.prose pre.mermaid[data-processed] { white-space: normal; padding: 1rem; }
-.prose pre.mermaid svg { max-width: 100%; height: auto; }
+/* a drawn diagram: a toolbar to zoom, fit and go full screen, and a box you can scroll or drag around */
+.diagram-box { margin: 0 0 1rem; border: 2.5px solid var(--line); background: var(--surface); box-shadow: var(--hard); }
+.diagram-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; padding: .35rem .5rem; border-bottom: 1.5px solid var(--hair); font-family: var(--sans); font-size: .85rem; }
+.diagram-tools button { min-width: 32px; height: 30px; padding: 0 .55rem; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.diagram-tools button:hover { background: var(--sun); color: #111; }
+.diagram-tools button:focus-visible, .diagram-view:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.diagram-zoom { min-width: 3.4em; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); }
+.diagram-full-btn { margin-inline-start: auto; }
+.diagram-view { overflow: auto; max-height: 70vh; padding: .5rem; touch-action: pan-x pan-y; }
+.diagram-box.zoomed .diagram-view { cursor: grab; }
+.diagram-box.zoomed .diagram-view, .diagram-box.is-full .diagram-view { touch-action: none; }  /* our own drag and pinch */
+.diagram-view.dragging { cursor: grabbing; user-select: none; }
+.diagram-canvas { display: flex; justify-content: center; min-width: min-content; }
+.diagram-canvas svg { display: block; flex: none; }
+.diagram-box.is-full { position: fixed; inset: 0; z-index: 1000; margin: 0; border: 0; box-shadow: none; display: flex; flex-direction: column; }
+.diagram-box.is-full .diagram-view { flex: 1; max-height: none; }
+.diagram-box.is-full .diagram-canvas { min-height: 100%; align-items: center; }
+body.diagram-open { overflow: hidden; }
 .prose pre.mermaid.diagram-error { text-align: left; white-space: pre-wrap; }
 .diagram-note { display: block; margin-top: .5rem; font-family: var(--sans); font-size: .85rem; color: var(--bad); }
 .prose pre { background: var(--code-bg); color: var(--code-ink); padding: 1rem 1.15rem; border-radius: var(--r-sm); overflow-x: auto; font-size: .87rem; line-height: 1.6; border: 1px solid var(--line); direction: ltr; text-align: left; }

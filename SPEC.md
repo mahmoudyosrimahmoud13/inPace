@@ -155,7 +155,7 @@ When files are missing, inPace asks for the folder where they are now. `media_in
 device. Two additions:
 - **Diagrams:** a code block marked `mermaid` is drawn as a diagram (flowcharts, sequence diagrams, timelines,
   mind maps and the rest of Mermaid 10). The drawing code is bundled, so it works offline. A diagram with a
-  mistake shows its text and a short note instead.
+  mistake shows its text and a short note instead. Readers can zoom, fit and open a diagram full screen.
 
   ````markdown
   ```mermaid

@@ -3,6 +3,20 @@ function sendForm(form) {
   if (form.requestSubmit) form.requestSubmit(); else form.submit();
 }
 
+// Go to a page after a change, and always load it fresh. Going to the page you're already on, with only a
+// different #section (or none), makes the browser just scroll, so the change (a new colour, something you
+// bought) wouldn't show until you reloaded by hand.
+function goFresh(url) {
+  const next = new URL(url, location.href);
+  const samePage = next.origin === location.origin && next.pathname === location.pathname && next.search === location.search;
+  if (samePage && next.hash) {
+    history.replaceState(history.state, "", next.href);
+    location.reload();
+  } else {
+    location.replace(next.href);
+  }
+}
+
 // Small helpers only. The app works without JavaScript too.
 document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   input.addEventListener("change", () => {
@@ -53,6 +67,116 @@ document.querySelectorAll("[data-busy]").forEach((btn) => {
   btn.form.addEventListener("submit", () => { btn.disabled = true; btn.textContent = btn.dataset.busy; });
 });
 
+// A drawn diagram with zoom and full screen: − and + (or Ctrl + mouse wheel) zoom, drag to move around when
+// it's bigger than the box, "Fit" shows all of it, and full screen fills the screen (Escape or the button closes it).
+function diagramBox(svgText) {
+  const ar = document.documentElement.lang === "ar";
+  const T = ar ? { out: "تصغير", in: "تكبير", fit: "ملاءمة", full: "ملء الشاشة", close: "إغلاق ملء الشاشة" }
+               : { out: "Zoom out", in: "Zoom in", fit: "Fit", full: "Full screen", close: "Close full screen" };
+  const box = document.createElement("figure");
+  box.className = "diagram-box";
+  box.dir = "ltr";
+  box.innerHTML = `<div class="diagram-tools" role="toolbar" aria-label="${T.in} / ${T.out}">
+      <button type="button" data-z="out" title="${T.out}" aria-label="${T.out}">−</button>
+      <span class="diagram-zoom" aria-live="polite">100%</span>
+      <button type="button" data-z="in" title="${T.in}" aria-label="${T.in}">+</button>
+      <button type="button" data-z="fit">${T.fit}</button>
+      <button type="button" data-z="full" class="diagram-full-btn">⛶ <span>${T.full}</span></button>
+    </div><div class="diagram-view" tabindex="0"><div class="diagram-canvas">${svgText}</div></div>`;
+  const view = box.querySelector(".diagram-view"), svg = box.querySelector("svg"), label = box.querySelector(".diagram-zoom");
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  const natW = (vb && vb.width) || svg.getBoundingClientRect().width || 600, natH = (vb && vb.height) || 400;
+  svg.removeAttribute("height");
+  svg.style.maxWidth = "none";
+  let z = 1, fitted = true;
+  const fitZoom = () => {
+    const full = box.classList.contains("is-full");
+    const w = (view.clientWidth || natW) - 16, h = (view.clientHeight || natH) - 16;
+    return full ? Math.min(w / natW, h / natH) : Math.min(1, w / natW);
+  };
+  const apply = (next, keepCenter = true) => {
+    const cx = view.scrollLeft + view.clientWidth / 2, cy = view.scrollTop + view.clientHeight / 2, old = z;
+    z = Math.max(0.2, Math.min(6, next));
+    svg.style.width = Math.round(natW * z) + "px";
+    svg.style.height = Math.round(natH * z) + "px";
+    label.textContent = Math.round(z * 100) + "%";
+    if (keepCenter) { view.scrollLeft = cx * z / old - view.clientWidth / 2; view.scrollTop = cy * z / old - view.clientHeight / 2; }
+    box.classList.toggle("zoomed", natW * z > view.clientWidth + 2 || natH * z > view.clientHeight + 2);
+  };
+  const fit = () => { fitted = true; apply(fitZoom(), false); view.scrollLeft = view.scrollTop = 0; };
+  const setFull = (on) => {
+    box.classList.toggle("is-full", on);
+    document.body.classList.toggle("diagram-open", on);
+    const btn = box.querySelector(".diagram-full-btn");
+    btn.querySelector("span").textContent = on ? T.close : T.full;
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    try {
+      if (on && box.requestFullscreen && !document.fullscreenElement) box.requestFullscreen().catch(() => {});
+      if (!on && document.fullscreenElement === box) document.exitFullscreen().catch(() => {});
+    } catch (e) { /* the box still covers the window */ }
+    requestAnimationFrame(fit);
+    setTimeout(fit, 250);  // leaving the browser's full screen takes a moment: fit again once it's done
+  };
+  box.querySelector(".diagram-tools").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    fitted = false;
+    if (b.dataset.z === "in") apply(z * 1.25);
+    else if (b.dataset.z === "out") apply(z / 1.25);
+    else if (b.dataset.z === "fit") fit();
+    else if (b.dataset.z === "full") setFull(!box.classList.contains("is-full"));
+  });
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement && box.classList.contains("is-full")) setFull(false);
+    else if (fitted) setTimeout(fit, 50);
+  });
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && box.classList.contains("is-full")) setFull(false);
+    else if (e.key === "+" || e.key === "=") { fitted = false; apply(z * 1.25); }
+    else if (e.key === "-") { fitted = false; apply(z / 1.25); }
+    else if (e.key === "0") fit();
+  });
+  view.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !box.classList.contains("is-full")) return;  // plain scrolling still scrolls the lesson
+    e.preventDefault();
+    fitted = false;
+    apply(z * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+  }, { passive: false });
+  let drag = null, pinch = null;  // one finger (or the mouse) drags a zoomed diagram; two fingers pinch to zoom
+  const pts = new Map();
+  const gap = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  view.addEventListener("pointerdown", (e) => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2 && (box.classList.contains("is-full") || box.classList.contains("zoomed"))) {
+      pinch = { d: gap(), z };
+      drag = null;
+      return;
+    }
+    if (!box.classList.contains("zoomed") || e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, l: view.scrollLeft, t: view.scrollTop };
+    try { view.setPointerCapture(e.pointerId); } catch (err) {}
+    view.classList.add("dragging");
+  });
+  view.addEventListener("pointermove", (e) => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) { fitted = false; apply(pinch.z * gap() / pinch.d); return; }
+    if (!drag) return;
+    view.scrollLeft = drag.l - (e.clientX - drag.x);
+    view.scrollTop = drag.t - (e.clientY - drag.y);
+  });
+  const stop = (e) => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    drag = null;
+    view.classList.remove("dragging");
+  };
+  view.addEventListener("pointerup", stop);
+  view.addEventListener("pointercancel", stop);
+  window.addEventListener("resize", () => { if (fitted) fit(); });
+  requestAnimationFrame(fit);
+  return box;
+}
+
 // Diagrams: code blocks marked "mermaid" are drawn as pictures. The drawing code (static/mermaid) is big,
 // so it only loads on pages that have a diagram. A diagram with a mistake shows its text and a note.
 (() => {
@@ -70,9 +194,7 @@ document.querySelectorAll("[data-busy]").forEach((btn) => {
       try {
         await window.mermaid.parse(text);
         const { svg } = await window.mermaid.render(`diagram-${i}`, text);
-        pre.innerHTML = svg;
-        pre.setAttribute("data-processed", "1");
-        pre.setAttribute("role", "img");
+        pre.replaceWith(diagramBox(svg));
       } catch (e) {
         pre.classList.add("diagram-error");
         const note = document.createElement("span");
@@ -244,7 +366,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
       const body = new FormData();
       body.append("file", new Blob(chunks, { type: mime }), `voice note ${stamp}.${ext}`);
       const r = await fetch(box.dataset.upload, { method: "POST", body });
-      location.href = r.url || location.href;
+      goFresh(r.url || location.href);
     };
     rec.start(1000);
     started = Date.now();
@@ -1006,7 +1128,7 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       const type = r.headers.get("content-type") || "";
       if (type.includes("application/json")) {
         const data = await r.json();
-        if (data && data.go) { location.replace(data.go); return; }
+        if (data && data.go) { goFresh(data.go); return; }
       }
       if (type.includes("text/html")) {  // a page with a message (for example, a mistake in the form)
         const html = await r.text();
