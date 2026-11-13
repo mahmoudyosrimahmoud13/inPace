@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.20.0
+
+- **Courses that read a book you get yourself.** Some great books are free to read but not to share. A course can now be built on such a book without carrying it: each lesson opens the right pages of *your own copy*. The course page has a box, **This course reads a book you get yourself**, with a link to get the book and three ways to show inPace where it is:
+  - **Find it for me** looks in your Downloads, Documents and Desktop folders (on a phone: Download, Documents and Books), a couple of folders deep.
+  - **Choose folder** searches a folder you pick, or type the path of the file itself.
+  - The file can have **any name**: inPace recognizes the book by the title saved inside the PDF and by its number of pages. If the page count is different, it warns you that it may be another edition (so lessons could open the wrong pages), and you can keep it or get the right one.
+  - A lesson that needs the book before you've shown inPace where it is says so, with the pages it will open and a button that takes you to the box.
+  - inPace remembers your copy for that course. Sharing the course never includes the book.
+- **For course makers:** add `book_info` (title, link and number of pages) next to `book:` in `course.yaml`. See SPEC.md.
+- **Four new courses in the library: Maths for Machine Learning 1 to 4,** on the free book *Mathematics for Machine Learning* (Deisenroth, Faisal, Ong): linear algebra and geometry, matrix decompositions and vector calculus, probability and optimization, and regression, PCA, Gaussian mixtures and SVMs. They use the new book box, and add notes, 3Blue1Brown videos, interactive explorers, exercises with instant feedback and charts.
+- **The website shows how many courses the library has,** next to the download button and in the menu. It reads the number from the library itself, so it goes up by itself when a course is added.
+
 ## v1.19.1
 
 - **Tests that pass on every machine.** The new offline-video tests no longer depend on the computer they run on: they don't use the real disk space, wait longer for background downloads on slow machines, build the stand-in downloader the way real zip apps are built, and clean up after themselves so they can run in any order.

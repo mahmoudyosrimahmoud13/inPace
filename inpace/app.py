@@ -22,7 +22,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, updater
+from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -1069,7 +1069,10 @@ def create_app(vault: Vault) -> Starlette:
         def yt_list(plist: str) -> list:
             return [{"id": it["id"], "title": it.get("title") or it["id"], "url": yt_local(it["id"])}
                     for it in offline.playlist_items(V, cid, plist) if yt_local(it["id"])]
-        return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed, yt_local, yt_list)
+        c = V.get_course(cid)
+        book = (c.extra.get("book") or "") if c else ""
+        return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed, yt_local, yt_list,
+                                     book=book, book_link=f"/courses/{quote(cid)}/go#book")
 
     # ---- YouTube videos on this computer (downloaded with yt-dlp, or your own files) ----------------------------
     async def yt_file(request: Request):
@@ -1173,6 +1176,56 @@ def create_app(vault: Vault) -> Starlette:
             offline.set_local_file(V, c.id, key[5:], path)
             saved += bool(path)
         return go(_back_to_course(c.id), ok=gettext("{n} videos now play from this computer.").format(n=saved))
+
+    # ---- a course's book, which each learner gets themselves ------------------------------------------------
+    def _book_state(c: Course) -> dict | None:
+        name = c.extra.get("book")
+        if not name:
+            return None
+        info = c.extra.get("book_info") or {}
+        found = V.find_media(c.id, name)
+        return {"name": name, "info": info, "path": str(found) if found else "", "mine": bool(V.book_file(c.id)),
+                "warning": V._meta(f"bookwarn:{c.id}", "") or ""}
+
+    async def course_go(request: Request):
+        """A course's own page (its journey), from anywhere that only knows the course id."""
+        jid = V.journey_for_course(request.path_params["cid"])
+        return RedirectResponse(f"/learn/{jid}" if jid else "/courses", status_code=303)
+
+    async def course_book(request: Request):
+        """Show inPace where your copy of the course's book is: a PDF, a folder to look in, or the usual places."""
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        if not c or not c.extra.get("book"):
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        back = _back_to_course(cid).replace("#offline", "#book")
+        info, name = c.extra.get("book_info") or {}, c.extra["book"]
+        from starlette.concurrency import run_in_threadpool
+        if form.get("search"):
+            found = await run_in_threadpool(books.search, info, name)
+            if not found:
+                return go(back, err="inPace didn't find the book in Downloads, Documents or Desktop. Choose its folder or the file.")
+        else:
+            raw = str(form.get("path", "")).strip().strip('"')
+            p = Path(raw).expanduser() if raw else None
+            if not p or not p.exists():
+                return go(back, err="That file or folder wasn't found. Copy its full path and paste it here.")
+            if p.is_dir():
+                found = await run_in_threadpool(books.find_in, p, info, name)
+                if not found:
+                    return go(back, err="There's no matching PDF in that folder. Choose the PDF file itself.")
+            elif p.suffix.lower() != ".pdf":
+                return go(back, err="Choose a PDF file.")
+            else:
+                found = p
+        warning = await run_in_threadpool(books.check, found, info)
+        if warning == "That file couldn't be read as a PDF.":
+            return go(back, err=warning)
+        V.set_book_file(cid, found)
+        pages, _ = await run_in_threadpool(books.pdf_facts, found)
+        V._set_meta(f"bookwarn:{cid}", gettext(warning).format(got=pages, want=info.get("pages", "?")) if warning else "")
+        return go(back, ok=gettext("Found your book: {path}").format(path=found))
 
     async def offline_folder(request: Request):
         """Where this course saves its videos, and the name of its folder."""
@@ -1929,8 +1982,12 @@ def create_app(vault: Vault) -> Starlette:
         if not j:
             return go("/", err="That course wasn't found.")
         course = V.get_course(j["course_id"])
-        return page("course.html", request, j=j, prog=V.progress(j["id"]),
-                    missing=V.missing_media(course) if course else [],
+        book = _book_state(course) if course else None
+        missing = V.missing_media(course) if course else []
+        if book:  # the book has its own box; the general "where are the files" box is for the rest
+            missing = [m for m in missing if m != book["name"]]
+        return page("course.html", request, j=j, prog=V.progress(j["id"]), book=book,
+                    missing=missing,
                     media_root=V.media_root(j["course_id"]) if course else None,
                     offline=offline.status(V, course) if course and offline.course_videos(course) else None,
                     qualities=offline.QUALITIES, has_ffmpeg=bool(shutil.which("ffmpeg")),
@@ -3444,6 +3501,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/offline/save", needs_setup(offline_save), methods=["POST"]),
         Route("/courses/{cid}/offline/forget", needs_setup(offline_forget), methods=["POST"]),
         Route("/courses/{cid}/offline/folder", needs_setup(offline_folder), methods=["POST"]),
+        Route("/courses/{cid}/book", needs_setup(course_book), methods=["POST"]),
+        Route("/courses/{cid}/go", needs_setup(course_go)),
         Route("/settings/videos", needs_setup(video_settings), methods=["POST"]),
         Route("/settings/videos/update", needs_setup(video_tool_update), methods=["POST"]),
         Route("/pdf", needs_setup(pdf_reader)),

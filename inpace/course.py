@@ -461,6 +461,10 @@ def load_course(files: dict[str, str]) -> Course:
     book = raw.get("book")
     if isinstance(book, str) and safe_media_path(book) and media_kind(book) == "pdf":
         course.extra["book"] = safe_media_path(book)  # the book the lessons show parts of (not shared with the course)
+        from .books import clean_info
+        info = clean_info(raw.get("book_info"))
+        if info:
+            course.extra["book_info"] = info  # how to recognize the book and where to get it
     image = raw.get("image")
     if isinstance(image, str) and safe_media_path(image) and media_kind(image) == "image":
         course.extra["image"] = safe_media_path(image)  # the course's cover picture, a file next to the course
@@ -586,6 +590,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
         head["downloads"] = course.extra["downloads"]
     if course.extra.get("book"):
         head["book"] = course.extra["book"]
+    if course.extra.get("book_info"):
+        head["book_info"] = course.extra["book_info"]
     if course.extra.get("media_index"):
         head["media_index"] = course.extra["media_index"]
     files["course.yaml"] = yaml.safe_dump(head, sort_keys=False, allow_unicode=True, width=100)

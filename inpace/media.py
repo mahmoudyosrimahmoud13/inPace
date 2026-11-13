@@ -37,12 +37,14 @@ class CourseFiles:
 
     def __init__(self, find: Callable, resume: Callable[[str], float] = lambda key: 0.0, speed: float = 1.0,
                  yt_local: Callable[[str], str | None] = lambda vid: None,
-                 yt_list: Callable[[str], list] = lambda plist: []):
+                 yt_list: Callable[[str], list] = lambda plist: [], book: str = "", book_link: str = ""):
         self.find = find
         self.resume = resume
         self.speed = speed
         self.yt_local = yt_local  # video id -> address of its copy on this computer (downloaded or your own file)
         self.yt_list = yt_list    # playlist id -> [{"id", "title", "url"}] of the videos that are on this computer
+        self.book = book            # the course's book, which each learner gets themselves (not shared with it)
+        self.book_link = book_link  # where to show inPace your copy
 
     def __call__(self, rel: str) -> bool:
         return self.find(rel) is not None
@@ -256,6 +258,11 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
     rel = local_ref(ref)
     if not rel or not kind:
         return f'<p class="note warn">{e(t("This media can not be shown: {name}").format(name=ref))}</p>'
+    files = exists if isinstance(exists, CourseFiles) else None
+    if not exists(rel) and files and files.book and rel == files.book:
+        where = t("Pages {a} to {b}").format(a=pages[0], b=pages[1]) if pages else ""
+        return (f'<div class="note warn media-missing"><b>{e(t("This lesson reads your own copy of the course book."))}</b> '
+                f'{e(where)}<br><a class="btn" href="{e(files.book_link)}">{e(t("Show inPace where your book is"))}</a></div>')
     if not exists(rel):
         return (f'<div class="note warn media-missing"><b>{e(t("inPace can not find this file:"))}</b> '
                 f'<code dir="ltr">{e(rel)}</code><br><span class="small">'

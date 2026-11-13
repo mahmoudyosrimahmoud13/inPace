@@ -138,6 +138,15 @@ Where downloads go: `Downloads/inPace/<course name>/` by default (on Android `/s
 
 The lesson then uses inPace's player on `/yt/<course>/<video id>`, still playing only the lesson's own piece (`t=` to `end=`), and saves the position under the same key as the YouTube player, so you continue from the same second either way. inPace remembers which files it downloaded itself: **Delete downloaded videos** deletes only those, never files you pointed it to. Shared course files and backups never carry these videos.
 
+**Courses that read a book you get yourself** (`books.py`, v1.20). A course can name a book with `book:` and describe it with `book_info` (title, link, number of pages). The book is never inside the course: its lessons point to page ranges (`mml-book.pdf#pages=23-28`) and each learner shows inPace their own copy. The course page has a box for that:
+
+- **Find it for me** looks in Downloads, Documents, Desktop and Books (and the home folder itself, not below it); on Android in the phone's Download, Documents and Books folders. It goes two folders deep and opens at most 300 PDFs per place.
+- **Choose folder** (or a typed path) searches that folder the same way, or uses the file directly.
+- Each PDF gets a score with [pypdf](https://pypdf.readthedocs.io/): +2 when the title saved inside it contains the course's book title, +1 when its page count is the same. The best one wins (a full match stops the search). Without `book_info`, the file name is used.
+- The chosen path is saved in the vault (`bookfile:<course>`), and lessons find the book through it, like any other course file. If the page count differs, the warning is saved too (`bookwarn:<course>`) and shown in the box until you choose another file.
+
+A lesson that needs the book before it's found shows the pages it will open and a button back to the box (`/courses/<id>/go#book`).
+
 **Arabic and English in one lesson.** When a lesson is drawn (`text_dir` in `app.py`), each paragraph, heading, list, list item, quote and table cell gets its own direction from the words it mostly has (Arabic words against Latin words; code and links don't count). Lists have room on both sides so every bullet fits, and inline code is always left to right inside a right-to-left line. This is the same in both languages of the app, because it depends on the lesson, not on the interface.
 
 ---
@@ -283,6 +292,8 @@ Friend invites, progress, replies, race invites and race updates can all travel 
 
 The [course library](https://github.com/mahmoudyosrimahmoud13/inpace-library) is a separate public GitHub repository. GitHub stores the courses, checks them and
 publishes them, so there's still no inPace server.
+
+The library build also writes a tiny `stats.json` (number of courses, lessons, hours, languages). inPace's website reads it to show how many courses there are, and the library's README shows it as a badge, so both update by themselves when a course is added.
 
 **Adding a course from the library:**
 - **Course library** in the app downloads `library.json` from the library's GitHub Pages site. It only goes online

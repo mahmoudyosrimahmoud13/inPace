@@ -211,6 +211,14 @@ class Vault:
     def set_media_root(self, course_id: str, folder: str) -> None:
         self._set_meta(f"media_root:{course_id}", str(Path(folder).expanduser()) if folder.strip() else "")
 
+    def book_file(self, course_id: str) -> Path | None:
+        """The learner's own copy of the course's book, if they showed inPace where it is."""
+        p = self._meta(f"bookfile:{course_id}", "") or ""
+        return Path(p) if p and Path(p).is_file() else None
+
+    def set_book_file(self, course_id: str, path) -> None:
+        self._set_meta(f"bookfile:{course_id}", str(path) if path else "")
+
     def find_media(self, course_id: str, ref: str) -> Path | None:
         """Where a course file is on this computer, or None.
 
@@ -220,6 +228,11 @@ class Vault:
         ref = local_ref(ref)
         if not ref or not media_kind(ref):
             return None
+        c = self.get_course(course_id)
+        if c and c.extra.get("book") and ref == c.extra["book"]:
+            mine = self.book_file(course_id)
+            if mine:
+                return mine  # the learner's own copy, whatever its name
         want_dir = ref.endswith("/")
 
         def ok(p: Path) -> bool:

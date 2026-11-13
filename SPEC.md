@@ -148,6 +148,20 @@ modules:
 pack leaves the book's file out (books are often large and not yours to share): the learner points inPace to
 their own copy.
 
+```yaml
+book: mml-book.pdf
+book_info:                      # optional (v1.20): helps each learner find their own copy
+  title: Mathematics for Machine Learning   # matched against the title saved inside the PDF
+  url: https://mml-book.com                 # where to get it (https only)
+  pages: 412                                # the edition the page ranges were written for
+```
+
+With `book_info`, the course page asks the learner for the book and can search for it: in a chosen folder or in
+the usual places (Downloads, Documents, Desktop; on Android Download, Documents, Books). A PDF matches when its
+title contains `title` and/or its page count equals `pages`, whatever the file is called. A different page count
+shows a warning (another edition). The chosen file is remembered per course on that device; `book_info` travels
+with the course, the book never does. Older apps ignore `book_info` and look for the file by its name.
+
 **Files stay where they are.** inPace never copies a course's files unless asked. Paths are looked up, in order:
 the file itself (full paths), the course's own small files (`<home>/media/<course>/`, added in the editor or
 carried inside a pack), then the folder this computer was pointed to for that course. Each folder is searched

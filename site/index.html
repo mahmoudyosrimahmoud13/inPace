@@ -37,7 +37,7 @@
   <nav class="links" aria-label="Page">
     <a href="#how"><span class="en">How it works</span><span class="ar">كيف يعمل</span></a>
     <a href="guide.html"><span class="en">Guide</span><span class="ar">الدليل</span></a>
-    <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><span class="en">Courses</span><span class="ar">الدورات</span></a>
+    <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><span class="en">Courses</span><span class="ar">الدورات</span> <b class="nav-count" data-courses>29</b></a>
     <a href="#features"><span class="en">Features</span><span class="ar">المزايا</span></a>
     <a href="#phone"><span class="en">Android</span><span class="ar">أندرويد</span></a>
     <a href="#download"><span class="en">Download</span><span class="ar">التحميل</span></a>
@@ -52,7 +52,8 @@
 <!-- Hero -->
 <section class="hero">
   <div class="hero-text">
-    <p class="free-tag"><span class="en">Free · Open source · Works offline</span><span class="ar">مجاني · مفتوح المصدر · يعمل بدون إنترنت</span></p>
+    <div class="tag-row"><p class="free-tag"><span class="en">Free · Open source · Works offline</span><span class="ar">مجاني · مفتوح المصدر · يعمل بدون إنترنت</span></p>
+      <a class="lib-pill" href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><b data-courses>29</b> <span class="en">free courses</span><span class="ar">دورة مجانية</span></a></div>
     <h1>
       <span class="en">Learn at your pace.<br>Prove you kept it.</span>
       <span class="ar">تعلّم على راحتك.<br>وأثبت أنك التزمت.</span>
@@ -69,6 +70,7 @@
       <a class="btn big" href="guide.html"><span class="en">Read the guide</span><span class="ar">اقرأ الدليل</span></a>
     </div>
     <ul class="stats" id="stats" aria-live="polite">
+      <li id="st-courses" class="courses"><a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><b data-courses>29</b><span class="en">free courses in the library</span><span class="ar">دورة مجانية في المكتبة</span></a></li>
       <li id="st-ver" hidden><b></b><span class="en">latest version</span><span class="ar">أحدث إصدار</span></li>
       <li id="st-dl" hidden><b></b><span class="en">downloads</span><span class="ar">تحميل</span></li>
       <li id="st-visits" hidden><b></b><span class="en">visits</span><span class="ar">زيارة</span></li>
@@ -203,7 +205,7 @@
 
   <div class="feature wide flip">
     <div class="feature-text">
-      <h3><span class="en">A library of free courses</span><span class="ar">مكتبة دورات مجانية</span></h3>
+      <h3><span class="en">A library of <span data-courses>29</span> free courses</span><span class="ar">مكتبة فيها <span data-courses>29</span> دورة مجانية</span></h3>
       <p><span class="en">Add courses other learners made with one click, or publish your own. Every course is signed by its author, and a course link always brings your friend the newest version. <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/">Browse the library</a>.</span><span class="ar">أضف دورات صنعها متعلمون آخرون بضغطة، أو انشر دورتك. كل دورة موقّعة من صاحبها، ورابط الدورة يحضر لصديقك أحدث نسخة دائمًا. <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/">تصفّح المكتبة</a>.</span></p>
     </div>
     <figure class="frame"><img src="assets/shots/library.jpg" width="1920" height="1230" loading="lazy" alt="The Course library in inPace with the FastAPI and Python Basics courses."></figure>
@@ -510,6 +512,22 @@
         try { localStorage.setItem(KEY, JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
         show(slim);
       }).catch(function () { if (c) show(c.data); });  // GitHub busy or offline: show the last saved copy
+  })();
+  // How many courses the library has, read from the library's own website, so it updates by itself when a course is added.
+  (function () {
+    var LIB = "https://mahmoudyosrimahmoud13.github.io/inpace-library/", KEY = "inpace-library-count", c = null;
+    function show(n) {
+      if (!(n > 0)) return;
+      document.querySelectorAll("[data-courses]").forEach(function (el) { el.textContent = n.toLocaleString(); });
+    }
+    try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+    if (c) show(c.n);
+    if (c && Date.now() - c.at < 10 * 60e3) return;
+    function get(url, pick) { return fetch(url, {cache: "no-cache"}).then(function (r) { return r.ok ? r.json() : Promise.reject(); }).then(pick); }
+    get(LIB + "stats.json", function (j) { return j.courses; })
+      .catch(function () { return get(LIB + "library.json", function (j) { return (j.courses || []).length; }); })
+      .then(function (n) { show(n); try { localStorage.setItem(KEY, JSON.stringify({at: Date.now(), n: n})); } catch (e) {} })
+      .catch(function () {});   // offline: keep the number already on the page
   })();
   // Visits (GoatCounter: no cookies, nothing personal).
   (function () {

@@ -20,6 +20,36 @@
   </div>
 </div>
 
+{% if book %}
+{% set bi = book.info %}
+{% if not book.path %}
+<section class="card note-card warn-card" id="book">
+  <h2>{% trans trimmed %}This course reads a book you get yourself{% endtrans %}</h2>
+  <p dir="auto">{% if bi.title %}<b>{{ bi.title }}</b>. {% endif %}{% trans trimmed %}The book isn't inside the course: its lessons open the right pages of your own copy. Show inPace where it is on this device, once.{% endtrans %}</p>
+  {% if bi.url %}<p><a class="btn" href="{{ bi.url }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Get the book{% endtrans %}</a> <span class="small muted" dir="ltr">{{ bi.url }}</span></p>{% endif %}
+  <form method="post" action="/courses/{{ j.course_id }}/book" style="margin-block:.6rem">
+    <button class="btn primary" name="search" value="1" data-busy="{{ _('Looking…') }}">{% trans trimmed %}Find it for me{% endtrans %}</button>
+    <span class="small muted">{% trans trimmed %}Looks in Downloads, Documents and Desktop (on a phone, the Download folder).{% endtrans %}</span>
+  </form>
+  <form method="post" action="/courses/{{ j.course_id }}/book" class="row pick-row">
+    <input name="path" id="book-path" required dir="ltr" placeholder="{{ _('Full path of the PDF, or of the folder it is in') }}">
+    <button type="button" class="btn" data-pick-folder="#book-path">{% trans trimmed %}Choose folder{% endtrans %}</button>
+    <button class="btn">{% trans trimmed %}Use this{% endtrans %}</button>
+  </form>
+  <p class="small muted">{% trans trimmed %}The file can have any name: inPace recognizes the book by the title inside it and its number of pages. Nothing is copied.{% endtrans %}</p>
+</section>
+{% else %}
+<p class="small muted" id="book">{{ icon('book', 16) }} {% trans trimmed %}Your book:{% endtrans %} <code dir="ltr">{{ book.path }}</code>
+  <details class="inline-more"><summary>{% trans trimmed %}Change{% endtrans %}</summary>
+  <form method="post" action="/courses/{{ j.course_id }}/book" class="row pick-row">
+    <input name="path" id="book-path" required dir="ltr" value="{{ book.path }}">
+    <button type="button" class="btn" data-pick-folder="#book-path">{% trans trimmed %}Choose folder{% endtrans %}</button>
+    <button class="btn primary">{% trans trimmed %}Use this{% endtrans %}</button>
+  </form></details></p>
+{% if book.warning %}<p class="note warn small">{{ book.warning }}</p>{% endif %}
+{% endif %}
+{% endif %}
+
 {% if missing %}
 <section class="card note-card warn-card">
   {% set dls = prog.course.extra.downloads %}

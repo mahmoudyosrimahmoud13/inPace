@@ -411,6 +411,8 @@ def course_to_yaml(c: Course) -> str:
         head["image"] = c.extra["image"]
     if c.extra.get("book"):
         head["book"] = c.extra["book"]
+    if c.extra.get("book_info"):
+        head["book_info"] = c.extra["book_info"]
     if c.extra.get("downloads"):
         head["downloads"] = c.extra["downloads"]
     if c.questions:

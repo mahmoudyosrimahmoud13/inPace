@@ -25,8 +25,9 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
 **Share and find courses**
-- **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/).** Browse free courses other learners made, look inside each one (every module, lesson and task, plus a lesson to read), and add it with a click, right inside the app.
+- **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)** <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><img alt="Courses in the library" align="top" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmahmoudyosrimahmoud13.github.io%2Finpace-library%2Fstats.json&query=%24.courses&label=courses&color=FFD43B&labelColor=111111"></a>**.** Browse free courses other learners made, look inside each one (every module, lesson and task, plus a lesson to read), and add it with a click, right inside the app.
 - **Publish your own** with **More → Publish to the library**. It's signed with your inPace key, so only you can update it.
+- **Courses that read a book you get yourself.** A course can follow a free book that can't be shared (like *Mathematics for Machine Learning*). Download it once, press **Find it for me**, and inPace finds your copy by its title and number of pages, whatever the file is called. Lessons then open the right pages.
 - **Send a course as a short link.** A course from the library goes as a link, not a file, and your friend always gets the newest version.
 - **Courses with big videos** can point to a download link (Google Drive, MEGA, archive.org…). Learners download the videos, choose the folder, and every lesson finds its video.
 
