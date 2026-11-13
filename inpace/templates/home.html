@@ -19,15 +19,46 @@
 </a>
 {% endif %}
 
-{% if island_on %}
+{% if island_on and island %}
+<section class="card isle-home threat-{{ island.wx.threat }}" aria-labelledby="isle-home-title">
+  <a class="isle-home-pic" href="/island" tabindex="-1" aria-hidden="true">{{ island.picture }}</a>
+  <div class="isle-home-body">
+    <div class="row between wrap">
+      <h2 id="isle-home-title"><a href="/island">{{ _("Tempo's island") }}</a></h2>
+      <a class="chip shells" href="/island#shop">{{ icon('shell', 16) }}{{ T('{n} shells', n=island.shells) if island.shells != 1 else _('1 shell') }}</a>
+    </div>
+    {% if island.wx.threat >= 1 %}
+    <p class="isle-home-say dark" dir="auto"><b>{{ island.taunt.name }}:</b> {{ island.taunt.villain }}</p>
+    {% elif island.wx.fair %}
+    <p class="isle-home-say">{% trans trimmed %}Fair winds! You kept your goal this week.{% endtrans %}</p>
+    {% else %}
+    <p class="isle-home-say">{% trans trimmed %}Clear sea today. Every trip you take pushes us closer to the Far Shore.{% endtrans %}</p>
+    {% endif %}
+    {% if island.rot.wilted %}<p class="isle-home-warn">{{ icon('alert', 18) }}{{ T('{n} plants are wilting.', n=island.rot.wilted) if island.rot.wilted != 1 else _('1 plant is wilting.') }} {% trans trimmed %}Every trip you finish waters two of them.{% endtrans %}</p>{% endif %}
+    <div class="isle-home-stats">
+      <span><b>{{ island.living }}</b> {{ _('plants') }}</span>
+      <span><b>{{ island.friends }}</b> {{ _('friends') }}</span>
+      <span><b>{{ T('{n} min', n=island.st.week_min) }}</b> {{ _('focus this week') }}</span>
+      <span><b>{{ island.st.streak }}</b> {{ _('days in a row') }}</span>
+    </div>
+    <div class="isle-home-story">
+      <span class="small"><b>{{ T('Chapter {a} of {b}', a=island.chapter, b=island.chapters) }}</b> · {{ _('The way to the Far Shore') }}{% if island.waiting %} · <a href="/island#logbook">{% trans trimmed %}A new chapter is waiting!{% endtrans %}</a>{% endif %}</span>
+      <span class="bar" role="progressbar" aria-label="{{ _('The way to the Far Shore') }}" aria-valuenow="{{ island.chapter }}" aria-valuemin="0" aria-valuemax="{{ island.chapters }}"><span style="width: {{ (100 * island.chapter / island.chapters)|round|int }}%"></span></span>
+    </div>
+    {% if island.next %}<p class="small muted isle-home-next">{{ T('Next to unlock: {name}', name=_(island.next.name)) }} · {{ T(island.next.goal[2], n=island.next.goal[1]) }}{% if island.next.goal[1] > 1 %} ({{ island.next.progress }}/{{ island.next.goal[1] }}){% endif %}</p>{% endif %}
+    <div class="row wrap">
+      {% if island_trip and island_trip.state == 'running' %}<a class="btn primary" href="/island/trip">{% trans trimmed %}Back to the trip{% endtrans %}</a>
+      {% elif island_trip %}<a class="btn primary" href="/island#start">{% trans trimmed %}Keep going{% endtrans %}</a>
+      {% else %}<a class="btn primary" href="/island#start">{{ icon('island', 18) }}{% trans trimmed %}Start a focus trip{% endtrans %}</a>{% endif %}
+      <a class="btn" href="/island">{% trans trimmed %}See the island{% endtrans %}</a>
+    </div>
+  </div>
+</section>
+{% elif island_on %}
 <a class="card tile rem-tip isle-tip" href="{{ '/island/trip' if island_trip and island_trip.state == 'running' else '/island#start' }}">
   <span class="ico">{{ icon('island') }}</span>
-  <span>{% if island_trip and island_trip.state == 'running' %}<b>{% trans trimmed %}A focus trip is on{% endtrans %}</b>
-    <span>{% trans trimmed %}Tempo is swimming and your plant is growing. Tap to watch.{% endtrans %}</span>
-  {% elif island_trip %}<b>{% trans trimmed %}Your sprout is resting{% endtrans %}</b>
-    <span>{% trans trimmed %}It kept its minutes. Carry on with a focus trip whenever you're ready.{% endtrans %}</span>
-  {% else %}<b>{% trans trimmed %}Start a focus trip{% endtrans %}</b>
-    <span>{% trans trimmed %}Study for a while and grow a plant on Tempo's island.{% endtrans %}</span>{% endif %}</span>
+  <span><b>{% trans trimmed %}Start a focus trip{% endtrans %}</b>
+    <span>{% trans trimmed %}Study for a while and grow a plant on Tempo's island.{% endtrans %}</span></span>
 </a>
 {% endif %}
 

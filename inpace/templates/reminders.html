@@ -82,13 +82,19 @@
     <span><b>{% trans trimmed %}Review time{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}When old questions are ready for a quick review.{% endtrans %}</span></span></label>
   <label class="check"><input type="checkbox" name="milestone" value="1" {{ 'checked' if r.auto.milestone }}>
     <span><b>{% trans trimmed %}Save your milestone{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}When you finished a module but haven't saved a milestone yet.{% endtrans %}</span></span></label>
-  <p class="small muted" style="margin:0">{% trans trimmed %}These come in the evening, at most one of each kind a day.{% endtrans %}</p>
+  <label class="check"><input type="checkbox" name="island" value="1" {{ 'checked' if r.auto.island }}>
+    <span><b>{% trans trimmed %}Tempo's island{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}When a focus trip is done, when the villain reaches your shore, and before your plants wilt or die. Only while the island is on.{% endtrans %}</span></span></label>
+  <p class="small muted" style="margin:0">{% trans trimmed %}These come in the evening, at most one of each kind a day. A finished focus trip tells you right away.{% endtrans %}</p>
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
 
 <section class="card stack">
   <h2 style="margin:0">{% trans trimmed %}Try it{% endtrans %}</h2>
-  <p class="small muted" style="margin:0">{% trans trimmed %}See how a reminder looks and sounds on this device.{% endtrans %}</p>
+  <p class="small muted" style="margin:0">{% trans trimmed %}See how a reminder looks and sounds on this device. Tempo's face comes with it.{% endtrans %}</p>
+  <div class="notif-preview" aria-hidden="true">
+    <img src="/static/notify/{{ test_msg.picture }}.png" width="48" height="48" alt="">
+    <span><span class="small muted">inPace</span><b dir="auto">{{ test_msg.title }}</b><span class="small" dir="auto">{{ test_msg.body }}</span></span>
+  </div>
   <form method="post" action="/reminders/test" class="row">
     <button class="btn" name="kind" value="notify" data-notify-test="notify">{{ icon('bell', 18) }}{% trans trimmed %}Send a test notification{% endtrans %}</button>
     <button class="btn" name="kind" value="alarm" data-notify-test="alarm">{{ icon('alarm', 18) }}{% trans trimmed %}Test the alarm{% endtrans %}</button>

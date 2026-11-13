@@ -7,6 +7,10 @@ you stop or snooze it. inPace also sends a few automatic notifications, each of 
   goal       your weekly milestone goal is at risk, near the end of the week
   review     old questions are due for review
   milestone  you finished a module but haven't saved a milestone yet
+  island     Tempo's island (only when it's on): a focus trip is done, the villain reached your shore,
+             your plants started to wilt, or a plant is about to die
+
+Every notification carries a picture: Tempo's face (happy, sad, proud...) or, for the villain, the Fog.
 
 inPace isn't running most of the time, so the reminders are handed to the computer or the phone:
   computer  its scheduler starts `inpace --remind <id>` and `inpace --check-reminders` (see notifier.py)
@@ -22,7 +26,7 @@ from datetime import date, datetime, timedelta, timezone
 from . import pace
 from .vault import Vault
 
-AUTO_KINDS = ("miss", "goal", "review", "milestone")
+AUTO_KINDS = ("miss", "goal", "review", "milestone", "island")
 DEFAULT_MISS_DAYS = 7
 EVENING = (17, 22)          # on a computer, automatic notifications go out between 5 pm and 10 pm
 WELCOME_BACK_DAYS = 3       # coming back after this many days: Tempo says welcome back
@@ -160,7 +164,7 @@ def reminder_message(v: Vault, r: dict | None) -> dict:
         body = t("Next: “{lesson}” in {course}. Slow and steady!", lesson=nxt["title"], course=nxt["course"])
     else:
         body = say("Pick a course and take one small step today.")
-    return {"title": title, "body": body, "url": (nxt or {}).get("url", "/")}
+    return {"title": title, "body": body, "url": (nxt or {}).get("url", "/"), "picture": "tempo_wave"}
 
 
 def _miss_message(v: Vault, days: int) -> dict:
@@ -170,7 +174,7 @@ def _miss_message(v: Vault, days: int) -> dict:
         body = t("It's been {n} days. Your next lesson is “{lesson}”. Just 10 minutes today?", n=days, lesson=nxt["title"])
     else:
         body = t("It's been {n} days. Just 10 minutes today?", n=days)
-    return {"title": say("Tempo misses you"), "body": body, "url": (nxt or {}).get("url", "/")}
+    return {"title": say("Tempo misses you"), "body": body, "url": (nxt or {}).get("url", "/"), "picture": "tempo_sad"}
 
 
 def _goals(v: Vault, now: datetime) -> list[dict]:
@@ -189,7 +193,7 @@ def _goals(v: Vault, now: datetime) -> list[dict]:
                     "title": say("Your weekly goal"),
                     "body": t("You planned {goal} milestones this week and saved {done}. Keep going in “{course}”.",
                               goal=c["per_week"], done=tw["count"], course=course.title if course else ""),
-                    "url": f"/learn/{j['id']}"})
+                    "url": f"/learn/{j['id']}", "picture": "tempo_oops"})
     return out
 
 
@@ -225,8 +229,57 @@ def _milestones_to_save(v: Vault) -> list[dict]:
                   name=checkers[0]["name"]) if checkers else
                 t("You finished “{module}”. Save a milestone so your progress is on record.", module=module))
         out.append({"key": f"milestone:{j['id']}:{prog['modules_done']}", "title": say("Save your milestone"),
-                    "body": body, "url": "/milestones"})
+                    "body": body, "url": "/milestones", "picture": "tempo_proud"})
     return out
+
+
+def _island(v: Vault, now: datetime) -> list[dict]:
+    """Tempo's island news, each with the moment it becomes true ("after", UTC) and a key so it's sent once.
+
+    trip     a running focus trip ends (at the exact minute)
+    villain  7 days away: the Fog reaches your shore
+    wilt     10 days away: the first plants wilt (not in gentle mode)
+    dying    a wilting plant dies tomorrow (not in gentle mode)
+    """
+    from . import garden
+    from . import island_story as story
+    if not garden.is_on(v):
+        return []
+    say, t = _tr()
+    lang = v._meta("lang", "en") or "en"
+    world = story.world_for(v._meta("island_world", "") or "", lang)
+    fog = story.villain_name(world, lang)
+    out = []
+    trip = garden.active(v)
+    if trip and trip["state"] == "running" and trip["mode"] == "anywhere" and trip["run_from"]:
+        end = trip["run_from"] + trip["goal"] * 60 - (trip["banked"] or 0)
+        plant = say(garden.PLANT_NAMES.get(trip["kind"], ""))
+        out.append({"key": f"trip:{trip['id']}", "after": _iso(datetime.fromtimestamp(end, timezone.utc)), "exact": True,
+                    "title": t("Your {plant} is ready!", plant=plant),
+                    "body": say("Tempo finished the trip. Come and see it join the island."),
+                    "url": "/island/trip", "picture": "tempo_cheer"})
+    last = garden.last_active(v)
+    if last:
+        out.append({"key": f"villain:{int(last)}", "after": _iso(datetime.fromtimestamp(last + 7 * 86400, timezone.utc)),
+                    "title": t("{name} is at your shore", name=fog),
+                    "body": say("It's been a week. In 3 days your plants start to wilt. One short trip sends it back to sea."),
+                    "url": "/island", "picture": "villain"})
+        if not garden.gentle(v) and garden.on_island(v):
+            out.append({"key": f"wilt:{int(last)}", "after": _iso(datetime.fromtimestamp(last + garden.WILT_AFTER * 86400, timezone.utc)),
+                        "title": say("Your plants are wilting"),
+                        "body": t("{name} reached the island. A trip today waters two of them.", name=fog),
+                        "url": "/island", "picture": "villain"})
+    if not garden.gentle(v):
+        first = v.db.execute("SELECT MIN(wilted_at) FROM garden WHERE state='wilted'").fetchone()[0]
+        if not first and last and garden.on_island(v):
+            first = last + garden.WILT_AFTER * 86400  # the first plant will wilt then, if you stay away
+        if first:
+            dies = first + garden.DIE_AFTER * 86400
+            out.append({"key": f"dying:{int(first)}", "after": _iso(datetime.fromtimestamp(dies - 86400, timezone.utc)),
+                        "title": say("A plant dies tomorrow"),
+                        "body": say("Water it with a focus trip today, or the fog takes it for good."),
+                        "url": "/island", "picture": "tempo_sad"})
+    return [x for x in out if x["key"].startswith("trip:") or _parse(x["after"]) > now - timedelta(days=3)]
 
 
 # ---- on a computer: what to show now ----------------------------------------------------------------------
@@ -263,13 +316,34 @@ def due_now(v: Vault, now_local: datetime | None = None, now: datetime | None = 
             say, t = _tr()
             out.append({"title": say("Time for a quick review"),
                         "body": t("{n} questions are ready. It takes a few minutes.", n=due), "url": url,
-                        "log": ("review", key)})
+                        "picture": "tempo_read", "log": ("review", key)})
     if d["auto"]["milestone"]:
         for m in _milestones_to_save(v):
             if log.get("milestone") != m["key"]:
                 out.append({**m, "log": ("milestone", m["key"])})
                 break
+    if d["auto"]["island"]:
+        for x in _island(v, now):
+            kind = x["key"].split(":")[0]
+            if not x["key"].startswith("trip:") and _parse(x["after"]) <= now and log.get("island_" + kind) != x["key"]:
+                out.insert(0, {**x, "log": ("island_" + kind, x["key"])})
+                break
     return out[:2]  # never a pile of notifications at once
+
+
+def trip_done_now(v: Vault, now: datetime | None = None) -> dict | None:
+    """A focus trip that just ended (any hour, not only in the evening), so the computer can say so."""
+    now = now or _now()
+    if not load(v)["auto"]["island"]:
+        return None
+    try:
+        log = json.loads(v._meta("notify_log", "") or "{}")
+    except ValueError:
+        log = {}
+    for x in _island(v, now):
+        if x["key"].startswith("trip:") and _parse(x["after"]) <= now and log.get("island_trip") != x["key"]:
+            return {**x, "log": ("island_trip", x["key"])}
+    return None
 
 
 def mark_sent(v: Vault, item: dict) -> None:
@@ -304,19 +378,24 @@ def plan(v: Vault, now: datetime | None = None) -> dict:
     if d["auto"]["goal"]:
         for g in _goals(v, now)[:1]:
             auto.append({"key": "goal", "after": _iso(max(now, g["end"] - timedelta(days=2))),
-                         "title": g["title"], "body": g["body"], "url": g["url"]})
+                         "title": g["title"], "body": g["body"], "url": g["url"], "picture": g["picture"]})
     if d["auto"]["review"]:
         due, nxt, url = _review(v, now.date())
         if due:
             auto.append({"key": "review", "after": _iso(now), "title": say("Time for a quick review"),
-                         "body": t("{n} questions are ready. It takes a few minutes.", n=due), "url": url})
+                         "body": t("{n} questions are ready. It takes a few minutes.", n=due), "url": url, "picture": "tempo_read"})
         elif nxt:
             auto.append({"key": "review", "after": _iso(datetime(nxt.year, nxt.month, nxt.day, tzinfo=timezone.utc)),
                          "title": say("Time for a quick review"),
-                         "body": say("Some questions are ready for review. It takes a few minutes."), "url": url})
+                         "body": say("Some questions are ready for review. It takes a few minutes."), "url": url,
+                         "picture": "tempo_read"})
     if d["auto"]["milestone"]:
         for m in _milestones_to_save(v)[:1]:
-            auto.append({"key": "milestone", "after": _iso(now), "title": m["title"], "body": m["body"], "url": m["url"]})
+            auto.append({"key": "milestone", "after": _iso(now), "title": m["title"], "body": m["body"], "url": m["url"],
+                         "picture": m["picture"]})
+    if d["auto"]["island"]:
+        for x in _island(v, now):
+            auto.append({k: x[k] for k in ("key", "after", "title", "body", "url", "picture")} | {"exact": bool(x.get("exact"))})
     labels = {"stop": say("Stop"), "snooze": say("Snooze 10 min"), "open": say("Start studying"),
               "snoozed": say("Snoozed for 10 minutes."), "channel": say("Reminders"), "alarms": say("Alarms"),
               "tempo": say("Tempo")}
@@ -343,10 +422,19 @@ def run_job(v: Vault, remind: str | None, check: bool) -> None:
                 return
         msg = reminder_message(v, r)
         if r["kind"] == "alarm":
-            notifier.alarm(msg["title"], msg["body"], msg["url"], labels, v.home)
+            notifier.alarm(msg["title"], msg["body"], msg["url"], labels, v.home, msg["picture"])
         else:
-            notifier.notify(msg["title"], msg["body"], msg["url"], v.home)
+            notifier.notify(msg["title"], msg["body"], msg["url"], v.home, picture=msg["picture"])
     if check:
-        for item in due_now(v):
-            if notifier.notify(item["title"], item["body"], item["url"], v.home):
+        from . import garden
+        try:
+            garden.decay(v)  # the fog keeps working while inPace is closed
+        except Exception:
+            pass
+        items = due_now(v)
+        trip = trip_done_now(v)
+        if trip:
+            items.insert(0, trip)
+        for item in items:
+            if notifier.notify(item["title"], item["body"], item["url"], v.home, picture=item.get("picture", "")):
                 mark_sent(v, item)

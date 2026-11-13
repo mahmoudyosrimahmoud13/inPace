@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.17.0
+
+- **Name your islands.** Every course's island (and Tempo's own) can have its own name, next to its turtle's name. Tap **Rename** above the island. A flag with the name can stand on it too.
+- **The villain is real now.** The Fog of Someday (بكرة in the Arabic world) gets a face, and it comes closer the longer you stay away: far on the horizon after 2 days, closer after 4, at your shore after 7, and on your island after 10, arms around your plants. It talks to you, Tempo answers, and a danger meter shows how close it is.
+  - After 10 days away your plants start to wilt, one more every 2 days. A wilting plant dies 14 days later. Every focus trip you finish waters two of them, and your animal friends (who flee into the fog) come back after your next trip.
+  - Dead plants stay grey on the island until you clear them. They still count for everything you unlocked.
+  - Two new story beats: **The Fog Has a Face** and **What the Fog Took**.
+  - Hard week? Turn on **Gentle sea** in Island settings: the fog still comes, but it never takes your plants.
+- **Shells and a shop.** Everything you learn earns shells (focus minutes, lessons, reviews, modules, milestones, approvals, finished courses). Spend them per island on ground (beach, blossom, autumn, desert, snow), skies (balloons and lanterns, starry nights, northern lights), seas (turquoise, lagoon, deep ocean) and things to put on it: a flag, rocks, a bench, a campfire, lanterns, a well, a hut, a windmill and a lighthouse in the sea. Up to 4 things on each island.
+- **A sky that follows your real clock.** Dawn, morning, day, sunset, dusk and night, with the sun and moon moving across the sky, and sunrise and sunset moving with the seasons. The same sky is behind Tempo on the focus trip. At night the lanterns, campfire, hut and lighthouse glow.
+- **More life on the island:** snow in winter, petals in spring and falling leaves in autumn; a daily visitor in the sea (a dolphin, a whale, gulls, a jellyfish or a little boat) on days you study; clouds and balloons drift, the aurora breathes, and a star falls now and then. Motion stops if your system asks for less motion.
+- **Tempo in your notifications.** Notifications now show Tempo's face (happy, sad, proud, reading...) on Android, Windows and Linux. New island notifications: your focus trip is done (at the exact minute), the villain reached your shore, your plants are wilting, and a plant dies tomorrow. Turn them off under Reminders, like the others.
+- **Make your own turtle.** On the first page (and in Settings) you make a turtle instead of picking a colour: shell, scarf, skin and something to wear (a cap, a beanie, a bow, glasses, headphones, a flower, a graduation cap, or a crown or wizard hat from the island shop). Your turtle replaces the coloured letter everywhere, travels on your contact card so the people you add see it, and sails in its own colours on their sea chart. **Save a picture of my turtle** makes a square picture to share anywhere.
+- **Phones keep the right time.** The Android app tells inPace your real time zone, so mornings, nights and reminders match the clock on your phone.
+
 ## v1.16.0
 
 - **Tempo's island (reward mode).** Optional, off until you turn it on. Tempo carries a little island on his shell:

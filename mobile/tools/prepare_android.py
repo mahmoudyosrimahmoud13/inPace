@@ -73,6 +73,7 @@ if "showWhenLocked" not in m:
 manifest.write_text(m, encoding="utf-8")
 
 # The small notification icon (white inPace mark), kept even when unused resources are removed from release builds.
+# Tempo's faces for notifications (tempo_*.png, villain.png) come from mobile/icon/res and are kept the same way.
 res = ROOT / "src" / "main" / "res"
 (res / "drawable").mkdir(parents=True, exist_ok=True)
 (res / "drawable" / "ic_stat_inpace.xml").write_text("""<vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -88,7 +89,7 @@ res = ROOT / "src" / "main" / "res"
 (res / "raw").mkdir(parents=True, exist_ok=True)
 (res / "raw" / "keep.xml").write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n<resources xmlns:tools="http://schemas.android.com/tools" '
-    'tools:keep="@drawable/ic_stat_inpace" />\n', encoding="utf-8")
+    'tools:keep="@drawable/ic_stat_inpace,@drawable/tempo_*,@drawable/villain" />\n', encoding="utf-8")
 
 for name in ("build.gradle.kts", "build.gradle"):
     g = ROOT / name

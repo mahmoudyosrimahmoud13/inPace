@@ -1,4 +1,4 @@
-"""The story of Tempo's island: an adventure in ten chapters and three interludes.
+"""The story of Tempo's island: an adventure in ten chapters and five interludes.
 
 Two worlds tell the same story:
 - "universal": a made-up sea that works anywhere (the default for English).
@@ -8,7 +8,8 @@ Two worlds tell the same story:
 Chapters are written once per language with {placeholders}; each world fills in its own names and
 places, and can add a line or two of local colour. Your real pace moves the story: chapters open as
 your island grows, the big fight needs a few days in a row, a new chapter can't open in thick fog,
-and the interludes happen when you really come back, keep a week's goal, or meet other learners.
+and the interludes happen when you really come back, keep a week's goal, meet other learners,
+when the villain first shows its face, or when it takes your first plant.
 """
 from __future__ import annotations
 
@@ -154,6 +155,20 @@ INTERLUDES = {
                  "\"We're not alone out here,\" said Kiko. Everyone you learn with has a turtle of their own, sailing the same sea. Out here, a friend's light is the best map there is.",
                  "في إحدى الأمسيات ظهر فانوس على الماء: سلحفاة أخرى، وجزيرة أخرى، وضوء متعلم آخر. ثم ظهر غيره.\n"
                  "قالت كيكو: \"لسنا وحدنا هنا.\" كل من تتعلم معه لديه سلحفاته الخاصة، تبحر في البحر نفسه. وهنا، ضوء الصديق هو أفضل خريطة.")),
+    "villain": (("The Fog Has a Face", "للضباب وجه"),
+                ("This time the fog didn't just drift. It pulled itself together into a shape: a heavy grey cloud in a sleepy night-cap, with long arms and two yellow eyes that never quite open. {Fog} had a face.\n"
+                 "\"Rest,\" it purred, reaching for the island. \"Everything will still be here {tomorrow}.\" Tempo pulled your sprout closer. He knew that voice. Every learner does. It never shouts. It only waits. "
+                 "And the one thing it can't stand is you, showing up today. Ten days away and it reaches the plants. Every two days after that, it takes hold of one more.",
+                 "هذه المرة لم يكتفِ الضباب بالانجراف. تجمّع في هيئة: سحابة رمادية ثقيلة بطاقية نوم، بذراعين طويلتين وعينين صفراوين لا تنفتحان أبدًا. صار للضباب وجه.\n"
+                 "همس وهو يمد يده نحو الجزيرة: \"ارتح. كل شيء سيبقى هنا {tomorrow}.\" ضم تمبو نبتتك إليه. كان يعرف هذا الصوت، وكل متعلم يعرفه. لا يصرخ أبدًا، فقط ينتظر. "
+                 "والشيء الوحيد الذي لا يحتمله هو أن تحضر اليوم. بعد عشرة أيام من الغياب يصل إلى النباتات، وكل يومين بعدها يمسك بنبتة أخرى.")),
+    "loss": (("What the Fog Took", "ما أخذه الضباب"),
+             ("When the fog finally thinned, one of your plants had gone grey and brittle, the colour drained out of it like ink from wet paper. {Fog} had taken it.\n"
+              "Tempo didn't scold. He looked at the empty spot for a long time, then at you. \"It grew because you were here,\" he said quietly. \"The others can still be saved. "
+              "Every trip you finish waters two of them.\" Kiko was already sorting the seeds for the next one.",
+              "حين خفّ الضباب أخيرًا، كانت إحدى نباتاتك قد صارت رمادية هشة، وقد سال لونها كالحبر من ورق مبلول. أخذها الضباب.\n"
+              "لم يلُم تمبو أحدًا. نظر إلى المكان الفارغ طويلًا، ثم نظر إليك وقال بهدوء: \"نمت لأنك كنت هنا. الباقية ما زال يمكن إنقاذها. "
+              "كل رحلة تكملها تسقي اثنتين منها.\" وكانت كيكو قد بدأت بالفعل تفرز البذور للنبتة التالية.")),
 }
 
 
@@ -190,3 +205,44 @@ def chapter(key: str, world: str, lang: str) -> dict:
 def opens(key: str, st: dict) -> bool:
     need = next(c[2] for c in CHAPTERS if c[0] == key)
     return all(st.get(k, 0) >= n for k, n in need.items())
+
+
+# ---- the villain talks ------------------------------------------------------------------------------------
+# What the Fog says at each threat level (1 far away ... 4 on the island). {n} is days.
+TAUNTS = {
+    1: ("{whisper} Take a day off. You've earned it.",
+        "{whisper} خذ يومًا راحة. أنت تستحقه."),
+    2: ("{whisper} Look how quiet it is out here. What's the hurry?",
+        "{whisper} انظر كم هو هادئ هنا. ما العجلة؟"),
+    3: ("I'm at your shore now. In {n} days, your plants are mine.",
+        "أنا على شاطئك الآن. بعد {n} أيام تصير نباتاتك لي."),
+    4: ("Your island is mine. One more plant wilts every two days.",
+        "جزيرتك صارت لي. كل يومين تذبل نبتة أخرى."),
+}
+# What Tempo answers, so the threat always comes with a way out.
+ANSWERS = {
+    1: ("Don't listen. One small trip and it drifts away.", "لا تسمع له. رحلة صغيرة واحدة ويبتعد."),
+    2: ("It's getting closer. A trip today pushes it back to the horizon.", "إنه يقترب. رحلة اليوم تعيده إلى الأفق."),
+    3: ("Quick, before it reaches the plants! Any trip, even 10 minutes.", "بسرعة، قبل أن يصل إلى النباتات! أي رحلة، ولو عشر دقائق."),
+    4: ("Every trip you finish waters two wilting plants and sends it back to sea.", "كل رحلة تكملها تسقي نبتتين ذابلتين وتعيده إلى البحر."),
+}
+
+
+def villain_name(world: str, lang: str) -> str:
+    lang = lang if lang in ("en", "ar") else "en"
+    name = WORLDS[world][lang]["fog"]
+    return name[:1].upper() + name[1:]
+
+
+def taunt(level: int, world: str, lang: str, n: int = 0) -> dict:
+    """The Fog's line and Tempo's answer for a threat level."""
+    if level not in TAUNTS:
+        return {}
+    i = 0 if lang != "ar" else 1
+    say = _fill(TAUNTS[level][i], world, lang if lang in ("en", "ar") else "en")
+    if i == 1 and n in (1, 2):
+        say = say.replace("بعد {n} أيام", "بعد يوم واحد" if n == 1 else "بعد يومين")
+    if i == 0 and n == 1:
+        say = say.replace("{n} days", "1 day")
+    say = say.replace("{n}", str(n))
+    return {"villain": say, "tempo": ANSWERS[level][i], "name": villain_name(world, lang)}

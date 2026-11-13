@@ -16,9 +16,10 @@ Everything stays in vault.db, like the rest of your data.
 from __future__ import annotations
 
 import json
+import math
 import time
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from . import garden_art as art
 from . import island_story as story
@@ -73,6 +74,10 @@ FRIEND_NAMES = {k: n for k, n, _, _ in FRIENDS}
 def setup(v: Vault) -> None:
     v.db.execute("CREATE TABLE IF NOT EXISTS garden (id TEXT PRIMARY KEY, kind TEXT, goal INTEGER, banked REAL DEFAULT 0, "
                  "run_from REAL, mode TEXT, journey TEXT, state TEXT, started REAL, ended REAL)")
+    cols = {r[1] for r in v.db.execute("PRAGMA table_info(garden)")}
+    for col in ("wilted_at", "dead_at"):
+        if col not in cols:
+            v.db.execute(f"ALTER TABLE garden ADD COLUMN {col} REAL")
     v.db.commit()
 
 
@@ -159,21 +164,108 @@ def check(v: Vault, now: float | None = None) -> dict | None:
     if not trip:
         return None
     if elapsed(trip, now) >= trip["goal"] * 60 - 1:
+        when = time.time() if now is None else now
         v.db.execute("UPDATE garden SET state='grown', banked=?, run_from=NULL, ended=? WHERE id=?",
-                     (trip["goal"] * 60, time.time() if now is None else now, trip["id"]))
+                     (trip["goal"] * 60, when, trip["id"]))
+        # A finished trip waters the island: up to 2 wilting plants get better, and friends who fled come back.
+        sick = v.db.execute("SELECT id FROM garden WHERE state='wilted' ORDER BY wilted_at LIMIT 2").fetchall()
+        for r in sick:
+            v.db.execute("UPDATE garden SET state='grown', wilted_at=NULL WHERE id=?", (r["id"],))
         v.db.commit()
-        return {**trip, "state": "grown"}
+        if v._meta("island_fled"):
+            v._set_meta("island_fled", "")
+        v._set_meta("island_last_seen", str(when))
+        return {**trip, "state": "grown", "watered": len(sick)}
     return None
 
 
+EVER = "('grown','wilted','dead','gone')"
+
+
 def grown(v: Vault) -> list[dict]:
+    """Every plant you ever grew, even ones the fog took since (unlocks never go away)."""
     setup(v)
-    return [dict(r) for r in v.db.execute("SELECT * FROM garden WHERE state='grown' ORDER BY ended")]
+    return [dict(r) for r in v.db.execute(f"SELECT * FROM garden WHERE state IN {EVER} ORDER BY ended")]
+
+
+def on_island(v: Vault) -> list[dict]:
+    """What the islands show: living plants, wilting ones, and dead ones you haven't cleared."""
+    setup(v)
+    return [dict(r) for r in v.db.execute("SELECT * FROM garden WHERE state IN ('grown','wilted','dead') ORDER BY ended")]
 
 
 def last_grown(v: Vault) -> dict | None:
     setup(v)
-    return _row(v.db.execute("SELECT * FROM garden WHERE state='grown' ORDER BY ended DESC LIMIT 1").fetchone())
+    return _row(v.db.execute(f"SELECT * FROM garden WHERE state IN {EVER} ORDER BY ended DESC LIMIT 1").fetchone())
+
+
+def clear_dead(v: Vault, jid: str | None = None) -> int:
+    """Clear the dead plants away (they still count for what you've unlocked)."""
+    setup(v)
+    q, args = "UPDATE garden SET state='gone' WHERE state='dead'", ()
+    if jid is not None:
+        q, args = q + " AND COALESCE(journey,'')=?", (jid,)
+    n = v.db.execute(q, args).rowcount
+    v.db.commit()
+    return n
+
+
+# ---- the villain: when you stay away, the fog comes for the island ------------------------------------------
+WILT_AFTER = 10   # days away before the first plant wilts
+WILT_EVERY = 2    # then one more every 2 days
+DIE_AFTER = 14    # a wilting plant dies after 14 days unless a trip waters it
+FLEE_AFTER = 10   # friends flee when the fog reaches the island, and come back after your next trip
+
+
+def gentle(v: Vault) -> bool:
+    return (v._meta("island_gentle", "") or "") == "1"
+
+
+def decay(v: Vault, now: float | None = None) -> dict:
+    """What the fog did while you were away. It catches up when you come back, so it's fair either way."""
+    setup(v)
+    now = time.time() if now is None else now
+    out = {"wilted": 0, "dead": 0, "new_wilted": 0, "new_dead": 0, "next_death": None, "next_wilt": None}
+    last = last_active(v)
+    if last is None or not is_on(v):
+        return out
+    seen = float(v._meta("island_last_seen", "") or last)
+    # the absence: from the last activity we knew about, to your new activity (or to now, if you're still away)
+    start = min(seen, last) if last - seen < 60 else seen
+    end = last if last - start >= WILT_AFTER * 86400 and last > seen + 60 else now
+    if not gentle(v):
+        away = (end - start) / 86400
+        if away >= FLEE_AFTER and not v._meta("island_fled"):
+            v._set_meta("island_fled", "1")
+        should = int((away - WILT_AFTER) // WILT_EVERY) + 1 if away >= WILT_AFTER else 0
+        done = v.db.execute("SELECT COUNT(*) FROM garden WHERE wilted_at >= ? AND state IN ('wilted','dead','gone')",
+                            (start,)).fetchone()[0]
+        healthy = v.db.execute("SELECT id FROM garden WHERE state='grown' ORDER BY ended").fetchall()
+        for k, r in zip(range(done, should), healthy):
+            when = start + (WILT_AFTER + WILT_EVERY * k) * 86400
+            v.db.execute("UPDATE garden SET state='wilted', wilted_at=? WHERE id=?", (when, r["id"]))
+            out["new_wilted"] += 1
+        for r in v.db.execute("SELECT id, wilted_at FROM garden WHERE state='wilted'").fetchall():
+            if r["wilted_at"] + DIE_AFTER * 86400 <= now:
+                v.db.execute("UPDATE garden SET state='dead', dead_at=? WHERE id=?", (r["wilted_at"] + DIE_AFTER * 86400, r["id"]))
+                out["new_dead"] += 1
+        v.db.commit()
+        if end == now and now - last < WILT_AFTER * 86400:
+            out["next_wilt"] = last + WILT_AFTER * 86400
+    v._set_meta("island_last_seen", str(max(last, seen if end == now else last)))
+    out["wilted"] = v.db.execute("SELECT COUNT(*) FROM garden WHERE state='wilted'").fetchone()[0]
+    out["dead"] = v.db.execute("SELECT COUNT(*) FROM garden WHERE state='dead'").fetchone()[0]
+    first = v.db.execute("SELECT MIN(wilted_at) FROM garden WHERE state='wilted'").fetchone()[0]
+    out["next_death"] = first + DIE_AFTER * 86400 if first else None
+    if v.db.execute("SELECT COUNT(*) FROM garden WHERE state IN ('dead','gone')").fetchone()[0]:
+        v._set_meta("island_lost_any", "1")
+    return out
+
+
+def threat(days: int, is_gentle: bool = False) -> int:
+    """How close the villain is: 0 gone, 1 watching from far away, 2 coming closer, 3 at the shore, 4 on the island."""
+    lv = 0 if days < 2 else 1 if days < 4 else 2 if days < 7 else 3 if days < WILT_AFTER else 4
+    return min(lv, 3) if is_gentle else lv
 
 
 # ---- what you've earned -------------------------------------------------------------------------------
@@ -286,12 +378,15 @@ def last_active(v: Vault) -> float | None:
 
 
 def weather(v: Vault, goal_met: bool = False, now: float | None = None) -> dict:
-    """Clear, mist, fog or lost: how long since you last studied. Never a punishment, just the sea."""
+    """Clear, mist, fog or lost: how long since you last studied, and how close the villain is."""
     now = time.time() if now is None else now
     last = last_active(v)
     days = int((now - last) // 86400) if last else 0
     fog = 0 if days < 2 else 1 if days < 4 else 2 if days < 7 else 3
-    return {"days": days, "fog": fog, "fair": goal_met and fog == 0}
+    g = gentle(v)
+    return {"days": days, "fog": fog, "fair": goal_met and fog == 0, "threat": threat(days, g), "gentle": g,
+            "fled": bool(v._meta("island_fled")) and not g,
+            "wilt_in": max(0, WILT_AFTER - days) if not g else None}
 
 
 # ---- the story ------------------------------------------------------------------------------------------
@@ -321,6 +416,12 @@ def story_state(v: Vault, st: dict, wx: dict, lang: str, people: int = 0) -> dic
     if people and "meeting" not in opened:
         opened.append("meeting")
         added.append("meeting")
+    if wx.get("threat", 0) >= 3 and "villain" not in opened:
+        opened.append("villain")
+        added.append("villain")
+    if v._meta("island_lost_any") and "loss" not in opened:
+        opened.append("loss")
+        added.append("loss")
     if added:
         v._set_meta("island_story", json.dumps(opened))
     shown = [story.chapter(k, world, lang) for k in opened]
@@ -361,8 +462,10 @@ def _pick(seed: str, n: int) -> int:
 def turtles(v: Vault, world: str, lang: str) -> list[dict]:
     """Your fleet: Tempo carries trips that aren't for a course; each course has its own turtle and island."""
     names = json.loads(v._meta("island_names", "{}") or "{}")
-    plants = grown(v)
+    named = titles(v)
+    plants = on_island(v)
     out = [{"id": "", "name": "Tempo" if lang != "ar" else "تمبو", "palette": PALETTES[0], "course": "",
+            "title": named.get("") or ("Tempo's Island" if lang != "ar" else "جزيرة تمبو"),
             "plants": [p for p in plants if not p.get("journey")], "percent": None, "tempo": True}]
     pool = (TURTLE_NAMES_AR if lang == "ar" else TURTLE_NAMES)[world]
     for j in v.journeys():
@@ -375,7 +478,12 @@ def turtles(v: Vault, world: str, lang: str) -> list[dict]:
             pct = 0
         out.append({"id": j["id"], "name": names.get(j["id"]) or pool[_pick(j["id"], len(pool))],
                     "palette": PALETTES[1 + _pick(j["id"] + "p", len(PALETTES) - 1)], "course": c.title,
+                    "title": named.get(j["id"]) or c.title,
                     "plants": [p for p in plants if p.get("journey") == j["id"]], "percent": pct, "tempo": False})
+    for t in out:
+        t["living"] = sum(1 for p in t["plants"] if p["state"] == "grown")
+        t["wilting"] = sum(1 for p in t["plants"] if p["state"] == "wilted")
+        t["dead"] = sum(1 for p in t["plants"] if p["state"] == "dead")
     return out
 
 
@@ -438,14 +546,53 @@ def dome_y(x: float) -> float:
     return best[1]
 
 
-def _sky(hour: int) -> tuple[str, str, bool]:
-    if 5 <= hour < 8:
-        return "#FFD9A8", "#CDE8F2", False
-    if 8 <= hour < 17:
-        return "#9FD3F0", "#E4F4FB", False
-    if 17 <= hour < 20:
-        return "#FF9E7A", "#FFD9A8", False
-    return "#16213E", "#33456E", True
+def sun_times(day: date) -> tuple[float, float]:
+    """About when the sun rises and sets (hours), for a place like Cairo, Rome or Dallas.
+    Short days in December, long days in June."""
+    swing = math.cos(2 * math.pi * (day.timetuple().tm_yday - 172) / 365)
+    return 6.0 - 1.0 * swing, 18.0 + 1.0 * swing
+
+
+# (name, top of the sky, bottom of the sky); the sky blends from one to the next as the clock moves
+_SKY = {"night": ("#0F1A33", "#2A3A63"), "dawn": ("#6E7FB8", "#FFC6A0"), "morning": ("#8CCBF0", "#FFF1D6"),
+        "day": ("#7EC4F0", "#E4F4FB"), "sunset": ("#FF7A50", "#FFD08A"), "dusk": ("#4B3C7A", "#E07A8A")}
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    a, b = a.lstrip("#"), b.lstrip("#")
+    return "#" + "".join(f"{round(int(a[k:k + 2], 16) * (1 - t) + int(b[k:k + 2], 16) * t):02X}" for k in (0, 2, 4))
+
+
+def sky_at(when: datetime | None = None) -> dict:
+    """The sky at a real moment: its colors, where the sun or moon is, and how bright the stars are."""
+    when = when or datetime.now()
+    rise, sets = sun_times(when.date())
+    h = when.hour + when.minute / 60
+    keys = [(rise - 1.3, "night"), (rise - .2, "dawn"), (rise + 1.2, "morning"), (11.5, "day"), (sets - 1.6, "day"),
+            (sets - .2, "sunset"), (sets + .6, "dusk"), (sets + 1.4, "night")]
+    if h < keys[0][0] or h >= keys[-1][0]:
+        top, low = _SKY["night"]
+        phase = "night"
+    else:
+        for (h0, a), (h1, b) in zip(keys, keys[1:]):
+            if h0 <= h < h1:
+                t = (h - h0) / (h1 - h0)
+                top, low = _mix(_SKY[a][0], _SKY[b][0], t), _mix(_SKY[a][1], _SKY[b][1], t)
+                phase = a if t < .5 else b
+                break
+    night = h < rise - .4 or h >= sets + .9
+    stars = 1.0 if night else max(0.0, min(1.0, (h - sets) / .9)) if h > 12 else max(0.0, min(1.0, (rise - h) / .9))
+    if rise - .3 <= h <= sets + .3:  # the sun crosses the sky from left to right
+        t = (h - (rise - .3)) / (sets - rise + .6)
+        body = {"kind": "sun", "x": 70 + 660 * t, "y": 300 - 240 * math.sin(math.pi * t),
+                "color": _mix("#FFD43B", "#FF8A3D", max(0.0, 1 - math.sin(math.pi * t) * 2.2))}
+    else:  # the moon crosses the night
+        length = 24 - (sets - rise) - .6
+        gone = (h - (sets + .3)) % 24
+        t = max(0.0, min(1.0, gone / length))
+        body = {"kind": "moon", "x": 70 + 660 * t, "y": 300 - 230 * math.sin(math.pi * t), "color": "#FFF3B0"}
+    return {"phase": phase, "top": top, "low": low, "night": night, "stars": round(stars, 2), "body": body,
+            "rise": rise, "set": sets, "hour": h}
 
 
 def _cloud(x: float, y: float, s: float) -> str:
@@ -458,44 +605,204 @@ def _zzz(x: float, y: float) -> str:
     return f'<text x="{x}" y="{y}" font-size="18" {z}>z</text><text x="{x + 12}" y="{y - 12}" font-size="13" {z}>z</text>'
 
 
+# ---- shells: what learning earns, and what you can buy with it ------------------------------------------------
+THEMES = {"meadow": 0, "beach": 40, "blossom": 60, "autumn": 60, "desert": 70, "snow": 80}
+THEME_COLORS = {"meadow": ("#6CBF4A", "#3E8E2E", "#B8E58F"), "beach": ("#F2D8A0", "#C9A86A", "#FFF1C9"),
+                "blossom": ("#F7B7CF", "#D97FA5", "#FFE0EC"), "autumn": ("#D9A24A", "#A9702A", "#F2C98A"),
+                "desert": ("#E3B46C", "#B98436", "#F6D8A3"), "snow": ("#F4F7FA", "#B8C6D3", "#FFFFFF")}
+SKIES = {"auto": 0, "balloons": 30, "starry": 50, "aurora": 100}  # every sky still follows the real clock
+WATERS = {"sea": 0, "turquoise": 25, "deep": 30, "lagoon": 40}
+WATER_COLORS = {"sea": ("#4DA8D6", "#5BB7E0"), "turquoise": ("#3CC8C8", "#5FE0D8"),
+                "deep": ("#25507E", "#3567A0"), "lagoon": ("#2FA88A", "#55C9A8")}
+DECOR = {"flag": 20, "rocks": 15, "bench": 25, "campfire": 30, "lanterns": 35, "well": 40, "hut": 50,
+         "windmill": 90, "lighthouse": 120}
+DECOR_SPOT = {"lighthouse": 132, "windmill": 140, "well": 168, "bench": 214, "lanterns": 300, "campfire": 470,
+              "rocks": 560, "hut": 598, "flag": 628}
+MAX_DECOR = 4
+SHOP_NAMES = {"meadow": "Green meadow", "beach": "Sandy beach", "blossom": "Blossom pink", "autumn": "Autumn gold",
+              "desert": "Desert dunes", "snow": "Snowy island", "auto": "The real sky", "balloons": "Balloons by day, lanterns by night",
+              "starry": "Starry nights", "aurora": "Northern lights", "sea": "Blue sea", "turquoise": "Turquoise water",
+              "deep": "Deep ocean", "lagoon": "Green lagoon", "flag": "Flag with the island's name", "rocks": "Rocks",
+              "bench": "Bench", "campfire": "Campfire", "lanterns": "Lanterns", "well": "Well", "hut": "Hut",
+              "windmill": "Windmill", "lighthouse": "Lighthouse", "crown": "Crown", "wizard": "Wizard hat"}
+SHOP = {"theme": THEMES, "sky": SKIES, "water": WATERS, "decor": DECOR, "accessory": tempo.PAID_ACCESSORIES}
+FREE = {"theme:meadow", "sky:auto", "water:sea"}
+
+
+def earned(st: dict) -> int:
+    """Shells: 1 for every 5 minutes of focus, and more for real learning."""
+    return (st["focus_min"] // 5 + 2 * st["lessons"] + 3 * st["reviews"] + 10 * st["modules"]
+            + 15 * st["milestones"] + 20 * st["approved"] + 50 * st["courses"])
+
+
+def wallet(v: Vault, st: dict) -> dict:
+    spent = int(v._meta("island_spent", "0") or 0)
+    owned = set(json.loads(v._meta("island_owned", "[]") or "[]")) | FREE
+    return {"earned": earned(st), "spent": spent, "balance": max(0, earned(st) - spent), "owned": owned}
+
+
+def buy(v: Vault, kind: str, key: str, st: dict) -> str | None:
+    """Buy something. Returns a problem in words, or None when it worked."""
+    price = SHOP.get(kind, {}).get(key)
+    if price is None:
+        return "That isn't in the shop."
+    w = wallet(v, st)
+    item = f"{kind}:{key}"
+    if item in w["owned"]:
+        return None
+    if w["balance"] < price:
+        return "Not enough shells yet. Study a little more and come back."
+    v._set_meta("island_spent", str(w["spent"] + price))
+    v._set_meta("island_owned", json.dumps(sorted((w["owned"] - FREE) | {item})))
+    return None
+
+
+def looks(v: Vault, iid: str) -> dict:
+    allv = json.loads(v._meta("island_looks", "{}") or "{}")
+    lk = allv.get(iid, {})
+    return {"theme": lk.get("theme", "meadow"), "sky": lk.get("sky", "auto"), "water": lk.get("water", "sea"),
+            "decor": [d for d in lk.get("decor", []) if d in DECOR][:MAX_DECOR]}
+
+
+def set_look(v: Vault, iid: str, kind: str, key: str) -> None:
+    owned = set(json.loads(v._meta("island_owned", "[]") or "[]")) | FREE
+    if f"{kind}:{key}" not in owned:
+        return
+    allv = json.loads(v._meta("island_looks", "{}") or "{}")
+    lk = looks(v, iid)
+    if kind == "decor":
+        lk["decor"] = [d for d in lk["decor"] if d != key] if key in lk["decor"] else (lk["decor"] + [key])[-MAX_DECOR:]
+    elif kind in ("theme", "sky", "water"):
+        lk[kind] = key
+    allv[iid] = lk
+    v._set_meta("island_looks", json.dumps(allv))
+
+
+def titles(v: Vault) -> dict:
+    return json.loads(v._meta("island_titles", "{}") or "{}")
+
+
+def set_title(v: Vault, iid: str, title: str) -> None:
+    allv = titles(v)
+    title = " ".join(title.split())[:30]
+    if title:
+        allv[iid] = title
+    else:
+        allv.pop(iid, None)
+    v._set_meta("island_titles", json.dumps(allv))
+
+
+def season(month: int) -> str:
+    return "winter" if month in (12, 1, 2) else "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn"
+
+
+def visitor_today(v: Vault, today: date | None = None) -> str | None:
+    """Study today and something comes to visit: a dolphin, a whale, gulls, a jellyfish, a boat."""
+    today = today or date.today()
+    start = datetime(today.year, today.month, today.day).timestamp()
+    trip = v.db.execute(f"SELECT 1 FROM garden WHERE state IN {EVER} AND ended >= ? LIMIT 1", (start,)).fetchone()
+    les = v.db.execute("SELECT 1 FROM events WHERE type='lesson_done' AND at >= ? LIMIT 1",
+                       (datetime.fromtimestamp(start, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),)).fetchone()
+    return art.VISITORS[today.toordinal() % len(art.VISITORS)] if (trip or les) else None
+
+
 def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool = False, hour: int | None = None,
-               labels: dict | None = None, palette=None, fog: int = 0, fair: bool = False, home: bool = True) -> str:
-    """The whole island scene: sky, sea, a turtle, the newest plants on its shell, and your friends.
-    fog 0..3 greys it out and puts the friends to sleep (never hurts anything); fair adds a rainbow."""
+               labels: dict | None = None, palette=None, fog: int = 0, fair: bool = False, home: bool = True,
+               look: dict | None = None, title: str = "", villain: int = 0, season_now: str = "", visitor: str | None = None,
+               fled: bool = False) -> str:
+    """The whole island scene: sky, sea, a turtle, the newest plants on its shell, your friends,
+    the things you bought, and, when you've been away, the villain."""
     labels = labels or {}
     palette = palette or PALETTES[0]
-    hour = datetime.now().hour if hour is None else hour
-    top, low, night = _sky(hour)
+    look = look or {"theme": "meadow", "sky": "auto", "water": "sea", "decor": []}
+    when = datetime.now() if hour is None else datetime.now().replace(hour=hour, minute=0)
+    sk = sky_at(when)
+    top, low, night = sk["top"], sk["low"], sk["night"]
+    sky = look.get("sky", "auto")
     if fog >= 2:
-        top, low = "#9AA3AD", "#C9CED3"
+        top, low = _mix(top, "#9AA3AD", .7), _mix(low, "#C9CED3", .7)
+    grass, edge, shine = THEME_COLORS.get(look.get("theme", "meadow"), THEME_COLORS["meadow"])
+    back_sea, front_sea = WATER_COLORS.get(look.get("water", "sea"), WATER_COLORS["sea"])
+    if sk["stars"] > .5:  # the sea is darker at night
+        back_sea, front_sea = _mix(back_sea, "#0F1A33", .45), _mix(front_sea, "#0F1A33", .4)
     I = art.INK
     asleep = fog >= 2
     u = f"i{next(tempo._ids)}"  # ids must be unique if two islands share a page
-    parts = [f'<svg class="island-art fog-{fog}" viewBox="0 0 800 470" role="img" aria-label="{labels.get("island", "Tempo carries your island")}">',
+    aria = labels.get("island", "Tempo carries your island")
+    if labels.get("phase_" + sk["phase"]):
+        aria += ". " + labels["phase_" + sk["phase"]]
+    parts = [f'<svg class="island-art fog-{fog} threat-{villain} sky-{sk["phase"]}" viewBox="0 0 800 470" role="img" aria-label="{aria}">',
              f'<defs><linearGradient id="{u}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/>'
              f'<stop offset="1" stop-color="{low}"/></linearGradient>'
+             f'<radialGradient id="{u}-glow"><stop offset="0" stop-color="#FFD98A" stop-opacity=".75"/><stop offset="1" stop-color="#FFD98A" stop-opacity="0"/></radialGradient>'
              f'<clipPath id="{u}-dome"><path d="M110 372 C106 236 230 150 380 150 C530 150 654 236 650 372 Z"/></clipPath>'
-             f'<filter id="{u}-grey"><feColorMatrix type="saturate" values="{1 if fog == 0 else .6 if fog == 1 else .22}"/></filter></defs>',
+             f'<filter id="{u}-grey"><feColorMatrix type="saturate" values="{1 if fog == 0 else .6 if fog == 1 else .22}"/></filter>'
+             f'<filter id="{u}-wilt"><feColorMatrix type="matrix" values=".5 .3 .1 0 .08  .35 .4 .1 0 .04  .2 .2 .2 0 0  0 0 0 1 0"/></filter></defs>',
              f'<rect width="800" height="470" fill="url(#{u}-sky)"/>']
-    if night and fog < 2:
-        for x, y, r in ((60, 40, 2), (150, 90, 1.6), (240, 30, 2.2), (520, 50, 1.8), (600, 110, 1.4), (720, 30, 2), (430, 90, 1.5), (330, 60, 1.4)):
-            parts.append(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#fff" opacity=".9"/>')
-        parts.append(f'<path d="M690 52 a30 30 0 1 0 22 50 a24 24 0 1 1 -22 -50 z" fill="#FFF3B0" stroke="{I}" stroke-width="3"/>')
-    elif fog < 2:
-        parts.append(f'<circle cx="690" cy="78" r="34" fill="#FFD43B" stroke="{I}" stroke-width="3"/>'
-                     f'<circle cx="680" cy="68" r="10" fill="#fff" opacity=".45"/>')
-        parts.append(_cloud(90, 60, 1) + _cloud(470, 40, .8))
-    if fair and fog == 0:
+    clear = fog < 2
+    if clear and sk["stars"] > 0:
+        dots = ((60, 40, 2), (150, 90, 1.6), (240, 30, 2.2), (520, 50, 1.8), (600, 110, 1.4), (720, 30, 2),
+                (430, 90, 1.5), (330, 60, 1.4), (90, 150, 1.2), (380, 24, 1.6), (650, 170, 1.2), (200, 200, 1.1))
+        if sky == "starry":  # a sky full of stars, the Milky Way, and a shooting star
+            dots += tuple((37 * k % 800, 13 + 29 * k % 220, .9 + k % 3 * .4) for k in range(1, 40))
+            parts.append(f'<path d="M-20 260 Q300 60 820 40" stroke="#C9D6FF" stroke-width="70" fill="none" opacity="{.16 * sk["stars"]:.2f}" stroke-linecap="round"/>'
+                         f'<path class="isle-shooting" d="M560 30 l-90 40" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="{sk["stars"]:.2f}"/>')
+        parts.append(f'<g class="isle-stars" opacity="{sk["stars"]:.2f}">'
+                     + "".join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#fff"/>' for x, y, r in dots) + '</g>')
+    if sky == "aurora" and clear and sk["stars"] > .2:
+        parts.append(f'<g opacity="{sk["stars"]:.2f}"><path class="isle-aurora" d="M0 120 Q200 40 400 110 T800 80 V170 Q600 150 400 190 T0 170 Z" fill="#5CF2B8" opacity=".35"/>'
+                     '<path class="isle-aurora" d="M0 90 Q240 20 420 80 T800 50 V110 Q600 100 420 140 T0 130 Z" fill="#A98BFF" opacity=".28"/></g>')
+    if clear:
+        b = sk["body"]
+        bx, by = b["x"], b["y"]
+        if b["kind"] == "sun":
+            parts.append(f'<circle cx="{bx:.0f}" cy="{by:.0f}" r="70" fill="url(#{u}-glow)" opacity=".7"/>'
+                         f'<circle class="isle-sun" cx="{bx:.0f}" cy="{by:.0f}" r="34" fill="{b["color"]}" stroke="{I}" stroke-width="3"/>'
+                         f'<circle cx="{bx - 10:.0f}" cy="{by - 10:.0f}" r="10" fill="#fff" opacity=".45"/>')
+        else:
+            parts.append(f'<path class="isle-moon" d="M{bx:.0f} {by - 26:.0f} a30 30 0 1 0 22 50 a24 24 0 1 1 -22 -50 z" fill="{b["color"]}" stroke="{I}" stroke-width="3"/>')
+        if not night:
+            parts.append(f'<g class="isle-clouds">{_cloud(90, 60, 1)}{_cloud(470, 40, .8)}</g>')
+            if sky == "balloons":
+                for bx2, by2, c1, c2 in ((180, 96, "#E6007E", "#FFD43B"), (612, 150, "#3D8FD1", "#FFFFFF")):
+                    parts.append(f'<g class="isle-balloon" transform="translate({bx2} {by2})"><path d="M0 -30 C-24 -30 -26 -2 -6 14 H6 C26 -2 24 -30 0 -30 Z" fill="{c1}" stroke="{I}" stroke-width="3"/>'
+                                 f'<path d="M0 -30 C-8 -20 -8 0 -3 14 M0 -30 C8 -20 8 0 3 14" fill="none" stroke="{c2}" stroke-width="3"/>'
+                                 f'<path d="M-6 14 L-5 22 M6 14 L5 22" stroke="{I}" stroke-width="2"/><rect x="-6" y="22" width="12" height="9" rx="2" fill="#B7793E" stroke="{I}" stroke-width="2.4"/></g>')
+        elif sky == "balloons":  # at night: floating paper lanterns
+            for lx, ly in ((160, 110), (250, 70), (560, 90), (640, 140)):
+                parts.append(f'<g class="isle-balloon"><circle cx="{lx}" cy="{ly}" r="16" fill="url(#{u}-glow)"/>'
+                             f'<path d="M{lx - 6} {ly - 8} h12 l3 14 h-18 z" fill="#FFB648" stroke="{I}" stroke-width="2"/></g>')
+    if fair and fog == 0 and not night:
         for k, c in enumerate(("#E6007E", "#FF9F1C", "#FFD43B", "#4CAF50", "#3D8FD1", "#8E5CC2")):
             r = 330 - k * 12
             parts.append(f'<path d="M{380 - r} 330 A{r} {r} 0 0 1 {380 + r} 330" fill="none" stroke="{c}" stroke-width="12" opacity=".75"/>')
+    # the villain, far away or close behind the island
+    def villain_at(x, y, sc, cls=""):
+        return (f'<g class="isle-villain {cls}" transform="translate({x} {y}) scale({sc})"><title>{labels.get("villain", "The Fog of Someday")}</title>'
+                f'{art.villain(villain)}</g>')
+    if villain == 1:
+        parts.append(f'<g opacity=".75">{villain_at(686, 238, .34)}</g>')
+    elif villain == 2:
+        parts.append(villain_at(10, 150, .62))
+    elif villain == 3:
+        parts.append(villain_at(-30, 70, 1.0))
     parts.append(f'<g filter="url(#{u}-grey)">')
-    parts.append(f'<rect x="0" y="330" width="800" height="140" fill="#4DA8D6"/>'
+    parts.append(f'<rect x="0" y="330" width="800" height="140" fill="{back_sea}"/>'
                  f'<path d="M0 330 H800" stroke="{I}" stroke-width="3"/>'
                  '<path d="M40 350 q20 -8 40 0 M520 346 q20 -8 40 0 M700 356 q16 -6 32 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>')
+    if visitor and fog < 2:
+        vx = {"dolphin": 740, "whale": 735, "seagull": 520, "jellyfish": 750, "boat": 742}.get(visitor, 740)
+        parts.append(f'<g class="isle-visitor isle-visitor-{visitor}" transform="translate({vx} 352) scale(.8)"><title>{labels.get("visitor", "")}</title>{art.visitor(visitor)}</g>')
+    if "lighthouse" in look.get("decor", []):
+        glow = f'<circle cx="0" cy="-96" r="70" fill="url(#{u}-glow)"/>' if sk["stars"] > .3 else ""
+        parts.append(f'<g class="isle-deco" transform="translate(46 344) scale(.9)"><title>{labels.get("deco_lighthouse", "lighthouse")}</title>{glow}'
+                     f'<path d="M-30 6 Q-26 -10 -6 -8 Q8 -16 24 -4 Q34 0 30 8 Z" fill="#8E877D" stroke="{I}" stroke-width="3"/>'
+                     f'<g transform="translate(0 -6)">{art.deco("lighthouse")}</g></g>')
     # the turtle: head and neck behind the shell's edge, then the shell
     s = 2.4
-    mood = "sleepy" if asleep else ("think" if fog == 1 else "cheer" if (fair or blooming) else "happy")
+    mood = "sleepy" if asleep else ("oops" if villain >= 3 else "think" if fog == 1 else "cheer" if (fair or blooming) else "happy")
+    if villain >= 4:
+        mood = "sad"
     turtle = (f'<path d="M600 350 C640 330 668 312 690 290" fill="none" stroke="{I}" stroke-width="{20 * s + 6}" stroke-linecap="round"/>'
               f'<path d="M600 350 C640 330 668 312 690 290" fill="none" stroke="{tempo.SKIN}" stroke-width="{20 * s - 1}" stroke-linecap="round"/>'
               f'<g transform="translate({704 - 171 * s:.1f} {258 - 49 * s:.1f}) scale({s})">{tempo.scarf()}{tempo.head(mood)}</g>')
@@ -511,15 +818,15 @@ def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool 
                f'<path d="M300 300 L330 250 H430 L460 300 L430 350 H330 Z M330 250 L300 200 M430 250 L460 200 M300 300 H100 M460 300 H660 '
                f'M330 350 L300 400 M430 350 L460 400" fill="none" stroke="{tempo.SHELL_DARK}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>')
     parts.append(recolor(turtle, palette))
-    parts.append(f'<ellipse cx="380" cy="150" rx="320" ry="96" fill="#6CBF4A"/>'
+    parts.append(f'<ellipse cx="380" cy="150" rx="320" ry="96" fill="{grass}"/>'
                  f'<path d="M60 222 Q120 250 180 232 Q240 262 300 240 Q360 268 420 242 Q480 266 540 240 Q600 258 660 230 Q700 220 720 210" '
-                 f'fill="none" stroke="#3E8E2E" stroke-width="5" stroke-linecap="round"/>'
-                 '<path d="M170 196 q30 -30 70 -36" fill="none" stroke="#B8E58F" stroke-width="7" stroke-linecap="round" opacity=".8"/>'
+                 f'fill="none" stroke="{edge}" stroke-width="5" stroke-linecap="round"/>'
+                 f'<path d="M170 196 q30 -30 70 -36" fill="none" stroke="{shine}" stroke-width="7" stroke-linecap="round" opacity=".8"/>'
                  '</g>'
                  f'<path d="M110 372 C106 236 230 150 380 150 C530 150 654 236 650 372 Z" fill="none" stroke="{I}" stroke-width="4" stroke-linejoin="round"/>')
     for gx in (200, 280, 470, 560):
         gy = dome_y(gx)
-        parts.append(f'<path d="M{gx - 8} {gy + 2} l3 -10 l3 8 l3 -12 l3 12 l3 -8 l3 10" fill="none" stroke="#2E7D3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>')
+        parts.append(f'<path d="M{gx - 8} {gy + 2} l3 -10 l3 8 l3 -12 l3 12 l3 -8 l3 10" fill="none" stroke="{edge}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>')
     if not plants:
         parts.append(f'<g transform="translate({380 - 60 * .7:.0f} {dome_y(380) + 8 - 150 * .7:.0f}) scale(.7)">{art.seed()}</g>')
     # plants: the newest ones, from the middle outwards
@@ -535,10 +842,25 @@ def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool 
             x = xs[slot]
             y = dome_y(x) + 10
             sc = 0.78 * size_of(p["goal"])
-            bloom = blooming or p["goal"] >= 60
-            parts.append(f'<g class="isle-plant" transform="translate({x - 60 * sc:.1f} {y - 150 * sc:.1f}) scale({sc:.3f})">'
-                         f'<title>{labels.get("plant_" + p["kind"], PLANT_NAMES.get(p["kind"], ""))}</title>{art.plant(p["kind"], 1, bloom)}</g>')
-    if home:
+            state = p.get("state", "grown")
+            name = labels.get("plant_" + p["kind"], PLANT_NAMES.get(p["kind"], ""))
+            if state == "dead":
+                parts.append(f'<g class="isle-plant dead" transform="translate({x - 60 * .7:.1f} {y - 150 * .7:.1f}) scale(.7)">'
+                             f'<title>{labels.get("dead", "")}</title>{art.dead_plant()}</g>')
+                continue
+            bloom = (blooming or p["goal"] >= 60) and state == "grown"
+            extra = f' filter="url(#{u}-wilt)"' if state == "wilted" else ""
+            tilt = f" rotate({8 if slot % 2 else -8} 60 150)" if state == "wilted" else ""
+            parts.append(f'<g class="isle-plant {state}" transform="translate({x - 60 * sc:.1f} {y - 150 * sc:.1f}) scale({sc:.3f}){tilt}"{extra}>'
+                         f'<title>{name}{(" · " + labels["wilting"]) if state == "wilted" and labels.get("wilting") else ""}</title>{art.plant(p["kind"], 1, bloom)}</g>')
+    # the things you bought, on the grass in front of the plants (the lighthouse stands in the sea)
+    front = [d for d in look.get("decor", []) if d != "lighthouse"]
+    for d, (dx, dy) in zip(front, ((240, 232), (520, 232), (380, 242), (310, 240))):
+        glow = (f'<circle cx="0" cy="-40" r="60" fill="url(#{u}-glow)"/>'
+                if sk["stars"] > .3 and d in ("lanterns", "campfire", "hut") else "")
+        parts.append(f'<g class="isle-deco" transform="translate({dx} {dy}) scale(.72)"><title>{labels.get("deco_" + d, d)}</title>'
+                     f'{glow}{art.deco(d, title)}</g>')
+    if home and not fled:
         def friend(key, transform, extra=""):
             z = _zzz(70, 10) if asleep else ""
             return (f'<g class="isle-friend" data-friend="{key}" transform="{transform}"><title>{labels.get(key, FRIEND_NAMES[key])}</title>'
@@ -553,26 +875,31 @@ def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool 
             if key in friends:
                 if asleep:  # in the fog the flyers sit down and nap
                     fx, fy = {"sparrow": (300, dome_y(300) - 6), "butterfly": (520, dome_y(520) - 4), "bee": (440, dome_y(440) - 2)}[key]
-                parts.append(friend(key, f"translate({fx - 40 * fs:.1f} {fy - 40 * fs:.1f}) scale({fs})"))
+                parts.append(friend(key, f"translate({fx - 40 * fs:.1f} {fy - 40 * fs:.1f}) scale({fs})", ""))
     if blooming and fog == 0:
         for x, y in ((150, 140), (620, 170), (330, 110), (430, 96), (250, 200)):
             parts.append(art._flower5(x, y, 4, "#F8BBD0", "#FFD43B"))
     wave = "M0 382"
     for _ in range(20):
         wave += " q20 -10 40 0"
-    parts.append(f'<path d="{wave} V470 H0 Z" fill="#5BB7E0" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
+    parts.append(f'<path class="isle-wave" d="{wave} V470 H0 Z" fill="{front_sea}" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
                  '<path d="M80 414 q24 -10 48 0 M300 432 q24 -10 48 0 M600 420 q24 -10 48 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".75"/>')
-    if home and "frog" in friends:
+    if home and not fled and "frog" in friends:
         parts.append(f'<ellipse cx="72" cy="436" rx="44" ry="11" fill="#4CAF50" stroke="{I}" stroke-width="3"/>'
                      f'<g class="isle-friend" data-friend="frog" transform="translate(42 376) scale(.74)"><title>{labels.get("frog", FRIEND_NAMES["frog"])}</title>{art.frog()}{_zzz(66, 12) if asleep else ""}</g>')
-    if home and "crab" in friends:
+    if home and not fled and "crab" in friends:
         parts.append(f'<g class="isle-friend" data-friend="crab" transform="translate(700 400) scale(.74)"><title>{labels.get("crab", FRIEND_NAMES["crab"])}</title>{art.crab()}{_zzz(66, 12) if asleep else ""}</g>')
     parts.append("</g>")
+    if season_now and fog < 2:
+        parts.append(art.season_bits(season_now))
     if fog:
         op = {1: .28, 2: .5, 3: .62}[fog]
         parts.append(f'<g class="isle-fog" opacity="{op}">'
                      '<ellipse cx="140" cy="250" rx="260" ry="70" fill="#E9ECEF"/><ellipse cx="620" cy="200" rx="280" ry="80" fill="#E9ECEF"/>'
                      '<ellipse cx="380" cy="380" rx="420" ry="70" fill="#F1F3F5"/><ellipse cx="420" cy="110" rx="300" ry="60" fill="#F1F3F5"/></g>')
+    if villain >= 4:  # on the island, arms around your plants
+        parts.append('<rect width="800" height="470" fill="#1B2030" opacity=".22"/>')
+        parts.append(villain_at(170, 20, 1.3, "attack"))
     parts.append("</svg>")
     return "".join(parts)
 
@@ -630,7 +957,7 @@ def stage_for(progress: float) -> float:
 
 
 def trip_svg(kind: str, growth: float, mood: str = "read", label: str = "Tempo swims while your plant grows",
-             stages: bool = False) -> str:
+             stages: bool = False, sky: dict | None = None) -> str:
     """The focus screen: Tempo swimming with your plant growing on his shell.
     With stages=True every stage is drawn and the page shows the one that fits the time."""
     uid = f"trip{int(time.time() * 1000) % 100000}"
@@ -645,7 +972,21 @@ def trip_svg(kind: str, growth: float, mood: str = "read", label: str = "Tempo s
     wave = "M-60 112"
     for _ in range(9):
         wave += " q20 -8 40 0"
-    return (f'<svg class="trip-art" viewBox="-40 -112 290 256" role="img" aria-label="{label}">'
+    back = ""
+    if sky:  # the real sky behind Tempo: the same sun, moon and stars as the island
+        back = (f'<defs><linearGradient id="{uid}-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{sky["top"]}"/>'
+                f'<stop offset="1" stop-color="{sky["low"]}"/></linearGradient></defs>'
+                f'<rect x="-40" y="-112" width="290" height="256" fill="url(#{uid}-sky)"/>')
+        if sky["stars"]:
+            back += (f'<g opacity="{sky["stars"]}">' + "".join(f'<circle cx="{x}" cy="{y}" r="1.4" fill="#fff"/>' for x, y in
+                     ((-20, -90), (30, -70), (80, -100), (140, -80), (200, -96), (230, -60), (-10, -40), (170, -40))) + '</g>')
+        b = sky["body"]
+        bx, by = -40 + b["x"] / 800 * 290, -112 + b["y"] / 470 * 200
+        if b["kind"] == "sun":
+            back += f'<circle cx="{bx:.0f}" cy="{by:.0f}" r="15" fill="{b["color"]}" stroke="{art.INK}" stroke-width="2.4"/>'
+        else:
+            back += f'<path d="M{bx:.0f} {by - 12:.0f} a13 13 0 1 0 10 22 a10 10 0 1 1 -10 -22 z" fill="{b["color"]}" stroke="{art.INK}" stroke-width="2.4"/>'
+    return (f'<svg class="trip-art" viewBox="-40 -112 290 256" role="img" aria-label="{label}">{back}'
             f'<g class="trip-tempo">{tempo._tail()}{tempo._neck()}{tempo._rim()}{tempo._shell(uid)}{g}{tempo.scarf()}{tempo.head(mood)}'
             f'<path d="M150 104 q22 2 34 14 q-20 8 -38 -4 z" fill="{tempo.SKIN}" stroke="{art.INK}" stroke-width="3" stroke-linejoin="round"/></g>'
             f'<g class="trip-water"><path d="{wave} V140 H-60 Z" fill="#5BB7E0" stroke="{art.INK}" stroke-width="3" stroke-linejoin="round"/>'

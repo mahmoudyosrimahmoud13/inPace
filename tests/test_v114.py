@@ -62,7 +62,7 @@ def test_add_change_and_delete_reminders(tmp_path):
                                                    follow_redirects=True).text)
     c.post("/reminders", data={"action": "auto", "miss": "1", "review": "1", "miss_days": "5"})
     d = reminders.load(v)
-    assert d["auto"] == {"miss": True, "goal": False, "review": True, "milestone": False} and d["miss_days"] == 5
+    assert d["auto"] == {"miss": True, "goal": False, "review": True, "milestone": False, "island": False} and d["miss_days"] == 5
 
 
 def test_reminder_says_what_to_study_next(tmp_path):
@@ -149,8 +149,8 @@ def test_welcome_back_after_a_long_break(tmp_path):
 def test_the_scheduler_job(tmp_path, monkeypatch):
     v, c, jid = _learner(tmp_path)
     shown = []
-    monkeypatch.setattr(notifier, "notify", lambda title, body, path="/", home=None: shown.append(("notify", title, body, path)) or True)
-    monkeypatch.setattr(notifier, "alarm", lambda title, body, path, labels, home=None: shown.append(("alarm", title, labels["snooze"])))
+    monkeypatch.setattr(notifier, "notify", lambda title, body, path="/", home=None, picture="": shown.append(("notify", title, body, path)) or True)
+    monkeypatch.setattr(notifier, "alarm", lambda title, body, path, labels, home=None, picture="": shown.append(("alarm", title, labels["snooze"])))
     today = datetime.now().weekday()
     c.post("/reminders", data={"action": "add", "time": "19:00", "days": [str(today)], "kind": "alarm", "label": "Study!"})
     c.post("/reminders", data={"action": "add", "time": "20:00", "days": [str((today + 1) % 7)], "kind": "notify"})

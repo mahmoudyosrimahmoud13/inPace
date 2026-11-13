@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=24">
+<link rel="stylesheet" href="/static/style.css?v=25">
 {% if dispose %}<meta name="inpace-dispose" content="{{ dispose }}">{% endif %}
 <script>
 /* Pages are never cached, but a few are one-off (a quiz you already sent, a finished focus session).
@@ -19,6 +19,8 @@
     if (!e.persisted) return;
     if (m) location.replace(m.content); else location.reload();
   });
+  /* Tell the app the real clock, so the island's mornings, sunsets and nights match the sky outside. */
+  try { document.cookie = "tz=" + (-new Date().getTimezoneOffset()) + ";path=/;max-age=31536000;samesite=lax"; } catch (e) {}
 })();
 </script>
 </head>
@@ -156,6 +158,6 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
-<script src="/static/app.js?v=18"></script>
+<script src="/static/app.js?v=19"></script>
 </body>
 </html>

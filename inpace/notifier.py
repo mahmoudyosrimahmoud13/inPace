@@ -261,7 +261,12 @@ def sync(v, force: bool = False) -> str:
 
 # ---- showing a notification -------------------------------------------------------------------------------
 
-def _icon_png() -> str:
+def _icon_png(picture: str = "") -> str:
+    """The picture for a notification: Tempo's face (or the villain) when asked, otherwise the inPace icon."""
+    if picture:
+        p = Path(__file__).parent / "static" / "notify" / f"{Path(picture).name}.png"
+        if p.exists():
+            return str(p)
     for p in (Path("/usr/share/icons/hicolor/256x256/apps/inpace.png"), Path(__file__).parent / "static" / "icon-256.png"):
         if p.exists():
             return str(p)
@@ -281,12 +286,16 @@ def _windows_register_aumid() -> None:
         pass
 
 
-def windows_toast_xml(title: str, body: str, link: str, alarm: bool = False) -> str:
+def windows_toast_xml(title: str, body: str, link: str, alarm: bool = False, image: str = "") -> str:
     attrs = ' scenario="alarm"' if alarm else ""
     if link:
         attrs += ' activationType="protocol" launch="' + escape(link, {'"': "&quot;"}) + '"'
+    logo = ""
+    if image:  # Tempo's face next to the text
+        uri = Path(image).resolve().as_uri()
+        logo = f'<image placement="appLogoOverride" hint-crop="circle" src="{escape(uri, {chr(34): "&quot;"})}"/>'
     parts = [f"<toast{attrs}>", '<visual><binding template="ToastGeneric">',
-             f"<text>{escape(title)}</text><text>{escape(body)}</text>", "</binding></visual>"]
+             f"<text>{escape(title)}</text><text>{escape(body)}</text>{logo}", "</binding></visual>"]
     if alarm:
         parts.append('<audio src="ms-winsoundevent:Notification.Looping.Alarm" loop="true"/>')
         parts.append('<actions><action activationType="system" arguments="snooze" content=""/>'
@@ -295,9 +304,9 @@ def windows_toast_xml(title: str, body: str, link: str, alarm: bool = False) -> 
     return "".join(parts)
 
 
-def _windows_toast(title: str, body: str, link: str, alarm: bool) -> bool:
+def _windows_toast(title: str, body: str, link: str, alarm: bool, image: str = "") -> bool:
     _windows_register_aumid()
-    xml = windows_toast_xml(title, body, link, alarm).replace("'", "''")
+    xml = windows_toast_xml(title, body, link, alarm, image).replace("'", "''")
     script = (
         "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null\n"
         "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null\n"
@@ -333,24 +342,25 @@ def open_inpace(path: str = "/", home: Path | None = None) -> None:
     subprocess.Popen(cmd + [go_link(path)], **kw)
 
 
-def notify(title: str, body: str, path: str = "/", home: Path | None = None) -> bool:
-    """Show a notification. Clicking it opens inPace on that page, where the computer allows it."""
+def notify(title: str, body: str, path: str = "/", home: Path | None = None, picture: str = "") -> bool:
+    """Show a notification, with Tempo's face when `picture` names one (tempo_cheer, villain...).
+    Clicking it opens inPace on that page, where the computer allows it."""
     try:
         if sys.platform == "win32":
-            return _windows_toast(title, body, go_link(path), alarm=False)
+            return _windows_toast(title, body, go_link(path), alarm=False, image=_icon_png(picture) if picture else "")
         if sys.platform == "darwin":
             return _osascript(['display notification (item 2 of argv) with title (item 1 of argv) sound name "Glass"'],
                               [title, body]).returncode == 0
         ns = shutil.which("notify-send")
         if ns:
-            icon = _icon_png()
+            icon = _icon_png(picture)
             r = _run([ns, "-a", "inPace", *(["-i", icon] if icon else []), title, body], timeout=15)
             return r.returncode == 0
         gdbus = shutil.which("gdbus")
         if gdbus:
             r = _run([gdbus, "call", "--session", "--dest", "org.freedesktop.Notifications", "--object-path",
                       "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify",
-                      "inPace", "0", _icon_png(), title, body, "[]", "{}", "10000"], timeout=15)
+                      "inPace", "0", _icon_png(picture), title, body, "[]", "{}", "10000"], timeout=15)
             return r.returncode == 0
     except Exception:
         return False
@@ -396,8 +406,9 @@ class _Ringer:
         threading.Thread(target=loop, daemon=True).start()
 
 
-def _ask_alarm(title: str, body: str, labels: dict) -> str:
+def _ask_alarm(title: str, body: str, labels: dict, picture: str = "") -> str:
     """Show the alarm and wait: returns "stop", "snooze" or "open"."""
+    face = _icon_png(picture) if picture else ""
     stop, snooze, start = labels["stop"], labels["snooze"], labels["open"]
     if sys.platform == "darwin":
         r = _osascript(["set b to button returned of (display dialog (item 2 of argv) with title (item 1 of argv) "
@@ -408,7 +419,8 @@ def _ask_alarm(title: str, body: str, labels: dict) -> str:
     zenity = shutil.which("zenity")
     if zenity:
         r = _run([zenity, "--question", "--title", f"inPace: {title}", "--text", body, "--ok-label", stop,
-                  "--cancel-label", snooze, "--extra-button", start, "--timeout", "600", "--icon-name", "alarm-symbolic"],
+                  "--cancel-label", snooze, "--extra-button", start, "--timeout", "600", "--icon-name", "alarm-symbolic",
+                  *(["--window-icon", face] if face else [])],
                  timeout=620)
         if r.returncode == 0 or r.returncode == 5:
             return "stop"
@@ -416,23 +428,24 @@ def _ask_alarm(title: str, body: str, labels: dict) -> str:
     kdialog = shutil.which("kdialog")
     if kdialog:
         r = _run([kdialog, "--title", f"inPace: {title}", "--yesnocancel", body, "--yes-label", stop,
-                  "--no-label", snooze, "--cancel-label", start], timeout=620)
+                  "--no-label", snooze, "--cancel-label", start, *(["--icon", face] if face else [])], timeout=620)
         return {0: "stop", 1: "snooze"}.get(r.returncode, "open")
-    notify(title, body)
+    notify(title, body, picture=picture)
     time.sleep(60)  # no dialog tool: ring for a minute
     return "stop"
 
 
-def alarm(title: str, body: str, path: str, labels: dict, home: Path | None = None) -> str:
-    """Ring until you stop it. Snooze rings again after 10 minutes (up to three times)."""
+def alarm(title: str, body: str, path: str, labels: dict, home: Path | None = None, picture: str = "tempo_wave") -> str:
+    """Ring until you stop it. Snooze rings again after 10 minutes (up to three times). Tempo's face shows where it can."""
     if sys.platform == "win32":
-        _windows_toast(title, body, go_link(path), alarm=True)  # Windows rings, snoozes and stops it by itself
+        # Windows rings, snoozes and stops it by itself
+        _windows_toast(title, body, go_link(path), alarm=True, image=_icon_png(picture) if picture else "")
         return "shown"
     for _ in range(4):
         ringer = _Ringer()
         ringer.start()
         try:
-            choice = _ask_alarm(title, body, labels)
+            choice = _ask_alarm(title, body, labels, picture)
         finally:
             ringer.stop.set()
         if choice == "open":

@@ -88,8 +88,10 @@ class Reminders {
     return p;
   }
 
-  static NotificationDetails _details(String kind, String body) {
+  static NotificationDetails _details(String kind, String body, [String picture = '']) {
     final style = BigTextStyleInformation(body);
+    // Tempo's face (or the villain) as the big picture. The PNGs live in mobile/icon/res/drawable-nodpi.
+    final face = picture.isEmpty ? null : DrawableResourceAndroidBitmap(picture);
     if (kind == 'alarm') {
       return NotificationDetails(
         android: AndroidNotificationDetails(
@@ -103,6 +105,7 @@ class Reminders {
           additionalFlags: Int32List.fromList(<int>[4]), // FLAG_INSISTENT: keeps ringing until you act
           timeoutAfter: 10 * 60 * 1000,
           styleInformation: style,
+          largeIcon: face,
           actions: <AndroidNotificationAction>[
             AndroidNotificationAction('snooze', (labels['snooze'] as String?) ?? 'Snooze 10 min',
                 showsUserInterface: true, cancelNotification: true),
@@ -120,24 +123,26 @@ class Reminders {
         priority: tempo ? Priority.defaultPriority : Priority.high,
         category: AndroidNotificationCategory.reminder,
         styleInformation: style,
+        largeIcon: face,
       ),
     );
   }
 
-  static Future<void> _at(int id, DateTime when, String title, String body, String kind, String url) async {
+  static Future<void> _at(int id, DateTime when, String title, String body, String kind, String url,
+      {String picture = '', bool exact = false}) async {
     final at = tz.TZDateTime.from(when, tz.UTC);
-    final payload = jsonEncode({'url': url, 'title': title, 'body': body, 'kind': kind});
+    final payload = jsonEncode({'url': url, 'title': title, 'body': body, 'kind': kind, 'picture': picture});
     final mode = kind == 'alarm'
         ? AndroidScheduleMode.alarmClock
-        : kind == 'tempo'
+        : kind == 'tempo' && !exact
             ? AndroidScheduleMode.inexactAllowWhileIdle
             : AndroidScheduleMode.exactAllowWhileIdle;
     try {
-      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body),
+      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body, picture),
           androidScheduleMode: mode, title: title, body: body, payload: payload);
     } catch (_) {
       // Not allowed to use exact times on this phone: a few minutes late is better than nothing.
-      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body),
+      await plugin.zonedSchedule(id: id, scheduledDate: at, notificationDetails: _details(kind, body, picture),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, title: title, body: body, payload: payload);
     }
   }
@@ -163,21 +168,26 @@ class Reminders {
       for (var i = 0; i < 28 && id < 400; i++) {
         final when = DateTime(now.year, now.month, now.day + i, int.parse(hm[0]), int.parse(hm[1]));
         if (!when.isAfter(now) || !days.contains(when.weekday - 1)) continue;
-        await _at(id++, when, r['title'] as String, r['body'] as String, r['kind'] as String, r['url'] as String);
+        await _at(id++, when, r['title'] as String, r['body'] as String, r['kind'] as String, r['url'] as String,
+            picture: (r['picture'] as String?) ?? '');
       }
     }
     final evening = ((plan['evening'] as String?) ?? '18:30').split(':');
     for (final raw in (plan['auto'] as List? ?? const [])) {
       final a = raw as Map<String, dynamic>;
       final after = DateTime.parse(a['after'] as String).toLocal();
-      final when = _onOrAfter(after, int.parse(evening[0]), int.parse(evening[1]), now);
-      await _at(id++, when, a['title'] as String, a['body'] as String, 'tempo', a['url'] as String);
+      final exact = a['exact'] == true; // a focus trip ends at its own minute, not in the evening
+      if (exact && !after.isAfter(now)) continue;
+      final when = exact ? after : _onOrAfter(after, int.parse(evening[0]), int.parse(evening[1]), now);
+      await _at(id++, when, a['title'] as String, a['body'] as String, 'tempo', a['url'] as String,
+          picture: (a['picture'] as String?) ?? '', exact: exact);
     }
   }
 
   static Future<void> _snooze(Map<String, dynamic> data) async {
     await _at(snoozeId + DateTime.now().second, DateTime.now().add(const Duration(minutes: 10)),
-        (data['title'] as String?) ?? 'inPace', (data['body'] as String?) ?? '', 'alarm', (data['url'] as String?) ?? '/');
+        (data['title'] as String?) ?? 'inPace', (data['body'] as String?) ?? '', 'alarm', (data['url'] as String?) ?? '/',
+        picture: (data['picture'] as String?) ?? '');
   }
 
   static Future<bool> enabled() async => (await android?.areNotificationsEnabled()) ?? false;
@@ -193,7 +203,7 @@ class Reminders {
     if (!await enabled() && !await allow()) return;
     final body = (message['body'] as String?) ?? '';
     await plugin.show(id: testId, title: message['title'] as String?, body: body,
-        notificationDetails: _details(kind == 'alarm' ? 'alarm' : 'notify', body),
+        notificationDetails: _details(kind == 'alarm' ? 'alarm' : 'notify', body, (message['picture'] as String?) ?? 'tempo_wave'),
         payload: jsonEncode({...message, 'kind': kind}));
   }
 }
@@ -259,6 +269,8 @@ class _ShellState extends State<Shell> {
           'INPACE_HOME': '${data.path}/inPace',
           'INPACE_PORT': '$_port',
           'INPACE_MOBILE': 'android',
+          // Python on a phone often thinks it is in London. Tell it the real clock.
+          'INPACE_TZ_MINUTES': '${DateTime.now().timeZoneOffset.inMinutes}',
         },
         sync: false,
       );

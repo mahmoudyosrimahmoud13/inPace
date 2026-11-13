@@ -672,7 +672,7 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   if (!bridge) return;
   document.documentElement.classList.add("android");
   const send = (msg) => bridge.postMessage(JSON.stringify(msg));
-  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$)/;
+  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$)/;
 
   // Downloads: the app saves or shares the file.
   document.addEventListener("click", (e) => {
@@ -689,7 +689,8 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   // Forms that answer with a file (backups): fetch it here and hand the file to the app.
   document.addEventListener("submit", async (e) => {
     const form = e.target;
-    if (!form.matches('form[action="/settings/backup"]')) return;
+    if (!form.matches('form[action="/settings/backup"], form[action="/me/turtle.png"]')) return;
+    if (form.matches('form[action="/me/turtle.png"]') && !form.png.value) return;  // the picture isn't drawn yet
     e.preventDefault();
     const r = await fetch(form.action, { method: "POST", body: new FormData(form) });
     if (!r.ok || !(r.headers.get("content-disposition") || "").includes("attachment")) { location.href = r.url; return; }
@@ -1085,4 +1086,52 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       keepAwake();
     }
   });
+})();
+
+// ---- Your turtle (v1.17) ----------------------------------------------------------------------------
+// The maker recolours a plain Tempo (kept in data-tbase) with the shell, scarf and skin you pick,
+// and shows only the thing you chose to wear. "Save a picture" draws the share card as a PNG.
+(() => {
+  document.querySelectorAll("[data-turtle-maker]").forEach((maker) => {
+    let colors;
+    try { colors = JSON.parse(maker.querySelector("[data-turtle-colors]").textContent); } catch (e) { return; }
+    const pick = (name) => Number((maker.querySelector(`input[name="${name}"]:checked`) || {}).value || 0);
+    const recolor = (svg) => {
+      const shell = colors.shells[pick("shell")], scarf = colors.scarves[pick("scarf")], skin = colors.skins[pick("skin")];
+      const to = [shell[0], shell[1], shell[2], shell[3], scarf[0], scarf[1], skin[0], skin[1], skin[2]];
+      // two steps, so one swap can't undo another (same as mascot._recolor)
+      colors.base.forEach((from, i) => { if (from !== to[i]) svg = svg.split(from).join(`@@${i}@@`); });
+      to.forEach((c, i) => { svg = svg.split(`@@${i}@@`).join(c); });
+      return svg;
+    };
+    const draw = () => {
+      maker.querySelectorAll("[data-tbase]").forEach((el) => { el.innerHTML = recolor(el.dataset.tbase); });
+      const acc = (maker.querySelector('input[name="acc"]:checked') || {}).value || "none";
+      maker.querySelectorAll("[data-turtle-preview] [data-acc]").forEach((g) => { g.toggleAttribute("hidden", g.dataset.acc !== acc); });
+    };
+    maker.addEventListener("change", draw);
+  });
+
+  const form = document.querySelector("[data-turtle-png]");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    if (form.png.value) return;  // the picture is ready: let the form send it
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    try {
+      const svg = await (await fetch("/me/turtle.svg")).text();
+      const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+      const img = new Image();
+      await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = url; });
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1080;
+      canvas.getContext("2d").drawImage(img, 0, 0, 1080, 1080);
+      URL.revokeObjectURL(url);
+      form.png.value = canvas.toDataURL("image/png");
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+      setTimeout(() => { form.png.value = ""; }, 1000);
+    } catch (err) {
+      location.href = "/me/turtle.svg";
+    }
+  }, true);
 })();

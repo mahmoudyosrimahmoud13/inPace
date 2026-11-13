@@ -1,18 +1,32 @@
 {% extends "base.html" %}
+{% from "_turtle.html" import turtle_maker %}
 {% block title %}{{ _('Settings') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Settings{% endtrans %}.</h1></div>
 <form method="post" class="card stack" style="max-width:620px" data-nav-form>
   <label>{% trans trimmed %}Your name{% endtrans %}<input name="name" value="{{ me.name }}" maxlength="40"></label>
-  <fieldset class="colors">
-    <legend>{% trans trimmed %}Your color{% endtrans %}</legend>
-    {% for c in colors %}
-    <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if c == me.color }}><span></span><span class="sr">{{ c }}</span></label>
-    {% endfor %}
-  </fieldset>
   <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option></select></label>
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
+<section class="card stack" style="max-width:620px" id="turtle">
+  <h2 style="margin:0">{% trans trimmed %}Your turtle{% endtrans %}</h2>
+  {% if not has_turtle %}<p class="note">{% trans trimmed %}New: instead of a coloured letter, you can be a turtle. Make one below and save it.{% endtrans %}</p>{% endif %}
+  <form method="post" action="/settings/turtle" class="stack" data-nav-form>
+    {{ turtle_maker(av, maker, False) }}
+    <button class="btn primary">{% trans trimmed %}Save my turtle{% endtrans %}</button>
+  </form>
+  {% if has_turtle %}
+  <div class="stack" style="gap:.5rem">
+    <b>{% trans trimmed %}Share your turtle{% endtrans %}</b>
+    <p class="small muted" style="margin:0">{% trans trimmed %}Your contact card carries your turtle, so people you add see it. You can also save a picture of it to post anywhere.{% endtrans %}</p>
+    <form method="post" action="/me/turtle.png" class="row wrap" data-turtle-png>
+      <input type="hidden" name="png" value="">
+      <button class="btn">{{ icon('image', 18) }}{% trans trimmed %}Save a picture of my turtle{% endtrans %}</button>
+      <a class="btn ghost" href="/me/turtle.svg" download>{% trans trimmed %}As SVG{% endtrans %}</a>
+    </form>
+  </div>
+  {% endif %}
+</section>
 <section class="card" style="max-width:620px" id="colors">
   <h2>{% trans trimmed %}Colors{% endtrans %}</h2>
   <p class="muted small">{% trans trimmed %}Pick the colors for the whole app. They work in light and dark mode.{% endtrans %}</p>

@@ -201,7 +201,7 @@ Because of the link and the signature, nobody can change one milestone without b
 
 The notification tells you what's next, for example *Next: "Lists" in Python Basics*, and tapping it opens inPace on that lesson.
 
-**Tempo's notifications.** Four automatic ones, each of which you can turn off on the Reminders page:
+**Tempo's notifications.** Five automatic ones, each of which you can turn off on the Reminders page. Each shows Tempo's face (or the villain's) on Android, Windows and Linux:
 
 | Kind | When |
 |---|---|
@@ -209,8 +209,9 @@ The notification tells you what's next, for example *Next: "Lists" in Python Bas
 | Your weekly goal | In the last two days of a week, if you've saved fewer milestones than you planned (not during a break). |
 | Review time | Old questions are due for the daily review. |
 | Save your milestone | You finished a module but haven't saved a milestone since. It names your checker, if you have one. |
+| Tempo's island | Only while the island is on: your focus trip is done (right away), the villain reached your shore (7 days away), your plants are wilting (10 days), and a plant dies tomorrow. |
 
-They only come in the evening (5 pm to 10 pm on a computer, 6:30 pm on a phone), at most one of each kind a day. When you come back after 3 days or more, Tempo also says welcome back on Home.
+They only come in the evening (5 pm to 10 pm on a computer, 6:30 pm on a phone), at most one of each kind a day. A finished focus trip is the exception: it tells you at once. When you come back after 3 days or more, Tempo also says welcome back on Home.
 
 **How they arrive while inPace is closed.** inPace isn't running most of the time, so it hands the work to the device:
 
@@ -409,15 +410,16 @@ inpace/
   office.py       light, read-only previews of Word, PowerPoint and Excel files
   reminders.py    reminders, alarms and Tempo's notifications: what's due, the messages, the Android plan
   notifier.py     notifications and alarms on a computer, and its scheduler (Task Scheduler, launchd, systemd, cron)
-  garden.py       Tempo's island: focus trips, what you've unlocked, the weather (your pace), your turtles, the drawings
-  garden_art.py   the 14 plants and 8 animal friends, drawn as SVG
-  island_story.py the island's adventure: 10 chapters and 3 interludes, in two worlds and two languages
-  mascot.py       Tempo himself, in 11 moods
+  garden.py       Tempo's island: focus trips, unlocks, the weather and the villain, shells and the shop, the sky, the drawings
+  garden_art.py   the 14 plants, 8 animal friends, the villain, decorations and sea visitors, drawn as SVG
+  island_story.py the island's adventure: 10 chapters and 5 interludes, and what the villain says, in two worlds and two languages
+  mascot.py       Tempo himself, in 11 moods, and your own turtle (shells, scarves, skins, things to wear)
+  clock.py        the real local time on phones, where Python doesn't know the time zone
   templates/      pages (Jinja)
   static/         CSS, JavaScript, fonts, icons, pdf.js
   sample_courses/ ready-made courses, including "A tour of inPace" with one of every kind of lesson
   locales/ar.json Arabic text
-packaging/        PyInstaller builds for Windows, Mac, .deb and .tar.gz
+packaging/        PyInstaller builds for Windows, Mac, .deb and .tar.gz; make_notify_icons.py draws Tempo for notifications
 mobile/           the Android app: Flutter shell (lib/main.dart), build script, icon, project fixes
 site/             the website (GitHub Pages)
 tests/            pytest, run on Windows, Mac and Linux on every push
@@ -434,10 +436,10 @@ An optional reward for studying, off until you turn it on from **Tempo's island*
 **Focus trips.** You pick a plant, a length (10, 15, 25, 45, 60 or 90 minutes), a mode, and optionally a course.
 - The trip is saved with the time it started. The page counts down and shows the plant at 6 stages (seed, sprout, then bigger and bigger), but the server decides when it's done, so closing the app doesn't lose anything.
 - **Study anywhere:** the clock keeps running wherever you are. **Phone down:** when the trip screen is hidden, the page tells the server to pause (`/island/pause`), and it goes on when you come back (`/island/resume`). On phones it also asks to keep the screen on.
-- **Rest for now** keeps the minutes. Starting again carries on with the same sprout. Nothing ever dies.
+- **Rest for now** keeps the minutes. Starting again carries on with the same sprout.
 - The plant's size follows the length; an hour or more grows fruit or flowers.
 
-**Your turtles.** Trips for a course grow on that course's own turtle, with its own colors and name (you can rename it). Trips for anything else grow on Tempo. Every 10 plants a turtle's shell grows a ring and its island has room for more.
+**Your turtles.** Trips for a course grow on that course's own turtle, with its own colors and name. Trips for anything else grow on Tempo. Every 10 living plants a turtle's shell grows a ring and its island has room for more. Each island has its own name too (`island_titles` in `meta`); **Rename** above the picture changes both.
 
 **Unlocks.** 14 plants and 8 friends, worked out from your own data each time something changes:
 
@@ -462,11 +464,32 @@ An optional reward for studying, off until you turn it on from **Tempo's island*
 
 A small pop-up says when something new arrives, once.
 
-**The weather is your pace.** inPace looks at the last time you did anything in a course or a trip: under 2 days the sea is clear, 2 to 3 days a mist, 4 to 6 thick fog (colors fade, friends sleep), 7 or more Tempo is "lost in the fog". It's only a picture: nothing is lost. When your checker approved a milestone in the last week, the island blooms; when you meet a weekly goal, you get fair winds and a rainbow.
+**The weather is your pace.** inPace looks at the last time you did anything in a course or a trip: under 2 days the sea is clear, 2 to 3 days a mist, 4 to 6 thick fog (colors fade, friends sleep), 7 or more Tempo is "lost in the fog". When your checker approved a milestone in the last week, the island blooms; when you meet a weekly goal, you get fair winds and a rainbow.
 
-**The story** (`island_story.py`) has three acts and ten chapters, from the bay to the Far Shore, against the Fog of Someday. Chapters open at 0, 1, 3, 5, 10, 15, 20, 30, 40 and 50 plants; the fight at the heart of the fog also needs 3 days in a row; and no new chapter opens in thick fog. Three interludes happen because of what you really do: coming back after the fog, keeping a weekly goal, and having other learners in your sea. Opened chapters stay open.
+**The villain is real** (`garden.decay`, `garden.threat`). The Fog of Someday has a face (`garden_art.villain`) and comes closer with the days away: level 1 far away (2 days), 2 closer (4), 3 at the shore (7), 4 on the island (10). It says something at each level and Tempo answers (`island_story.taunt`).
+
+| Days away | What happens |
+|---|---|
+| 10 | The first plant wilts (greyer, drooping). Your friends flee into the fog. |
+| 12, 14, 16... | One more plant wilts every 2 days. |
+| 14 days after wilting | That plant dies: a grey stump, until you clear it (it still counts for unlocks). |
+| Any finished trip | Waters 2 wilting plants (oldest first) and brings the friends back. |
+
+`decay()` works out what happened while you were away, from the last activity to now, so it gives the same result whenever it runs: on every page, on the island page, and in the computer's hourly reminder job. **Gentle sea** (`island_gentle`) keeps the fog from taking plants: the villain still comes, but no closer than the shore.
+
+**Shells and the shop.** Shells are worked out from your data, never stored: 1 for every 5 minutes of focus, 2 per lesson, 3 per review, 10 per module, 15 per milestone, 20 per approval and 50 per finished course. Only what you spent (`island_spent`) and what you own (`island_owned`) are stored. Each island has its own look (`island_looks`): ground, sky, sea and up to 4 things on it. The crown and the wizard hat are for your own turtle.
+
+**The sky follows the real clock** (`garden.sky_at`): sunrise and sunset move with the time of year (about 7:00 to 17:00 in December and 5:00 to 19:00 in June), the colors blend from night to dawn, morning, day, sunset and dusk, and the sun and moon move across. On a phone, Python doesn't know the time zone, so the app passes it in `INPACE_TZ_MINUTES` and every page sends a `tz` cookie (`clock.py`). Seasons add snow, petals or leaves; on days you study a visitor swims by.
+
+**The story** (`island_story.py`) has three acts and ten chapters, from the bay to the Far Shore, against the Fog of Someday. Chapters open at 0, 1, 3, 5, 10, 15, 20, 30, 40 and 50 plants; the fight at the heart of the fog also needs 3 days in a row; and no new chapter opens in thick fog. Five interludes happen because of what you really do: coming back after the fog, keeping a weekly goal, having other learners in your sea, the villain reaching your shore for the first time, and the first plant it takes. Opened chapters stay open.
 
 There are two worlds with the same plot: **the Sea of Things to Learn** (the default in English) and **Alexandria and the Great Green Sea** (the default in Arabic, with Teta Lulua, the Pharos and the Library of Alexandria). You can pick either in either language. The text is written once per language with placeholders that each world fills in.
 
-**The sea chart** shows all your turtles on the way to the Far Shore (Tempo by the story, a course's turtle by its progress), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse.
+**The sea chart** shows all your turtles on the way to the Far Shore (Tempo by the story, a course's turtle by its progress), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse. People who made a turtle sail in its colors.
+
+**On Home** a card shows the island most recently grown, the weather or the villain, wilting plants, shells, how far the story is, and what you unlock next.
+
+**Your own turtle.** Instead of a coloured letter, you make a turtle on the first page or in Settings: one of 8 shells, 8 scarves, 4 skins, and something to wear (`mascot.clean_avatar`, `buddy`, `buddy_head`). It's saved in `meta` as `avatar`, and your colour follows the shell. Your contact card carries it next to the signed fields (not signed, so older versions still read the card), and it's cleaned before it's stored in `people.avatar`. **Save a picture of my turtle** draws a 1080 px square: the page turns `/me/turtle.svg` into a PNG on a canvas and sends it back to `/me/turtle.png` to save (or to the Android share sheet).
+
+**Notifications with Tempo.** With the island on, `reminders._island` adds: the trip is done (at its exact minute), the villain reached your shore (day 7), your plants are wilting (day 10) and a plant dies tomorrow. Every notification names a picture (`tempo_cheer`, `tempo_sad`, `villain`...). The PNGs are made by `packaging/make_notify_icons.py`: `inpace/static/notify/` for Windows (`appLogoOverride`) and Linux (`notify-send -i`), and `mobile/icon/res/drawable-nodpi/` for Android's large icon. Mac notifications can't show a picture.
 

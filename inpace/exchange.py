@@ -107,6 +107,8 @@ def make_contact_card(v: Vault) -> dict:
     card = {"inpace": "contact", "v": APP_VERSION, "id": me["id"], "name": me["name"], "color": me["color"],
             "created_at": now_utc()}
     card["sig"] = v.identity.sign({k: card[k] for k in ("inpace", "id", "name", "color", "created_at")})
+    if me.get("avatar"):
+        card["avatar"] = me["avatar"]  # your turtle; not signed, so older versions still read the card
     return card
 
 

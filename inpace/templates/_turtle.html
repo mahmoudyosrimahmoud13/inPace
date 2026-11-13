@@ -1,0 +1,27 @@
+{# The turtle maker: pick a shell, a scarf, a skin and something to wear. Used on the first page and in Settings. #}
+{% macro turtle_maker(av, maker, legend=True) %}
+<fieldset class="turtle-maker" data-turtle-maker>
+  <legend class="{{ '' if legend else 'sr' }}">{% trans trimmed %}Make your turtle{% endtrans %}</legend>
+  <p class="small muted" style="margin:0 0 .6rem">{% trans trimmed %}This is you in inPace. People you add see your turtle next to your name, and it sails beside theirs on Tempo's sea.{% endtrans %}</p>
+  <div class="turtle-make">
+    <div class="turtle-preview" data-turtle-preview>{{ maker.svg }}</div>
+    <div class="turtle-opts">
+      <div class="turtle-row" role="radiogroup" aria-label="{{ _('Shell') }}"><span class="turtle-label">{% trans trimmed %}Shell{% endtrans %}</span>
+        {% for c in maker.shells %}<label class="tswatch" style="--c: {{ c[0] }}; --d: {{ c[1] }}"><input type="radio" name="shell" value="{{ loop.index0 }}" {{ 'checked' if av.shell == loop.index0 }}><span></span><span class="sr">{{ T('Shell {n}', n=loop.index) }}</span></label>{% endfor %}</div>
+      <div class="turtle-row" role="radiogroup" aria-label="{{ _('Scarf') }}"><span class="turtle-label">{% trans trimmed %}Scarf{% endtrans %}</span>
+        {% for c in maker.scarves %}<label class="tswatch" style="--c: {{ c[0] }}; --d: {{ c[1] }}"><input type="radio" name="scarf" value="{{ loop.index0 }}" {{ 'checked' if av.scarf == loop.index0 }}><span></span><span class="sr">{{ T('Scarf {n}', n=loop.index) }}</span></label>{% endfor %}</div>
+      <div class="turtle-row" role="radiogroup" aria-label="{{ _('Skin') }}"><span class="turtle-label">{% trans trimmed %}Skin{% endtrans %}</span>
+        {% for c in maker.skins %}<label class="tswatch" style="--c: {{ c[0] }}; --d: {{ c[1] }}"><input type="radio" name="skin" value="{{ loop.index0 }}" {{ 'checked' if av.skin == loop.index0 }}><span></span><span class="sr">{{ T('Skin {n}', n=loop.index) }}</span></label>{% endfor %}</div>
+      <div class="turtle-row wear" role="radiogroup" aria-label="{{ _('Wear') }}"><span class="turtle-label">{% trans trimmed %}Wear{% endtrans %}</span>
+        {% for a in maker.accs %}
+        <label class="twear {{ 'locked' if a.locked }}" title="{{ a.name }}">
+          <input type="radio" name="acc" value="{{ a.key }}" {{ 'checked' if av.acc == a.key }} {{ 'disabled' if a.locked }}>
+          <span>{{ a.head }}{% if a.locked %}<em>{{ icon('shell', 12) }}{{ a.price }}</em>{% endif %}</span><span class="sr">{{ a.name }}</span></label>
+        {% endfor %}
+      </div>
+      {% if maker.locked_note %}<p class="small muted" style="margin:0">{{ maker.locked_note }}</p>{% endif %}
+    </div>
+  </div>
+  <script type="application/json" data-turtle-colors>{{ maker.colors|tojson }}</script>
+</fieldset>
+{% endmacro %}

@@ -86,6 +86,10 @@ class Vault:
         self.db = sqlite3.connect(self.home / "vault.db", check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        if "avatar" not in {r[1] for r in self.db.execute("PRAGMA table_info(people)")}:
+            # v1.17: people can have a turtle (from their contact card) instead of a coloured letter
+            self.db.execute("ALTER TABLE people ADD COLUMN avatar TEXT DEFAULT ''")
+            self.db.commit()
         self._courses: dict[str, Course] = {}
         self._identity: Identity | None = None
 
@@ -118,7 +122,20 @@ class Vault:
 
     @property
     def me(self) -> dict:
-        return {"id": self.identity.id, "name": self._meta("name", "Learner"), "color": self._meta("color", COLORS[0])}
+        out = {"id": self.identity.id, "name": self._meta("name", "Learner"), "color": self._meta("color", COLORS[0])}
+        try:
+            av = json.loads(self._meta("avatar", "") or "null")
+        except ValueError:
+            av = None
+        if isinstance(av, dict):
+            out["avatar"] = av
+        return out
+
+    def set_avatar(self, avatar: dict, color: str) -> None:
+        """Your turtle (shell, scarf, skin, accessory). Your colour follows the shell."""
+        self._set_meta("avatar", json.dumps(avatar, sort_keys=True))
+        if color in COLORS:
+            self._set_meta("color", color)
 
     def rename(self, name: str, color: str) -> None:
         self.setup(name, color)
@@ -431,16 +448,18 @@ class Vault:
         r = self.db.execute("SELECT * FROM people WHERE id=?", (pid,)).fetchone()
         return dict(r) if r else None
 
-    def add_person(self, pid: str, name: str, color: str, checks_me: bool, i_check: bool) -> None:
+    def add_person(self, pid: str, name: str, color: str, checks_me: bool, i_check: bool, avatar: str = "") -> None:
         old = self.person(pid)
         if old:
             self.db.execute(
-                "UPDATE people SET name=?, color=?, checks_me=?, i_check=? WHERE id=?",
-                (name, color, int(checks_me or old["checks_me"]), int(i_check or old["i_check"]), pid),
+                "UPDATE people SET name=?, color=?, checks_me=?, i_check=?, avatar=? WHERE id=?",
+                (name, color, int(checks_me or old["checks_me"]), int(i_check or old["i_check"]),
+                 avatar or old["avatar"] or "", pid),
             )
         else:
-            self.db.execute("INSERT INTO people VALUES (?,?,?,?,?,?,?)",
-                            (pid, name, color, "", int(checks_me), int(i_check), now_utc()))
+            self.db.execute("INSERT INTO people (id, name, color, nickname, checks_me, i_check, added_at, avatar) "
+                            "VALUES (?,?,?,?,?,?,?,?)",
+                            (pid, name, color, "", int(checks_me), int(i_check), now_utc(), avatar or ""))
         self.db.commit()
 
     def set_roles(self, pid: str, checks_me: bool, i_check: bool, nickname: str) -> None:

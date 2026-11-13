@@ -1262,8 +1262,8 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 /* the focus trip */
 .trip { text-align: center; }
 .trip-time { font-size: clamp(3.4rem, 14vw, 6rem); font-weight: 800; letter-spacing: .02em; margin: .2rem 0 .4rem; font-variant-numeric: tabular-nums; line-height: 1; }
-.trip-scene { max-width: 440px; margin: 0 auto; }
-.trip-scene svg { display: block; width: 100%; height: auto; overflow: visible; }
+.trip-scene { max-width: 440px; margin: 0 auto; border: 2.5px solid var(--line); box-shadow: var(--hard); overflow: hidden; }
+.trip-scene svg { display: block; width: 100%; height: auto; }
 .trip-tempo { animation: trip-bob 3s ease-in-out infinite; }
 .trip-water { animation: trip-wave 2.6s linear infinite; }
 @keyframes trip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
@@ -1284,3 +1284,110 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 }
 :root[data-theme=dark] .isle-new-chapter, :root[data-theme=dark] .isle-grown, :root[data-theme=dark] .isle-chapter.interlude { background: #16252B; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .isle-new-chapter, :root:not([data-theme=light]) .isle-grown, :root:not([data-theme=light]) .isle-chapter.interlude { background: #16252B; } }
+
+/* v1.17: the villain, wilting, island names, the shop, and a living sky */
+.chip.shells { display: inline-flex; align-items: center; gap: .3rem; text-decoration: none; color: inherit; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.isle-threat { display: grid; gap: .8rem; margin-block: 0 1rem; padding: 1rem; border: 2.5px solid var(--line); box-shadow: var(--hard);
+  background: linear-gradient(180deg, #3B4256, #262B3A); color: #F2EDE2; }
+.isle-threat.threat-1 { background: linear-gradient(180deg, #6B7488, #4C5468); }
+.isle-threat.threat-4 { background: linear-gradient(180deg, #2A1F33, #14111C); }
+.isle-villain-say { display: flex; gap: .8rem; align-items: center; }
+.isle-villain-pic svg { display: block; animation: villain-bob 3.6s ease-in-out infinite; }
+@keyframes villain-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
+.bubble.dark { background: #1B2030; color: #F2EDE2; border-color: #9AA3C7; font-style: italic; }
+.bubble.dark::before { background: #1B2030; border-color: #9AA3C7; }
+.isle-villain-name { display: block; }
+.chip.warn { display: inline-flex; align-items: center; gap: .2rem; }
+.isle-meter { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.isle-meter .pip { width: 34px; height: 10px; border: 2px solid #F2EDE2; background: transparent; }
+.isle-meter .pip.on { background: #B9A6FF; }
+.isle-threat.threat-3 .isle-meter .pip.on, .isle-threat.threat-4 .isle-meter .pip.on { background: #FF6B6B; }
+.isle-meter .small { margin-inline-start: .4rem; }
+.isle-answer { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
+.isle-answer .bubble { margin: 0; color: var(--ink2); }
+.isle-alert { display: flex; gap: .7rem; align-items: flex-start; margin-bottom: 1rem; background: var(--bad-bg); color: var(--bad); }
+.isle-alert p { margin: 0; color: var(--ink); }
+.isle-alert.soft { background: var(--warn-bg); color: var(--warn); }
+.isle-alert svg { flex: none; margin-top: .15rem; }
+.isle-new-chapter.dark { background: #262B3A; color: #F2EDE2; }
+.isle-new-chapter.dark h2, .isle-new-chapter.dark .eyebrow { color: #F2EDE2; }
+.isle-scene .isle-title { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; justify-content: space-between;
+  border-top: 0; border-bottom: 2.5px solid var(--line); font-size: 1.05rem; }
+.isle-title .inline-more form { margin-top: .5rem; min-width: min(280px, 80vw); }
+.isle-title label { display: grid; gap: .2rem; font-size: .9rem; }
+.shop-head { margin: 1.2rem 0 .5rem; font-size: 1rem; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: .6rem; }
+.shop-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .35rem; padding: .7rem .5rem; font-size: .9rem; }
+.shop-item.using { background: var(--sky); }
+.shop-pre { display: grid; place-items: center; width: 72px; height: 60px; background: #E4F2F8; border: 1.5px solid var(--line); }
+.shop-pre svg { display: block; }
+.shop-item form { margin: 0; }
+.btn.small { padding: .3rem .6rem; font-size: .85rem; gap: .25rem; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+/* the sky moves a little: clouds drift, balloons float, the aurora breathes, a star falls now and then */
+.isle-clouds { animation: isle-drift 40s ease-in-out infinite alternate; }
+.isle-balloon { animation: isle-bob 6s ease-in-out infinite; }
+@keyframes isle-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.isle-aurora { animation: aurora 9s ease-in-out infinite alternate; }
+@keyframes aurora { from { opacity: .18; } to { opacity: .42; } }
+.isle-shooting { stroke-dasharray: 100; stroke-dashoffset: 100; animation: shoot 7s linear infinite; }
+@keyframes shoot { 0%, 85% { stroke-dashoffset: 100; opacity: 0; } 90% { opacity: 1; } 100% { stroke-dashoffset: -100; opacity: 0; } }
+.isle-season { animation: isle-fall 14s linear infinite alternate; }
+@keyframes isle-fall { from { translate: 0 -12px; } to { translate: 6px 18px; } }
+.isle-visitor { animation: isle-bob 4s ease-in-out infinite; }
+.isle-villain { animation: isle-bob 5s ease-in-out infinite; }
+.isle-plant.wilted { opacity: .92; }
+@media (prefers-reduced-motion: reduce) {
+  .isle-clouds, .isle-balloon, .isle-aurora, .isle-shooting, .isle-season, .isle-visitor, .isle-villain, .isle-villain-pic svg, .isle-fog { animation: none; }
+}
+@media (max-width: 600px) { .isle-villain-say { align-items: flex-start; } .isle-villain-pic svg { width: 72px; height: 63px; } }
+
+/* v1.17: your turtle */
+.avatar.turtle { background: #CDE8F2; overflow: hidden; color: inherit; }
+.avatar.turtle svg { width: 118%; height: 118%; margin-top: 12%; }
+.turtle-maker { border: 0; padding: 0; margin: 0; min-width: 0; }
+.turtle-maker legend { font-weight: 700; padding: 0; margin-bottom: .2rem; }
+.turtle-make { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 1rem; align-items: center; }
+.turtle-preview { background: #CDE8F2; border: 2.5px solid var(--line); display: grid; place-items: center; padding: .4rem; }
+.turtle-preview svg { display: block; width: 100%; height: auto; }
+.turtle-opts { display: grid; gap: .55rem; min-width: 0; }
+.turtle-row { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.turtle-label { width: 100%; font-size: .85rem; font-weight: 700; color: var(--muted); }
+.tswatch { position: relative; cursor: pointer; }
+.tswatch input, .twear input { position: absolute; opacity: 0; pointer-events: none; }
+.tswatch span:first-of-type { display: block; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--c) 55%, var(--d)); border: 2.5px solid var(--line); }
+.tswatch input:checked + span { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--focus); }
+.tswatch input:focus-visible + span, .twear input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 3px; }
+.twear { position: relative; cursor: pointer; }
+.twear > span:first-of-type { position: relative; display: grid; place-items: center; width: 52px; height: 52px; border: 2.5px solid var(--line); background: #CDE8F2; }
+.twear i { display: block; font-style: normal; line-height: 0; }
+.twear input:checked + span { background: var(--sun); box-shadow: var(--hard-sm); }
+.twear.locked { cursor: not-allowed; }
+.twear.locked > span:first-of-type { opacity: .55; }
+.twear em { position: absolute; inset: auto -4px -8px auto; display: inline-flex; align-items: center; gap: 1px; padding: 0 .25rem;
+  font-size: .68rem; font-style: normal; font-weight: 800; background: var(--surface); border: 1.5px solid var(--line); line-height: 1.4; }
+@media (max-width: 560px) { .turtle-make { grid-template-columns: 1fr; } .turtle-preview { max-width: 240px; margin-inline: auto; width: 100%; } }
+
+/* v1.17: Tempo's island on Home */
+.isle-home { display: grid; grid-template-columns: minmax(220px, 340px) 1fr; gap: 1.1rem; align-items: center; margin-block-end: 1.25rem; }
+.isle-home-pic { display: block; border: 2.5px solid var(--line); overflow: hidden; line-height: 0; }
+.isle-home-pic svg { display: block; width: 100%; height: auto; }
+.isle-home-body { display: grid; gap: .55rem; min-width: 0; }
+.isle-home-body h2 { margin: 0; }
+.isle-home-body h2 a { color: inherit; text-decoration: none; }
+.isle-home-say { margin: 0; color: var(--ink2); }
+.isle-home-say.dark { background: #262B3A; color: #F2EDE2; padding: .45rem .7rem; font-style: italic; }
+.isle-home-say.dark b { font-style: normal; }
+.isle-home-warn { display: flex; gap: .4rem; align-items: flex-start; margin: 0; padding: .45rem .7rem; background: var(--bad-bg); color: var(--ink); }
+.isle-home-warn svg { flex: none; color: var(--bad); margin-top: .15rem; }
+.isle-home-stats { display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: .92rem; color: var(--muted); }
+.isle-home-stats b { color: var(--ink); }
+.isle-home-story { display: grid; gap: .3rem; }
+.isle-home-next { margin: 0; }
+@media (max-width: 720px) { .isle-home { grid-template-columns: 1fr; } }
+
+.notif-preview { display: flex; gap: .7rem; align-items: center; max-width: 420px; padding: .7rem .85rem; background: var(--raised); border: 1.5px solid var(--hair); border-radius: 14px; }
+.notif-preview img { flex: none; border-radius: 50%; }
+.notif-preview > span { display: grid; min-width: 0; line-height: 1.35; }
+.notif-preview b { font-size: .95rem; }

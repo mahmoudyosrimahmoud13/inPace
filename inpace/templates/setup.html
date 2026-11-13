@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_turtle.html" import turtle_maker %}
 {% block title %}{{ _('Welcome') }}{% endblock %}
 {% block width %}narrow{% endblock %}
 {% block main %}
@@ -13,12 +14,7 @@
     <label>{% trans trimmed %}What should we call you?{% endtrans %}
       <input name="name" required maxlength="40" placeholder="{{ _('For example: Omar') }}" autofocus>
     </label>
-    <fieldset class="colors">
-      <legend>{% trans trimmed %}Pick your color{% endtrans %}</legend>
-      {% for c in colors %}
-      <label class="swatch" style="--c: {{ c }}"><input type="radio" name="color" value="{{ c }}" {{ 'checked' if loop.first }}><span></span><span class="sr">{{ T('Color {n}', n=loop.index) }}</span></label>
-      {% endfor %}
-    </fieldset>
+    {{ turtle_maker(av, maker) }}
     <p class="muted small">{% trans trimmed %}Everything stays on this computer. inPace makes a private key for you that proves your work is yours.{% endtrans %}</p>
     <button class="btn primary big">{% trans trimmed %}Get started{% endtrans %}</button>
   </form>

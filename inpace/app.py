@@ -6,6 +6,8 @@ import mimetypes
 import os
 import re
 import threading
+import time as _time
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -19,7 +21,8 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
+from . import ai, checks, clock, editor, encourage, exchange, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
+from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -167,6 +170,10 @@ env.globals["display_name"] = display_name
 
 
 def avatar(p: dict, size: int = 36) -> Markup:
+    """A person's picture: their turtle when they made one, otherwise their first letter on their colour."""
+    if p.get("avatar"):
+        return Markup('<span class="avatar turtle" style="--s: {}px" aria-hidden="true">{}</span>').format(
+            int(size), mascot_mod.buddy_head(p["avatar"], int(size)))
     color = p.get("color") or "#3A506B"
     if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
         color = "#3A506B"
@@ -176,6 +183,11 @@ def avatar(p: dict, size: int = 36) -> Markup:
 
 
 env.globals["avatar"] = avatar
+
+# Your colour follows your turtle's shell (the colours are close: green to green, blue to blue...).
+COLOR_FOR_SHELL = [1, 4, 7, 3, 0, 5, 6, 2]
+ACC_NAMES = {"none": "Nothing", "cap": "Cap", "beanie": "Beanie", "bow": "Bow", "glasses": "Glasses",
+             "headphones": "Headphones", "flower": "Flower", "crown": "Crown", "wizard": "Wizard hat", "gradcap": "Graduation cap"}
 
 _ICONS = {
     "back": '<path d="M15 5l-7 7 7 7"/>',
@@ -205,6 +217,8 @@ _ICONS = {
     "play": '<path d="M7 4.5v15l13-7.5z"/>',
     "code": '<path d="m8 7-5 5 5 5"/><path d="m16 7 5 5-5 5"/>',
     "link": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "alert": '<path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/>',
+    "shell": '<path d="M12 19.5 3.6 10.6q1-2.2 2.6-1.5.7-2.8 3.1-2.6Q10.4 4 12 4t2.7 2.5q2.4-.2 3.1 2.6 1.6-.7 2.6 1.5z"/><path d="M12 19.5V7M12 19.5 9 7.5M12 19.5l3-12M12 19.5 6.6 10M12 19.5 17.4 10"/><path d="M10 19.5h4l-.6 1.5h-2.8z"/>',
     "island": '<path d="M3 20c2-1.4 4-1.4 6 0s4 1.4 6 0 4-1.4 6 0"/><path d="M12 17V9"/><path d="M12 9c-1.5-2.5-4.5-3-7-1.5 2.6.2 4.6 1 7 1.5z"/><path d="M12 9c1.5-2.5 4.5-3 7-1.5-2.6.2-4.6 1-7 1.5z"/><path d="M12 9c-.5-2.6.6-4.6 3-6-.9 2.2-1.6 4-3 6z"/><path d="M7 17c1.5-1.8 8.5-1.8 10 0"/>',
     "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     "alarm": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.7 4 21M17.6 18.7 20 21"/>',
@@ -286,7 +300,12 @@ class NavMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        nav = any(k == b"x-inpace-nav" for k, _ in scope.get("headers", []))
+        nav = False
+        for k, val in scope.get("headers", []):
+            if k == b"x-inpace-nav":
+                nav = True
+            elif k == b"cookie" and b"tz=" in val:
+                clock.from_cookie(val)  # the island's sky follows the person's real clock
         state = {"swallow": False}
 
         async def wrapped(msg):
@@ -333,6 +352,7 @@ def create_app(vault: Vault) -> Starlette:
             base["island_on"] = garden.is_on(V)
             if base["island_on"] and not request.url.path.startswith("/island/trip"):
                 try:
+                    garden.decay(V)  # what the fog did while you were away
                     base["island_news"] = garden.news(V)
                 except Exception:
                     base["island_news"] = []
@@ -430,15 +450,97 @@ def create_app(vault: Vault) -> Starlette:
         return card
 
     # ---- setup ---------------------------------------------------------------
+    # ---- your turtle ------------------------------------------------------------------------------
+    def _owned() -> set[str]:
+        try:
+            return set(json.loads(V._meta("island_owned", "[]") or "[]"))
+        except ValueError:
+            return set()
+
+    def _turtle_from(form) -> dict:
+        """The turtle from the maker's form. Hats bought with shells only if you own them."""
+        def num(k):
+            try:
+                return int(form.get(k, 0))
+            except (TypeError, ValueError):
+                return 0
+        av = mascot_mod.clean_avatar({"shell": num("shell"), "scarf": num("scarf"), "skin": num("skin"),
+                                      "acc": str(form.get("acc", "none"))})
+        if av["acc"] in mascot_mod.PAID_ACCESSORIES and f"accessory:{av['acc']}" not in _owned():
+            av["acc"] = "none"
+        return av
+
+    def _maker(av: dict) -> dict:
+        owned = _owned()
+        base = str(mascot_mod.builder_svg(av))
+        accs, locked_any = [], False
+        for a in mascot_mod.ACCESSORIES:
+            price = mascot_mod.PAID_ACCESSORIES.get(a)
+            locked = bool(price) and f"accessory:{a}" not in owned
+            locked_any = locked_any or locked
+            head = str(mascot_mod.buddy_head({"acc": a}, 46))
+            accs.append({"key": a, "name": say(ACC_NAMES[a]), "price": price, "locked": locked,
+                         "head": Markup('<i data-tbase="{}">{}</i>').format(head, Markup(mascot_mod._recolor(head, av)))})
+        return {"svg": Markup('<div data-tbase="{}">{}</div>').format(base, Markup(mascot_mod._recolor(base, av))),
+                "shells": mascot_mod.SHELLS, "scarves": mascot_mod.SCARVES, "skins": mascot_mod.SKINS, "accs": accs,
+                "locked_note": say("The crown and the wizard hat are in the shop on Tempo's island. Learning earns the shells.") if locked_any else "",
+                "colors": {"base": [mascot_mod.SHELL, mascot_mod.SHELL_DARK, mascot_mod.SHELL_SHADE, mascot_mod.SHELL_LIGHT,
+                                    mascot_mod.SCARF, mascot_mod.SCARF_DARK, mascot_mod.SKIN, mascot_mod.SKIN_DARK, mascot_mod.SKIN_FAR],
+                           "shells": mascot_mod.SHELLS, "scarves": mascot_mod.SCARVES, "skins": mascot_mod.SKINS}}
+
+    def _share_svg(av: dict, name: str) -> str:
+        """A square picture of your turtle and your name, to share anywhere."""
+        shell = mascot_mod.SHELLS[av["shell"]]
+        turtle = str(mascot_mod.buddy(av, "wave", 860, name))
+        safe = str(Markup.escape(name))[:60]
+        line = str(Markup.escape(say("Slow and steady. Learning with inPace.")))
+        return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">'
+                '<rect width="1080" height="1080" fill="#F7F3EA"/>'
+                f'<circle cx="540" cy="450" r="390" fill="{shell[3]}" stroke="#111" stroke-width="8"/>'
+                f'<g transform="translate(110 150)">{turtle}</g>'
+                f'<text x="540" y="955" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" '
+                f'font-size="84" font-weight="800" fill="#111">{safe}</text>'
+                f'<text x="540" y="1028" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, sans-serif" '
+                f'font-size="38" fill="#5E5A52">{line}</text></svg>')
+
     async def setup(request: Request):
+        start = mascot_mod.clean_avatar({})
         if request.method == "POST":
             form = await request.form()
             name = str(form.get("name", "")).strip()
+            av = _turtle_from(form)
             if not name:
-                return page("setup.html", request, colors=COLORS, error="Please type your name.")
-            V.setup(name, str(form.get("color", COLORS[0])))
+                return page("setup.html", request, maker=_maker(av), av=av, error="Please type your name.")
+            V.setup(name, COLORS[COLOR_FOR_SHELL[av["shell"]]])
+            V.set_avatar(av, COLORS[COLOR_FOR_SHELL[av["shell"]]])
             return go("/", ok=f"Welcome, {name}! Pick a course to start.")
-        return page("setup.html", request, colors=COLORS)
+        return page("setup.html", request, maker=_maker(start), av=start)
+
+    async def settings_turtle(request: Request):
+        form = await request.form()
+        av = _turtle_from(form)
+        V.set_avatar(av, COLORS[COLOR_FOR_SHELL[av["shell"]]])
+        return go("/settings#turtle", ok="Your turtle is saved. People see it the next time you send them your contact card.")
+
+    async def my_turtle_svg(request: Request):
+        av = mascot_mod.clean_avatar(V.me.get("avatar") or {})
+        return download(_share_svg(av, V.me["name"]).encode(), f"{V.me['name']} - my turtle.svg", "image/svg+xml")
+
+    async def my_turtle_png(request: Request):
+        """The page draws the picture as a PNG (phones and chat apps don't take SVG) and sends it here to save."""
+        form = await request.form()
+        data = str(form.get("png", ""))
+        head = "data:image/png;base64,"
+        if not data.startswith(head) or len(data) > 8_000_000:
+            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
+        import base64 as _b64
+        try:
+            raw = _b64.b64decode(data[len(head):], validate=True)
+        except ValueError:
+            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
+        if not raw.startswith(b"\x89PNG"):
+            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
+        return download(raw, f"{V.me['name']} - my turtle.png", "image/png")
 
     async def home(request: Request):
         if not V.is_set_up:
@@ -451,8 +553,44 @@ def create_app(vault: Vault) -> Starlette:
         resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
                     reminders_set=bool(reminders.load(V)["items"]),
-                    island_trip=garden.active(V) if garden.is_on(V) else None)
+                    island_trip=garden.active(V) if garden.is_on(V) else None,
+                    island=_island_home() if garden.is_on(V) else None)
         return resp
+
+    def _island_home() -> dict | None:
+        """Tempo's island on Home: a small picture, the weather and the villain, shells, the story so far,
+        and what you unlock next. Reading only: chapters open on the island page itself."""
+        try:
+            lang = V._meta("lang", "en") or "en"
+            rot = garden.decay(V)
+            st = garden.stats(V)
+            wx = garden.weather(V, goal_met=_goal_met())
+            world = garden.story.world_for(V._meta("island_world", "") or "", lang)
+            fleet = garden.turtles(V, world, lang)
+            last = garden.last_grown(V)
+            shown = next((t for t in fleet if last and t["id"] == (last.get("journey") or "")), fleet[0])
+            have = garden.unlocked(V, st)
+            labels = _island_labels()
+            labels["villain"] = garden.story.villain_name(world, lang)
+            picture = garden.island_svg(shown["plants"], have["friends"], 1 + shown["living"] // 10, st["blooming"],
+                                        labels=labels, palette=shown["palette"], fog=wx["fog"], fair=wx["fair"],
+                                        home=shown["tempo"], look=garden.looks(V, shown["id"]), title=shown["title"],
+                                        villain=wx["threat"], season_now=garden.season(datetime.now().month),
+                                        visitor=garden.visitor_today(V), fled=wx["fled"])
+            opened = json.loads(V._meta("island_story", "[]") or "[]")
+            chapters = [k for k, *_ in garden.story.CHAPTERS]
+            done = len([k for k in opened if k in chapters])
+            waiting = wx["fog"] < 2 and any(k not in opened and garden.story.opens(k, st) for k in chapters)
+            coll = garden.collection(V, st)
+            locked = [f for f in coll["friends"] + coll["plants"] if not f["have"] and f["goal"]]
+            nxt = max(locked, key=lambda f: f["progress"] / f["goal"][1], default=None)
+            return {"picture": Markup(picture), "title": shown["title"], "wx": wx, "rot": rot, "st": st,
+                    "living": sum(t["living"] for t in fleet), "friends": len(have["friends"]),
+                    "shells": garden.wallet(V, st)["balance"], "chapter": done, "chapters": len(chapters),
+                    "waiting": waiting, "next": nxt,
+                    "taunt": garden.story.taunt(wx["threat"], world, lang, wx["wilt_in"] or 0)}
+        except Exception:
+            return None
 
     def _welcome_back() -> int | None:
         """Back after a while: Tempo says so once, on Home."""
@@ -1088,7 +1226,8 @@ def create_app(vault: Vault) -> Starlette:
                 return go("/reminders", ok=msg, err="Your computer's scheduler said no, so reminders only show while inPace is open.")
             return go("/reminders", ok=msg)
         d = reminders.load(V)
-        return page("reminders.html", request, r=d, status=_scheduler_status(), detail=V._meta("scheduler_status", "") or "")
+        return page("reminders.html", request, r=d, status=_scheduler_status(), detail=V._meta("scheduler_status", "") or "",
+                    test_msg=reminders.reminder_message(V, {"label": say("Test: this is how a reminder looks")}))
 
     async def reminders_plan(request: Request):
         """For the Android app: everything to schedule (it asks again whenever you use inPace)."""
@@ -1100,11 +1239,11 @@ def create_app(vault: Vault) -> Starlette:
         msg = reminders.reminder_message(V, {"label": say("Test: this is how a reminder looks")})
         labels = {"stop": say("Stop"), "snooze": say("Snooze 10 min"), "open": say("Start studying")}
         if kind == "alarm":
-            threading.Thread(target=notifier.alarm, args=(msg["title"], msg["body"], msg["url"], labels, V.home),
+            threading.Thread(target=notifier.alarm, args=(msg["title"], msg["body"], msg["url"], labels, V.home, msg["picture"]),
                              daemon=True).start()
             return go("/reminders", ok="The alarm is ringing. Stop it or snooze it.")
         from starlette.concurrency import run_in_threadpool
-        ok = await run_in_threadpool(notifier.notify, msg["title"], msg["body"], msg["url"], V.home)
+        ok = await run_in_threadpool(notifier.notify, msg["title"], msg["body"], msg["url"], V.home, msg["picture"])
         return go("/reminders", ok="Sent. Look for it in the corner of your screen.") if ok else \
             go("/reminders", err="This computer didn't show the notification. Check that notifications are allowed for inPace.")
 
@@ -1930,6 +2069,10 @@ def create_app(vault: Vault) -> Starlette:
         return download(exchange.dump(exchange.make_contact_card(V)), f"{V.me['name']} - contact card.inpace",
                         "application/json")
 
+    def _their_turtle(d: dict) -> str:
+        """Someone's turtle from their card or file, cleaned so only real turtle parts get in."""
+        return json.dumps(mascot_mod.clean_avatar(d["avatar"]), sort_keys=True) if isinstance(d.get("avatar"), dict) else ""
+
     async def add_person(request: Request):
         form = await request.form()
         import json as _json
@@ -1945,7 +2088,7 @@ def create_app(vault: Vault) -> Starlette:
         i_check = rel in ("i_check", "buddies")
         if not (checks_me or i_check):
             return go("/people", err="Choose how you're connected.")
-        V.add_person(card["id"], card["name"], card["color"], checks_me, i_check)
+        V.add_person(card["id"], card["name"], card["color"], checks_me, i_check, _their_turtle(card))
         nick = str(form.get("nickname", "")).strip()
         if nick:
             p = V.person(card["id"])
@@ -2135,7 +2278,7 @@ def create_app(vault: Vault) -> Starlette:
             learner = data["learner"]
         except (ValueError, KeyError):
             return go("/open", err="Something went wrong. Open the file again.")
-        V.add_person(learner["id"], learner["name"], learner["color"], False, True)
+        V.add_person(learner["id"], learner["name"], learner["color"], False, True, _their_turtle(learner))
         nick = str(form.get("nickname", "")).strip()
         if nick:
             V.set_roles(learner["id"], False, True, nick)
@@ -2323,22 +2466,35 @@ def create_app(vault: Vault) -> Starlette:
     async def settings(request: Request):
         if request.method == "POST":
             form = await request.form()
-            V.rename(str(form.get("name", "")).strip() or V.me["name"], str(form.get("color", COLORS[0])))
+            V.rename(str(form.get("name", "")).strip() or V.me["name"], V.me["color"])
             V._set_meta("lang", "ar" if form.get("lang") == "ar" else "en")
             return go("/settings", ok="Saved.")
+        av = mascot_mod.clean_avatar(V.me.get("avatar") or {})
         return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
+                    maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
     # ---- Tempo's island (reward mode) -------------------------------------------------------------
     def _island_labels() -> dict:
         CURRENT["lang"] = V._meta("lang", "en") or "en"
-        out = {"island": say("Tempo carries your island")}
+        out = {"island": say("Tempo carries your island"), "wilting": say("wilting"),
+               "dead": say("Taken by the fog"), "visitor": say("A visitor came, because you studied today")}
         out.update({k: say(n) for k, n in garden.FRIEND_NAMES.items()})
         out.update({"plant_" + k: say(n) for k, n in garden.PLANT_NAMES.items()})
+        out.update({"deco_" + k: say(n) for k, n in garden.SHOP_NAMES.items()})
+        out.update({"phase_" + k: say(n) for k, n in (("night", "Night on the island"), ("dawn", "Dawn on the island"),
+                    ("morning", "Morning on the island"), ("day", "Daytime on the island"),
+                    ("sunset", "Sunset on the island"), ("dusk", "Dusk on the island"))})
         return out
 
     def _island_others() -> list[dict]:
-        """Friends' turtles on your sea chart: learners you check (by their progress) and your checkers (at the lighthouse)."""
+        """Friends' turtles on your sea chart: learners you check (by their progress) and your checkers (at the lighthouse).
+        People who made a turtle sail in their own colours."""
+        def palette(p):
+            if p.get("avatar"):
+                av = mascot_mod.clean_avatar(p["avatar"])
+                return tuple(mascot_mod.SHELLS[av["shell"]]) + tuple(mascot_mod.SCARVES[av["scarf"]])
+            return garden.PALETTES[1 + sum(map(ord, p["id"])) % (len(garden.PALETTES) - 1)]
         out = []
         for p in V.people():
             if p["i_check"]:
@@ -2346,11 +2502,9 @@ def create_app(vault: Vault) -> Starlette:
                 for r in V.received(p["id"]):
                     for m in r["data"].get("milestones", []):
                         best = max(best, (m.get("body", {}).get("summary", {}) or {}).get("percent", 0) or 0)
-                out.append({"name": display_name(p), "pos": best / 100,
-                            "palette": garden.PALETTES[1 + sum(map(ord, p["id"])) % (len(garden.PALETTES) - 1)]})
+                out.append({"name": display_name(p), "pos": best / 100, "palette": palette(p)})
             elif p["checks_me"]:
-                out.append({"name": display_name(p), "pos": 0.4,
-                            "palette": garden.PALETTES[1 + sum(map(ord, p["id"])) % (len(garden.PALETTES) - 1)]})
+                out.append({"name": display_name(p), "pos": 0.4, "palette": palette(p)})
         return out[:8]
 
     def _goal_met() -> bool:
@@ -2381,16 +2535,32 @@ def create_app(vault: Vault) -> Starlette:
         if not on:
             intro = garden.story.chapter("c1", garden.story.world_for(world_setting, lang), lang)
             return page("island.html", request, intro=intro, **ctx)
+        rot = garden.decay(V)
         wx = garden.weather(V, goal_met=_goal_met())
         others = _island_others()
         tale = garden.story_state(V, st, wx, lang, people=len(others))
         fleet = garden.turtles(V, tale["world"], lang)
         pick = request.query_params.get("t", "")
         shown = next((t for t in fleet if t["id"] == pick), fleet[0])
-        ring = 1 + len(shown["plants"]) // 10
+        ring = 1 + shown["living"] // 10
         labels = _island_labels()
+        labels["villain"] = garden.story.villain_name(tale["world"], lang)
+        look = garden.looks(V, shown["id"])
+        sky = garden.sky_at()
         picture = garden.island_svg(shown["plants"], have["friends"], ring, st["blooming"], labels=labels,
-                                    palette=shown["palette"], fog=wx["fog"], fair=wx["fair"], home=shown["tempo"])
+                                    palette=shown["palette"], fog=wx["fog"], fair=wx["fair"], home=shown["tempo"],
+                                    look=look, title=shown["title"], villain=wx["threat"],
+                                    season_now=garden.season(datetime.now().month),
+                                    visitor=garden.visitor_today(V), fled=wx["fled"])
+        ctx["wallet"] = garden.wallet(V, st)
+        ctx["shop"] = _shop(ctx["wallet"], look)
+        ctx["look"] = look
+        ctx["rot"] = rot
+        ctx["sky"] = sky
+        ctx["phase_label"] = labels.get("phase_" + sky["phase"], "")
+        ctx["taunt"] = garden.story.taunt(wx["threat"], tale["world"], lang, wx["wilt_in"] or 0)
+        ctx["villain_svg"] = Markup(f'<svg viewBox="0 0 160 140" width="96" height="84" aria-hidden="true">{garden.art.villain(wx["threat"])}</svg>') if wx["threat"] else ""
+        ctx["death_in"] = max(0, int((rot["next_death"] - _time.time()) // 86400)) if rot.get("next_death") else None
         story_pos = len([c for c in tale["chapters"] if not c["interlude"]]) / len(garden.story.CHAPTERS)
         chart = garden.sea_chart(fleet, others, story_pos, labels={"chart": say("The way to the Far Shore")})
         friend_lines = {k: say(n) + ": " + say(story) for k, n, _, story in garden.FRIENDS if k in have["friends"]}
@@ -2406,9 +2576,84 @@ def create_app(vault: Vault) -> Starlette:
     async def island_name(request: Request):
         form = await request.form()
         jid = str(form.get("t", ""))
-        if V.journey(jid):
-            garden.rename(V, jid, str(form.get("name", "")))
-        return go(f"/island?t={jid}")
+        if jid == "" or V.journey(jid):
+            if "title" in form:
+                garden.set_title(V, jid, str(form.get("title", "")))
+            if jid and "name" in form:
+                garden.rename(V, jid, str(form.get("name", "")))
+        return go(f"/island?t={jid}" if jid else "/island")
+
+    def _shop(wallet: dict, look: dict) -> list[dict]:
+        """The shop, grouped, with what you own and what this island uses."""
+        groups = [("theme", say("Island ground"), garden.THEMES), ("sky", say("Sky"), garden.SKIES),
+                  ("water", say("Sea"), garden.WATERS), ("decor", say("Things to put on the island"), garden.DECOR),
+                  ("accessory", say("For your own turtle"), mascot_mod.PAID_ACCESSORIES)]
+        out = []
+        for kind, title, items in groups:
+            rows = []
+            for key, price in items.items():
+                owned = f"{kind}:{key}" in wallet["owned"]
+                using = (key in look["decor"]) if kind == "decor" else (look.get(kind) == key)
+                rows.append({"key": key, "name": say(garden.SHOP_NAMES.get(key, key)), "price": price, "owned": owned,
+                             "using": using, "afford": wallet["balance"] >= price, "preview": Markup(_shop_preview(kind, key))})
+            out.append({"kind": kind, "title": title, "rows": rows})
+        return out
+
+    def _shop_preview(kind: str, key: str) -> str:
+        if kind == "theme":
+            g, e, h = garden.THEME_COLORS[key]
+            return (f'<svg viewBox="0 0 60 40" width="60" height="40"><path d="M4 36 C4 14 18 6 30 6 C42 6 56 14 56 36 Z" fill="{g}" stroke="#111" stroke-width="2"/>'
+                    f'<path d="M14 26 q16 8 32 0" fill="none" stroke="{e}" stroke-width="3"/><path d="M16 18 q6 -6 12 -7" stroke="{h}" stroke-width="3" fill="none" stroke-linecap="round"/></svg>')
+        if kind == "water":
+            a, b = garden.WATER_COLORS[key]
+            return (f'<svg viewBox="0 0 60 40" width="60" height="40"><rect width="60" height="40" rx="8" fill="{a}"/>'
+                    f'<path d="M0 24 q7.5 -6 15 0 t15 0 t15 0 t15 0 V40 H0 Z" fill="{b}" stroke="#111" stroke-width="1.6"/></svg>')
+        if kind == "sky":
+            top, low = {"auto": ("#7EC4F0", "#FFD08A"), "balloons": ("#7EC4F0", "#E4F4FB"),
+                        "starry": ("#0F1A33", "#4A3F7A"), "aurora": ("#0E1F3A", "#1B4D5C")}[key]
+            extra = {"balloons": '<circle cx="22" cy="16" r="7" fill="#E6007E" stroke="#111" stroke-width="1.5"/><circle cx="42" cy="22" r="5" fill="#3D8FD1" stroke="#111" stroke-width="1.5"/>',
+                     "starry": "".join(f'<circle cx="{x}" cy="{y}" r="1.4" fill="#fff"/>' for x, y in ((10, 8), (24, 18), (40, 6), (50, 20), (16, 28), (34, 30))),
+                     "aurora": '<path d="M0 16 Q20 4 34 14 T60 10 V22 Q40 18 30 26 T0 26 Z" fill="#5CF2B8" opacity=".6"/>',
+                     "auto": '<circle cx="44" cy="14" r="7" fill="#FFD43B" stroke="#111" stroke-width="1.5"/><path d="M10 12 a6 6 0 1 0 5 9 a5 5 0 1 1 -5 -9z" fill="#FFF3B0" stroke="#111" stroke-width="1.2"/>'}[key]
+            return (f'<svg viewBox="0 0 60 40" width="60" height="40"><defs><linearGradient id="sp-{key}" x1="0" y1="0" x2="0" y2="1">'
+                    f'<stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{low}"/></linearGradient></defs>'
+                    f'<rect width="60" height="40" rx="8" fill="url(#sp-{key})"/>{extra}</svg>')
+        if kind == "decor":
+            return f'<svg viewBox="-50 -110 100 116" width="46" height="54">{garden.art.deco(key, "")}</svg>'
+        if kind == "accessory":
+            return str(mascot_mod.buddy_head({"acc": key}, 54))
+        return ""
+
+    async def island_buy(request: Request):
+        form = await request.form()
+        kind, key, jid = str(form.get("kind", "")), str(form.get("key", "")), str(form.get("t", ""))
+        back = f"/island?t={jid}#shop" if jid else "/island#shop"
+        problem = garden.buy(V, kind, key, garden.stats(V))
+        if problem:
+            return go(back, err=problem)
+        if kind != "accessory":
+            garden.set_look(V, jid, kind, key)
+            return go(back, ok="Bought, and it's on this island now.")
+        return go(back, ok="Bought. Put it on your turtle in Settings.")
+
+    async def island_look(request: Request):
+        form = await request.form()
+        jid = str(form.get("t", ""))
+        garden.set_look(V, jid, str(form.get("kind", "")), str(form.get("key", "")))
+        return go(f"/island?t={jid}#shop" if jid else "/island#shop")
+
+    async def island_clear(request: Request):
+        form = await request.form()
+        jid = str(form.get("t", ""))
+        garden.clear_dead(V, jid)
+        return go(f"/island?t={jid}" if jid else "/island", ok="Cleared. There's room to grow again.")
+
+    async def island_gentle(request: Request):
+        form = await request.form()
+        V._set_meta("island_gentle", "1" if form.get("on") == "1" else "")
+        if form.get("on") == "1":
+            return go("/island", ok="Gentle sea is on. The fog still comes, but it never takes your plants.")
+        return go("/island", ok="The fog is real again. Stay away too long and your plants wilt.")
 
     async def island_mode(request: Request):
         form = await request.form()
@@ -2448,7 +2693,7 @@ def create_app(vault: Vault) -> Starlette:
                     elapsed=int(garden.elapsed(trip)) if trip else shown["goal"] * 60, studying=title,
                     trip_svg=garden.trip_svg(shown["kind"], 1.0 if just else garden.elapsed(trip) / (trip["goal"] * 60),
                                              "cheer" if just else "read", label=say("Tempo swims while your plant grows"),
-                                             stages=not just),
+                                             stages=not just, sky=garden.sky_at()),
                     plant_name=say(garden.PLANT_NAMES.get(shown["kind"], "")),
                     plant_svg=garden.plant_svg, dispose="/island" if just else None)
 
@@ -2648,6 +2893,13 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/mode", needs_setup(island_mode), methods=["POST"]),
         Route("/island/world", needs_setup(island_world), methods=["POST"]),
         Route("/island/name", needs_setup(island_name), methods=["POST"]),
+        Route("/island/buy", needs_setup(island_buy), methods=["POST"]),
+        Route("/settings/turtle", needs_setup(settings_turtle), methods=["POST"]),
+        Route("/me/turtle.svg", needs_setup(my_turtle_svg)),
+        Route("/me/turtle.png", needs_setup(my_turtle_png), methods=["POST"]),
+        Route("/island/look", needs_setup(island_look), methods=["POST"]),
+        Route("/island/clear", needs_setup(island_clear), methods=["POST"]),
+        Route("/island/gentle", needs_setup(island_gentle), methods=["POST"]),
         Route("/island/start", needs_setup(island_start), methods=["POST"]),
         Route("/island/trip", needs_setup(island_trip)),
         Route("/island/rest", needs_setup(island_rest), methods=["POST"]),

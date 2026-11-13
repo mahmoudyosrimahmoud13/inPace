@@ -277,3 +277,118 @@ def mascot(mood: str = "happy", size: int = 96, label: str = "Tempo the turtle")
 {_extras(mood)}
 </svg>'''
     return Markup(svg)
+
+
+# ---- your own turtle ---------------------------------------------------------------------------------------
+# Everyone builds a turtle the first time they open inPace. It's their picture everywhere (instead of a
+# coloured letter), and it travels inside their friend card, so friends see it too.
+
+SHELLS = [  # shell, dark, shade, light (the first is Tempo's own)
+    ("#25A06C", "#17774C", "#1C8A5B", "#6FD3A0"), ("#3D8FD1", "#25679E", "#2F7AB8", "#8CC3EE"),
+    ("#B5651D", "#7E4513", "#985518", "#E0A06A"), ("#8E5CC2", "#623C8C", "#7649A6", "#C3A0E8"),
+    ("#2A9D8F", "#1C6E64", "#227F74", "#7FD1C7"), ("#D1495B", "#962F3D", "#B23B4C", "#F0909C"),
+    ("#556B2F", "#3A4A1F", "#475A27", "#9DB36E"), ("#E07A1F", "#A35512", "#C26818", "#F5B272"),
+]
+SCARVES = [("#E6007E", "#A8005C"), ("#FFB400", "#C98A00"), ("#2EC4B6", "#1D8A80"), ("#FF6B6B", "#C94848"),
+           ("#3D8FD1", "#25679E"), ("#7B2CBF", "#561F87"), ("#111111", "#000000"), ("#F4F1E8", "#C9C2AE")]
+SKINS = [("#A8E2B8", "#7CC796", "#8DD0A3"), ("#E9D5A8", "#C9AF78", "#D8C08F"),
+         ("#C9D3F2", "#9AA8D8", "#B1BEE6"), ("#F4C9B8", "#D9A08A", "#E6B4A1")]
+ACCESSORIES = ("none", "cap", "beanie", "bow", "glasses", "headphones", "flower", "crown", "wizard", "gradcap")
+PAID_ACCESSORIES = {"crown": 80, "wizard": 100}  # bought with shells from Tempo's island
+
+
+def clean_avatar(a) -> dict:
+    """Keep only what a turtle can be made of (it may come from someone else's card)."""
+    if isinstance(a, str):
+        try:
+            import json
+            a = json.loads(a)
+        except ValueError:
+            a = {}
+    a = a if isinstance(a, dict) else {}
+    pick = lambda k, n: a.get(k) if isinstance(a.get(k), int) and 0 <= a.get(k) < n else 0
+    acc = a.get("acc") if a.get("acc") in ACCESSORIES else "none"
+    return {"shell": pick("shell", len(SHELLS)), "scarf": pick("scarf", len(SCARVES)),
+            "skin": pick("skin", len(SKINS)), "acc": acc}
+
+
+def _accessory(acc: str) -> str:
+    """Drawn on top of the head (head centre about 171, 49; top of the head at y 22)."""
+    if acc == "cap":
+        return (f'<path d="M146 34 C148 14 192 10 196 32 Z" fill="#E6007E" {O}/>'
+                f'<path d="M190 30 Q206 30 212 36 Q200 40 188 36 Z" fill="#A8005C" {O}/>'
+                f'<circle cx="171" cy="15" r="3" fill="#fff" {O2}/>')
+    if acc == "beanie":
+        return (f'<path d="M146 36 C146 10 196 10 196 36 Z" fill="#3D8FD1" {O}/>'
+                f'<rect x="143" y="30" width="56" height="10" rx="5" fill="#8CC3EE" {O}/>'
+                f'<circle cx="171" cy="10" r="7" fill="#fff" {O}/>')
+    if acc == "bow":
+        return (f'<path d="M170 18 L154 8 L156 28 Z" fill="#FF6B6B" {O}/><path d="M170 18 L186 8 L184 28 Z" fill="#FF6B6B" {O}/>'
+                f'<circle cx="170" cy="18" r="5" fill="#C94848" {O2}/>')
+    if acc == "glasses":
+        return (f'<circle cx="163" cy="46" r="10" fill="#fff" fill-opacity=".15" stroke="{INK}" stroke-width="3"/>'
+                f'<circle cx="184" cy="45" r="10.6" fill="#fff" fill-opacity=".15" stroke="{INK}" stroke-width="3"/>'
+                f'<path d="M173 45 h1 M153 44 l-8 -3" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>')
+    if acc == "headphones":
+        return (f'<path d="M148 44 C146 14 196 14 196 44" fill="none" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>'
+                f'<path d="M148 44 C146 14 196 14 196 44" fill="none" stroke="#7B2CBF" stroke-width="3.6" stroke-linecap="round"/>'
+                f'<rect x="140" y="38" width="12" height="18" rx="5" fill="#7B2CBF" {O}/>'
+                f'<rect x="191" y="38" width="12" height="18" rx="5" fill="#7B2CBF" {O}/>')
+    if acc == "flower":
+        out = ""
+        for i in range(5):
+            a = -math.pi / 2 + i * 2 * math.pi / 5
+            out += f'<circle cx="{186 + 6 * math.cos(a):.1f}" cy="{20 + 6 * math.sin(a):.1f}" r="4.6" fill="#F8BBD0" {O2}/>'
+        return out + f'<circle cx="186" cy="20" r="3.6" fill="#FFD43B" {O2}/>'
+    if acc == "crown":
+        return (f'<path d="M152 28 L150 8 L161 18 L171 4 L181 18 L192 8 L190 28 Z" fill="#FFD43B" {O}/>'
+                f'<circle cx="171" cy="20" r="3" fill="#E6007E" {O2}/><circle cx="158" cy="23" r="2.2" fill="#3D8FD1"/><circle cx="184" cy="23" r="2.2" fill="#3D8FD1"/>')
+    if acc == "wizard":
+        return (f'<path d="M144 32 Q170 24 198 32 L184 -14 Q176 -20 168 -10 Z" fill="#3B2A6B" {O}/>'
+                f'<path d="M140 32 Q170 40 202 32 Q170 26 140 32 Z" fill="#3B2A6B" {O}/>'
+                + _star(176, 6, 5, RIM) + _star(162, 18, 3.6, "#fff"))
+    if acc == "gradcap":
+        return (f'<path d="M150 30 V20 H192 V30 Q171 36 150 30 Z" fill="#222" {O}/>'
+                f'<path d="M140 18 L171 6 L202 18 L171 30 Z" fill="#333" {O}/>'
+                f'<path d="M171 18 L196 22 V34" fill="none" stroke="{RIM}" stroke-width="2.4" stroke-linecap="round"/>'
+                f'<circle cx="196" cy="36" r="2.6" fill="{RIM}"/>')
+    return ""
+
+
+def _recolor(svg: str, av: dict) -> str:
+    shell, scarf, skin = SHELLS[av["shell"]], SCARVES[av["scarf"]], SKINS[av["skin"]]
+    pairs = [(SHELL, shell[0]), (SHELL_DARK, shell[1]), (SHELL_SHADE, shell[2]), (SHELL_LIGHT, shell[3]),
+             (SCARF, scarf[0]), (SCARF_DARK, scarf[1]), (SKIN, skin[0]), (SKIN_DARK, skin[1]), (SKIN_FAR, skin[2])]
+    marks = []
+    for i, (a, b) in enumerate(pairs):  # two steps, so one swap can't undo another
+        if a != b:
+            svg = svg.replace(a, f"@@{i}@@")
+            marks.append((f"@@{i}@@", b))
+    for m, b in marks:
+        svg = svg.replace(m, b)
+    return svg
+
+
+def buddy(avatar, mood: str = "happy", size: int = 96, label: str = "Your turtle") -> Markup:
+    """Your own turtle: Tempo's shape in your colours, with your accessory."""
+    av = clean_avatar(avatar)
+    svg = str(mascot(mood, size, label)).replace('class="tempo tempo-', 'class="tempo buddy tempo-', 1)
+    svg = svg.replace("</svg>", f"{_accessory(av['acc'])}</svg>")
+    return Markup(_recolor(svg, av))
+
+
+def buddy_head(avatar, size: int = 36, label: str = "") -> Markup:
+    """Just the head, for small pictures of people (where a coloured letter used to be)."""
+    av = clean_avatar(avatar)
+    aria = f'role="img" aria-label="{label}"' if label else 'aria-hidden="true"'
+    svg = (f'<svg class="buddy-head" width="{int(size)}" height="{int(size)}" viewBox="136 -6 70 86" {aria}>'
+           f'{scarf()}{head("happy")}{_accessory(av["acc"])}</svg>')
+    return Markup(_recolor(svg, av))
+
+
+def builder_svg(avatar) -> Markup:
+    """The turtle in the builder: every accessory is drawn and hidden, the page shows the one you pick."""
+    av = clean_avatar(avatar)
+    svg = str(mascot("wave", 220, "Your turtle"))
+    accs = "".join(f'<g data-acc="{a}"{"" if a == av["acc"] else " hidden"}>{_accessory(a)}</g>' for a in ACCESSORIES)
+    return Markup(svg.replace("</svg>", accs + "</svg>"))

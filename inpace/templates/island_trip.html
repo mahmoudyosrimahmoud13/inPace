@@ -21,7 +21,7 @@
     <form method="post" action="/island/rest" data-nav-form><button class="btn">{% trans trimmed %}Rest for now{% endtrans %}</button></form>
     <a class="btn ghost" href="/">{% trans trimmed %}Go study in inPace{% endtrans %}</a>
   </div>
-  <p class="small muted">{% trans trimmed %}Resting keeps every minute. Nothing on the island ever dies.{% endtrans %}</p>
+  <p class="small muted">{% trans trimmed %}Resting keeps every minute. Your sprout waits for you.{% endtrans %}</p>
 </section>
 
 <section class="card trip-done tempo-say" data-trip-done {{ '' if just else 'hidden' }}>
@@ -30,6 +30,7 @@
     <div class="trip-done-plant">{{ plant_svg(kind, 1.0, goal >= 60, 96)|safe }}</div>
     <h1>{{ T('Your {plant} joined the island!', plant=plant_name) }}</h1>
     <p class="lead">{{ T('{n} minutes of real focus. Tempo is very proud of you.', n=goal) }}</p>
+    {% if just and just.watered %}<p class="note">{{ T('This trip also watered {n} wilting plants.', n=just.watered) if just.watered != 1 else _('This trip also watered a wilting plant.') }}</p>{% endif %}
     <div class="row wrap">
       <a class="btn primary big" data-replace href="/island">{% trans trimmed %}See your island{% endtrans %}</a>
       <a class="btn big" data-replace href="/island#start">{% trans trimmed %}Another trip{% endtrans %}</a>

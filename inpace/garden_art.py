@@ -427,3 +427,144 @@ def crab() -> str:
 
 FRIEND_ART = {"snail": snail, "sparrow": sparrow, "frog": frog, "bee": bee, "owl": owl,
               "butterfly": butterfly, "hare": hare, "crab": crab}
+
+
+# ---- the villain: the Fog of Someday, in person --------------------------------------------------------
+# A sleepy fog creature in a night-cap. It doesn't shout. It whispers "tomorrow" and makes everything heavy.
+# Drawn in a 160 x 140 box. The angrier (closer) it is, the brighter its eyes and the longer its arms.
+
+def villain(level: int = 2) -> str:
+    body = [(80, 70, 40), (48, 78, 28), (112, 78, 28), (62, 50, 26), (98, 50, 26), (80, 96, 30)]
+    fill, shade = {3: ("#8E97A1", "#737D88"), 4: ("#6E7782", "#545D68")}.get(level, ("#AEB6BF", "#959EA8"))
+    s = ""
+    if level >= 3:  # a dark haze around it
+        s += f'<ellipse cx="80" cy="76" rx="{70 + 10 * (level - 3)}" ry="58" fill="#3B4250" opacity=".28"/>'
+    s += _crown(body, fill, shade=[(80, 100, 22), (52, 86, 16), (108, 86, 16)], shade_fill=shade,
+                shine=[(62, 46, 10), (84, 36, 7)], shine_op=".35" if level >= 3 else ".55")
+    # wispy tail
+    s += (f'<path d="M50 112 Q40 132 22 134 Q40 120 44 104 Z M110 112 Q122 132 142 134 Q122 120 116 104 Z M74 124 Q80 140 92 138 Q84 128 86 118 Z" '
+          f'fill="{fill}" {O}/>')
+    if level >= 2:  # arms reaching out
+        reach = 18 if level == 2 else 30 if level == 3 else 42
+        s += (_tube(f"M44 82 Q{30 - reach / 2} 70 {18 - reach} {60 - reach / 3}", fill, 9)
+              + _tube(f"M116 82 Q{130 + reach / 2} 70 {142 + reach} {60 - reach / 3}", fill, 9))
+        for x, side in ((18 - reach, -1), (142 + reach, 1)):
+            y = 60 - reach / 3
+            s += f'<path d="M{x} {y} l{side * 7} -6 M{x} {y} l{side * 8} 1 M{x} {y} l{side * 6} 7" {O2}/>'
+    glow = {0: "#E9EDF0", 1: "#F6F0C2", 2: "#FFF3A0", 3: "#FFE45C", 4: "#FFD43B"}.get(level, "#FFF3A0")
+    s += (f'<ellipse cx="64" cy="66" rx="11" ry="9" fill="{glow}" {O}/><ellipse cx="96" cy="66" rx="11" ry="9" fill="{glow}" {O}/>'
+          f'<path d="M53 63 Q64 56 75 63 M85 63 Q96 56 107 63" fill="#959EA8" {O}/>'
+          f'<ellipse cx="66" cy="69" rx="2.4" ry="4" fill="{INK}"/><ellipse cx="98" cy="69" rx="2.4" ry="4" fill="{INK}"/>'
+          + (f'<path d="M58 84 Q80 104 102 84 Q80 94 58 84 Z" fill="#2B2F3A" {O2}/>'
+             f'<path d="M64 88 l4 5 l4 -4 l4 5 l4 -5 l4 5 l4 -5 l4 4 l4 -5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>'
+             if level >= 3 else
+             f'<path d="M62 86 Q80 98 98 86" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>'
+             f'<path d="M68 89 l2 3 M92 89 l-2 3" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>'))
+    # the night-cap
+    s += (f'<path d="M50 40 Q70 26 112 36 Q118 12 136 8 Q134 30 118 44 Q86 34 50 40 Z" fill="#5B5F97" {O}/>'
+          f'<path d="M50 40 Q82 30 118 44" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>'
+          f'<circle cx="137" cy="8" r="7" fill="#fff" {O}/>')
+    return s
+
+
+def dead_plant() -> str:
+    """A plant the fog took: a bare grey-brown stick. It doesn't come back, but you can clear it away."""
+    return (f'<path d="M40 150 Q60 140 80 150 Z" fill="#7A6A58" {O}/>'
+            + _tube("M60 148 Q58 118 62 92 M60 120 L44 104 M61 108 L76 96 M62 92 L54 80", "#8C7B68", 4)
+            + f'<path d="M44 104 q-4 6 -2 10 M76 96 q6 2 6 8" fill="none" stroke="{INK}" stroke-width="2" stroke-linecap="round"/>')
+
+
+# ---- things you can put on your island -------------------------------------------------------------------
+# Each is drawn standing on y = 0 at x = 0 (so it can sit anywhere on the shell).
+
+def deco(key: str, title: str = "") -> str:
+    if key == "flag":
+        t = (title or "")[:18].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return (f'<path d="M0 0 V-80" {O}/><path d="M0 -80 H84 L74 -66 L84 -52 H0 Z" fill="#FFD43B" {O}/>'
+                f'<text x="39" y="-62" text-anchor="middle" font-size="11" font-weight="800" font-family="system-ui,sans-serif" fill="{INK}">{t}</text>')
+    if key == "rocks":
+        return (f'<path d="M-22 0 Q-24 -16 -10 -18 Q0 -26 8 -14 Q20 -16 22 0 Z" fill="#A9A39A" {O}/>'
+                f'<path d="M-10 -14 q4 -4 10 -2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>')
+    if key == "bench":
+        return (f'<rect x="-26" y="-20" width="52" height="7" rx="2" fill="#B07D45" {O}/>'
+                f'<rect x="-26" y="-34" width="52" height="7" rx="2" fill="#B07D45" {O}/>'
+                f'<path d="M-20 -13 V0 M20 -13 V0 M-20 -27 V-20 M20 -27 V-20" {O}/>')
+    if key == "lanterns":
+        out = f'<path d="M-34 -50 Q0 -36 34 -50" fill="none" stroke="{INK}" stroke-width="2.4"/><path d="M-34 -50 V0 M34 -50 V0" {O}/>'
+        for x, c in ((-16, "#FF6B6B"), (0, "#FFD43B"), (16, "#2EC4B6")):
+            out += f'<path d="M{x} -43 v4" stroke="{INK}" stroke-width="2"/><rect x="{x - 5}" y="-39" width="10" height="13" rx="4" fill="{c}" {O2}/>'
+        return out
+    if key == "campfire":
+        return (f'<path d="M-18 0 L14 -10 M-14 -10 L18 0" stroke="#7A4A1E" stroke-width="7" stroke-linecap="round"/>'
+                f'<path d="M-18 0 L14 -10 M-14 -10 L18 0" stroke="{INK}" stroke-width="1.6" stroke-linecap="round" opacity=".4"/>'
+                f'<path d="M0 -8 Q-14 -24 -2 -40 Q0 -28 8 -30 Q16 -18 0 -8 Z" fill="#FF9F1C" {O}/>'
+                f'<path d="M0 -10 Q-6 -18 0 -26 Q6 -18 0 -10 Z" fill="#FFD43B"/>')
+    if key == "hut":
+        return (f'<rect x="-26" y="-34" width="52" height="34" fill="#E7C795" {O}/>'
+                f'<path d="M-36 -32 L0 -64 L36 -32 Z" fill="#C9A15A" {O}/>'
+                f'<path d="M-24 -40 L0 -60 M24 -40 L0 -60 M-12 -36 L0 -50" stroke="#A07D3A" stroke-width="2"/>'
+                f'<path d="M-8 0 V-20 Q0 -26 8 -20 V0 Z" fill="#7A4A1E" {O2}/>'
+                f'<rect x="12" y="-26" width="9" height="9" fill="#CDE8F2" {O2}/>')
+    if key == "well":
+        return (f'<rect x="-20" y="-20" width="40" height="20" rx="3" fill="#A9A39A" {O}/>'
+                f'<path d="M-20 -10 H20 M-6 -20 V-10 M8 -10 V0" stroke="#7E786F" stroke-width="2"/>'
+                f'<path d="M-16 -20 V-46 M16 -20 V-46" {O}/><path d="M-24 -44 L0 -58 L24 -44 Z" fill="#D1495B" {O}/>'
+                f'<path d="M0 -44 V-30" stroke="{INK}" stroke-width="1.6"/><rect x="-4" y="-32" width="8" height="7" fill="#B07D45" {O2}/>')
+    if key == "windmill":
+        out = (f'<path d="M-14 0 L-8 -60 H8 L14 0 Z" fill="#F2EDE2" {O}/>'
+               f'<path d="M-4 0 V-14 Q0 -18 4 -14 V0 Z" fill="#7A4A1E" {O2}/>')
+        for a in (20, 110, 200, 290):
+            out += f'<path d="M0 -60 L0 -100 L10 -96 L6 -62 Z" fill="#fff" {O2} transform="rotate({a} 0 -60)"/>'
+        return out + f'<circle cx="0" cy="-60" r="4" fill="#D1495B" {O2}/>'
+    if key == "lighthouse":
+        return (f'<path d="M-14 0 L-9 -78 H9 L14 0 Z" fill="#fff" {O}/>'
+                f'<path d="M-12 -22 H12 L11 -36 H-11 Z M-10 -52 H10 L9 -64 H-9 Z" fill="#E6007E"/>'
+                f'<path d="M-14 0 L-9 -78 H9 L14 0 Z" fill="none" {O}/>'
+                f'<rect x="-10" y="-92" width="20" height="14" fill="#FFD43B" {O}/><path d="M-13 -92 H13 L0 -104 Z" fill="#3D8FD1" {O}/>'
+                f'<path d="M12 -86 L44 -96 M12 -84 L44 -76" stroke="#FFD43B" stroke-width="4" stroke-linecap="round" opacity=".85"/>')
+    return ""
+
+
+# ---- visitors in the sea, one a day when you study ----------------------------------------------------------
+# Drawn around (0, 0) at the water line.
+
+def visitor(key: str) -> str:
+    if key == "dolphin":
+        return (f'<path d="M-40 4 Q-30 -40 10 -36 Q34 -34 44 -16 Q30 -20 22 -14 Q20 -2 4 4 Q-10 -8 -30 4 Z" fill="#6FA8DC" {O}/>'
+                f'<path d="M-6 -36 L4 -54 L10 -36" fill="#6FA8DC" {O}/><circle cx="26" cy="-24" r="2.4" fill="{INK}"/>'
+                f'<path d="M-30 -10 q14 -16 34 -18" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".5"/>')
+    if key == "whale":
+        return (f'<path d="M-50 6 Q-50 -30 0 -30 Q44 -30 50 6 Z" fill="#5B7FA6" {O}/>'
+                f'<circle cx="30" cy="-12" r="3" fill="{INK}"/><path d="M20 -2 q8 4 16 0" fill="none" stroke="{INK}" stroke-width="2.2" stroke-linecap="round"/>'
+                f'<path d="M-10 -32 Q-14 -50 -24 -52 M-10 -32 Q-8 -52 0 -56 M-10 -32 Q-2 -48 8 -48" fill="none" stroke="#CDE8F2" stroke-width="4" stroke-linecap="round"/>')
+    if key == "seagull":
+        return (f'<path d="M-24 -40 Q-12 -52 0 -40 Q12 -52 24 -40" fill="none" stroke="{INK}" stroke-width="4" stroke-linecap="round"/>'
+                f'<path d="M30 -60 Q38 -66 46 -60 Q54 -66 62 -60" fill="none" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>')
+    if key == "jellyfish":
+        return (f'<path d="M-18 -6 Q-18 -30 0 -30 Q18 -30 18 -6 Z" fill="#E9A8F0" {O}/>'
+                f'<path d="M-12 -6 q-4 10 0 18 M-4 -6 q4 10 0 20 M4 -6 q-4 10 0 18 M12 -6 q4 8 0 16" fill="none" stroke="#B57BC2" stroke-width="2.6" stroke-linecap="round"/>'
+                f'<circle cx="-6" cy="-16" r="2" fill="{INK}"/><circle cx="6" cy="-16" r="2" fill="{INK}"/>')
+    if key == "boat":
+        return (f'<path d="M-40 -6 H40 L28 8 H-28 Z" fill="#B07D45" {O}/>'
+                f'<path d="M0 -6 V-74" {O}/><path d="M2 -72 Q40 -50 36 -8 H2 Z" fill="#fff" {O}/>'
+                f'<path d="M-2 -60 L-28 -10 H-2 Z" fill="#F2EDE2" {O}/>')
+    return ""
+
+
+VISITORS = ("dolphin", "whale", "seagull", "jellyfish", "boat")
+
+
+def season_bits(season: str) -> str:
+    """A few things in the air: snow, petals, or falling leaves."""
+    spots = [(70, 60), (190, 120), (300, 40), (420, 150), (520, 70), (640, 130), (740, 50), (120, 200), (580, 210), (360, 100)]
+    out = ""
+    for i, (x, y) in enumerate(spots):
+        if season == "winter":
+            out += f'<circle cx="{x}" cy="{y}" r="{3 + i % 3}" fill="#fff" stroke="#9AB" stroke-width="1"/>'
+        elif season == "spring":
+            out += f'<ellipse cx="{x}" cy="{y}" rx="5" ry="3" fill="#F8BBD0" {O2} transform="rotate({i * 37} {x} {y})"/>'
+        elif season == "autumn":
+            c = ("#F08A24", "#D9452B", "#E0A030")[i % 3]
+            out += (f'<path d="M{x} {y - 6} l2 4 4 -1 -2 4 4 2 -4 2 1 4 -5 -2 -5 2 1 -4 -4 -2 4 -2 -2 -4 4 1 z" '
+                    f'fill="{c}" {O2} transform="rotate({i * 41} {x} {y})"/>')
+    return f'<g class="isle-season">{out}</g>' if out else ""
