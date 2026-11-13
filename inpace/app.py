@@ -19,7 +19,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, editor, encourage, exchange, integrations, library, notifier, organize, pace, races, record, reminders, updater
+from . import ai, checks, editor, encourage, exchange, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
@@ -105,6 +105,8 @@ def gettext(text: str) -> str:
 env.install_gettext_callables(gettext, lambda s, p, n: gettext(s if n == 1 else p), newstyle=False)
 env.globals["_"] = gettext
 env.globals["mascot"] = mascot
+env.globals["island_plant"] = lambda k: garden.plant_svg(k, 1.0, False, 54)
+env.globals["island_friend"] = lambda k: garden.friend_svg(k, 60)
 
 
 def say(msg: str, values: list | tuple = ()) -> str:
@@ -203,6 +205,7 @@ _ICONS = {
     "play": '<path d="M7 4.5v15l13-7.5z"/>',
     "code": '<path d="m8 7-5 5 5 5"/><path d="m16 7 5 5-5 5"/>',
     "link": '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    "island": '<path d="M3 20c2-1.4 4-1.4 6 0s4 1.4 6 0 4-1.4 6 0"/><path d="M12 17V9"/><path d="M12 9c-1.5-2.5-4.5-3-7-1.5 2.6.2 4.6 1 7 1.5z"/><path d="M12 9c1.5-2.5 4.5-3 7-1.5-2.6.2-4.6 1-7 1.5z"/><path d="M12 9c-.5-2.6.6-4.6 3-6-.9 2.2-1.6 4-3 6z"/><path d="M7 17c1.5-1.8 8.5-1.8 10 0"/>',
     "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     "alarm": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3M6.4 18.7 4 21M17.6 18.7 20 21"/>',
     "folder": '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
@@ -268,6 +271,46 @@ def _drop_title(content: str, title: str) -> str:
     return content
 
 
+class NavMiddleware:
+    """Two small rules for every response, so Back always shows the app as it is now.
+
+    - Pages are never kept in the cache (no-store). Going back loads them again, so a page shows the
+      language and colors you have now, and a finished quiz can't come back with your old answers.
+    - A form sent by the app's own script (header X-InPace-Nav) gets {"go": url} instead of a
+      redirect. The script then replaces the page, so one-off pages don't pile up behind Back.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        nav = any(k == b"x-inpace-nav" for k, _ in scope.get("headers", []))
+        state = {"swallow": False}
+
+        async def wrapped(msg):
+            if msg["type"] == "http.response.start":
+                headers = list(msg.get("headers", []))
+                found = {k.lower(): v for k, v in headers}
+                if nav and msg["status"] in (301, 302, 303, 307, 308) and b"location" in found:
+                    body = json.dumps({"go": found[b"location"].decode("latin-1")}).encode()
+                    state["swallow"] = True
+                    await send({"type": "http.response.start", "status": 200,
+                                "headers": [(b"content-type", b"application/json"), (b"cache-control", b"no-store"),
+                                            (b"content-length", str(len(body)).encode())]})
+                    await send({"type": "http.response.body", "body": body})
+                    return
+                if found.get(b"content-type", b"").startswith(b"text/html") and b"cache-control" not in found:
+                    headers.append((b"cache-control", b"no-store"))
+                    msg = {**msg, "headers": headers}
+                await send(msg)
+            elif not state["swallow"]:
+                await send(msg)
+
+        await self.app(scope, receive, wrapped)
+
+
 def create_app(vault: Vault) -> Starlette:
     V = vault
 
@@ -287,6 +330,12 @@ def create_app(vault: Vault) -> Starlette:
             ]
             base["active_path"] = request.url.path
             base["resume"] = _last_lesson()
+            base["island_on"] = garden.is_on(V)
+            if base["island_on"] and not request.url.path.startswith("/island/trip"):
+                try:
+                    base["island_news"] = garden.news(V)
+                except Exception:
+                    base["island_news"] = []
             away = reminders.touch(V)
             if away:
                 V._set_meta("welcome_back", str(away))
@@ -401,7 +450,8 @@ def create_app(vault: Vault) -> Starlette:
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
         resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
-                    reminders_set=bool(reminders.load(V)["items"]))
+                    reminders_set=bool(reminders.load(V)["items"]),
+                    island_trip=garden.active(V) if garden.is_on(V) else None)
         return resp
 
     def _welcome_back() -> int | None:
@@ -426,6 +476,7 @@ def create_app(vault: Vault) -> Starlette:
             (".side-bottom a, .tabbar [data-more-open]", "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
             (".top .theme-toggle, .tabbar [data-more-open]", "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
             ('.side a[href="/settings"], .tabbar [data-more-open]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
+            ('.side a[href="/island"], .tabbar [data-more-open]', "water", "Tempo's island", "Want a reward for studying? Turn on Tempo's island: every focus trip grows a plant on my shell, and friends move in as you learn."),
             (None, "proud", "You're all set!", "Start with a course and take the first step today. I'll be on your Home page, cheering you on."),
         ]
         return [{"target": tgt, "mood": mood, "title": say(title), "text": say(text)} for tgt, mood, title, text in steps]
@@ -1391,10 +1442,20 @@ def create_app(vault: Vault) -> Starlette:
             answers = {q["id"]: str(form.get(q["id"], "")) for q in exam["questions"]}
             V.add_event(j["id"], "exam_taken", {"exam": exam["id"], "req": exam["req"], "task": exam["task"],
                                                 "checker": exam["checker"]["id"], "answers": answers})
-            return page("quiz_result.html", request, j=j, module=module, verified=True, checker_name=checker_name,
-                        yay=encourage.CELEBRATE["exam"])
+            return go(f"/learn/{j['id']}/exam/{exam['id']}/done", yay="exam")
         return page("quiz.html", request, j=j, module=module, req={"pass": exam["pass"]}, exam=exam["questions"],
-                    seed="", verified=True, checker_name=checker_name)
+                    seed="", verified=True, checker_name=checker_name, dispose=f"/learn/{j['id']}/module/{module['id']}")
+
+    async def exam_done(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        exam = checks.get_my_exam(V, request.path_params["eid"]) if j else None
+        if not exam or exam["journey"] != j["id"]:
+            return go("/", err="That exam wasn't found.")
+        found = V.get_course(j["course_id"]).find_requirement(exam["req"])
+        module = found[0] if found else {"id": "", "title": exam["task"], "lessons": []}
+        checker_name = display_name(V.person(exam["checker"]["id"]))
+        back = f"/learn/{j['id']}/module/{module['id']}" if module["id"] else f"/learn/{j['id']}"
+        return page("quiz_result.html", request, j=j, module=module, verified=True, checker_name=checker_name, dispose=back)
 
     async def journey_action(request: Request):
         jid, action = request.path_params["jid"], request.path_params["action"]
@@ -1435,24 +1496,31 @@ def create_app(vault: Vault) -> Starlette:
             seed = new_seed()
             exam = build_exam(course, due, seed)
             return page("quiz.html", request, j=j, course=course, module={"id": "", "title": "Review"},
-                        req={"pass": 0}, exam=exam, seed=seed, review=True, qids=",".join(due))
+                        req={"pass": 0}, exam=exam, seed=seed, review=True, qids=",".join(due), dispose="/")
         form = await request.form()
         seed, qids = str(form.get("seed", "")), [q for q in str(form.get("qids", "")).split(",") if q in course.questions]
         exam = build_exam(course, qids, seed)
-        result = grade(course, exam, {it["id"]: str(form.get(it["id"], "")) for it in exam})
+        answers = {it["id"]: str(form.get(it["id"], "")) for it in exam}
+        result = grade(course, exam, answers)
         pace.update_cards(V, course.id, {it["id"]: d["ok"] for it, d in zip(exam, result["details"])})
-        V.add_event(j["id"], "review_done", {"count": result["total"], "right": result["score"]})
+        V.add_event(j["id"], "review_done", {"count": result["total"], "right": result["score"],
+                                             "seed": seed, "qids": qids, "answers": answers})
+        return go(f"/learn/{j['id']}/practice/result")
+
+    async def practice_result(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        if not j:
+            return go("/", err="That course wasn't found.")
+        course = V.get_course(j["course_id"])
+        last = next((e for e in reversed(V.events(j["id"])) if e["type"] == "review_done" and e["data"].get("seed")), None)
+        if not last:
+            return RedirectResponse("/", status_code=303)
+        qids = [q for q in last["data"].get("qids", []) if q in course.questions]
+        result = grade(course, build_exam(course, qids, last["data"]["seed"]), last["data"].get("answers", {}))
         return page("quiz_result.html", request, j=j, module={"id": "", "title": "Review", "lessons": []},
-                    req={"pass": 0, "id": ""}, result=result, passed=True, review=True)
+                    req={"pass": 0, "id": ""}, result=result, passed=True, review=True, dispose="/")
 
     async def lesson_done(request: Request):
-        resp = await _lesson_done(request)
-        if request.headers.get("x-inpace-nav") and resp.status_code == 303:
-            # The page moves on with location.replace, so lessons don't pile up behind the Back button.
-            return JSONResponse({"go": resp.headers["location"]})
-        return resp
-
-    async def _lesson_done(request: Request):
         jid, lid = request.path_params["jid"], request.path_params["lid"]
         j = journey_or_404(jid)
         course = V.get_course(j["course_id"]) if j else None
@@ -1544,7 +1612,8 @@ def create_app(vault: Vault) -> Starlette:
                 return go(f"/learn/{j['id']}/module/{module['id']}",
                           err="This course came without answers, so practice quizzes aren't available. "
                               "Ask whoever shared it for the version with answers.")
-            return page("quiz.html", request, j=j, course=course, module=module, req=req, exam=exam, seed=seed)
+            return page("quiz.html", request, j=j, course=course, module=module, req=req, exam=exam, seed=seed,
+                        dispose=f"/learn/{j['id']}/module/{module['id']}")
         form = await request.form()
         seed = str(form.get("seed", ""))
         exam = build_exam(course, req["questions"], seed)
@@ -1557,8 +1626,25 @@ def create_app(vault: Vault) -> Starlette:
                                             "score": result["score"], "total": result["total"],
                                             "percent": result["percent"], "passed": passed})
         done_now = _module_done(j["id"], module["id"])
+        # Show the result on its own page (post, then redirect), so Back or reload never sends the answers again.
+        return go(f"/learn/{j['id']}/task/{req['id']}/quiz/result",
+                  yay=("module" if done_now else "quiz") if passed else None)
+
+    async def quiz_result(request: Request):
+        """Your last practice try of this quiz, worked out again from what was saved."""
+        j, course, module, req = await _req_ctx(request)
+        if not req or req["type"] != "quiz":
+            return go("/", err="That quiz wasn't found.")
+        back = f"/learn/{j['id']}/module/{module['id']}"
+        last = next((e for e in reversed(V.events(j["id"])) if e["type"] == "quiz_taken"
+                     and e["data"].get("req") == req["id"] and e["data"].get("seed")), None)
+        if not last:
+            return RedirectResponse(back, status_code=303)
+        exam = build_exam(course, req["questions"], last["data"]["seed"])
+        result = grade(course, exam, last["data"].get("answers", {}))
+        passed = result["percent"] >= req.get("pass", 70)
         return page("quiz_result.html", request, j=j, module=module, req=req, result=result, passed=passed,
-                    yay=encourage.CELEBRATE["module" if (passed and done_now) else "quiz"] if passed else None)
+                    dispose=back)
 
     # ---- milestones -----------------------------------------------------------
     async def milestones(request: Request):
@@ -2243,6 +2329,155 @@ def create_app(vault: Vault) -> Starlette:
         return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
+    # ---- Tempo's island (reward mode) -------------------------------------------------------------
+    def _island_labels() -> dict:
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        out = {"island": say("Tempo carries your island")}
+        out.update({k: say(n) for k, n in garden.FRIEND_NAMES.items()})
+        out.update({"plant_" + k: say(n) for k, n in garden.PLANT_NAMES.items()})
+        return out
+
+    def _island_others() -> list[dict]:
+        """Friends' turtles on your sea chart: learners you check (by their progress) and your checkers (at the lighthouse)."""
+        out = []
+        for p in V.people():
+            if p["i_check"]:
+                best = 0
+                for r in V.received(p["id"]):
+                    for m in r["data"].get("milestones", []):
+                        best = max(best, (m.get("body", {}).get("summary", {}) or {}).get("percent", 0) or 0)
+                out.append({"name": display_name(p), "pos": best / 100,
+                            "palette": garden.PALETTES[1 + sum(map(ord, p["id"])) % (len(garden.PALETTES) - 1)]})
+            elif p["checks_me"]:
+                out.append({"name": display_name(p), "pos": 0.4,
+                            "palette": garden.PALETTES[1 + sum(map(ord, p["id"])) % (len(garden.PALETTES) - 1)]})
+        return out[:8]
+
+    def _goal_met() -> bool:
+        for j in V.journeys():
+            card = journey_card(j)
+            pc = card.get("pace") or {}
+            tw, com = pc.get("this_week"), pc.get("commitment")
+            if com and tw and tw.get("count", 0) >= com.get("per_week", 99):
+                return True
+        return False
+
+    async def island(request: Request):
+        garden.setup(V)
+        on = garden.is_on(V)
+        lang = V._meta("lang", "en") or "en"
+        just = garden.check(V) if on else None
+        st = garden.stats(V)
+        coll = garden.collection(V, st)
+        have = garden.unlocked(V, st)
+        trip = garden.active(V)
+        journeys = [{"id": j["id"], "title": (V.get_course(j["course_id"]).title if V.get_course(j["course_id"]) else j["course_id"])}
+                    for j in V.journeys()]
+        ctx = dict(on=on, st=st, coll=coll, have=have, trip=trip, just=just, lengths=garden.LENGTHS, journeys=journeys,
+                   plant_svg=garden.plant_svg, friend_svg=garden.friend_svg,
+                   elapsed=int(garden.elapsed(trip)) if trip else 0,
+                   last_kind=(garden.last_grown(V) or {}).get("kind", "sunflower"))
+        world_setting = V._meta("island_world", "") or ""
+        if not on:
+            intro = garden.story.chapter("c1", garden.story.world_for(world_setting, lang), lang)
+            return page("island.html", request, intro=intro, **ctx)
+        wx = garden.weather(V, goal_met=_goal_met())
+        others = _island_others()
+        tale = garden.story_state(V, st, wx, lang, people=len(others))
+        fleet = garden.turtles(V, tale["world"], lang)
+        pick = request.query_params.get("t", "")
+        shown = next((t for t in fleet if t["id"] == pick), fleet[0])
+        ring = 1 + len(shown["plants"]) // 10
+        labels = _island_labels()
+        picture = garden.island_svg(shown["plants"], have["friends"], ring, st["blooming"], labels=labels,
+                                    palette=shown["palette"], fog=wx["fog"], fair=wx["fair"], home=shown["tempo"])
+        story_pos = len([c for c in tale["chapters"] if not c["interlude"]]) / len(garden.story.CHAPTERS)
+        chart = garden.sea_chart(fleet, others, story_pos, labels={"chart": say("The way to the Far Shore")})
+        friend_lines = {k: say(n) + ": " + say(story) for k, n, _, story in garden.FRIENDS if k in have["friends"]}
+        return page("island.html", request, wx=wx, tale=tale, fleet=fleet, shown=shown, ring=ring, picture=picture,
+                    chart=chart, world_setting=world_setting, others=others, friend_lines=friend_lines, **ctx)
+
+    async def island_world(request: Request):
+        form = await request.form()
+        w = str(form.get("world", ""))
+        V._set_meta("island_world", w if w in garden.story.WORLDS else "")
+        return go("/island#logbook")
+
+    async def island_name(request: Request):
+        form = await request.form()
+        jid = str(form.get("t", ""))
+        if V.journey(jid):
+            garden.rename(V, jid, str(form.get("name", "")))
+        return go(f"/island?t={jid}")
+
+    async def island_mode(request: Request):
+        form = await request.form()
+        garden.set_on(V, form.get("on") == "1")
+        if form.get("on") == "1":
+            import time as _t
+            V._set_meta("garden_since", str(_t.time()))
+        if form.get("on") == "1":
+            return go("/island", ok="Tempo's island is on. Start a focus trip to grow your first plant.")
+        return go("/island", ok="Reward mode is off. Your island is kept, ready for when you come back.")
+
+    async def island_start(request: Request):
+        if not garden.is_on(V):
+            return go("/island")
+        form = await request.form()
+        try:
+            minutes = int(form.get("minutes") or 25)
+        except ValueError:
+            minutes = 25
+        garden.start(V, str(form.get("kind", "")), minutes, str(form.get("mode", "anywhere")), str(form.get("journey", "")))
+        return go("/island/trip")
+
+    async def island_trip(request: Request):
+        if not garden.is_on(V):
+            return go("/island")
+        just = garden.check(V)
+        trip = garden.active(V)
+        if not trip and not just:
+            return RedirectResponse("/island", status_code=303)
+        shown = trip or just
+        title = ""
+        if shown.get("journey"):
+            j = V.journey(shown["journey"])
+            c = V.get_course(j["course_id"]) if j else None
+            title = c.title if c else ""
+        return page("island_trip.html", request, trip=trip, just=just, kind=shown["kind"], goal=shown["goal"],
+                    elapsed=int(garden.elapsed(trip)) if trip else shown["goal"] * 60, studying=title,
+                    trip_svg=garden.trip_svg(shown["kind"], 1.0 if just else garden.elapsed(trip) / (trip["goal"] * 60),
+                                             "cheer" if just else "read", label=say("Tempo swims while your plant grows"),
+                                             stages=not just),
+                    plant_name=say(garden.PLANT_NAMES.get(shown["kind"], "")),
+                    plant_svg=garden.plant_svg, dispose="/island" if just else None)
+
+    async def island_rest(request: Request):
+        garden.rest(V)
+        return go("/island", ok="Resting. Your sprout keeps its minutes and waits for your next trip.")
+
+    async def island_letgo(request: Request):
+        garden.let_go(V)
+        return go("/island")
+
+    async def island_pause(request: Request):
+        trip = garden.active(V)
+        if trip and trip["mode"] == "phone":
+            garden.rest(V, state="paused")
+        return Response(status_code=204)
+
+    async def island_resume(request: Request):
+        garden.resume(V)
+        just = garden.check(V)
+        trip = garden.active(V)
+        return JSONResponse({"grown": bool(just), "elapsed": int(garden.elapsed(trip)) if trip else 0,
+                             "state": trip["state"] if trip else "grown"})
+
+    async def island_done(request: Request):
+        just = garden.check(V)
+        trip = garden.active(V)
+        return JSONResponse({"grown": bool(just) or not trip, "elapsed": int(garden.elapsed(trip)) if trip else 0})
+
     async def ping(request: Request):
         """Lets a newly started inPace find and replace an older one using the same data folder."""
         from . import __version__
@@ -2368,13 +2603,16 @@ def create_app(vault: Vault) -> Starlette:
         Route("/learn/{jid}/lesson/{lid}", needs_setup(lesson)),
         Route("/learn/{jid}/module/{mid}", needs_setup(module_page)),
         Route("/learn/{jid}/exam/{eid}", needs_setup(take_exam), methods=["GET", "POST"]),
+        Route("/learn/{jid}/exam/{eid}/done", needs_setup(exam_done)),
         Route("/learn/{jid}/do/{action}", needs_setup(journey_action), methods=["POST"]),
         Route("/learn/{jid}/practice", needs_setup(practice), methods=["GET", "POST"]),
+        Route("/learn/{jid}/practice/result", needs_setup(practice_result)),
         Route("/learn/{jid}/lesson/{lid}/done", needs_setup(lesson_done), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/evidence", needs_setup(add_evidence), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/git", needs_setup(add_git), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/writeup", needs_setup(save_writeup), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/quiz", needs_setup(quiz), methods=["GET", "POST"]),
+        Route("/learn/{jid}/task/{rid}/quiz/result", needs_setup(quiz_result)),
         Route("/milestones", needs_setup(milestones)),
         Route("/milestones/{jid}/save", needs_setup(save_milestone), methods=["POST"]),
         Route("/milestones/{jid}/export", needs_setup(export_progress)),
@@ -2406,6 +2644,17 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
         Route("/theme", set_theme, methods=["POST"]),
+        Route("/island", needs_setup(island)),
+        Route("/island/mode", needs_setup(island_mode), methods=["POST"]),
+        Route("/island/world", needs_setup(island_world), methods=["POST"]),
+        Route("/island/name", needs_setup(island_name), methods=["POST"]),
+        Route("/island/start", needs_setup(island_start), methods=["POST"]),
+        Route("/island/trip", needs_setup(island_trip)),
+        Route("/island/rest", needs_setup(island_rest), methods=["POST"]),
+        Route("/island/let-go", needs_setup(island_letgo), methods=["POST"]),
+        Route("/island/pause", needs_setup(island_pause), methods=["POST"]),
+        Route("/island/resume", needs_setup(island_resume), methods=["POST"]),
+        Route("/island/done", needs_setup(island_done), methods=["POST"]),
         Route("/tour/done", needs_setup(tour_done), methods=["POST"]),
         Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),
@@ -2418,4 +2667,5 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
-    return Starlette(routes=routes)
+    from starlette.middleware import Middleware
+    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware)])

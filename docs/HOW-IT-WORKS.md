@@ -179,6 +179,9 @@ Because of the link and the signature, nobody can change one milestone without b
 - **Continue:** the sidebar card takes you back to the lesson you were last on.
 - **Course outline:** shown on every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
 - **Back and forward:** the app window has no browser buttons, so inPace has its own at the top left. **Alt+← / Alt+→** and the side buttons on a mouse work too.
+- **Pages are never stale.** Every page is sent with `Cache-Control: no-store`, so going back loads it again: it shows the language, colors and progress you have now, not the ones from before. If a window brings a page back from memory anyway, it's reloaded.
+- **One-off pages are skipped.** A quiz you already sent, a quiz result, a verified exam and a finished focus trip mark themselves as one-off (`<meta name="inpace-dispose">`). If Back lands on one, inPace goes to the page it belongs to instead (the module, or the island). Quiz answers are saved first and the result is shown on its own page (post, then redirect), so Back or reload never sends them again.
+- **Forms replace the page.** Settings, quizzes, task uploads and "Done" are sent in the background with an `X-InPace-Nav` header; the server answers with where to go, and the page is replaced, so a sent form never sits behind Back.
 - **Back inside a course:** moving between lessons, the module tasks and the next module replaces the page instead of adding one (`location.replace`). So Back always takes you out to the course page, then to My courses, never through every lesson you read. This is the same on computers and on Android (the phone's back button follows the same history).
 - **After a module:** the module page says what's next and has **Start the next module**, so you don't have to go back to My courses. The course page has a **Continue** button too.
 - **My courses:** each course is one card: its picture, name, how far you are and the next lesson. Tap it to continue. Edit, share, update and delete are under **⋯**. Sample courses are folded away at the bottom.
@@ -406,6 +409,10 @@ inpace/
   office.py       light, read-only previews of Word, PowerPoint and Excel files
   reminders.py    reminders, alarms and Tempo's notifications: what's due, the messages, the Android plan
   notifier.py     notifications and alarms on a computer, and its scheduler (Task Scheduler, launchd, systemd, cron)
+  garden.py       Tempo's island: focus trips, what you've unlocked, the weather (your pace), your turtles, the drawings
+  garden_art.py   the 14 plants and 8 animal friends, drawn as SVG
+  island_story.py the island's adventure: 10 chapters and 3 interludes, in two worlds and two languages
+  mascot.py       Tempo himself, in 11 moods
   templates/      pages (Jinja)
   static/         CSS, JavaScript, fonts, icons, pdf.js
   sample_courses/ ready-made courses, including "A tour of inPace" with one of every kind of lesson
@@ -417,3 +424,49 @@ tests/            pytest, run on Windows, Mac and Linux on every push
 ```
 
 **Releases:** push a tag like `v1.10.0`. GitHub runs the tests, builds the apps, checks that each one starts, writes `SHA256SUMS` and publishes the release. A second workflow builds the Android APK and adds it to the same release. The website deploys from `site/` on every push to main.
+
+---
+
+## 15. Tempo's island (reward mode)
+
+An optional reward for studying, off until you turn it on from **Tempo's island** in the sidebar. Everything lives in `vault.db` (a `garden` table and a few `meta` keys), so it's in your backups and never goes online.
+
+**Focus trips.** You pick a plant, a length (10, 15, 25, 45, 60 or 90 minutes), a mode, and optionally a course.
+- The trip is saved with the time it started. The page counts down and shows the plant at 6 stages (seed, sprout, then bigger and bigger), but the server decides when it's done, so closing the app doesn't lose anything.
+- **Study anywhere:** the clock keeps running wherever you are. **Phone down:** when the trip screen is hidden, the page tells the server to pause (`/island/pause`), and it goes on when you come back (`/island/resume`). On phones it also asks to keep the screen on.
+- **Rest for now** keeps the minutes. Starting again carries on with the same sprout. Nothing ever dies.
+- The plant's size follows the length; an hour or more grows fruit or flowers.
+
+**Your turtles.** Trips for a course grow on that course's own turtle, with its own colors and name (you can rename it). Trips for anything else grow on Tempo. Every 10 plants a turtle's shell grows a ring and its island has room for more.
+
+**Unlocks.** 14 plants and 8 friends, worked out from your own data each time something changes:
+
+| Unlock | How |
+|---|---|
+| Sunflower, Oak | From the start |
+| Pine, Lemon tree, Maple, Golden tree | Grow 3, 10, 25, 50 plants |
+| Cactus, Baobab | One trip of 60, 90 minutes |
+| Cherry blossom | Focus 3 days in a row |
+| Lavender, Lotus | 3 trips before 8 am, after 9 pm |
+| Bamboo | 5 hours of focus |
+| Date palm | Finish your first module |
+| Olive tree | Save your first milestone |
+| Zoon the snail | Finish your first lesson |
+| Kiko the sparrow | Grow your first plant |
+| Fofo the frog | 7 daily reviews |
+| Zizi the bee | Save 3 milestones |
+| Boomy the owl | A milestone approved by your checker |
+| Farfoura the butterfly | Focus on 7 different days |
+| Arnoob the hare | Join a race |
+| Kaboria the crab | Finish a whole course |
+
+A small pop-up says when something new arrives, once.
+
+**The weather is your pace.** inPace looks at the last time you did anything in a course or a trip: under 2 days the sea is clear, 2 to 3 days a mist, 4 to 6 thick fog (colors fade, friends sleep), 7 or more Tempo is "lost in the fog". It's only a picture: nothing is lost. When your checker approved a milestone in the last week, the island blooms; when you meet a weekly goal, you get fair winds and a rainbow.
+
+**The story** (`island_story.py`) has three acts and ten chapters, from the bay to the Far Shore, against the Fog of Someday. Chapters open at 0, 1, 3, 5, 10, 15, 20, 30, 40 and 50 plants; the fight at the heart of the fog also needs 3 days in a row; and no new chapter opens in thick fog. Three interludes happen because of what you really do: coming back after the fog, keeping a weekly goal, and having other learners in your sea. Opened chapters stay open.
+
+There are two worlds with the same plot: **the Sea of Things to Learn** (the default in English) and **Alexandria and the Great Green Sea** (the default in Arabic, with Teta Lulua, the Pharos and the Library of Alexandria). You can pick either in either language. The text is written once per language with placeholders that each world fills in.
+
+**The sea chart** shows all your turtles on the way to the Far Shore (Tempo by the story, a course's turtle by its progress), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse.
+

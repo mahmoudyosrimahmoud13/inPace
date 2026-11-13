@@ -1,8 +1,13 @@
+// Send a form the same way pressing its button would, so [data-nav-form] forms replace the page.
+function sendForm(form) {
+  if (form.requestSubmit) form.requestSubmit(); else form.submit();
+}
+
 // Small helpers only. The app works without JavaScript too.
 document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   input.addEventListener("change", () => {
     if (input.tagName === "SELECT") return;  // handled below
-    if (input.type === "file" ? input.files.length : true) input.form.submit();
+    if (input.type === "file" ? input.files.length : true) sendForm(input.form);
   });
   const zone = input.closest(".drop-zone");
   if (!zone) return;
@@ -72,19 +77,13 @@ document.querySelectorAll(".prose pre").forEach((pre) => {
 });
 
 // Celebration toast and a short burst of confetti.
-(() => {
-  const yay = document.querySelector(".yay");
-  if (!yay) return;
-  const close = () => { yay.classList.add("out"); setTimeout(() => yay.remove(), 300); };
-  yay.querySelector(".yay-close").addEventListener("click", close);
-  setTimeout(close, 6000);
-  if (!yay.hasAttribute("data-confetti") || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+function burstConfetti() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const c = document.createElement("canvas");
   c.className = "confetti";
   document.body.appendChild(c);
   const ctx = c.getContext("2d");
-  const resize = () => { c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; };
-  resize();
+  c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio;
   const colors = ["#1F7A56", "#9FF0C8", "#F2B84B", "#7FB0F0", "#FF8FA3", "#3A506B"];
   const bits = Array.from({ length: 140 }, () => ({
     x: Math.random() * c.width, y: -Math.random() * c.height * 0.5, r: (4 + Math.random() * 5) * devicePixelRatio,
@@ -102,7 +101,13 @@ document.querySelectorAll(".prose pre").forEach((pre) => {
     if (t - start < 3200) requestAnimationFrame(frame); else c.remove();
   };
   requestAnimationFrame(frame);
-})();
+}
+document.querySelectorAll(".yay").forEach((yay, i) => {
+  const close = () => { yay.classList.add("out"); setTimeout(() => yay.remove(), 300); };
+  yay.querySelector(".yay-close").addEventListener("click", close);
+  setTimeout(close, 7000 + i * 1500);
+  if (i === 0 && yay.hasAttribute("data-confetti")) burstConfetti();
+});
 
 // Small notice used by the app window (e.g. "Saved to Downloads: file.json").
 window.inpaceToast = (text) => {
@@ -456,7 +461,7 @@ document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
 });
 
 // "Move to…" and other selects that save on change.
-document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventListener("change", () => s.value && s.form.submit()));
+document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventListener("change", () => s.value && sendForm(s.form)));
 
 // Tempo's welcome tour: a spotlight on each part of inPace, with Tempo explaining it.
 (() => {
@@ -915,32 +920,59 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
   });
 });
 
-// Moving inside a course (next lesson, previous, module tasks, next module) replaces the page
+// Moving inside a course (next lesson, previous, module tasks, next module, a quiz) replaces the page
 // instead of adding one, so Back always takes you out to the course, not through every lesson.
-// [data-up] links go back when that's where you came from, so the course isn't opened twice.
+// [data-up] links go back when that page is right behind you, so it isn't opened twice.
 (() => {
-  const same = (a, b) => { try { const x = new URL(a, location.href), y = new URL(b, location.href);
-    return x.origin === y.origin && x.pathname === y.pathname; } catch (e) { return false; } };
+  const path = (u) => { try { const x = new URL(u, location.href); return x.origin === location.origin ? x.pathname : null; } catch (e) { return null; } };
+  const goUp = (href) => {
+    const want = path(href);
+    const nav = window.navigation;
+    if (nav && nav.entries && nav.currentEntry) {
+      const list = nav.entries(), here = nav.currentEntry.index;
+      for (let i = here - 1; i >= 0 && i >= here - 3; i--) {
+        if (path(list[i].url) === want) { nav.traverseTo(list[i].key); return; }
+      }
+    } else if (document.referrer && path(document.referrer) === want && history.length > 1) { history.back(); return; }
+    location.href = href;
+  };
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest("a[data-replace], a[data-up]");
     if (!a || a.target) return;
     e.preventDefault();
-    if (a.hasAttribute("data-up") && document.referrer && same(document.referrer, a.href) && history.length > 1) history.back();
-    else if (a.hasAttribute("data-up")) location.href = a.href;
-    else location.replace(a.href);
+    if (a.hasAttribute("data-up")) goUp(a.href); else location.replace(a.href);
   });
-  document.querySelectorAll("form[data-nav-form]").forEach((f) => {
-    f.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const btn = f.querySelector("button"); if (btn) btn.disabled = true;
-      try {
-        const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "X-InPace-Nav": "1" } });
+  // Forms marked [data-nav-form] are sent in the background. The server answers with where to go,
+  // and the page is replaced, so a sent form never sits behind the Back button.
+  document.addEventListener("submit", async (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || !f.hasAttribute("data-nav-form") || e.defaultPrevented) return;
+    e.preventDefault();
+    if (f.dataset.sending) return;
+    f.dataset.sending = "1";
+    f.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    const body = new FormData(f);
+    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+    try {
+      const r = await fetch(f.action || location.href, { method: "POST", body, headers: { "X-InPace-Nav": "1" } });
+      const type = r.headers.get("content-type") || "";
+      if (type.includes("application/json")) {
         const data = await r.json();
         if (data && data.go) { location.replace(data.go); return; }
-      } catch (err) { /* fall back to a normal submit */ }
-      f.submit();
-    });
+      }
+      if (type.includes("text/html")) {  // a page with a message (for example, a mistake in the form)
+        const html = await r.text();
+        document.open(); document.write(html); document.close();
+        return;
+      }
+      location.reload();
+    } catch (err) {
+      delete f.dataset.sending;
+      f.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+      f.removeAttribute("data-nav-form");
+      sendForm(f);  // offline or blocked: send it the normal way
+    }
   });
 })();
 
@@ -957,5 +989,100 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") menus().forEach((m) => { m.open = false; m.querySelector("summary")?.focus(); });
+  });
+})();
+
+
+// Tempo's island: a friend says hello when you tap them.
+(() => {
+  const say = document.querySelector("[data-friend-say]");
+  if (!say) return;
+  const lines = JSON.parse(document.getElementById("friend-lines")?.textContent || "{}");
+  document.querySelectorAll(".isle-friend").forEach((f) => {
+    f.style.cursor = "pointer";
+    f.addEventListener("click", () => {
+      const k = f.dataset.friend;
+      if (!lines[k]) return;
+      say.textContent = lines[k];
+      say.hidden = false;
+      f.classList.remove("hop"); void f.getBoundingClientRect(); f.classList.add("hop");
+    });
+  });
+})();
+
+// The focus trip: count down, grow the plant, plant it on the island when the time is up.
+(() => {
+  const box = document.querySelector("[data-trip]");
+  if (!box || box.hidden) return;
+  const goal = +box.dataset.goal, mode = box.dataset.mode;
+  let base = +box.dataset.elapsed, t0 = Date.now(), state = box.dataset.state, finishing = false;
+  const timeEl = box.querySelector("[data-time]");
+  const stones = [...box.querySelectorAll("[data-stone]")];
+  const stages = [...box.querySelectorAll(".trip-stage")];
+  const note = box.querySelector("[data-paused]");
+  const title = document.title;
+  const now = () => (state === "running" ? base + (Date.now() - t0) / 1000 : base);
+  const fmt = (s) => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  const chime = () => {
+    try {
+      const a = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(a.destination);
+        const t = a.currentTime + i * 0.16;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        o.start(t); o.stop(t + 0.65);
+      });
+    } catch (e) { /* no sound here */ }
+  };
+  const done = () => {
+    box.hidden = true;
+    const d = document.querySelector("[data-trip-done]");
+    if (d) d.hidden = false;
+    document.title = title;
+    chime();
+    burstConfetti();
+  };
+  const finish = async () => {
+    try {
+      const d = await (await fetch("/island/done", { method: "POST" })).json();
+      if (d.grown) return done();
+      base = d.elapsed; t0 = Date.now();
+    } catch (e) { /* try again next tick */ }
+    finishing = false;
+  };
+  const draw = () => {
+    const e = now(), p = Math.min(1, e / goal);
+    timeEl.textContent = fmt(goal - e);
+    if (state === "running") document.title = fmt(goal - e) + " · " + title;
+    stones.forEach((s, i) => s.classList.toggle("on", p >= (i + 1) / 10));
+    let cur = stages[0];
+    stages.forEach((g) => { if (+g.dataset.g <= Math.max(p, 0.05) + 1e-9) cur = g; });
+    stages.forEach((g) => { if (g === cur) g.removeAttribute("hidden"); else g.setAttribute("hidden", ""); });
+    if (p >= 1 && !finishing) { finishing = true; finish(); }
+  };
+  setInterval(draw, 1000);
+  draw();
+  const sync = async () => {
+    try {
+      const d = await (await fetch("/island/resume", { method: "POST" })).json();
+      if (d.grown) return done();
+      if (state === "paused" && note) note.hidden = false;
+      base = d.elapsed; t0 = Date.now(); state = d.state;
+    } catch (e) { /* offline: keep counting here */ }
+  };
+  let lock = null;
+  const keepAwake = async () => { try { if (mode === "phone" && navigator.wakeLock) lock = await navigator.wakeLock.request("screen"); } catch (e) { lock = null; } };
+  keepAwake();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (mode === "phone" && state === "running") {
+        base = now(); state = "paused";
+        if (navigator.sendBeacon) navigator.sendBeacon("/island/pause"); else fetch("/island/pause", { method: "POST", keepalive: true });
+      }
+    } else {
+      sync();
+      keepAwake();
+    }
   });
 })();

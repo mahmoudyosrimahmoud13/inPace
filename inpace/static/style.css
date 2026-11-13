@@ -1197,3 +1197,90 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
     overscroll-behavior: contain; z-index: 40; padding: .5rem; }
   details.menu[open] > .menu-box a, details.menu[open] > .menu-box .btn { padding-block: .8rem; }
 }
+
+/* ---- Tempo's island ------------------------------------------------------------------------------ */
+.isle-intro { display: flex; gap: 1.25rem; align-items: center; }
+.isle-intro .story p { line-height: 1.7; }
+.isle-how { list-style: none; padding: 0; margin: 0; display: grid; gap: .8rem; }
+.isle-how li { display: flex; gap: .7rem; align-items: flex-start; }
+.isle-how li svg { flex: none; margin-top: .15rem; }
+.isle-facts { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 0; }
+.isle-weather { margin-block: .25rem 1rem; }
+.isle-weather .bubble { margin: 0; }
+.isle-new-chapter { border-color: var(--line); background: var(--sky); }
+.isle-new-chapter h2 { margin-top: .2rem; }
+.isle-new-chapter p { line-height: 1.75; }
+.isle-fleet { display: flex; gap: .6rem; overflow-x: auto; padding-block: .2rem .7rem; scrollbar-width: thin; }
+.isle-turtle { display: flex; align-items: center; gap: .55rem; padding: .5rem .8rem; border: 2.5px solid var(--line); background: var(--surface);
+  color: var(--ink); text-decoration: none; flex: none; max-width: 260px; box-shadow: var(--hard-sm); }
+.isle-turtle.on { background: var(--sun); color: #111; }
+.isle-turtle .dot { width: 20px; height: 20px; border-radius: 50%; border: 4px solid; flex: none; }
+.isle-turtle .small.muted { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.isle-scene { margin: 0; border: 2.5px solid var(--line); box-shadow: var(--hard); overflow: hidden; background: #CDE8F2; }
+.isle-scene svg, .isle-chart svg { display: block; width: 100%; height: auto; }
+.isle-scene figcaption { padding: .6rem .9rem; border-top: 2.5px solid var(--line); background: var(--surface); }
+.isle-caption { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; }
+.isle-chart { margin: 0; border: 2.5px solid var(--line); box-shadow: var(--hard); overflow: hidden; }
+.isle-friend-say { margin: .9rem 0 0; }
+.isle-friend { transition: transform .2s; }
+.isle-friend.hop { animation: isle-hop .5s ease; transform-box: fill-box; transform-origin: bottom center; }
+@keyframes isle-hop { 0%, 100% { translate: 0 0; } 40% { translate: 0 -10px; } }
+.isle-fog { animation: isle-drift 18s ease-in-out infinite alternate; }
+@keyframes isle-drift { from { transform: translateX(-30px); } to { transform: translateX(30px); } }
+.isle-start { margin-top: 1.5rem; }
+.isle-pick { border: 0; padding: 0; margin: 0; min-width: 0; }
+.isle-pick legend { font-weight: 700; margin-bottom: .5rem; padding: 0; }
+.isle-seeds { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .4rem; }
+.isle-seed { flex: none; position: relative; }
+.isle-seeds, .isle-fleet { position: relative; }
+.isle-seed input, .isle-len input { position: absolute; opacity: 0; pointer-events: none; }
+.isle-seed > span { display: flex; flex-direction: column; align-items: center; gap: .2rem; width: 84px; padding: .4rem .2rem .5rem;
+  border: 2.5px solid var(--line); background: var(--surface); cursor: pointer; font-size: .82rem; text-align: center; }
+.isle-seed input:checked + span, .isle-len input:checked + span { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+.isle-seed input:focus-visible + span, .isle-len input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.isle-lengths { display: flex; flex-wrap: wrap; gap: .45rem; }
+.isle-len { position: relative; }
+.isle-len > span { display: inline-block; padding: .45rem .8rem; border: 2.5px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 700; }
+.isle-resting { display: flex; gap: .8rem; align-items: center; }
+.isle-grown { display: flex; gap: 1rem; align-items: center; background: var(--sky); margin-bottom: 1rem; }
+.isle-grown h2 { margin: 0; }
+.isle-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .7rem; margin-top: 1.5rem; }
+.isle-log { display: grid; gap: .7rem; }
+.isle-chapter summary { cursor: pointer; display: flex; gap: .6rem; align-items: center; font-size: 1.08rem; list-style: none; }
+.isle-chapter summary::-webkit-details-marker { display: none; }
+.isle-chapter p { line-height: 1.75; max-width: 70ch; }
+.isle-chapter.interlude { background: var(--sky); }
+.isle-chapter.locked { display: flex; justify-content: space-between; gap: .6rem; flex-wrap: wrap; opacity: .6; }
+.isle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .8rem; }
+.isle-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .35rem; padding: .9rem .7rem; }
+.isle-card p { margin: 0; }
+.isle-card.locked svg { filter: brightness(0); opacity: .18; }
+.isle-card .bar { width: 100%; height: 10px; }
+.isle-news { align-items: center; }
+.isle-news-art svg { display: block; }
+.isle-news p a { font-weight: 700; }
+/* the focus trip */
+.trip { text-align: center; }
+.trip-time { font-size: clamp(3.4rem, 14vw, 6rem); font-weight: 800; letter-spacing: .02em; margin: .2rem 0 .4rem; font-variant-numeric: tabular-nums; line-height: 1; }
+.trip-scene { max-width: 440px; margin: 0 auto; }
+.trip-scene svg { display: block; width: 100%; height: auto; overflow: visible; }
+.trip-tempo { animation: trip-bob 3s ease-in-out infinite; }
+.trip-water { animation: trip-wave 2.6s linear infinite; }
+@keyframes trip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes trip-wave { from { transform: translateX(0); } to { transform: translateX(-40px); } }
+.trip-stones { list-style: none; padding: 0; margin: 1rem auto .6rem; display: flex; justify-content: center; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.trip-stones li { width: 22px; height: 22px; border: 2.5px solid var(--line); background: var(--surface); transition: background .4s; }
+.trip-stones li.on { background: var(--shell); }
+.trip-stones li.flag { border: 0; background: none; width: auto; height: auto; }
+.trip-note { max-width: 46ch; margin-inline: auto; }
+.trip-actions { justify-content: center; margin: 1rem 0 .4rem; }
+.trip-done { align-items: center; }
+.trip-done-plant svg { display: block; }
+@media (prefers-reduced-motion: reduce) { .trip-tempo, .trip-water, .isle-fog, .isle-friend.hop { animation: none !important; } }
+@media (max-width: 640px) {
+  .isle-intro { flex-direction: column; align-items: flex-start; }
+  .isle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .isle-grown { flex-direction: column; text-align: center; }
+}
+:root[data-theme=dark] .isle-new-chapter, :root[data-theme=dark] .isle-grown, :root[data-theme=dark] .isle-chapter.interlude { background: #16252B; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .isle-new-chapter, :root:not([data-theme=light]) .isle-grown, :root:not([data-theme=light]) .isle-chapter.interlude { background: #16252B; } }

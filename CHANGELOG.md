@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.16.0
+
+- **Tempo's island (reward mode).** Optional, off until you turn it on. Tempo carries a little island on his shell:
+  - **Focus trips:** pick a plant and 10 to 90 minutes. While you study, Tempo swims and the plant grows on his back; when the time is up, it joins the island. Bigger trips grow bigger plants, and an hour or more grows fruit or flowers. "Study anywhere" or "Phone down" (time only counts while the screen is open).
+  - **Nothing dies.** Rest any time: the sprout keeps its minutes for next time.
+  - **14 plants and 8 animal friends,** each drawn by hand in the app's style. Friends come from learning: Zoon the snail (first lesson), Kiko the sparrow, Fofo the frog (reviews), Zizi the bee (milestones), Boomy the owl (a checker's approval), Farfoura the butterfly, Arnoob the hare (races) and Kaboria the crab (a finished course).
+  - **A turtle for every course,** with its own colors, name and island. Your friends' turtles sail the same sea.
+  - **An adventure in 10 chapters,** against the Fog of Someday, toward the Far Shore. Two worlds: the Sea of Things to Learn, or Alexandria and the Great Green Sea (Teta Lulua, the Pharos, the Library of Alexandria), in English or Arabic.
+  - **Your pace is the weather:** mist after 2 days away, thick fog after 4 (friends sleep, the story waits), and the fog lifts when you come back. Keep a weekly goal for fair winds; a checker's approval makes the island bloom for a week.
+- **A new Tempo.** Redrawn from scratch: a real neck, a big friendly head, round legs, a scalloped rim, a scarf that blows behind him, and new moods (reading, watering, sad, in love).
+- **Back makes sense everywhere.** Pages are never kept in the cache, so going back after changing the language or colors shows the new ones. Quiz results are their own page, so Back or reload never shows or resends your old answers. One-off pages (a sent quiz, a finished trip) are skipped by Back. Settings, quizzes and uploads replace the page instead of piling up.
+
 ## v1.15.2
 
 - **Fixed on phones: the "⋯" menu of the last courses went under the tab bar,** so items like Delete couldn't be reached. On phones the menu now opens as a panel just above the tab bar, scrolls if it's long, and closes when you tap outside it. Only one menu is open at a time, and Escape closes it on a computer.

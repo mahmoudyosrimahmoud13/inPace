@@ -19,6 +19,18 @@
 </a>
 {% endif %}
 
+{% if island_on %}
+<a class="card tile rem-tip isle-tip" href="{{ '/island/trip' if island_trip and island_trip.state == 'running' else '/island#start' }}">
+  <span class="ico">{{ icon('island') }}</span>
+  <span>{% if island_trip and island_trip.state == 'running' %}<b>{% trans trimmed %}A focus trip is on{% endtrans %}</b>
+    <span>{% trans trimmed %}Tempo is swimming and your plant is growing. Tap to watch.{% endtrans %}</span>
+  {% elif island_trip %}<b>{% trans trimmed %}Your sprout is resting{% endtrans %}</b>
+    <span>{% trans trimmed %}It kept its minutes. Carry on with a focus trip whenever you're ready.{% endtrans %}</span>
+  {% else %}<b>{% trans trimmed %}Start a focus trip{% endtrans %}</b>
+    <span>{% trans trimmed %}Study for a while and grow a plant on Tempo's island.{% endtrans %}</span>{% endif %}</span>
+</a>
+{% endif %}
+
 {% if not cards %}
 <section class="card empty">
   <h2>{% trans trimmed %}Let's start your first course{% endtrans %}</h2>

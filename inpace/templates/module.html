@@ -68,14 +68,14 @@
         <button type="button" class="btn rec-btn">● {{ _('Record a voice note') }}</button>
         <span class="small muted rec-time"></span>
       </div>
-      <form method="post" enctype="multipart/form-data" action="/learn/{{ j.id }}/task/{{ r.id }}/evidence">
+      <form method="post" enctype="multipart/form-data" action="/learn/{{ j.id }}/task/{{ r.id }}/evidence" data-nav-form>
         <label class="drop-zone">
           <input type="file" name="file" required data-autosubmit>
           <span>{{ icon('upload') }}<br>{{ _('Add another file') if r.evidence else _('Drop your file here, or click to choose') }}<br><span class="small muted" style="font-weight:400">{% trans trimmed %}Projects: zip the folder first. Videos and voice notes work too.{% endtrans %}</span></span>
         </label>
       </form>
       <details class="more"><summary>{% trans trimmed %}Or use a Git project as proof{% endtrans %}</summary>
-        <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/git" class="row" style="margin-top:.5rem">
+        <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/git" class="row" style="margin-top:.5rem" data-nav-form>
           <input name="folder" required dir="ltr" placeholder="{{ _('Full path of the project folder') }}" style="flex:1 1 280px">
           <button class="btn">{% trans trimmed %}Add its history{% endtrans %}</button>
         </form>
@@ -83,7 +83,7 @@
       </details>
 
     {% elif r.type == 'explain' %}
-      <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/writeup" class="stack">
+      <form method="post" action="/learn/{{ j.id }}/task/{{ r.id }}/writeup" class="stack" data-nav-form>
         <textarea name="text" rows="7" dir="auto" data-wordcount="{{ r.min_words }}" data-of="{{ _('%s of at least %s words') }}" data-ok="{{ _('%s words ✓') }}" placeholder="{{ _('Write it in your own words...') }}">{{ r.writeup.text if r.writeup }}</textarea>
         <div class="row between"><span class="muted small" data-wordcount-out>{{ _('At least %s words')|format(r.min_words) }}</span><button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button></div>
       </form>
@@ -95,12 +95,12 @@
         <div class="note {{ 'ok' if x.result and x.result.passed else 'warn' }}" style="margin-block: .5rem">
           {% if x.result %}{{ T('Verified exam from {name}:', name=x.checker_name) }} <b>{{ T('{a} of {b} ({p}%)', a=x.result.score, b=x.result.total, p=x.result.percent) }}</b> · {{ _('passed') if x.result.passed else _('not passed') }}
           {% elif x.taken %}{{ T('Verified exam from {name}: done. Your answers go with your next milestone.', name=x.checker_name) }}
-          {% else %}<span class="row between">{{ _('%s sent you a verified exam.')|format(x.checker_name) }} <a class="btn" href="/learn/{{ j.id }}/exam/{{ x.exam.id }}">{% trans trimmed %}Take it{% endtrans %}</a></span>{% endif %}
+          {% else %}<span class="row between">{{ _('%s sent you a verified exam.')|format(x.checker_name) }} <a class="btn" data-replace href="/learn/{{ j.id }}/exam/{{ x.exam.id }}">{% trans trimmed %}Take it{% endtrans %}</a></span>{% endif %}
         </div>
       {% endfor %}
       {% if has_answers %}
         {% if not lessons_left %}
-          <a class="btn {{ '' if r.done else 'primary' }}" href="/learn/{{ j.id }}/task/{{ r.id }}/quiz">{{ _('Practice again') if r.quiz else _('Start practice quiz') }}</a>
+          <a class="btn {{ '' if r.done else 'primary' }}" data-replace href="/learn/{{ j.id }}/task/{{ r.id }}/quiz">{{ _('Practice again') if r.quiz else _('Start practice quiz') }}</a>
         {% else %}<p class="muted small">{% trans trimmed %}Finish the lessons first, then take the quiz.{% endtrans %}</p>{% endif %}
       {% elif not exams %}
         <p class="muted small">{% trans trimmed %}This copy of the course has no answers, so practice is off. Your checker can send you a verified exam.{% endtrans %}</p>

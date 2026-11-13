@@ -2,7 +2,7 @@
 {% block title %}{{ _('Settings') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Settings{% endtrans %}.</h1></div>
-<form method="post" class="card stack" style="max-width:620px">
+<form method="post" class="card stack" style="max-width:620px" data-nav-form>
   <label>{% trans trimmed %}Your name{% endtrans %}<input name="name" value="{{ me.name }}" maxlength="40"></label>
   <fieldset class="colors">
     <legend>{% trans trimmed %}Your color{% endtrans %}</legend>
@@ -16,7 +16,7 @@
 <section class="card" style="max-width:620px" id="colors">
   <h2>{% trans trimmed %}Colors{% endtrans %}</h2>
   <p class="muted small">{% trans trimmed %}Pick the colors for the whole app. They work in light and dark mode.{% endtrans %}</p>
-  <form method="post" action="/settings/colors" class="swatches">
+  <form method="post" action="/settings/colors" class="swatches" data-nav-form>
     {% for key, (name, main, second) in ACCENTS.items() %}
     <label class="swatch-card"><input type="radio" name="accent" value="{{ key }}" {{ 'checked' if (accent or '') == key }} data-autosubmit>
       <span class="chips"><i style="background: {{ main }}"></i><i style="background: {{ second }}"></i><i style="background: #111"></i></span>
@@ -43,7 +43,7 @@
   {% elif update.kind == 'source' %}
     <p class="small">{% trans trimmed %}This copy runs from its code folder. Update it with git pull, and it uses the new code next time it starts.{% endtrans %}</p>
   {% else %}
-    <form method="post" action="/updates/setting" class="row">
+    <form method="post" action="/updates/setting" class="row" data-nav-form>
       {% if update.setting == 'auto' %}
         <span class="chip good">{% trans trimmed %}Automatic updates are on{% endtrans %}</span>
         <button class="btn" name="choice" value="off">{% trans trimmed %}Turn off{% endtrans %}</button>
@@ -68,7 +68,7 @@
 <section class="card" style="max-width:620px" id="ai">
   <h2>{% trans trimmed %}AI course maker{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
-  <form method="post" action="/settings/ai" class="stack">
+  <form method="post" action="/settings/ai" class="stack" data-nav-form>
     <label>{% trans trimmed %}Provider{% endtrans %}<select name="provider">{% for k, label in providers.items() %}<option value="{{ k }}" {{ 'selected' if ai.provider == k }}>{{ label }}</option>{% endfor %}</select></label>
     <label>{% trans trimmed %}Model{% endtrans %}<input name="model" value="{{ ai.model }}" placeholder="{{ _('For example:') }} {{ models.ollama }}, {{ models.anthropic }}" dir="ltr"></label>
     <label>{% trans trimmed %}Address (only for Ollama on another port, or other OpenAI-compatible services){% endtrans %}<input name="base_url" value="{{ ai.base_url }}" dir="ltr" placeholder="{{ _('Leave empty for the default') }}"></label>

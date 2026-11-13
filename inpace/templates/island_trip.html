@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Focus trip') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<section class="trip" data-trip data-elapsed="{{ elapsed }}" data-goal="{{ goal * 60 }}" data-state="{{ trip.state if trip else 'grown' }}"
+         data-mode="{{ trip.mode if trip else '' }}" {{ 'hidden' if just }}>
+  <p class="eyebrow trip-what" dir="auto">{{ T('Growing: {plant}', plant=plant_name) }}{% if studying %} · {{ studying }}{% endif %}</p>
+  <p class="trip-time" data-time aria-live="off">{{ '%02d:%02d'|format(((goal * 60 - elapsed) // 60), ((goal * 60 - elapsed) % 60)) }}</p>
+  <div class="trip-scene">{{ trip_svg|safe }}</div>
+  <ol class="trip-stones" aria-label="{{ _('How far the trip is') }}">
+    {% for i in range(10) %}<li data-stone="{{ i }}" class="{{ 'on' if elapsed * 10 >= (i + 1) * goal * 60 }}"></li>{% endfor %}
+    <li class="flag">{{ icon('flag', 18) }}</li>
+  </ol>
+  {% if trip and trip.mode == 'phone' %}
+  <p class="small muted trip-note">{% trans trimmed %}Phone down: time counts while this screen stays open. Leave it, and the plant simply waits.{% endtrans %}</p>
+  {% else %}
+  <p class="small muted trip-note">{% trans trimmed %}Study anywhere: in a book, another app, or a lesson. Come back when the time is up, or keep this open to watch it grow.{% endtrans %}</p>
+  {% endif %}
+  <p class="trip-paused note" data-paused hidden>{% trans trimmed %}Paused while you were away. It goes on now.{% endtrans %}</p>
+  <div class="row wrap trip-actions">
+    <form method="post" action="/island/rest" data-nav-form><button class="btn">{% trans trimmed %}Rest for now{% endtrans %}</button></form>
+    <a class="btn ghost" href="/">{% trans trimmed %}Go study in inPace{% endtrans %}</a>
+  </div>
+  <p class="small muted">{% trans trimmed %}Resting keeps every minute. Nothing on the island ever dies.{% endtrans %}</p>
+</section>
+
+<section class="card trip-done tempo-say" data-trip-done {{ '' if just else 'hidden' }}>
+  {{ mascot('cheer', 130) }}
+  <div class="grow">
+    <div class="trip-done-plant">{{ plant_svg(kind, 1.0, goal >= 60, 96)|safe }}</div>
+    <h1>{{ T('Your {plant} joined the island!', plant=plant_name) }}</h1>
+    <p class="lead">{{ T('{n} minutes of real focus. Tempo is very proud of you.', n=goal) }}</p>
+    <div class="row wrap">
+      <a class="btn primary big" data-replace href="/island">{% trans trimmed %}See your island{% endtrans %}</a>
+      <a class="btn big" data-replace href="/island#start">{% trans trimmed %}Another trip{% endtrans %}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
