@@ -10,7 +10,7 @@
     <a href="/courses/{{ c.id }}/share">{% trans trimmed %}Send a link…{% endtrans %}</a>
     <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
     {% if c.has_answers %}<a href="/courses/{{ c.id }}/export?answers=1">{% trans trimmed %}For checkers and teachers (with answers){% endtrans %}</a>{% endif %}
-    {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}Everything in one file (with its videos and files){% endtrans %}</a>{% endif %}
+    {% if c.extra.media_index or r.has_files %}<a href="/courses/{{ c.id }}/export?files=1">{% trans trimmed %}With its small files (PDFs, slides, pictures; no videos){% endtrans %}</a>{% endif %}
     <a href="/courses/{{ c.id }}/publish">{% trans trimmed %}Publish to the library…{% endtrans %}</a>
     <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
     <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>

@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import threading
 import time as _time
 from datetime import datetime
@@ -21,7 +22,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
+from . import ai, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -257,6 +258,7 @@ _ICONS = {
     "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     "open": '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
     "upload": '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 17v3h16v-3"/>',
+    "download": '<path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
     "pen": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
     "quiz": '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6"/><path d="M12 17h.01"/>',
     "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
@@ -331,6 +333,9 @@ def filesize(n) -> str:
 env.filters["filesize"] = filesize
 from .course import media_kind as _media_kind
 env.globals["media_kind"] = _media_kind
+from .offline import KEEP_FREE as _KEEP_FREE, nice_size as _nice_size  # noqa: E402
+env.globals["nice_size"] = _nice_size
+env.globals["keep_free"] = _KEEP_FREE
 env.globals["on_phone"] = lambda: os.environ.get("INPACE_MOBILE") == "android"
 env.globals["TASK_LABEL"] = {"practical": "Your work", "explain": "Explain it", "quiz": "Quiz"}
 env.globals["TASK_ICON"] = {"practical": "upload", "explain": "pen", "quiz": "quiz"}
@@ -970,7 +975,7 @@ def create_app(vault: Vault) -> Starlette:
         c = V.get_course(cid)
         if not c:
             return go("/courses", err="That course isn't installed.")
-        media = _course_files(c)
+        media, _left = _shareable_files(_course_files(c))
         if sum(p.stat().st_size for p in media.values()) > library.MAX_COURSE_BYTES:
             # Too big to carry: keep only the picture; learners get the rest from the download links.
             img = c.extra.get("image")
@@ -1025,7 +1030,7 @@ def create_app(vault: Vault) -> Starlette:
         with_answers = request.query_params.get("answers") == "1"
         suffix = " (with answers)" if with_answers else ""
         if request.query_params.get("files") == "1":
-            files = _course_files(c)
+            files, _left = _shareable_files(_course_files(c))
             total = sum(p.stat().st_size for p in files.values())
             if total > MAX_MEDIA_PACK_BYTES:
                 return go("/courses", err="This course's files are too big to put in one file. Share the course without files, and send the folder another way.")
@@ -1058,7 +1063,169 @@ def create_app(vault: Vault) -> Starlette:
             speed = float(V._meta("video_speed", "1") or 1)
         except ValueError:
             speed = 1.0
-        return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed)
+        def yt_local(vid: str):
+            return f"/yt/{quote(cid)}/{quote(vid)}" if offline.local_file(V, cid, vid) else None
+
+        def yt_list(plist: str) -> list:
+            return [{"id": it["id"], "title": it.get("title") or it["id"], "url": yt_local(it["id"])}
+                    for it in offline.playlist_items(V, cid, plist) if yt_local(it["id"])]
+        return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed, yt_local, yt_list)
+
+    # ---- YouTube videos on this computer (downloaded with yt-dlp, or your own files) ----------------------------
+    async def yt_file(request: Request):
+        p = offline.local_file(V, request.path_params["cid"], request.path_params["vid"])
+        if not p:
+            return Response("Not found", status_code=404)
+        return FileResponse(p, headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"})
+
+    def _offline_course(request: Request):
+        return V.get_course(request.path_params["cid"])
+
+    def _back_to_course(cid: str) -> str:
+        jid = V.journey_for_course(cid)
+        return f"/learn/{jid}#offline" if jid else "/courses"
+
+    async def offline_download(request: Request):
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        if not offline.course_videos(c):
+            return go(_back_to_course(c.id), err="This course has no YouTube videos.")
+        form = await request.form()
+        quality = str(form.get("quality", ""))
+        if quality in offline.QUALITIES:
+            V._set_meta(f"ytdlp_quality:{c.id}", quality)  # this course remembers its choice
+        q = quality if quality in offline.QUALITIES else (V._meta("ytdlp_quality", "720") or "720")
+        need = offline.space_needed(V, c).get(q, 0)
+        free = offline.free_space(offline.download_folder(V, c))
+        if 0 <= free < need + offline.KEEP_FREE and not form.get("anyway"):
+            return go(_back_to_course(c.id), err=gettext(
+                "Not enough space: these videos need about {need}, and only {free} is free there. inPace always leaves "
+                "300 MB free so your device keeps working. Choose a lower quality or another folder, or free some space.").format(need=offline.nice_size(need), free=offline.nice_size(free)))
+        offline.start_download(V, c, quality=quality)
+        return go(_back_to_course(c.id), ok="The videos are downloading. You can keep learning while they do.")
+
+    async def offline_stop(request: Request):
+        offline.stop(request.path_params["cid"])
+        return go(_back_to_course(request.path_params["cid"]), ok="Stopping the downloads. Finished videos stay.")
+
+    async def offline_status(request: Request):
+        c = _offline_course(request)
+        if not c:
+            return JSONResponse({}, status_code=404)
+        st = offline.status(V, c)
+        job = {k: v for k, v in (st["job"] or {}).items() if k != "stop"}
+        if job.get("title") in ("Getting yt-dlp…", "Reading the playlist…"):
+            job["title"] = gettext(job["title"])
+        if job.get("error"):
+            job["error"] = gettext(job["error"])
+        return JSONResponse({"have": st["have"], "total": st["total"], "job": job})
+
+    async def offline_match(request: Request):
+        """Step 1 of "I already have the videos": look in the folder and suggest which file is which video."""
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        folder = Path(str(form.get("folder", "")).strip().strip('"')).expanduser()
+        if not str(folder).strip() or not folder.is_dir():
+            return go(_back_to_course(c.id), err="That folder wasn't found. Copy its full path and paste it here.")
+        from starlette.concurrency import run_in_threadpool
+        if form.get("lookup"):
+            await run_in_threadpool(offline.look_up_titles, V, c)
+        files = await run_in_threadpool(offline.video_files, folder)
+        if not files:
+            return go(_back_to_course(c.id), err="That folder has no video files.")
+        targets = offline.targets_for(V, c)
+        if not targets:
+            return go(_back_to_course(c.id), err="inPace needs the playlist's list of videos first. Connect to the internet and try again.")
+        rows = await run_in_threadpool(offline.match, targets, files)
+        for r, tg in zip(rows, targets):
+            r["label"], r["lessons"] = tg["label"], tg.get("lessons") or []
+            cur = offline.local_file(V, c.id, tg["key"])
+            r["current"] = str(cur) if cur and not r["file"] else ""  # keep a file you linked before
+        return page("offline_match.html", request, course=c, folder=str(folder), rows=rows,
+                    files=[(str(f), str(f.relative_to(folder))) for f in files], back=_back_to_course(c.id),
+                    sure=sum(r["sure"] == "yes" for r in rows))
+
+    async def offline_save(request: Request):
+        """Step 2: save the pairs the person checked."""
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        folder = Path(str(form.get("folder", ""))).expanduser()
+        known = {t["key"] for t in offline.targets_for(V, c)}
+        saved = 0
+        for key, value in form.multi_items():
+            if not key.startswith("file:") or key[5:] not in known:
+                continue
+            if value == "keep":
+                continue
+            path = Path(str(value)) if value else None
+            if path:
+                try:
+                    path.resolve().relative_to(folder.resolve())  # only files from the folder that was searched
+                except (ValueError, OSError):
+                    continue
+                if not path.is_file():
+                    continue
+            offline.set_local_file(V, c.id, key[5:], path)
+            saved += bool(path)
+        return go(_back_to_course(c.id), ok=gettext("{n} videos now play from this computer.").format(n=saved))
+
+    async def offline_folder(request: Request):
+        """Where this course saves its videos, and the name of its folder."""
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        base = str(form.get("base", "")).strip().strip('"')
+        if base and not Path(base).expanduser().is_dir():
+            return go(_back_to_course(c.id), err="That folder wasn't found. Copy its full path and paste it here.")
+        V._set_meta(f"ytdlp_base:{c.id}", str(Path(base).expanduser()) if base else "")
+        name = str(form.get("name", "")).strip()
+        V._set_meta(f"ytdlp_dirname:{c.id}", offline.safe_name(name) if name and offline.safe_name(name) != offline.safe_name(c.title) else "")
+        return go(_back_to_course(c.id), ok=gettext("New downloads go to {folder}").format(folder=offline.download_folder(V, c)))
+
+    async def offline_forget(request: Request):
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        if any(j.get("state") == "running" for cid, j in offline.JOBS.items() if cid == c.id):
+            return go(_back_to_course(c.id), err="Stop the downloads first.")
+        gone = offline.forget(V, c, delete_downloads=form.get("delete") == "1")
+        msg = gettext("Deleted {n} downloaded videos. Lessons play from YouTube again.").format(n=gone) if gone \
+            else "Lessons play from YouTube again. Your files weren't touched."
+        return go(_back_to_course(c.id), ok=msg)
+
+    async def video_settings(request: Request):
+        form = await request.form()
+        if form.get("updates") in ("auto", "manual"):
+            V._set_meta("ytdlp_updates", str(form.get("updates")))
+        if str(form.get("quality", "")) in offline.QUALITIES:
+            V._set_meta("ytdlp_quality", str(form.get("quality")))
+        folder = str(form.get("folder", ""))
+        if folder == "custom":
+            path = str(form.get("folder_path", "")).strip().strip('"')
+            if not path or not Path(path).expanduser().is_dir():
+                return go("/settings#videos", err="That folder wasn't found. Copy its full path and paste it here.")
+            V._set_meta("ytdlp_folder_path", str(Path(path).expanduser()))
+        if folder in offline.FOLDERS:
+            V._set_meta("ytdlp_folder", folder)
+        return go("/settings#videos", ok="Saved.")
+
+    async def video_tool_update(request: Request):
+        from starlette.concurrency import run_in_threadpool
+        try:
+            changed, ver = await run_in_threadpool(offline.update_tool, V.home)
+        except offline.ToolProblem as e:
+            return go("/settings#videos", err=str(e))
+        V._set_meta("ytdlp_checked", str(_time.time()))
+        if changed:
+            return go("/settings#videos", ok=gettext("yt-dlp {v} is ready.").format(v=ver))
+        return go("/settings#videos", ok=gettext("You already have the newest yt-dlp ({v}).").format(v=ver))
 
     async def pdf_reader(request: Request):
         """inPace's own PDF reader (pdf.js, bundled), so PDFs open in every app window, offline."""
@@ -1100,6 +1267,24 @@ def create_app(vault: Vault) -> Starlette:
             done = d > 0 and t > d - max(10.0, d * 0.03)
             V._set_meta(f"pos:{key}", "0" if done else f"{t:.1f}")
         return Response(status_code=204)
+
+    SHARE_FILE_LIMIT = 25 * 1024 * 1024
+
+    def _shareable_files(files: dict) -> tuple[dict, list]:
+        """What may travel inside a shared course file: small files only (PDFs, slides, pictures, code).
+        Videos, audio and anything over 25 MB stay on this computer; the other person gets them their own way
+        (YouTube, the course's download links, or their own folder)."""
+        keep, left = {}, []
+        for rel, p in files.items():
+            try:
+                size = p.stat().st_size
+            except OSError:
+                continue
+            if _media_kind(p.name) in ("video", "audio") or size > SHARE_FILE_LIMIT:
+                left.append(rel)
+            else:
+                keep[rel] = p
+        return keep, left
 
     def _course_files(c: Course, include_book: bool = False) -> dict:
         """Every file of the course that's on this computer, by its path inside the course.
@@ -1746,7 +1931,10 @@ def create_app(vault: Vault) -> Starlette:
         course = V.get_course(j["course_id"])
         return page("course.html", request, j=j, prog=V.progress(j["id"]),
                     missing=V.missing_media(course) if course else [],
-                    media_root=V.media_root(j["course_id"]) if course else None)
+                    media_root=V.media_root(j["course_id"]) if course else None,
+                    offline=offline.status(V, course) if course and offline.course_videos(course) else None,
+                    qualities=offline.QUALITIES, has_ffmpeg=bool(shutil.which("ffmpeg")),
+                    quality=(V._meta(f"ytdlp_quality:{course.id}", "") or V._meta("ytdlp_quality", "720") or "720") if course else "720")
 
     def _module_state(prog: dict, module_id: str) -> dict | None:
         return next((m for m in prog["modules"] if m["id"] == module_id), None)
@@ -2718,7 +2906,13 @@ def create_app(vault: Vault) -> Starlette:
             V._set_meta("lang", "ar" if form.get("lang") == "ar" else "en")
             return go("/settings", ok="Saved.")
         av = mascot_mod.clean_avatar(V.me.get("avatar") or {})
-        return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V),
+        videos = {"version": offline.version(V.home), "updates": V._meta("ytdlp_updates", "auto") or "auto",
+                  "quality": V._meta("ytdlp_quality", "720") or "720", "ffmpeg": bool(shutil.which("ffmpeg")),
+                  "qualities": offline.QUALITIES, "folder": V._meta("ytdlp_folder", "downloads") or "downloads",
+                  "folder_path": V._meta("ytdlp_folder_path", "") or "",
+                  "downloads": str(offline.system_folder("downloads") / "inPace"),
+                  "videos_dir": str(offline.system_folder("videos") / "inPace"), "android": offline.on_android()}
+        return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
 
@@ -3242,6 +3436,16 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/share", needs_setup(share_course)),
         Route("/courses/{cid}/publish/file", needs_setup(publish_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
+        Route("/yt/{cid}/{vid}", needs_setup(yt_file)),
+        Route("/courses/{cid}/offline/download", needs_setup(offline_download), methods=["POST"]),
+        Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
+        Route("/courses/{cid}/offline/status", needs_setup(offline_status)),
+        Route("/courses/{cid}/offline/match", needs_setup(offline_match), methods=["POST"]),
+        Route("/courses/{cid}/offline/save", needs_setup(offline_save), methods=["POST"]),
+        Route("/courses/{cid}/offline/forget", needs_setup(offline_forget), methods=["POST"]),
+        Route("/courses/{cid}/offline/folder", needs_setup(offline_folder), methods=["POST"]),
+        Route("/settings/videos", needs_setup(video_settings), methods=["POST"]),
+        Route("/settings/videos/update", needs_setup(video_tool_update), methods=["POST"]),
         Route("/pdf", needs_setup(pdf_reader)),
         Route("/nav.json", needs_setup(nav_index)),
         Route("/settings/colors", needs_setup(set_accent), methods=["POST"]),

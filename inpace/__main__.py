@@ -138,6 +138,8 @@ def main() -> None:
     _quiet_streams(vault.home)
     _stop_old_copy(vault.home)
     _start_updates(vault)
+    from .offline import start_auto_updates
+    start_auto_updates(vault.home)  # yt-dlp, for offline YouTube lessons
     port = free_port(args.port)
     _remember_port(vault.home, port)
     from .links import register, start_path

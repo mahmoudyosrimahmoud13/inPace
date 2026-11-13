@@ -79,6 +79,34 @@
   <p class="muted small">{% trans trimmed %}Back up this whole folder to keep your progress safe. The file{% endtrans %} <b>{% trans trimmed %}identity.key{% endtrans %}</b> {% trans trimmed %}is your private key: never send it to anyone.{% endtrans %}</p>
   <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code></details>
 </section>
+<section class="card" style="max-width:620px" id="videos">
+  <h2>{% trans trimmed %}Video downloads{% endtrans %}</h2>
+  <p class="muted">{% trans trimmed %}For watching YouTube lessons offline. inPace uses yt-dlp, a free open-source downloader, kept in your inPace folder.{% endtrans %}</p>
+  <p>{% if videos.version %}<span class="chip good plain">{{ T('yt-dlp {v}', v=videos.version) }}</span>{% else %}<span class="chip muted plain">{% trans trimmed %}Not downloaded yet{% endtrans %}</span>{% endif %}</p>
+  <form method="post" action="/settings/videos/update"><button class="btn" data-busy="{{ _('Checking…') }}">{% if videos.version %}{% trans trimmed %}Update now{% endtrans %}{% else %}{% trans trimmed %}Get yt-dlp now{% endtrans %}{% endif %}</button></form>
+  <form method="post" action="/settings/videos" class="stack" data-nav-form style="margin-block-start:.8rem">
+    <fieldset class="stack" style="border:0;padding:0;margin:0">
+      <legend class="small"><b>{% trans trimmed %}Keep yt-dlp up to date{% endtrans %}</b></legend>
+      <label class="check small"><input type="radio" name="updates" value="auto" {{ 'checked' if videos.updates == 'auto' }}> <span>{% trans trimmed %}Automatically, once a day (recommended: YouTube changes often, and an old yt-dlp stops working){% endtrans %}</span></label>
+      <label class="check small"><input type="radio" name="updates" value="manual" {{ 'checked' if videos.updates == 'manual' }}> <span>{% trans trimmed %}Only when I press Update now{% endtrans %}</span></label>
+    </fieldset>
+    <fieldset class="stack" style="border:0;padding:0;margin:0">
+      <legend class="small"><b>{% trans trimmed %}Save videos to{% endtrans %}</b></legend>
+      <label class="check small"><input type="radio" name="folder" value="downloads" {{ 'checked' if videos.folder == 'downloads' }}> <span>{% trans trimmed %}My Downloads folder{% endtrans %} <code dir="ltr">{{ videos.downloads }}</code></span></label>
+      <label class="check small"><input type="radio" name="folder" value="videos" {{ 'checked' if videos.folder == 'videos' }}> <span>{% trans trimmed %}My Videos folder{% endtrans %} <code dir="ltr">{{ videos.videos_dir }}</code></span></label>
+      <label class="check small"><input type="radio" name="folder" value="inpace" {{ 'checked' if videos.folder == 'inpace' }}> <span>{% trans trimmed %}Inside inPace's folder (hidden away, backed up with your progress){% endtrans %}</span></label>
+      <label class="check small"><input type="radio" name="folder" value="custom" {{ 'checked' if videos.folder == 'custom' }}> <span>{% trans trimmed %}Another folder{% endtrans %}</span></label>
+      <div class="row pick-row"><input name="folder_path" id="video-folder" dir="ltr" value="{{ videos.folder_path }}" placeholder="{{ _('Full path of the folder') }}">
+        <button type="button" class="btn" data-pick-folder="#video-folder">{% trans trimmed %}Choose folder{% endtrans %}</button></div>
+      <p class="small muted" style="margin:0">{% trans trimmed %}Each course gets its own folder inside, named after the course. You can play the files in any video player.{% endtrans %}{% if videos.android %} {% trans trimmed %}On the phone they show in the Files app, and videos in the Videos folder also show in the gallery.{% endtrans %}{% endif %}</p>
+    </fieldset>
+    <label>{% trans trimmed %}Video quality for new downloads{% endtrans %}
+      <select name="quality">{% for q in videos.qualities %}<option value="{{ q }}" {{ 'selected' if videos.quality == q }}>{{ _('Best available') if q == 'best' else q ~ 'p' }}</option>{% endfor %}</select></label>
+    {% if not videos.ffmpeg %}<p class="small muted" style="margin:0">{% trans trimmed %}Without ffmpeg on this computer, most YouTube videos download at up to 720p. That's normal and fine for lessons.{% endtrans %}</p>{% endif %}
+    <button class="btn">{% trans trimmed %}Save{% endtrans %}</button>
+  </form>
+  <p class="small muted">{% trans trimmed %}yt-dlp comes from its official GitHub releases, and each copy is checked against its published checksums before inPace uses it.{% endtrans %}</p>
+</section>
 <section class="card" style="max-width:620px" id="ai">
   <h2>{% trans trimmed %}AI course maker{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
@@ -94,6 +122,7 @@
 <section class="card" style="max-width:620px">
   <h2>{% trans trimmed %}Backups{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
+  <p class="small muted">{% trans trimmed %}To keep it small, a backup leaves out downloaded YouTube videos and files bigger than 50 MB. Your progress, notes and answers are all in it.{% endtrans %}</p>
   <form method="post" action="/settings/backup" class="row">
     <input type="password" name="password" minlength="6" required placeholder="{{ _('Choose a password (6+ characters)') }}" style="max-width:300px" autocomplete="new-password">
     <button class="btn primary">{% trans trimmed %}Download backup{% endtrans %}</button>

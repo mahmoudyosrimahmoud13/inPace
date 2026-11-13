@@ -18,6 +18,12 @@ perms = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'andr
 for p in perms:
     if p not in m:
         m = m.replace("<application", f'<uses-permission android:name="{p}"/>\n    <application', 1)
+# Offline YouTube lessons are saved in the phone's Download folder. Android 11+ lets an app save its own files there;
+# Android 10 needs the old storage mode, and Android 9 and older the write permission.
+if "WRITE_EXTERNAL_STORAGE" not in m:
+    m = m.replace("<application", '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>\n    <application', 1)
+if "requestLegacyExternalStorage" not in m:
+    m = m.replace("<application", '<application android:requestLegacyExternalStorage="true"', 1)
 if "READ_EXTERNAL_STORAGE" not in m:
     m = m.replace("<application", '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <application', 1)
 

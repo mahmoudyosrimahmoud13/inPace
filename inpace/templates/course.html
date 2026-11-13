@@ -52,6 +52,74 @@
   </form></details></p>
 {% endif %}
 
+{% if offline %}
+{% set job = offline.job %}
+<section class="card offline-card" id="offline" data-offline="/courses/{{ j.course_id }}/offline/status">
+  <div class="row wrap">
+    <h2 class="grow" style="margin:0">{% trans trimmed %}Watch offline{% endtrans %}</h2>
+    <span class="chip {{ 'good' if offline.have and offline.have >= offline.total else 'muted' }}" data-offline-count>{{ T('{have} of {total} videos on this computer', have=offline.have, total=offline.total) }}</span>
+  </div>
+  <p class="small muted">{% trans trimmed %}This course's videos are on YouTube. Keep a copy on this computer to watch them without internet. Lessons still play only their own part, and continue where you stopped.{% endtrans %}</p>
+
+  <div data-offline-job {% if not job or job.state != 'running' %}hidden{% endif %}>
+    <div class="row"><div class="bar grow"><span data-offline-bar style="width:{{ ((job.done / job.total * 100) if job and job.total else 0)|round }}%"></span></div>
+      <b dir="ltr" data-offline-num>{{ job.done if job else 0 }} / {{ job.total if job else 0 }}</b></div>
+    <p class="small" dir="auto" data-offline-now>{{ _(job.title) if job and job.title else '' }}</p>
+    <form method="post" action="/courses/{{ j.course_id }}/offline/stop"><button class="btn">{% trans trimmed %}Stop downloading{% endtrans %}</button></form>
+  </div>
+  {% if job and job.note %}<p class="note warn small">{{ T(job.note, folder=job.note_folder) }}</p>{% endif %}
+  {% if job and job.state == 'failed' %}<p class="note warn small" data-offline-done>{{ _(job.error) }}</p>{% endif %}
+  {% if job and job.failed %}<details class="more"><summary>{{ T('{n} videos didn’t download', n=job.failed|length) }}</summary>
+    <ul class="small">{% for f in job.failed %}<li dir="auto"><b>{{ f.title }}</b>: <span dir="ltr">{{ f.why }}</span></li>{% endfor %}</ul>
+    <p class="small muted">{% trans trimmed %}Try again later, or update yt-dlp in Settings: YouTube changes often.{% endtrans %}</p></details>{% endif %}
+
+  <div data-offline-idle {% if job and job.state == 'running' %}hidden{% endif %}>
+    <form method="post" action="/courses/{{ j.course_id }}/offline/download" class="row wrap" style="margin-block:.6rem;align-items:flex-end">
+      <label class="small">{% trans trimmed %}Video quality{% endtrans %}
+        <select name="quality">{% for q in qualities %}<option value="{{ q }}" {{ 'selected' if quality == q }}>{{ _('Best available') if q == 'best' else q ~ 'p' }}{% if offline.need %} · {{ T('about {size}', size=nice_size(offline.need[q])) }}{% endif %}</option>{% endfor %}</select></label>
+      {% set short = offline.need and offline.free >= 0 and offline.free < offline.need[quality] + keep_free %}
+      {% if short %}<label class="check small"><input type="checkbox" name="anyway" value="1"> <span>{% trans trimmed %}Download anyway{% endtrans %}</span></label>{% endif %}
+      <button class="btn primary" data-busy="{{ _('Starting…') }}">{{ icon('download', 18) }}{% if offline.have %}{% trans trimmed %}Download the rest{% endtrans %}{% else %}{% trans trimmed %}Download the videos{% endtrans %}{% endif %}</button>
+    </form>
+    {% if offline.free >= 0 %}<p class="small {{ 'note warn' if short else 'muted' }}">{% if short %}<b>{% trans trimmed %}Not enough space.{% endtrans %}</b> {% endif %}{{ T('{free} free where the videos are saved.', free=nice_size(offline.free)) }}{% if offline.need %} {{ T('The videos still to download need about {size} at {q}.', size=nice_size(offline.need[quality]), q=(_('Best available') if quality == 'best' else quality ~ 'p')) }}{% endif %}{% if short %} {% trans trimmed %}inPace always leaves 300 MB free so your device keeps working. Choose a lower quality or another folder, or free some space.{% endtrans %}{% endif %}</p>{% endif %}
+    <details class="more"><summary>{% trans trimmed %}Saving to:{% endtrans %} <code dir="ltr">{{ job.folder if job and job.folder else offline.folder }}</code></summary>
+      <form method="post" action="/courses/{{ j.course_id }}/offline/folder" class="stack">
+        <label class="small">{% trans trimmed %}Save this course's videos in{% endtrans %}
+          <div class="row pick-row"><input name="base" id="offline-base" dir="ltr" value="{{ offline.own_base }}" placeholder="{{ offline.default_base }}">
+            <button type="button" class="btn" data-pick-folder="#offline-base">{% trans trimmed %}Choose folder{% endtrans %}</button></div></label>
+        <p class="small muted" style="margin:0">{% trans trimmed %}Leave it empty to use the folder from Settings.{% endtrans %} <a href="/settings#videos">{% trans trimmed %}Settings{% endtrans %}</a></p>
+        <label class="small">{% trans trimmed %}Folder name{% endtrans %}
+          <input name="name" dir="auto" value="{{ offline.folder_name }}" placeholder="{{ prog.course.title }}"></label>
+        <p class="small muted" style="margin:0">{% trans trimmed %}The course name by default. Videos you already downloaded stay where they are and keep working.{% endtrans %}</p>
+        <button class="btn">{% trans trimmed %}Save{% endtrans %}</button>
+      </form></details>
+    <p class="small muted">{% trans trimmed %}Higher quality looks sharper but takes more space: an hour of video is roughly 150 MB at 360p, 300 MB at 480p, 600 MB at 720p and 1.2 GB at 1080p. Videos already downloaded keep their quality; delete them first to download again in another quality.{% endtrans %}{% if not has_ffmpeg %} {% trans trimmed %}Without ffmpeg on this computer, most YouTube videos download at up to 720p.{% endtrans %}{% endif %}</p>
+    <p class="small muted">{% trans trimmed %}Downloads use yt-dlp, a free open-source tool. inPace gets it the first time (about 3 MB). Download only videos you're allowed to keep, and check the video's license if you share them.{% endtrans %}</p>
+
+    <details class="more"{% if not offline.have %} open{% endif %}><summary>{% trans trimmed %}I already have these videos{% endtrans %}</summary>
+      <p class="small">{% trans trimmed %}Choose the folder they're in. inPace finds which file is which video, even when the names are a bit different, and shows you before it saves anything.{% endtrans %}</p>
+      <form method="post" action="/courses/{{ j.course_id }}/offline/match" class="stack">
+        <div class="row pick-row">
+          <input name="folder" id="offline-folder" required dir="ltr" placeholder="{{ _('Full path of the folder with the videos') }}">
+          <button type="button" class="btn" data-pick-folder="#offline-folder">{% trans trimmed %}Choose folder{% endtrans %}</button>
+        </div>
+        <label class="check small"><input type="checkbox" name="lookup" value="1" checked> <span>{% trans trimmed %}Look up the videos' titles and lengths on YouTube first (better matches, needs internet){% endtrans %}</span></label>
+        <button class="btn primary" data-busy="{{ _('Looking…') }}">{% trans trimmed %}Find my videos{% endtrans %}</button>
+      </form>
+    </details>
+    {% if offline.have %}
+    <details class="more"><summary>{% trans trimmed %}Stop using the copies{% endtrans %}</summary>
+      <form method="post" action="/courses/{{ j.course_id }}/offline/forget"><button class="btn">{% trans trimmed %}Play from YouTube again{% endtrans %}</button></form>
+      <p class="small muted">{% trans trimmed %}Your files stay where they are.{% endtrans %}</p>
+      <details class="more"><summary>{% trans trimmed %}Delete downloaded videos{% endtrans %}</summary>
+        <p class="small">{% trans trimmed %}This deletes the videos inPace downloaded for this course, to free space. Videos in your own folders are never touched.{% endtrans %}</p>
+        <form method="post" action="/courses/{{ j.course_id }}/offline/forget"><button class="btn danger-solid" name="delete" value="1">{% trans trimmed %}Delete them{% endtrans %}</button></form>
+      </details></details>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 {% set ns = namespace(here_given=false) %}
 {% for m in prog.modules %}
 {% set tdone = m.requires|selectattr('done')|list|length %}

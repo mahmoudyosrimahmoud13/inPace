@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Match your videos') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="{{ back }}">{{ course.title }}</a></p>
+  <h1>{% trans trimmed %}Match your videos{% endtrans %}</h1>
+  <p class="muted">{{ T('inPace is sure about {sure} of {n}. Check the others, change any that are wrong, then save.', sure=sure, n=rows|length) }}</p>
+  <p class="small muted">{% trans trimmed %}Folder:{% endtrans %} <code dir="ltr">{{ folder }}</code></p>
+</div>
+<form method="post" action="/courses/{{ course.id }}/offline/save" class="stack">
+  <input type="hidden" name="folder" value="{{ folder }}">
+  {% for r in rows %}
+  <div class="card match-row {{ r.sure }}">
+    <div class="row wrap">
+      <div class="grow"><b dir="auto">{{ loop.index }}. {{ r.label or T('One video, {n} lessons', n=r.lessons|length) }}</b>
+        {% if r.lessons|length > 1 %}<p class="small muted" dir="auto" style="margin:.2rem 0 0">{{ T('Lessons from this video: {names}', names=r.lessons[:4]|join(', ') ~ ('…' if r.lessons|length > 4 else '')) }}</p>{% endif %}</div>
+      {% if r.current %}<span class="chip good">{% trans trimmed %}Already linked{% endtrans %}</span>
+      {% elif r.sure == 'yes' %}<span class="chip good">{% trans trimmed %}Sure{% endtrans %}</span>
+      {% elif r.sure == 'check' %}<span class="chip warn">{% trans trimmed %}Please check{% endtrans %}</span>
+      {% else %}<span class="chip muted">{% trans trimmed %}Not found{% endtrans %}</span>{% endif %}
+    </div>
+    <select name="file:{{ r.key }}" dir="ltr" style="width:100%;margin-block-start:.5rem">
+      {% if r.current %}<option value="keep" selected>{{ T('Keep the current file: {name}', name=r.current) }}</option>{% endif %}
+      <option value="">{{ _('Not on this computer (play from YouTube)') }}</option>
+      {% for full, rel in files %}<option value="{{ full }}"{% if r.file and full == r.file|string %} selected{% endif %}>{{ rel }}</option>{% endfor %}
+    </select>
+    {% if r.why %}<p class="small muted" style="margin:.3rem 0 0">{{ _(r.why) }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  <div class="row">
+    <button class="btn primary big">{% trans trimmed %}Save and use these files{% endtrans %}</button>
+    <a class="btn" href="{{ back }}">{% trans trimmed %}Cancel{% endtrans %}</a>
+  </div>
+</form>
+{% endblock %}

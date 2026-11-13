@@ -312,6 +312,14 @@ class _ShellState extends State<Shell> {
   Future<void> _start() async {
     try {
       final data = await getApplicationDocumentsDirectory();
+      // The phone's shared storage (/storage/emulated/0), where Download and Movies are: offline YouTube lessons
+      // are saved in Download/inPace/<course> so people can find and play them in other apps too.
+      String storage = '/storage/emulated/0';
+      try {
+        final ext = await getExternalStorageDirectory();
+        final i = ext?.path.indexOf('/Android/') ?? -1;
+        if (ext != null && i > 0) storage = ext.path.substring(0, i);
+      } catch (_) {}
       _port = await _freePort();
       // Python runs on its own thread for as long as the app is open.
       SeriousPython.run(
@@ -320,6 +328,7 @@ class _ShellState extends State<Shell> {
           'INPACE_HOME': '${data.path}/inPace',
           'INPACE_PORT': '$_port',
           'INPACE_MOBILE': 'android',
+          'INPACE_STORAGE': storage,
           // Python on a phone often thinks it is in London. Tell it the real clock.
           'INPACE_TZ_MINUTES': '${DateTime.now().timeZoneOffset.inMinutes}',
         },

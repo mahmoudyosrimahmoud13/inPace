@@ -438,24 +438,27 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     if (beacon && navigator.sendBeacon) navigator.sendBeacon("/media-pos", body);
     else fetch("/media-pos", { method: "POST", body, keepalive: true }).catch(() => {});
   };
-  const remember = (media, key, getSpeed) => {
+  const remember = (media, key, getSpeed, getEnd) => {
     let last = 0;
+    const end = () => (getEnd && getEnd()) || media.duration;
     const tick = (force, beacon) => {
       if (!media.duration) return;
       if (force || Math.abs(media.currentTime - last) >= 4) {
         last = media.currentTime;
-        save(key, media.currentTime, media.duration, getSpeed && getSpeed(), beacon);
+        save(key, media.currentTime, end(), getSpeed && getSpeed(), beacon);
       }
     };
     media.addEventListener("timeupdate", () => tick(false));
     media.addEventListener("pause", () => tick(true));
-    media.addEventListener("ended", () => save(key, media.duration, media.duration));
+    media.addEventListener("ended", () => save(key, end(), end()));
     addEventListener("pagehide", () => tick(true, true));
     return tick;
   };
-  const resumeAt = (media, start) => {
-    if (start > 5) {
-      const go = () => { if (media.duration && start < media.duration - 3) media.currentTime = start; };
+  // lo and hi: a lesson can be one piece of a long video file. It starts at lo and stops at hi.
+  const resumeAt = (media, start, lo = 0, hi = 0) => {
+    const at = start > lo + 5 && (!hi || start < hi - 3) ? start : lo;
+    if (at > 0) {
+      const go = () => { if (media.duration && at < media.duration - 3) media.currentTime = at; };
       media.readyState >= 1 ? go() : media.addEventListener("loadedmetadata", go, { once: true });
     }
   };
@@ -481,6 +484,9 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
   document.querySelectorAll("[data-player]").forEach((box) => {
     const v = box.querySelector("video");
     const L = box.dataset;
+    const lo = parseFloat(L.start || "0") || 0, hiSet = parseFloat(L.end || "0") || 0;
+    const hi = () => hiSet || v.duration || 0;
+    const span = () => Math.max(0, hi() - lo);
     v.controls = false;
     let speed = parseFloat(L.speed || "1") || 1;
     v.playbackRate = speed;
@@ -513,15 +519,18 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
       toast.textContent = text; toast.classList.add("on");
       clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("on"), 1300);
     };
-    const toggle = () => (v.paused || v.ended ? v.play() : v.pause());
-    const jump = (s) => { v.currentTime = Math.min(Math.max(0, v.currentTime + s), v.duration || 0); say((s > 0 ? "+" : "") + s + "s"); };
+    const atEnd = () => hiSet && v.currentTime >= hiSet - 0.3;
+    const toggle = () => {
+      if (v.paused || v.ended) { if (atEnd()) v.currentTime = lo; v.play(); } else v.pause();
+    };
+    const jump = (s) => { v.currentTime = Math.min(Math.max(lo, v.currentTime + s), hi()); say((s > 0 ? "+" : "") + s + "s"); };
     const draw = () => {
-      const d = v.duration || 0;
-      if (!dragging) seek.value = d ? Math.round((v.currentTime / d) * 1000) : 0;
+      const d = span(), cur = Math.min(Math.max(0, v.currentTime - lo), d);
+      if (!dragging) seek.value = d ? Math.round((cur / d) * 1000) : 0;
       seek.style.setProperty("--p", (seek.value / 10) + "%");
-      const b = v.buffered.length && d ? v.buffered.end(v.buffered.length - 1) / d * 100 : 0;
+      const b = v.buffered.length && d ? Math.min(100, Math.max(0, v.buffered.end(v.buffered.length - 1) - lo) / d * 100) : 0;
       seek.style.setProperty("--b", b + "%");
-      time.textContent = `${fmt(v.currentTime)} / ${fmt(d)}`;
+      time.textContent = `${fmt(cur)} / ${fmt(d)}`;
     };
     const state = () => {
       const p = v.paused || v.ended;
@@ -536,8 +545,12 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
       hideTimer = setTimeout(() => { if (!v.paused) box.classList.remove("awake"); }, 2500);
     };
 
-    const tick = remember(v, L.key, () => speed);
-    resumeAt(v, parseFloat(L.resume || "0"));
+    const tick = remember(v, L.key, () => speed, () => hiSet);
+    resumeAt(v, parseFloat(L.resume || "0"), lo, hiSet);
+    // The end of this lesson's piece works like the end of the video.
+    const pieceDone = () => { v.pause(); v.currentTime = hiSet; state(); say(L.lEnded); tick(true);
+      const done = document.querySelector(".lesson-actions, .lesson-foot"); done && done.scrollIntoView({ behavior: "smooth", block: "center" }); };
+    if (hiSet) v.addEventListener("timeupdate", () => { if (!v.paused && v.currentTime >= hiSet) pieceDone(); });
     v.addEventListener("loadedmetadata", draw);
     v.addEventListener("timeupdate", draw);
     v.addEventListener("progress", draw);
@@ -551,8 +564,8 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     play.addEventListener("click", toggle);
     $(".pl-back").addEventListener("click", () => jump(-10));
     $(".pl-fwd").addEventListener("click", () => jump(10));
-    seek.addEventListener("input", () => { dragging = true; seek.style.setProperty("--p", (seek.value / 10) + "%"); time.textContent = `${fmt((seek.value / 1000) * (v.duration || 0))} / ${fmt(v.duration)}`; });
-    seek.addEventListener("change", () => { v.currentTime = (seek.value / 1000) * (v.duration || 0); dragging = false; tick(true); });
+    seek.addEventListener("input", () => { dragging = true; seek.style.setProperty("--p", (seek.value / 10) + "%"); time.textContent = `${fmt((seek.value / 1000) * span())} / ${fmt(span())}`; });
+    seek.addEventListener("change", () => { v.currentTime = lo + (seek.value / 1000) * span(); dragging = false; tick(true); });
     const volState = () => { mute.innerHTML = v.muted || v.volume === 0 ? ICON.mute : ICON.vol; vol.value = v.muted ? 0 : v.volume; };
     mute.addEventListener("click", () => { v.muted = !v.muted; volState(); });
     vol.addEventListener("input", () => { v.volume = parseFloat(vol.value); v.muted = v.volume === 0; volState(); });
@@ -577,7 +590,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
       if (act && !(e.target.tagName === "BUTTON" && (k === " " || k === "enter"))) { e.preventDefault(); act(); wake(); }
     });
     const restart = box.parentElement.querySelector("[data-restart]");
-    restart && restart.addEventListener("click", () => { v.currentTime = 0; v.play(); restart.closest(".resume-hint").remove(); });
+    restart && restart.addEventListener("click", () => { v.currentTime = lo; v.play(); restart.closest(".resume-hint").remove(); });
     state(); draw(); volState(); wake();
   });
 })();
@@ -1374,4 +1387,25 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
     }
   }, true);
   });
+})();
+
+// Course page: while the course's videos download, show how far along it is (asks inPace every 1.5 seconds).
+(() => {
+  const card = document.querySelector("[data-offline]");
+  const job = card && card.querySelector("[data-offline-job]");
+  if (!job || job.hidden) return;
+  const $ = (s) => card.querySelector(s);
+  const poll = async () => {
+    try {
+      const d = await (await fetch(card.dataset.offline, { cache: "no-store" })).json();
+      const j = d.job || {};
+      if (j.state !== "running") { location.reload(); return; }
+      const pct = j.total ? ((j.done + (j.percent || 0) / 100) / j.total) * 100 : 0;
+      $("[data-offline-bar]").style.width = pct.toFixed(1) + "%";
+      $("[data-offline-num]").textContent = `${j.done} / ${j.total || "…"}`;
+      $("[data-offline-now]").textContent = j.title ? `${j.title}${j.percent ? " · " + Math.round(j.percent) + "%" : ""}` : "";
+    } catch (e) { /* inPace is busy: try again */ }
+    setTimeout(poll, 1500);
+  };
+  poll();
 })();

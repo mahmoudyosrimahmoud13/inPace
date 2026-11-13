@@ -144,6 +144,21 @@ def _key(password: str, salt: bytes) -> bytes:
                                     memlimit=nacl.pwhash.argon2id.MEMLIMIT_MODERATE)
 
 
+BACKUP_FILE_LIMIT = 50 * 1024 * 1024
+
+
+def _belongs_in_backup(p, rel: str) -> bool:
+    """Backups keep your progress small and safe: no downloader, no downloaded YouTube videos, no huge files
+    (videos come back from YouTube or your own folders)."""
+    parts = rel.split("/")
+    if parts[0] == "tools" or (len(parts) >= 3 and parts[0] == "media" and parts[2] == "videos"):
+        return False
+    try:
+        return p.stat().st_size <= BACKUP_FILE_LIMIT
+    except OSError:
+        return False
+
+
 def make_backup(v: Vault, password: str) -> bytes:
     if len(password) < 6:
         raise ValueError("Use a password with at least 6 characters.")
@@ -161,7 +176,7 @@ def make_backup(v: Vault, password: str) -> bytes:
                 zf.writestr("vault.db", f.read())
         for p in v.home.rglob("*"):
             rel = p.relative_to(v.home).as_posix()
-            if p.is_file() and not rel.startswith(("vault.db", "inpace.log")):
+            if p.is_file() and not rel.startswith(("vault.db", "inpace.log")) and _belongs_in_backup(p, rel):
                 zf.write(p, rel)
         zf.writestr("backup.json", json.dumps({"made": _now().isoformat(), "name": v.me["name"]}))
     salt = nacl.utils.random(nacl.pwhash.argon2id.SALTBYTES)

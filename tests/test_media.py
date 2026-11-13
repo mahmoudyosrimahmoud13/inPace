@@ -123,11 +123,14 @@ def test_pack_with_files_travels(tmp_path):
     pack = a.get(f"/courses/{course.id}/export?files=1")
     assert pack.status_code == 200
     names = zipfile.ZipFile(io.BytesIO(pack.content)).namelist()
-    assert "files/01 Intro/01 - Welcome.mp4" in names and "course.yaml" in names
+    # v1.19: small files travel (slides, pages); videos and audio never do.
+    assert "files/02 Going further/2 slides.pdf" in names and "course.yaml" in names
+    assert "files/01 Intro/01 - Welcome.mp4" not in names and "files/01 Intro/02_setup_guide.mp3" not in names
     r = b.post("/open", files={"file": ("c.lpack", pack.content)})
     assert "Added the course" in html.unescape(r.text)
-    got = bv.find_media(course.id, "01 Intro/01 - Welcome.mp4")
-    assert got and got.read_bytes().startswith(b"\x00\x00\x00\x18ftyp")
+    got = bv.find_media(course.id, "02 Going further/2 slides.pdf")
+    assert got and got.read_bytes().startswith(b"%PDF")
+    assert not bv.find_media(course.id, "01 Intro/01 - Welcome.mp4")
     # Without files, the other person is told to choose the folder.
     plain = a.get(f"/courses/{course.id}/export").content
     cv, cc = client(tmp_path, "Lina")

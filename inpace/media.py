@@ -35,10 +35,14 @@ class CourseFiles:
     """What the lesson page needs to know about a course's files on this computer.
     Calling it answers "is this file here?"; find() says where; resume() is where you stopped watching."""
 
-    def __init__(self, find: Callable, resume: Callable[[str], float] = lambda key: 0.0, speed: float = 1.0):
+    def __init__(self, find: Callable, resume: Callable[[str], float] = lambda key: 0.0, speed: float = 1.0,
+                 yt_local: Callable[[str], str | None] = lambda vid: None,
+                 yt_list: Callable[[str], list] = lambda plist: []):
         self.find = find
         self.resume = resume
         self.speed = speed
+        self.yt_local = yt_local  # video id -> address of its copy on this computer (downloaded or your own file)
+        self.yt_list = yt_list    # playlist id -> [{"id", "title", "url"}] of the videos that are on this computer
 
     def __call__(self, rel: str) -> bool:
         return self.find(rel) is not None
@@ -128,21 +132,26 @@ def _clock(sec: float) -> str:
     return f"{sec // 3600}:{sec % 3600 // 60:02d}:{sec % 60:02d}" if sec >= 3600 else f"{sec // 60}:{sec % 60:02d}"
 
 
-def video_player(url: str, key: str, resume: float, speed: float, t: Tr) -> str:
+def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: int = 0, end: int | None = None) -> str:
     """Our own video player: big play button, speed, +-10 s, full screen, keyboard keys, and it remembers
-    the second you stopped at. Without JavaScript it's a normal video with the browser's controls."""
+    the second you stopped at. Without JavaScript it's a normal video with the browser's controls.
+    start and end make it play only one piece of the file (a lesson cut from a long video)."""
     e = html.escape
     labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
               "mute": t("Mute"), "unmute": t("Sound on"), "speed": t("Speed"), "full": t("Full screen"),
               "pip": t("Picture in picture"), "restart": t("Start over"),
               "ended": t("Finished! Mark the lesson as done below.")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+    if resume and (resume < start or (end and resume >= end - 5)):
+        resume = 0.0
     hint = ""
-    if resume > 5:
+    if resume > start + 5:
         hint = (f'<p class="resume-hint small muted">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-restart>{e(t("Start over"))}</button></p>')
-    return (f'<div class="player" tabindex="0" data-player data-key="{e(key)}" data-resume="{resume:.1f}" data-speed="{speed:g}" {data}>'
-            f'<video controls preload="metadata" playsinline src="{url}"></video></div>{hint}')
+    frag = f"#t={start}" + (f",{end}" if end else "") if (start or end) else ""
+    return (f'<div class="player" tabindex="0" data-player data-key="{e(key)}" data-resume="{resume:.1f}" data-speed="{speed:g}" '
+            f'data-start="{start}" data-end="{end or 0}" {data}>'
+            f'<video controls preload="metadata" playsinline src="{url}{frag}"></video></div>{hint}')
 
 
 def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], bool], t: Tr) -> str:
@@ -161,6 +170,10 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
         watch = f"https://www.youtube.com/playlist?list={plist}"
         key = f"{course_id}|ytlist:{plist}"
     resume = files.resume(key) if files else 0.0
+    if files and vid and files.yt_local(vid):
+        return _offline_youtube(files.yt_local(vid), key, resume, files.speed, start, end, watch, cap, t)
+    if files and plist and files.yt_list(plist):
+        return _offline_playlist(course_id, files, files.yt_list(plist), watch, cap, t)
     if resume and (resume < start or (end and resume >= end - 5)):
         resume = 0.0
     piece = ""
@@ -177,6 +190,33 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
             f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
             f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
             f'</div>{cap}</figure>')
+
+
+def _offline_youtube(url: str, key: str, resume: float, speed: float, start: int, end: int | None, watch: str,
+                     cap: str, t: Tr) -> str:
+    """A YouTube lesson playing the copy on this computer: no internet needed, same piece, same saved place."""
+    e = html.escape
+    piece = ""
+    if start or end:
+        piece = (t("This lesson is the part from {a} to {b}.").format(a=_clock(start), b=_clock(end)) if end
+                 else t("This lesson starts at {a}.").format(a=_clock(start)))
+        piece = f'{e(piece)} '
+    return (f'<figure class="media video offline-yt">{video_player(url, key, resume, speed, t, start, end)}'
+            f'<p class="small muted">{piece}{e(t("Playing the copy on this computer."))} '
+            f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{cap}</figure>')
+
+
+def _offline_playlist(course_id: str, files: CourseFiles, items: list, watch: str, cap: str, t: Tr) -> str:
+    """A playlist lesson with its videos on this computer: one player per video, the first one open."""
+    e = html.escape
+    parts = []
+    for i, it in enumerate(items):
+        key = f"{course_id}|yt:{it['id']}:0-"
+        body = video_player(it["url"], key, files.resume(key), files.speed, t)
+        parts.append(f'<details class="code-file"{" open" if i == 0 else ""}><summary dir="auto">{i + 1}. {e(it["title"])}</summary>{body}</details>')
+    return (f'<figure class="media video offline-yt"><div class="code-folder">{"".join(parts)}</div>'
+            f'<p class="small muted">{e(t("Playing the copies on this computer."))} '
+            f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{cap}</figure>')
 
 
 def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], t: Tr) -> str:
