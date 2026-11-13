@@ -88,6 +88,11 @@ modules:
       - {id: m1-quiz, type: quiz, questions: [q1, q2], pass: 70}
 ```
 
+Any task can have `optional: true` (v1.21). The module is finished when every lesson is read and every task that
+isn't optional is done; optional tasks can still be done and show as done, but don't count toward progress. The key
+is written only when it's true, so courses without it keep the same fingerprint, and older apps (which don't know
+it) treat the task as required.
+
 ```yaml
 # questions.yaml: no hint about which options are right
 q1:

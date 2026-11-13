@@ -1608,3 +1608,64 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 }
 .b-min { flex-direction: row !important; align-items: center; }
 .courses-head + .course-filter, .course-find { margin-block-end: 1rem; }
+
+/* ---- Motion (v1.21) ------------------------------------------------------------------------------------------
+   Calm and quick, the way Flutter apps move: pages fade through instead of blinking, open sections slide open,
+   and things you press give way a little. Only opacity and transform are animated, so phones stay smooth, and
+   everything is off for people who ask their system for less motion. Browsers that can't do it just behave
+   as before. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Going to another page: the old page fades out fast, the new one fades in and settles 8px up. The top bar,
+     the menu and the phone's tab bar stay where they are. */
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) { animation: 90ms cubic-bezier(.4, 0, 1, 1) both inpace-page-out; }
+  ::view-transition-new(root) { animation: 220ms cubic-bezier(0, 0, .2, 1) 50ms both inpace-page-in; }
+  header.top { view-transition-name: inpace-top; }
+  nav.side { view-transition-name: inpace-side; }
+  nav.tabbar { view-transition-name: inpace-tabs; }
+  ::view-transition-group(inpace-top), ::view-transition-group(inpace-side), ::view-transition-group(inpace-tabs) { animation-duration: 160ms; }
+
+  /* Open and close sections ("Show details", course outlines, more options) smoothly. */
+  @supports selector(::details-content) {
+    :root { interpolate-size: allow-keywords; }
+    details:not(.menu):not(.course-menu):not(.inline-more)::details-content {
+      block-size: 0; overflow-y: clip;
+      transition: block-size 220ms cubic-bezier(.2, 0, 0, 1), content-visibility 220ms allow-discrete;
+    }
+    details:not(.menu):not(.course-menu):not(.inline-more)[open]::details-content { block-size: auto; }
+  }
+
+  /* Touch: a short press-in on cards and tiles, like a Flutter tap, instead of the browser's blue flash. */
+  a, button, summary, label { -webkit-tap-highlight-color: transparent; }
+  .tile, .lib-card, .stone .rock, .choice { transition: transform 120ms cubic-bezier(.2, 0, 0, 1), box-shadow 120ms, border-color .15s, background .15s; }
+  .tile:active, .lib-card:active, .choice:active { transform: scale(.985); }
+  .stone:active .rock { transform: scale(.92); }
+
+
+  html { scroll-behavior: smooth; }
+}
+@keyframes inpace-page-out { to { opacity: 0; } }
+@keyframes inpace-page-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---- Easier to find (v1.21) ---- */
+.next-top { margin-block: .9rem .3rem; }
+.card-more { margin-block-start: .6rem; }
+.card-more[open] > .stats { margin-block-start: .7rem; }
+.offline-fold > summary { list-style: none; cursor: pointer; gap: .6rem; align-items: center; }
+.offline-fold > summary::-webkit-details-marker { display: none; }
+.offline-fold > summary .fold-title { display: inline-flex; align-items: center; gap: .5rem; font-size: 1.1rem; }
+.offline-fold > summary::after { content: "+"; font-weight: 800; font-size: 1.3rem; line-height: 1; margin-inline-start: .3rem; }
+.offline-fold[open] > summary::after { content: "−"; }
+.offline-fold[open] > summary { margin-block-end: .6rem; }
+.trail-fold { margin-block-start: .5rem; }
+.trail-fold > summary { cursor: pointer; font-weight: 600; color: var(--muted); padding: .35rem 0; }
+.trail-fold[open] > summary { margin-block-end: .4rem; }
+.tasks-h { font-size: 1.15rem; margin: 1.6rem 0 .4rem; display: flex; flex-direction: column; gap: .1rem; }
+.tasks-h small { font-size: .85rem; font-weight: 400; color: var(--muted); }
+.sample-list li .btn, .sample-list li form { flex-shrink: 0; white-space: nowrap; }
+article.card + .outline { margin-block-start: 1.2rem; }
+/* Settings is long: a row of links to jump to each part. */
+.jump-links { display: flex; flex-wrap: wrap; gap: .4rem; max-width: 620px; margin-block-end: 1rem; }
+.jump-links a { font-size: .85rem; font-weight: 600; padding: .3rem .65rem; border: 2px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; }
+.jump-links a:hover, .jump-links a:focus-visible { background: var(--sun); color: #111; }
+[id] { scroll-margin-top: 4.5rem; }

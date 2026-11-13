@@ -12,9 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemBytecodeCache, FileSystemLoader, select_autoescape
 from markupsafe import Markup
-from markdown_it import MarkdownIt
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.background import BackgroundTask
@@ -57,7 +56,24 @@ def _highlight(code: str, lang: str, attrs: str) -> str:
     return highlight(code, lexer, HtmlFormatter(nowrap=True))
 
 
-md = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight}).enable("table")
+class _LazyMarkdown:
+    """The lesson renderer, built the first time something is drawn from Markdown, not when inPace starts.
+    (Importing markdown-it is one of the slower parts of starting, and many screens never need it.)"""
+    _real = None
+
+    def _get(self):
+        if _LazyMarkdown._real is None:
+            from markdown_it import MarkdownIt
+            real = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight}).enable("table")
+            real.core.ruler.push("bidi", _bidi)
+            _LazyMarkdown._real = real
+        return _LazyMarkdown._real
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+
+md = _LazyMarkdown()
 
 # Right to left: a lesson can mix Arabic and English. Every paragraph, heading, list, quote and table gets its
 # own direction from the letters it mostly uses (code and links don't count), so an Arabic paragraph that
@@ -93,7 +109,6 @@ def _bidi(state) -> None:
         tok.attrSet("dir", text_dir(" ".join(words)))
 
 
-md.core.ruler.push("bidi", _bidi)
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
                   extensions=["jinja2.ext.i18n"])
 LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="utf-8"))}
@@ -396,6 +411,15 @@ class NavMiddleware:
 
 def create_app(vault: Vault) -> Starlette:
     V = vault
+    # Pages are drawn from templates, and turning a template into Python takes time the first time (a lot of it
+    # on a phone). Keep the compiled templates in the data folder, so the next start reuses them. Jinja checks
+    # each template's source, so an updated inPace never uses an old copy.
+    try:
+        cache = V.home / "cache" / "templates"
+        cache.mkdir(parents=True, exist_ok=True)
+        env.bytecode_cache = FileSystemBytecodeCache(str(cache))
+    except OSError:
+        env.bytecode_cache = None  # a read-only folder: compile in memory, like before
 
     # ---- helpers -------------------------------------------------------------
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
@@ -624,6 +648,9 @@ def create_app(vault: Vault) -> Starlette:
         if pending:
             return go("/link?d=" + pending)
         cards = [journey_card(j) for j in V.journeys()]
+        # The course you worked on last comes first: its "Continue" is the first thing on the page.
+        last = {r[0]: r[1] or "" for r in V.db.execute("SELECT journey, MAX(at) FROM events GROUP BY journey")}
+        cards.sort(key=lambda card: last.get(card["journey"]["id"], ""), reverse=True)
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
         resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
@@ -2969,9 +2996,13 @@ def create_app(vault: Vault) -> Starlette:
                   "folder_path": V._meta("ytdlp_folder_path", "") or "",
                   "downloads": str(offline.system_folder("downloads") / "inPace"),
                   "videos_dir": str(offline.system_folder("videos") / "inPace"), "android": offline.on_android()}
+        try:
+            startup = json.loads(V._meta("startup_last", "") or "null")
+        except ValueError:
+            startup = None
         return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
-                    providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS)
+                    providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup)
 
     # ---- Tempo's island (reward mode) -------------------------------------------------------------
     def _island_labels() -> dict:
@@ -3371,6 +3402,22 @@ def create_app(vault: Vault) -> Starlette:
         trip = garden.active(V)
         return JSONResponse({"grown": bool(just) or not trip, "elapsed": int(garden.elapsed(trip)) if trip else 0})
 
+    async def startup_time(request: Request):
+        """The phone app reports how long it took to start (Python ready, first page shown), for Settings."""
+        form = await request.form()
+        out = {}
+        for k in ("python", "page"):
+            try:
+                ms = int(str(form.get(k, "")))
+                if 0 <= ms < 600_000:
+                    out[k] = ms
+            except ValueError:
+                pass
+        if out:
+            out["at"] = now_utc()
+            V._set_meta("startup_last", json.dumps(out))
+        return JSONResponse({"ok": bool(out)})
+
     async def ping(request: Request):
         """Lets a newly started inPace find and replace an older one using the same data folder."""
         from . import __version__
@@ -3586,6 +3633,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/tour/done", needs_setup(tour_done), methods=["POST"]),
         Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),
+        Route("/startup-time", startup_time, methods=["POST"]),
         Route("/updates/setting", needs_setup(update_setting), methods=["POST"]),
         Route("/updates/check", needs_setup(update_check), methods=["POST"]),
         Route("/updates/install", needs_setup(update_install), methods=["POST"]),

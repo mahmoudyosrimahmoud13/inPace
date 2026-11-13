@@ -16,11 +16,18 @@ mobile/
                             (on GitHub a failed build is retried once, and the APK is added
                             to the release only after the release is published)
   icon/res/                 the app icon (made with IconKitchen)
+  assets/splash/            the splash screen: Tempo and the logo (made by flutter_native_splash
+                            during the build; Flutter shows the same picture with a spinner)
 ```
 
 How the app works (start-up, data folder, files, links, permissions, updates): see
 [How inPace works → On Android](../docs/HOW-IT-WORKS.md#13-on-android). Screenshots are on the
 [website](https://mahmoudyosrimahmoud13.github.io/inPace/#phone).
+
+**Fast start:** the build packages Python's code already compiled (`.pyc`), using whichever of `--compile-app`,
+`--compile-packages` and `--cleanup` the serious_python packager offers. GitHub builds with Python 3.12, the same
+version as the phone. **Settings → Where your data lives → Show details** on the phone shows how long the last
+start took.
 
 The Android project files (`android/`) aren't kept in git. GitHub makes them fresh with `flutter create` on every
 build, and `tools/prepare_android.py` adjusts them.

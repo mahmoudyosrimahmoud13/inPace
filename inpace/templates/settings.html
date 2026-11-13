@@ -3,6 +3,16 @@
 {% block title %}{{ _('Settings') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Settings{% endtrans %}.</h1></div>
+<nav class="jump-links" aria-label="{{ _('On this page') }}">
+  <a href="#turtle">{% trans trimmed %}Your turtle{% endtrans %}</a>
+  <a href="#colors">{% trans trimmed %}Colors{% endtrans %}</a>
+  <a href="#reminders">{% trans trimmed %}Reminders and alarms{% endtrans %}</a>
+  <a href="#videos">{% trans trimmed %}Video downloads{% endtrans %}</a>
+  <a href="#ai">{% trans trimmed %}AI course maker{% endtrans %}</a>
+  <a href="#backups">{% trans trimmed %}Backups{% endtrans %}</a>
+  <a href="#updates">{% trans trimmed %}Updates{% endtrans %}</a>
+  <a href="#data">{% trans trimmed %}Where your data lives{% endtrans %}</a>
+</nav>
 <form method="post" class="card stack" style="max-width:620px" data-nav-form>
   <label>{% trans trimmed %}Your name{% endtrans %}<input name="name" value="{{ me.name }}" maxlength="40"></label>
   <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option></select></label>
@@ -72,12 +82,13 @@
     <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>
   {% endif %}
 </section>
-<section class="card" style="max-width:620px">
+<section class="card" style="max-width:620px" id="data">
   <h2>{% trans trimmed %}Where your data lives{% endtrans %}</h2>
   <p>{% trans trimmed %}Everything is in this folder on your computer:{% endtrans %}</p>
   <p><code>{{ home }}</code></p>
   <p class="muted small">{% trans trimmed %}Back up this whole folder to keep your progress safe. The file{% endtrans %} <b>{% trans trimmed %}identity.key{% endtrans %}</b> {% trans trimmed %}is your private key: never send it to anyone.{% endtrans %}</p>
-  <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code></details>
+  <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code>
+    {% if startup %}<br>{{ _('Last start: ready in %s s, first page in %s s.')|format('%.1f'|format((startup.python or 0) / 1000), '%.1f'|format((startup.page or startup.python or 0) / 1000)) }}{% endif %}</details>
 </section>
 <section class="card" style="max-width:620px" id="videos">
   <h2>{% trans trimmed %}Video downloads{% endtrans %}</h2>
@@ -119,7 +130,7 @@
     <button class="btn">{% trans trimmed %}Save AI settings{% endtrans %}</button>
   </form>
 </section>
-<section class="card" style="max-width:620px">
+<section class="card" style="max-width:620px" id="backups">
   <h2>{% trans trimmed %}Backups{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
   <p class="small muted">{% trans trimmed %}To keep it small, a backup leaves out downloaded YouTube videos and files bigger than 50 MB. Your progress, notes and answers are all in it.{% endtrans %}</p>

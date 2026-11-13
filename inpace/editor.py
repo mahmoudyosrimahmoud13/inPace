@@ -295,6 +295,10 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
         if not task:
             raise CourseError(["That task wasn't found."])
         task["prompt"] = f.get("prompt", "").strip() or task["prompt"]
+        if f.get("optional") == "1":
+            task["optional"] = True
+        else:
+            task.pop("optional", None)
         if task["type"] == "explain":
             task["min_words"] = int(f.get("min_words") or task.get("min_words") or 40)
         if task["type"] == "quiz":
@@ -351,6 +355,8 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
         kind = f.get("type")
         rid = _unique(f"{mod['id']}-r", ids)
         task = {"id": rid, "type": kind, "prompt": f.get("prompt", "").strip()}
+        if f.get("optional") == "1":
+            task["optional"] = True
         if kind == "quiz":
             task["questions"] = [q for q in f.get("questions", []) if q in c.questions]
             task["pass"] = int(f.get("pass") or 70)

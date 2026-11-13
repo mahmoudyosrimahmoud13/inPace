@@ -420,6 +420,10 @@ def load_course(files: dict[str, str]) -> Course:
                 continue
             rid = str(rr.get("id") or f"{mid}-r{ri}")
             req = {"id": rid, "type": rtype, "prompt": str(rr.get("prompt") or "").strip()}
+            if rr.get("optional") is True or str(rr.get("optional") or "").strip().lower() in ("true", "yes"):
+                # Optional tasks don't hold the module back. Written only when set, so older courses keep
+                # the same fingerprint, and older inPace versions (which don't know it) just treat it as required.
+                req["optional"] = True
             if rtype == "quiz":
                 qids = [str(q) for q in (rr.get("questions") or [])]
                 if not qids:

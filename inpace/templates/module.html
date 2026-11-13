@@ -6,7 +6,8 @@
 <div class="page-head">
   <p class="eyebrow"><a data-up href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
   <h1 dir="auto">{{ module.title }}</h1>
-  <p class="muted">{% trans trimmed %}To finish this module, read every lesson and complete these tasks.{% endtrans %}
+  {% set has_optional = mstate.requires|selectattr('optional')|list %}
+  <p class="muted">{% if has_optional %}{% trans trimmed %}To finish this module, read every lesson and complete the tasks that aren't marked optional.{% endtrans %}{% else %}{% trans trimmed %}To finish this module, read every lesson and complete these tasks.{% endtrans %}{% endif %}
   {% if mstate.status == 'done' %}<span class="chip good">{% trans trimmed %}Module done{% endtrans %}</span>{% endif %}</p>
 </div>
 {% if mstate.status == 'done' %}
@@ -46,11 +47,16 @@
   </div>
 </section>
 
-{% for r in mstate.requires %}
+{# Required tasks first, then the optional ones under their own heading. #}
+{% set ordered = (mstate.requires|rejectattr('optional')|list) + (mstate.requires|selectattr('optional')|list) %}
+{% for r in ordered %}
+{% if r.optional and (loop.first or not loop.previtem.optional) %}
+<h2 class="tasks-h">{% trans trimmed %}Optional tasks{% endtrans %}<small>{% trans trimmed %}Good practice, but the module doesn't wait for them.{% endtrans %}</small></h2>
+{% endif %}
 <section class="card task {{ 'done' if r.done }}" id="task-{{ r.id }}">
   <span class="ico">{{ icon('check' if r.done else TASK_ICON[r.type]) }}</span>
   <div>
-    <div class="task-head"><h3>{{ _(TASK_LABEL[r.type]) }}</h3>{% if r.done %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% endif %}</div>
+    <div class="task-head"><h3>{{ _(TASK_LABEL[r.type]) }}</h3>{% if r.done %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% elif r.optional %}<span class="chip muted">{% trans trimmed %}Optional{% endtrans %}</span>{% endif %}</div>
     {% if r.type != 'quiz' %}<p class="task-prompt" dir="auto">{{ r.prompt }}</p>{% endif %}
 
     {% if r.type == 'practical' %}

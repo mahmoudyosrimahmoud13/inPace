@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.21.0
+
+- **Optional tasks.** A course maker can mark a module's upload or write-up as optional: the module opens the next one without it, while the quiz (or any task not marked optional) is still needed. Optional tasks say **Optional**, come after the required ones under their own heading, can still be done, and don't count against your progress. In the editor, tick **Optional** on any task. It works both ways with older versions: courses without it are exactly the same as before, and an older inPace simply treats an optional task as required. The four Maths for ML courses use it: the quiz finishes each module.
+- **Easier to find your way.**
+  - **Home** puts **Continue** first: the course you worked on last is at the top, its next lesson right under its name, and the numbers below. Other courses fold their details away under **Details and options**, so the page stays short. The reminder tip moved below your courses.
+  - **The course page** shows your learning path right away. The module you're on is open; finished and locked modules fold into one line each (tap to see their lessons). **Watch offline** moved below the path and folds into one line that shows how many videos you have; it opens by itself while videos download.
+  - **Lessons** start right under their title; the full course outline moved below the lesson.
+  - **New here?** Home and My courses now lead to the free course library first, then to making your own, then to the samples.
+  - **Settings** has links at the top to jump to each part (your turtle, colors, reminders, videos, AI, backups, updates, your data).
+  - On phones, the **Add** button next to a sample course no longer squeezes into one letter per line.
+- **Smoother, still fast.** Going to another page fades through instead of blinking (the top bar, the menu and the phone's tab bar stay still), sections like "Show details" slide open, and cards give a little when you press them. Only fading and moving are animated, so phones stay smooth, and it's all off if your system is set to reduce motion. Older browsers just work as before.
+- **The phone app starts much faster.**
+  - Python's code now ships already compiled. Before, the phone compiled every library again on every start, because Python can't save compiled copies inside the app's zip files (about 1 to 2 seconds on a mid-range phone).
+  - Pages are drawn from templates that are compiled once and kept in your inPace folder, so the first page after a start is ready almost at once (it took about 0.1 s on a computer and much longer on a phone).
+  - The lesson renderer loads only when a lesson needs it, the page view starts while Python starts, the app checks whether Python is ready every 50 ms instead of every 300 ms, and notifications get ready in the background instead of before the first screen.
+  - **Settings → Where your data lives → Show details** shows how long the last start took on your phone.
+- **A splash screen with Tempo.** The phone app opens on Tempo waving above the inPace logo, on yellow, with a spinner while it gets ready, then fades into your first page with no white flash. Android 12 and newer show Tempo in a circle with the logo below.
+
 ## v1.20.0
 
 - **Courses that read a book you get yourself.** Some great books are free to read but not to share. A course can now be built on such a book without carrying it: each lesson opens the right pages of *your own copy*. The course page has a box, **This course reads a book you get yourself**, with a link to get the book and three ways to show inPace where it is:

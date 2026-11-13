@@ -113,7 +113,11 @@
 <section class="card empty-courses">
   {{ mascot('wave', 72) }}
   <div><b>{% trans trimmed %}No courses yet.{% endtrans %}</b>
-  <p class="muted" style="margin:.2rem 0 0">{% trans trimmed %}Add one from a folder, a book, the library or AI, or try a sample below.{% endtrans %}</p></div>
+  <p class="muted" style="margin:.2rem 0 0">{% trans trimmed %}Add one from a folder, a book, the library or AI, or try a sample below.{% endtrans %}</p>
+  <div class="row wrap" style="margin-block-start:.8rem">
+    <a class="btn primary" href="/library">{{ icon('library', 18) }}{% trans trimmed %}Browse free courses{% endtrans %}</a>
+    <a class="btn" href="/add">{{ icon('plus', 18) }}{% trans trimmed %}Add your own{% endtrans %}</a>
+  </div></div>
 </section>
 {% endif %}
 

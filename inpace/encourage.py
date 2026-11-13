@@ -30,7 +30,7 @@ def greeting(card: dict) -> tuple[str, str, list]:
         return "wave", "Hi! I'm Tempo. Slow and steady wins the race. Let's start with your first lesson.", []
     if module:
         left = sum(1 for les in module["lessons"] if not les["done"])
-        tasks = sum(1 for r in module["requires"] if not r["done"])
+        tasks = sum(1 for r in module["requires"] if not r["done"] and not r.get("optional"))
         if left == 1:
             return "cheer", "Just one lesson left in this module. You're so close!", []
         if left == 0 and tasks:

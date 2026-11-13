@@ -359,14 +359,15 @@ class Vault:
             ldone = sum(1 for les in lessons if les["done"])
             total_lessons += len(lessons)
             done_count += ldone
-            complete = ldone == len(lessons) and all(r["done"] for r in reqs)
+            # Optional tasks can be done (and show as done), but the module doesn't wait for them.
+            complete = ldone == len(lessons) and all(r["done"] for r in reqs if not r.get("optional"))
             status = "done" if complete else ("open" if unlocked else "locked")
             if status == "open" and next_step is None:
                 nxt = next((les for les in lessons if not les["done"]), None)
                 if nxt:
                     next_step = {"kind": "lesson", "id": nxt["id"], "title": nxt["title"], "module": m["title"], "mid": m["id"]}
                 else:
-                    r = next(r for r in reqs if not r["done"])
+                    r = next(r for r in reqs if not r["done"] and not r.get("optional"))
                     next_step = {"kind": "requirement", "id": r["id"], "title": r["prompt"], "module": m["title"],
                                  "mid": m["id"], "lesson": lessons[-1]["id"]}
             modules.append({"id": m["id"], "title": m["title"], "lessons": lessons, "requires": reqs,
@@ -374,8 +375,8 @@ class Vault:
             unlocked = unlocked and complete
 
         mods_done = sum(1 for m in modules if m["status"] == "done")
-        units = total_lessons + sum(len(m["requires"]) for m in modules)
-        units_done = done_count + sum(1 for m in modules for r in m["requires"] if r["done"])
+        units = total_lessons + sum(1 for m in modules for r in m["requires"] if not r.get("optional"))
+        units_done = done_count + sum(1 for m in modules for r in m["requires"] if r["done"] and not r.get("optional"))
         return {
             "course": course,
             "modules": modules,

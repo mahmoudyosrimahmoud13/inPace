@@ -11,14 +11,6 @@
   </div>
 </div>
 
-{% if cards and not reminders_set %}
-<a class="card tile rem-tip" href="/reminders">
-  <span class="ico">{{ icon('bell') }}</span>
-  <span><b>{% trans trimmed %}Want a reminder to study?{% endtrans %}</b>
-  <span>{% trans trimmed %}Pick a time and Tempo will remind you, with a notification or an alarm.{% endtrans %}</span></span>
-</a>
-{% endif %}
-
 {% if island_on and island %}
 <section class="card isle-home threat-{{ island.wx.threat }}" aria-labelledby="isle-home-title">
   <a class="isle-home-pic" href="/island" tabindex="-1" aria-hidden="true">{{ island.picture }}</a>
@@ -65,11 +57,12 @@
 {% if not cards %}
 <section class="card empty">
   <h2>{% trans trimmed %}Let's start your first course{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}Pick one from your courses, or add your own: a folder of class material, a course file, or one made with AI.{% endtrans %}</p>
-  <div class="row">
-    <a class="btn primary big" href="/courses">{% trans trimmed %}Choose a course{% endtrans %}</a>
-    <a class="btn big" href="/add">{% trans trimmed %}Add a course{% endtrans %}</a>
+  <p class="muted">{% trans trimmed %}Pick a free course from the library, or make your own from YouTube links, a book, a folder of class material, or with AI.{% endtrans %}</p>
+  <div class="row wrap">
+    <a class="btn primary big" href="/library">{{ icon('library', 18) }}{% trans trimmed %}Browse free courses{% endtrans %}</a>
+    <a class="btn big" href="/add">{% trans trimmed %}Add your own{% endtrans %}</a>
   </div>
+  <p class="small" style="margin-block-start:1rem"><a href="/courses">{% trans trimmed %}Or try a sample course{% endtrans %}</a></p>
 </section>
 {% endif %}
 
@@ -86,8 +79,22 @@
     {% elif c.milestones %}<span class="chip warn">{% trans trimmed %}Waiting for your checker{% endtrans %}</span>{% endif %}
   </div>
   <div class="bar" role="progressbar" aria-label="{{ _('Course progress') }}" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
+  {% if p.next and not c.paused %}
+  <div class="next next-top">
+    <div>
+      <p class="eyebrow">{% trans trimmed %}Next up{% endtrans %}</p>
+      <p class="next-title" dir="auto">{{ p.next.title if p.next.kind == 'lesson' else _('Finish the module tasks') }}</p>
+    </div>
+    {% if p.next.kind == 'lesson' %}
+      <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.id }}">{{ _("Continue") }} {{ icon('arrow', 18) }}</a>
+    {% else %}
+      <a class="btn primary big" href="/learn/{{ c.journey.id }}/module/{{ p.current_module.id }}">{{ _("Go to tasks") }} {{ icon('arrow', 18) }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% set rw = island_rewards.get(c.journey.id) if island_rewards else none %}
   {% if rw %}<p class="small course-reward"><a href="/island#courses">{{ icon('shell', 14) }}{{ T('{n} shells from this course', n=rw.shells) }}</a>{% if rw.next and not rw.trophy %} · {{ T('Next chest at {n}%: {s} shells', n=rw.next.at, s=rw.next.shells) if rw.next.at < 100 else T('Finish it for {s} shells and a trophy', s=rw.next.shells) }}{% elif rw.trophy %} · {% trans trimmed %}Finished: the trophy is on your island.{% endtrans %}{% endif %}</p>{% endif %}
+  {% if not loop.first %}<details class="more card-more"><summary>{% trans trimmed %}Details and options{% endtrans %}</summary>{% endif %}
   <div class="stats">
     <div><b>{{ p.percent }}%</b><span>{% trans trimmed %}done{% endtrans %}</span></div>
     <div><b>{{ p.lessons_done }}/{{ p.lessons_total }}</b><span>{% trans trimmed %}lessons{% endtrans %}</span></div>
@@ -123,19 +130,6 @@
     {% if c.due %}<a class="pace-box link-box" href="/learn/{{ c.journey.id }}/practice"><b>{{ c.due }} to review</b><span>{% trans trimmed %}Quick review →{% endtrans %}</span></a>{% endif %}
   </div>
 
-  {% if p.next and not c.paused %}
-  <div class="next">
-    <div>
-      <p class="eyebrow">{% trans trimmed %}Next up{% endtrans %}</p>
-      <p class="next-title" dir="auto">{{ p.next.title if p.next.kind == 'lesson' else _('Finish the module tasks') }}</p>
-    </div>
-    {% if p.next.kind == 'lesson' %}
-      <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.id }}">{{ _("Continue") }} {{ icon('arrow', 18) }}</a>
-    {% else %}
-      <a class="btn primary big" href="/learn/{{ c.journey.id }}/module/{{ p.current_module.id }}">{{ _("Go to tasks") }} {{ icon('arrow', 18) }}</a>
-    {% endif %}
-  </div>
-  {% endif %}
   <div class="row" style="margin-block-start: .9rem">
     {% if not c.pace.commitment %}
     <details class="more"><summary>{% trans trimmed %}Set a weekly goal{% endtrans %}</summary>
@@ -155,11 +149,20 @@
         <label>{% trans trimmed %}What's next?{% endtrans %}<textarea name="next" rows="2" dir="auto"></textarea></label>
         <button class="btn">{% trans trimmed %}Save reflection{% endtrans %}</button></form></details>
   </div>
+  {% if not loop.first %}</details>{% endif %}
   {% if c.has_new %}
   <p class="small muted" style="margin: .9rem 0 0">{% trans trimmed %}You've made progress since your last milestone.{% endtrans %} <a href="/milestones">{% trans trimmed %}Save a milestone{% endtrans %}</a> {% trans trimmed %}when you want your checker to see it.{% endtrans %}</p>
   {% endif %}
 </section>
 {% endfor %}
+
+{% if cards and not reminders_set %}
+<a class="card tile rem-tip" href="/reminders">
+  <span class="ico">{{ icon('bell') }}</span>
+  <span><b>{% trans trimmed %}Want a reminder to study?{% endtrans %}</b>
+  <span>{% trans trimmed %}Pick a time and Tempo will remind you, with a notification or an alarm.{% endtrans %}</span></span>
+</a>
+{% endif %}
 
 {% if cards and not checkers %}
 <section class="card soft">

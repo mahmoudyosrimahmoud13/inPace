@@ -29,11 +29,16 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart'
     show WebViewPermissionResourceType;
 
+// How long inPace takes to start: from here to "Python answers" and to "the first page is drawn" (shown in
+// Settings, so it can be checked on a real phone without any tools).
+final Stopwatch startClock = Stopwatch();
+
 Future<void> main() async {
+  startClock.start();
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Reminders.init();
-  } catch (_) {} // inPace still works without notifications
+  // Notifications get ready while the splash screen is already showing (the app used to wait for them first).
+  // inPace still works without notifications.
+  Reminders.ready = Reminders.init().catchError((_) {});
   runApp(const InPaceApp());
 }
 
@@ -50,6 +55,7 @@ class Reminders {
   static String _tripKey = '';
   static Map<String, dynamic> labels = {};
   static String? pendingPage; // a page to open, from a tapped notification
+  static Future<void> ready = Future.value(); // done once init() has finished (or failed)
   static void Function(String page)? onOpen;
   static void Function(String text)? onToast;
 
@@ -283,6 +289,10 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   WebViewController? _web;
   late int _port;
+  bool _ready = false; // Python answers
+  bool _shown = false; // the first page is drawn: the splash fades out
+  bool _splashGone = false;
+  int? _pythonMs;
   String? _problem;
   String? _pendingLink;
   StreamSubscription<Uri>? _links;
@@ -293,6 +303,8 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    // The web view starts up (it loads the browser engine, which takes a moment) while Python starts.
+    _web = _makeWebView();
     _start();
   }
 
@@ -335,12 +347,20 @@ class _ShellState extends State<Shell> {
         sync: false,
       );
       await _waitUntilUp();
+      _pythonMs = startClock.elapsedMilliseconds;
+      _ready = true;
       _listenForLinks();
+      await Reminders.ready;
       final fromNotification = Reminders.takePending();
       if (fromNotification != null) _pendingLink = fromNotification.replaceFirst(RegExp(r'^/'), '');
       Reminders.onOpen = (page) => _openPage(page.replaceFirst(RegExp(r'^/'), ''));
       Reminders.onToast = _toast;
-      _openWebView();
+      _web!.loadRequest(Uri.parse(_base + (_pendingLink ?? '')));
+      _pendingLink = null;
+      // If the first page never says it's finished (a very slow phone, an error), don't keep the splash forever.
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted && !_shown) setState(() => _shown = true);
+      });
     } catch (e) {
       setState(() => _problem = '$e');
     }
@@ -350,10 +370,11 @@ class _ShellState extends State<Shell> {
     final deadline = DateTime.now().add(const Duration(seconds: 60));
     while (DateTime.now().isBefore(deadline)) {
       try {
-        final r = await http.get(Uri.parse('${_base}ping')).timeout(const Duration(seconds: 2));
+        final r = await http.get(Uri.parse('${_base}ping')).timeout(const Duration(seconds: 1));
         if (r.statusCode == 200) return;
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Ask often: until Python listens, each try fails at once, so this costs nothing and saves up to 250 ms.
+      await Future.delayed(const Duration(milliseconds: 50));
     }
     throw Exception('inPace took too long to start.');
   }
@@ -372,7 +393,7 @@ class _ShellState extends State<Shell> {
     final m = RegExp(r'(?:inpace://open/?|/open(?:\.html)?#)([A-Za-z0-9_-]{16,})').firstMatch(text);
     if (m == null) return;
     final path = 'link?d=${m.group(1)}';
-    if (_web == null) {
+    if (!_ready) {
       _pendingLink = path;
     } else {
       _web!.loadRequest(Uri.parse(_base + path));
@@ -380,7 +401,7 @@ class _ShellState extends State<Shell> {
   }
 
   void _openPage(String path) {
-    if (_web == null) {
+    if (!_ready) {
       _pendingLink = path;
     } else {
       _web!.loadRequest(Uri.parse(_base + path));
@@ -389,12 +410,18 @@ class _ShellState extends State<Shell> {
 
   bool _isOurs(String url) => url.startsWith(_base);
 
-  void _openWebView() {
+  // Made once, at start; it loads the first page as soon as Python answers.
+  WebViewController _makeWebView() {
     final params = const PlatformWebViewControllerCreationParams();
     final controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFF7F3EA))
       ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) {
+          if (_shown || !_ready || !mounted) return;
+          setState(() => _shown = true);
+          _reportStartTime();
+        },
         onNavigationRequest: (request) {
           if (_isOurs(request.url)) return NavigationDecision.navigate;
           // Telegram, WhatsApp, email, GitHub and every other link open in their own app.
@@ -423,8 +450,14 @@ class _ShellState extends State<Shell> {
         onHideCustomWidget: () => setState(() => _fullScreen = null),
       );
     }
-    controller.loadRequest(Uri.parse(_base + (_pendingLink ?? '')));
-    setState(() => _web = controller);
+    return controller;
+  }
+
+  Future<void> _reportStartTime() async {
+    final page = startClock.elapsedMilliseconds;
+    try {
+      await http.post(Uri.parse('${_base}startup-time'), body: {'python': '${_pythonMs ?? page}', 'page': '$page'});
+    } catch (_) {}
   }
 
   // ---- Messages from the page (see app.js, "Android app") -------------------------------------------
@@ -606,19 +639,7 @@ class _ShellState extends State<Shell> {
         ),
       );
     }
-    final web = _web;
-    if (web == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFFFD43B),
-        body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('inPace', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: Color(0xFF111111))),
-            SizedBox(height: 16),
-            CircularProgressIndicator(color: Color(0xFF111111)),
-          ]),
-        ),
-      );
-    }
+    final web = _web!;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -626,10 +647,61 @@ class _ShellState extends State<Shell> {
         if (await _goBack()) SystemNavigator.pop();
       },
       child: Scaffold(
-        body: _fullScreen != null
-            ? ColoredBox(color: Colors.black, child: _fullScreen!)
-            : SafeArea(child: WebViewWidget(controller: web)),
+        backgroundColor: const Color(0xFFF7F3EA),
+        body: Stack(fit: StackFit.expand, children: [
+          _fullScreen != null
+              ? ColoredBox(color: Colors.black, child: _fullScreen!)
+              : SafeArea(child: WebViewWidget(controller: web)),
+          // The splash stays on top until the first page is drawn, then fades away (no white flash).
+          if (!_splashGone)
+            IgnorePointer(
+              ignoring: _shown,
+              child: AnimatedOpacity(
+                opacity: _shown ? 0 : 1,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOut,
+                onEnd: () {
+                  if (_shown && mounted) setState(() => _splashGone = true);
+                },
+                child: const Splash(),
+              ),
+            ),
+        ]),
       ),
+    );
+  }
+}
+
+// Tempo and the inPace logo on yellow, the same picture Android shows before Flutter starts, so the two
+// screens join without a jump. A spinner under them shows that inPace is getting ready.
+class Splash extends StatelessWidget {
+  const Splash({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFFFFD43B),
+      child: Stack(alignment: Alignment.center, children: [
+        Image(image: AssetImage('assets/splash/splash.png'), width: 240, height: 240),
+        Positioned.fill(
+          child: Align(
+            alignment: Alignment.center,
+            child: Padding(
+              padding: EdgeInsets.only(top: 330),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3.5,
+                  strokeCap: StrokeCap.round,
+                  color: Color(0xFF111111),
+                  backgroundColor: Color(0x22111111),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }

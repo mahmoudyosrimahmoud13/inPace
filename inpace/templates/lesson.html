@@ -15,28 +15,11 @@
       <span class="small muted">{{ _('Lesson %s of %s')|format(idx + 1, module.lessons|length) }}{% if lesson.minutes %} · {{ T('about {n} min', n=lesson.minutes) }}{% endif %}</span>
     </div>
   </div>
-  {% set tdone = mstate.requires|selectattr('done')|list|length %}
-  <a class="btn" data-replace href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ mstate.requires|length }}</a>
+  {% set treq = mstate.requires|rejectattr('optional')|list %}{% set tdone = treq|selectattr('done')|list|length %}
+  <a class="btn" data-replace href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ treq|length }}</a>
 </div>
 
-<details class="card flat outline">
-  <summary><b>{% trans trimmed %}Course outline{% endtrans %}</b> <span class="small muted">{{ T('{p}% done', p=prog.percent) }}</span></summary>
-  <ol class="outline-list">
-    {% for m in prog.modules %}
-    <li class="{{ m.status }}">
-      <span class="outline-mod">{{ '%02d'|format(loop.index) }} · <span dir="auto">{{ m.title }}</span>{% if m.status == 'locked' %} 🔒{% endif %}</span>
-      <ul>
-        {% for l in m.lessons %}
-        <li class="{{ 'here' if l.id == lesson.id }}">
-          {% if m.status != 'locked' %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{% if l.done %}✓ {% endif %}{{ l.title }}</a>{% else %}<span class="muted" dir="auto">{{ l.title }}</span>{% endif %}
-        </li>
-        {% endfor %}
-        {% if m.requires and m.status != 'locked' %}<li><a data-replace href="/learn/{{ j.id }}/module/{{ m.id }}">{{ _('Module tasks') }}</a></li>{% endif %}
-      </ul>
-    </li>
-    {% endfor %}
-  </ol>
-</details>
+
 
 <article class="card" style="padding: clamp(1.25rem, 4vw, 2.5rem)">
   <div class="row between" style="margin-block-end: .5rem">
@@ -58,4 +41,23 @@
     {% endif %}
   </div>
 </article>
+
+<details class="card flat outline">
+  <summary><b>{% trans trimmed %}Course outline{% endtrans %}</b> <span class="small muted">{{ T('{p}% done', p=prog.percent) }}</span></summary>
+  <ol class="outline-list">
+    {% for m in prog.modules %}
+    <li class="{{ m.status }}">
+      <span class="outline-mod">{{ '%02d'|format(loop.index) }} · <span dir="auto">{{ m.title }}</span>{% if m.status == 'locked' %} 🔒{% endif %}</span>
+      <ul>
+        {% for l in m.lessons %}
+        <li class="{{ 'here' if l.id == lesson.id }}">
+          {% if m.status != 'locked' %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{% if l.done %}✓ {% endif %}{{ l.title }}</a>{% else %}<span class="muted" dir="auto">{{ l.title }}</span>{% endif %}
+        </li>
+        {% endfor %}
+        {% if m.requires and m.status != 'locked' %}<li><a data-replace href="/learn/{{ j.id }}/module/{{ m.id }}">{{ _('Module tasks') }}</a></li>{% endif %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ol>
+</details>
 {% endblock %}

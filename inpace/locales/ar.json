@@ -1948,5 +1948,17 @@
  "Choose a PDF file.": "اختر ملف PDF.",
  "That file couldn't be read as a PDF.": "تعذّرت قراءة هذا الملف كملف PDF.",
  "This PDF has {got} pages, and the course expects {want}. It may be another edition, so lessons could open the wrong pages. You can keep it, or get the right one from the link above.": "هذا الملف فيه {got} صفحة، والدورة تتوقع {want}. قد تكون طبعة أخرى، فتفتح الدروس صفحات غير صحيحة. يمكنك الإبقاء عليه، أو الحصول على النسخة الصحيحة من الرابط بالأعلى.",
- "Found your book: {path}": "وُجد كتابك: {path}"
+ "Found your book: {path}": "وُجد كتابك: {path}",
+ "Last start: ready in %s s, first page in %s s.": "آخر تشغيل: جاهز خلال %s ث، وأول صفحة خلال %s ث.",
+ "To finish this module, read every lesson and complete the tasks that aren't marked optional.": "لإنهاء هذه الوحدة، اقرأ كل الدروس وأكمل المهام غير المكتوب عليها «اختياري».",
+ "Optional: the module can be finished without it": "اختيارية: يمكن إنهاء الوحدة بدونها",
+ "Optional": "اختياري",
+ "Optional tasks": "مهام اختيارية",
+ "Good practice, but the module doesn't wait for them.": "تمرين مفيد، لكن الوحدة لا تنتظرها.",
+ "Details and options": "التفاصيل والخيارات",
+ "Browse free courses": "تصفّح الدورات المجانية",
+ "Add your own": "أضف دورتك",
+ "Or try a sample course": "أو جرّب دورة تجريبية",
+ "Pick a free course from the library, or make your own from YouTube links, a book, a folder of class material, or with AI.": "اختر دورة مجانية من المكتبة، أو اصنع دورتك من روابط يوتيوب، أو كتاب، أو مجلد مواد دراسية، أو بالذكاء الاصطناعي.",
+ "On this page": "في هذه الصفحة"
 }

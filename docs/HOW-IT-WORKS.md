@@ -63,6 +63,8 @@ inPace/
 
 A course is plain text: a `course.yaml` file with modules, lessons and tasks, plus lesson text in Markdown.
 
+**Optional tasks** (v1.21). A task with `optional: true` doesn't hold its module back: the module is done when every lesson is read and every other task is done (`Vault.progress`). Optional tasks are listed after the required ones, are left out of the progress percentage and the "x of y tasks" counts, and can still be done. The editor has an **Optional** tick box on each task.
+
 **Ways a course gets in** (all from the **Add a course** page):
 - **A course file** someone shared (`.lpack`, `.zip` or `.yaml`).
 - **A folder** of course material (videos, slides as PDF, notes, code). inPace makes a first guess, then shows the **organizer**:
@@ -199,7 +201,11 @@ Because of the link and the signature, nobody can change one milestone without b
 - **Search:** press **Ctrl+K** or **/** anywhere. Type a few letters to jump to any lesson, course, task, person or page. **My courses** also has a search box (from 4 courses) that filters your courses by title, description, module or lesson name.
 - **Phones and narrow windows:** the sidebar becomes a tab bar at the bottom: Home, Courses, Add, Milestones, and More (races, the library, people, open a file, settings, dark mode). The top bar shows the page you're on.
 - **Continue:** the sidebar card takes you back to the lesson you were last on.
-- **Course outline:** shown on every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
+- **Course outline:** under every lesson. Jump to any lesson, with ✓ marks on the ones you finished.
+- **Home:** the course you worked on last comes first (by its latest activity), with **Continue** right under its name. Other courses keep their numbers and options under **Details and options**.
+- **The course page:** the learning path comes right after the title. Only the module you're on is open; finished and locked modules fold into a line each. **Watch offline** sits below the path, folded, and opens by itself while a download runs or after a problem.
+- **Settings:** links at the top jump to each section.
+- **Motion:** page changes use the browser's View Transitions (`@view-transition` in `style.css`): the old page fades out in 90 ms, the new one fades in and rises 8 px in 220 ms, and the top bar, side menu and tab bar keep their place. Sections (`<details>`) slide open, and cards scale to 98.5% while pressed. Only `opacity` and `transform` are animated, all of it is inside `prefers-reduced-motion: no-preference`, and browsers without these features simply don't animate.
 - **Back and forward:** the app window has no browser buttons, so inPace has its own at the top left. **Alt+← / Alt+→** and the side buttons on a mouse work too.
 - **Pages are never stale.** Every page is sent with `Cache-Control: no-store`, so going back loads it again: it shows the language, colors and progress you have now, not the ones from before. If a window brings a page back from memory anyway, it's reloaded.
 - **One-off pages are skipped.** A quiz you already sent, a quiz result, a verified exam and a finished focus trip mark themselves as one-off (`<meta name="inpace-dispose">`). If Back lands on one, inPace goes to the page it belongs to instead (the module, or the island). Quiz answers are saved first and the result is shown on its own page (post, then redirect), so Back or reload never sends them again.
@@ -370,8 +376,17 @@ The phone app is the full inPace, not a smaller copy. The same Python code, page
 **How it starts**
 1. The app is a small [Flutter](https://flutter.dev) shell (`mobile/`). It has Python 3.12 and inPace's libraries inside it (through [serious_python](https://pub.dev/packages/serious_python)).
 2. It picks a free port and starts inPace's server on `127.0.0.1`, exactly like on a computer. Only the phone itself can reach it.
-3. It waits until the server answers (`/ping`), showing a start screen meanwhile, then shows the pages full screen in a web view.
+3. It waits until the server answers (`/ping`, checked every 50 ms), showing the splash screen meanwhile, then shows the pages full screen in a web view. The splash fades out once the first page has been drawn.
 4. The pages know they're on a phone (`INPACE_MOBILE=android`), so they hide things that only make sense on a computer, like the update bar and the **Quit** button.
+
+**Starting fast** (v1.21). What used to slow the start down, and what's done about it:
+- **Compiled code.** On Android, Python imports its libraries straight from zip files and can't save compiled `.pyc` copies there, so it compiled every module on every start. The build now packages the code already compiled (`--compile-app --compile-packages` for serious_python, used when the packager supports them), with Python 3.12 on the build machine to match the phone.
+- **Compiled templates.** Jinja turns each page template into Python the first time it's used. The compiled templates are kept in `<data folder>/cache/templates` (`FileSystemBytecodeCache`); Jinja checks each template's source, so a new version never uses an old copy. (All 47 templates: 0.8 s compiled, 0.01 s from the cache, on a computer.)
+- **Less to load at start.** The Markdown renderer is created the first time a lesson needs it.
+- **In parallel.** The web view (which loads the browser engine) is created while Python starts; notifications are set up while the splash shows, not before it.
+- **Measured.** The app times "Python answers" and "first page drawn" from the moment it starts and sends them to `/startup-time`; **Settings → Where your data lives → Show details** shows the last start.
+
+**The splash screen** is Tempo above the inPace logo on yellow (`mobile/assets/splash`). Android shows it before Flutter starts (made by `flutter_native_splash`; Android 12 and newer show Tempo in a circle with the logo below), then Flutter shows the same picture with a spinner until the first page is ready, and fades it out.
 
 **Your data** lives in the app's private storage, in an `inPace` folder with the same layout as [section 2](#2-your-data-folder). Other apps can't read it. Uninstalling the app deletes it, so make a backup first.
 
