@@ -287,6 +287,7 @@ _ICONS = {
     "grip": '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
     "x": '<path d="M6 6l12 12M18 6 6 18"/>',
     "video": '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
+    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     "doc": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
     "audio": '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
     "image": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
@@ -739,16 +740,46 @@ def create_app(vault: Vault) -> Starlette:
             state = "add" if not local else ("have" if local.hash == e.get("hash") else "update")
             words = " ".join(str(x) for x in [e.get("id"), e.get("title"), e.get("description"), e.get("author", {}).get("name"),
                                                 " ".join(e.get("tags") or [])] if x).lower()
-            entries.append({**e, "state": state, "search": words})
+            entries.append({**e, "state": state, "search": words,
+                            "hours": round(int(e.get("minutes") or 0) / 60) if e.get("minutes") else 0})
+        # Topic buttons above the list: the tags several courses share, most common first.
+        counts: dict[str, int] = {}
+        for e in entries:
+            for tag in {str(x).strip().lower() for x in (e.get("tags") or []) if str(x).strip()}:
+                counts[tag] = counts.get(tag, 0) + 1
+        topics = [tag for tag, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])) if n > 1][:10]
         show = str(request.query_params.get("show", ""))
         if show and not any(e.get("id") == show for e in entries):
             # A friend's link to a course we don't have in our list yet: look again.
             if request.query_params.get("refresh") != "1":
                 return go("/library?refresh=1&show=" + quote(show))
             return page("library.html", request, entries=entries, index=index, problem=None, report_url=library.REPORT_URL,
-                        site=library.SITE, show="", missing=True)
+                        site=library.SITE, show="", missing=True, topics=topics)
         return page("library.html", request, entries=entries, index=index, problem=None,
-                    report_url=library.REPORT_URL, site=library.SITE, show=show)
+                    report_url=library.REPORT_URL, site=library.SITE, show=show, topics=topics)
+
+    async def library_course(request: Request):
+        """One library course up close, before adding it: what's inside, its tasks, and a lesson to read."""
+        from starlette.concurrency import run_in_threadpool
+        cid = request.path_params["cid"]
+        try:
+            index = await run_in_threadpool(library.load_index, V.home)
+        except library.LibraryProblem as e:
+            return go("/library", err=str(e))
+        e = library.find(index, cid)
+        if not e:
+            return go("/library", err="That course isn't in the library anymore.")
+        local = V.get_course(cid)
+        state = "add" if not local else ("have" if local.hash == e.get("hash") else "update")
+        outline = e.get("outline") if isinstance(e.get("outline"), list) else []
+        sample = e.get("sample") if isinstance(e.get("sample"), dict) else None
+        sample_html = ""
+        if sample and isinstance(sample.get("text"), str):
+            sample_html = md.render(_drop_title(sample["text"][:12000], str(sample.get("title", ""))))
+        minutes = int(e.get("minutes") or 0)
+        return page("library_course.html", request, e=e, state=state, outline=outline, sample=sample,
+                    sample_html=sample_html, hours=round(minutes / 60) if minutes else 0, report_url=library.REPORT_URL,
+                    dispose=None)
 
     async def library_add(request: Request):
         from starlette.concurrency import run_in_threadpool
@@ -3054,6 +3085,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),
         Route("/library", needs_setup(library_page)),
         Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
+        Route("/library/{cid}", needs_setup(library_course)),
         Route("/courses/{cid}/publish", needs_setup(publish_course)),
         Route("/courses/{cid}/share", needs_setup(share_course)),
         Route("/courses/{cid}/publish/file", needs_setup(publish_file)),

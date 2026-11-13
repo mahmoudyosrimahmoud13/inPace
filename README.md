@@ -24,7 +24,7 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Daily review.** Old questions come back over days and weeks so they stick.
 
 **Share and find courses**
-- **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/).** Browse free courses other learners made and add one with a click, right inside the app.
+- **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/).** Browse free courses other learners made, look inside each one (every module, lesson and task, plus a lesson to read), and add it with a click, right inside the app.
 - **Publish your own** with **More → Publish to the library**. It's signed with your inPace key, so only you can update it.
 - **Send a course as a short link.** A course from the library goes as a link, not a file, and your friend always gets the newest version.
 - **Courses with big videos** can point to a download link (Google Drive, MEGA, archive.org…). Learners download the videos, choose the folder, and every lesson finds its video.

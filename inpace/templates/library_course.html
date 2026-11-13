@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ e.title }}{% endblock %}
+{% block main %}
+<a class="lib-crumb" href="/library#lib-{{ e.id }}" data-up>{{ icon('back', 18) }}{% trans trimmed %}Course library{% endtrans %}</a>
+
+<header class="lib-head">
+  <div class="lib-cover big">
+    {% if e.cover %}<img src="{{ e.cover }}" alt="">{% else %}<span class="blank" style="--hue:{{ (e.id|length * 47) % 360 }}">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
+  </div>
+  <div>
+    <h1 dir="auto">{{ e.title }}</h1>
+    <ul class="lib-facts">
+      {% if e.minutes and e.minutes < 90 %}<li>{{ icon('clock', 16) }}{{ T('{n} min of lessons', n=e.minutes) }}</li>{% elif hours %}<li>{{ icon('clock', 16) }}{{ T('about {n} h of lessons', n=hours) }}</li>{% endif %}
+      <li>{{ icon('book', 16) }}{{ T('{a} modules · {b} lessons', a=e.modules, b=e.lessons) }}</li>
+      <li>{{ 'العربية' if e.language == 'ar' else 'English' }}</li>
+    </ul>
+    {% if e.description %}<p dir="auto">{{ e.description }}</p>{% endif %}
+    <p class="muted small">{% if e.author %}{{ T('by {name}', name=e.author.name) }}{% if e.author.verified %} ✓{% endif %}{% endif %}
+      {% if e.license %} · {{ e.license }}{% endif %}</p>
+    {% if e.tags %}<div class="row wrap lib-tags">{% for tg in e.tags[:8] %}<span class="chip plain">{{ tg }}</span>{% endfor %}</div>{% endif %}
+    {% if e.downloads %}<p class="note warn">{% trans trimmed %}This course's videos download separately. After adding it, inPace shows a button to get them.{% endtrans %}</p>{% endif %}
+    <div class="lib-actions">
+      {% if state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
+        <a class="btn primary" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
+      {% else %}<form method="post" action="/library/{{ e.id }}/add"><button class="btn primary big">{{ _('Update') if state == 'update' else _('Add this course') }}</button></form>{% endif %}
+      <a class="btn ghost small" href="{{ report_url }}?title={{ ('Report: ' ~ e.title)|urlencode }}&labels=report" target="_blank" rel="noopener">{% trans trimmed %}Report{% endtrans %}</a>
+    </div>
+  </div>
+</header>
+
+<h2 class="lib-section">{% trans trimmed %}What's inside{% endtrans %}</h2>
+{% if outline %}
+<p class="muted small">{% trans trimmed %}Each module ends with tasks. The next module opens when they're done.{% endtrans %}</p>
+<ol class="lib-modules">
+{% for m in outline %}
+  <li><details class="lib-mod"{{ ' open' if loop.first }}>
+    <summary><span class="num">{{ loop.index }}</span><span dir="auto">{{ m.title }}</span>
+      <span class="sum">{{ _('1 lesson') if m.lessons|length == 1 else T('{n} lessons', n=m.lessons|length) }}{% set mins = m.lessons|sum(attribute='minutes') %}{% if mins %} · {{ T('{n} min', n=mins) }}{% endif %}</span></summary>
+    <ul>
+    {% for les in m.lessons %}
+      <li><span dir="auto">{{ les.title }}</span>
+        {% if les.media == 'pdf' %}<span class="kind">{% trans trimmed %}slides{% endtrans %}</span>{% elif les.media in ('video', 'audio') %}<span class="kind">{{ _(les.media) }}</span>{% endif %}
+        <span class="mins">{% if les.minutes %}{{ T('{n} min', n=les.minutes) }}{% endif %}</span></li>
+    {% endfor %}
+    </ul>
+    {% if m.tasks %}<div class="lib-tasks">
+      {% for tk in m.tasks %}
+        {% if tk.type == 'quiz' %}<span class="task">{{ icon('check', 14) }}{{ T('Quiz: {n} questions', n=tk.questions) }}</span>
+        {% elif tk.type == 'practical' %}<span class="task" title="{{ tk.prompt }}">{{ icon('doc', 14) }}{% trans trimmed %}Practical task{% endtrans %}</span>
+        {% elif tk.type == 'explain' %}<span class="task" title="{{ tk.prompt }}">{{ icon('doc', 14) }}{% trans trimmed %}Explain in your words{% endtrans %}</span>
+        {% endif %}
+      {% endfor %}
+    </div>{% endif %}
+  </details></li>
+{% endfor %}
+</ol>
+{% else %}
+<p class="muted">{% trans trimmed %}The library doesn't list this course's lessons yet. Add it to see everything inside.{% endtrans %}</p>
+{% endif %}
+
+{% if sample_html %}
+<h2 class="lib-section">{% trans trimmed %}Read a lesson first{% endtrans %}</h2>
+<article class="card lib-sample">
+  <h2 dir="auto">{{ sample.title }}</h2>
+  <div class="prose lib-fade" data-lib-fade dir="{{ 'rtl' if e.language == 'ar' else 'auto' }}">{{ sample_html|safe }}</div>
+  <p class="lib-more"><button type="button" class="btn" data-lib-more>{% trans trimmed %}Show the whole lesson{% endtrans %}</button></p>
+</article>
+{% endif %}
+
+{% if e.credit %}<p class="muted small lib-credit" dir="auto">{{ e.credit }}</p>{% endif %}
+{% endblock %}

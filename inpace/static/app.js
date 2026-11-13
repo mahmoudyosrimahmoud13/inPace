@@ -804,18 +804,35 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   if (!box) return;
   const cards = [...document.querySelectorAll("[data-course-search]")];
   const none = document.querySelector("[data-course-none]");
+  let topic = "";  // the library's topic buttons narrow the list too
   const run = () => {
     const words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
     let shown = 0;
     cards.forEach((c) => {
-      const ok = words.every((w) => c.dataset.courseSearch.includes(w));
+      const ok = words.every((w) => c.dataset.courseSearch.includes(w)) &&
+        (!topic || (c.dataset.tags || "").split("|").includes(topic));
       c.hidden = !ok;
       shown += ok;
     });
     if (none) none.hidden = shown > 0;
   };
   box.addEventListener("input", run);
+  document.querySelectorAll("[data-lib-topic]").forEach((b) => b.addEventListener("click", () => {
+    topic = b.dataset.libTopic;
+    document.querySelectorAll("[data-lib-topic]").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    run();
+  }));
   if (box.value) run();  // opened from a shared link: show that course
+})();
+
+// A library course's sample lesson: shown folded, with a button to read all of it.
+(() => {
+  const box = document.querySelector("[data-lib-fade]");
+  const more = document.querySelector("[data-lib-more]");
+  if (!box || !more) return;
+  const open = () => { box.classList.add("open"); more.parentElement.hidden = true; };
+  if (box.scrollHeight <= box.clientHeight + 10) open();
+  more.addEventListener("click", open);
 })();
 
 // ---- Android app ---------------------------------------------------------------------------------

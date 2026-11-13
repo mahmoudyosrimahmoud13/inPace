@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.17.1
+
+- **A better course library.** The library is now a grid of big course covers, with the hours of lessons, modules and language on each card. Buttons for the most common topics (python, machine learning, flutter...) narrow the list in one tap, next to the search box.
+- **Look inside a course before adding it.** **See what's inside** opens a page with every module and lesson, how long each takes, which lessons have slides or video, the tasks at the end of each module (a practical task, an answer in your own words, a quiz and how many questions), and one lesson you can read in full. Add the course from there when you're ready. The library website has the same page for every course.
+
 ## v1.17.0
 
 - **One island for everything, with your name on it.** All focus trips grow on Tempo's island, whatever you're studying. The separate turtle and island for each course are gone, so there's one place to look after. Tap **Rename** above the island to name it. A flag with the name can stand on it too.
