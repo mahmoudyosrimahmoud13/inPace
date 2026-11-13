@@ -30,6 +30,7 @@ def _plant(v, kind="oak", journey="", ended=None, goal=25):
 
 # ---- the real clock -----------------------------------------------------------------------------------
 
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="Windows can't change the time zone this way (and doesn't need to)")
 def test_the_phone_tells_python_its_real_time_zone():
     old = os.environ.get("TZ")
     try:
