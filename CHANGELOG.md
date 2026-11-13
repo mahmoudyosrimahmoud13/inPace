@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.22.1
+
+- **Fixed: the phone app didn't start in 1.21 and 1.22** ("inPace could not start: inPace took too long to start"). The faster build ships Python's code already compiled and removed the plain `main.py` file, but the app still asked to start `main.py`, so Python never started. The app now starts whichever file is there, and the build keeps the plain files too. Your courses and progress were never touched: update and it opens as before.
+
 ## v1.22.0
 
 - **A download button under every YouTube video.** Each lesson with a YouTube video now has **Download this video** right under it, with roughly how big it is (once inPace knows the video's length). Press it and the video downloads in the background while you keep learning. The button shows how far along it is, says **Saved on this device** when it's done, and **Play the saved copy** switches the lesson to the copy, which then plays without internet. Lessons with a YouTube playlist get **Download these videos**.

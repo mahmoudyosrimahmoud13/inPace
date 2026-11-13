@@ -35,7 +35,8 @@ echo "== 4. Python and its libraries for Android"
 # mid-range phone). Only the options this version of the packager knows are used, so the build never breaks.
 PACK_FLAGS=()
 HELP=$(dart run serious_python:main package --help 2>&1 || true)
-for flag in --compile-app --compile-packages --cleanup; do
+# Never --cleanup: it deletes the .py files (main.py too), and the app must keep working whatever the runner looks for.
+for flag in --compile-app --compile-packages; do
   if grep -q -- "$flag" <<<"$HELP"; then PACK_FLAGS+=("$flag"); fi
 done
 echo "Packaging with: ${PACK_FLAGS[*]:-(no extra options)}"

@@ -334,8 +334,9 @@ class _ShellState extends State<Shell> {
       } catch (_) {}
       _port = await _freePort();
       // Python runs on its own thread for as long as the app is open.
+      // No file name: the runner picks main.pyc (the build ships compiled code) or main.py, whichever is there.
+      // Naming main.py here broke 1.21 and 1.22, because the compiled build has no main.py.
       SeriousPython.run(
-        appFileName: 'main.py',
         environmentVariables: {
           'INPACE_HOME': '${data.path}/inPace',
           'INPACE_PORT': '$_port',
