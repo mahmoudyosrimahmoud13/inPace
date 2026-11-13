@@ -1403,9 +1403,74 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       const pct = j.total ? ((j.done + (j.percent || 0) / 100) / j.total) * 100 : 0;
       $("[data-offline-bar]").style.width = pct.toFixed(1) + "%";
       $("[data-offline-num]").textContent = `${j.done} / ${j.total || "…"}`;
+      const quick = document.querySelector("[data-offline-quick-num]");  // the small one at the top of the page
+      if (quick) quick.textContent = `${j.done} / ${j.total || "…"}`;
       $("[data-offline-now]").textContent = j.title ? `${j.title}${j.percent ? " · " + Math.round(j.percent) + "%" : ""}` : "";
     } catch (e) { /* inPace is busy: try again */ }
     setTimeout(poll, 1500);
   };
   poll();
+})();
+
+// Course page: the small links at the top open the "Watch offline" box at the bottom and go there.
+document.addEventListener("click", (ev) => {
+  const a = ev.target.closest("[data-offline-open]");
+  const box = a && document.getElementById("offline");
+  if (box && box.tagName === "DETAILS") box.open = true;
+});
+
+// Lessons: the "Download this video" button under a YouTube video. It downloads in the background and shows
+// how far along it is, right there; when it's saved, one tap plays the copy on this device.
+(() => {
+  const forms = document.querySelectorAll("form.yt-save[data-yt-save]");
+  if (!forms.length) return;
+  const show = (f, d) => {
+    const btn = f.querySelector("button"), note = f.querySelector("[data-yt-save-note]"), L = f.dataset;
+    const busy = d.state === "downloading" || d.state === "waiting";
+    f.dataset.state = d.state;
+    btn.hidden = busy;
+    note.classList.toggle("muted", !busy);
+    note.textContent = "";
+    if (busy) { const s = document.createElement("span"); s.className = "spin"; s.setAttribute("aria-hidden", "true"); note.append(s); }
+    if (d.state === "downloading") note.append(L.lDownloading.replace("{percent}", Math.round(d.percent || 0) + "%"));
+    else if (d.state === "waiting") note.append(L.lWaiting);
+    else if (d.state === "failed") { note.append(`${L.lFailed} ${d.why || ""}`); btn.querySelector("span").textContent = L.lAgain; }
+    else if (d.state === "saved") {
+      btn.hidden = true;
+      note.append(L.lSaved + " ");
+      const play = document.createElement("button");
+      play.type = "button"; play.className = "btn small"; play.textContent = "▶ " + L.lPlay;
+      play.addEventListener("click", () => location.reload());
+      note.append(play);
+    }
+    return busy;
+  };
+  const watch = (f) => {
+    const poll = async () => {
+      let d;
+      try { d = (await (await fetch(f.dataset.ytSave, { cache: "no-store" })).json()).video || {}; }
+      catch (e) { setTimeout(poll, 3000); return; }  // inPace is busy: ask again a bit later
+      if (show(f, d)) setTimeout(poll, 1500);
+    };
+    poll();
+  };
+  forms.forEach((f) => {
+    if (f.dataset.state === "downloading" || f.dataset.state === "waiting") watch(f);
+    f.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const btn = f.querySelector("button"), note = f.querySelector("[data-yt-save-note]");
+      btn.disabled = true;
+      note.textContent = f.dataset.lStarting;
+      try {
+        const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { Accept: "application/json" } });
+        const d = await r.json();
+        btn.disabled = false;
+        if (!d.ok) { note.textContent = d.message || f.dataset.lFailed; return; }
+        if (show(f, d)) watch(f);
+      } catch (e) {
+        btn.disabled = false;
+        note.textContent = f.dataset.lOffline;
+      }
+    });
+  });
 })();

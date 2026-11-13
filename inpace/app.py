@@ -10,7 +10,7 @@ import threading
 import time as _time
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from jinja2 import Environment, FileSystemBytecodeCache, FileSystemLoader, select_autoescape
 from markupsafe import Markup
@@ -1098,8 +1098,27 @@ def create_app(vault: Vault) -> Starlette:
                     for it in offline.playlist_items(V, cid, plist) if yt_local(it["id"])]
         c = V.get_course(cid)
         book = (c.extra.get("book") or "") if c else ""
+        items: dict = {}
+
+        def yt_save(vid: str, plist: str):
+            """What the download button under a lesson's YouTube video needs."""
+            if not c:
+                return None
+            if not items:
+                items.update({(it["kind"], it["id"]): it for it in offline.course_videos(c)})
+            it = items.get(("video", vid) if vid else ("playlist", plist))
+            if not it:
+                return None
+            q = V._meta(f"ytdlp_quality:{cid}", "") or V._meta("ytdlp_quality", "720") or "720"
+            size = offline.item_size(V, c, it, q, guess=False)
+            ask = f"vid={quote(vid)}" if vid else f"list={quote(plist)}"
+            st = offline.video_state(V, c, vid, plist)
+            if st.get("why"):
+                st["why"] = gettext(st["why"])
+            return {"action": f"/courses/{quote(cid)}/offline/video", "status": f"/courses/{quote(cid)}/offline/status?{ask}",
+                    "size": offline.nice_size(size) if size else "", **st}
         return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed, yt_local, yt_list,
-                                     book=book, book_link=f"/courses/{quote(cid)}/go#book")
+                                     book=book, book_link=f"/courses/{quote(cid)}/go#book", yt_save=yt_save)
 
     # ---- YouTube videos on this computer (downloaded with yt-dlp, or your own files) ----------------------------
     async def yt_file(request: Request):
@@ -1125,15 +1144,55 @@ def create_app(vault: Vault) -> Starlette:
         quality = str(form.get("quality", ""))
         if quality in offline.QUALITIES:
             V._set_meta(f"ytdlp_quality:{c.id}", quality)  # this course remembers its choice
+        else:  # the small button at the top of the course page: the quality this course used before
+            quality = V._meta(f"ytdlp_quality:{c.id}", "") or ""
         q = quality if quality in offline.QUALITIES else (V._meta("ytdlp_quality", "720") or "720")
+        back = _back_to_course(c.id)
+        if form.get("from") == "top":
+            back = back.split("#")[0]
         need = offline.space_needed(V, c).get(q, 0)
         free = offline.free_space(offline.download_folder(V, c))
         if 0 <= free < need + offline.KEEP_FREE and not form.get("anyway"):
-            return go(_back_to_course(c.id), err=gettext(
+            return go(back, err=gettext(
                 "Not enough space: these videos need about {need}, and only {free} is free there. inPace always leaves "
                 "300 MB free so your device keeps working. Choose a lower quality or another folder, or free some space.").format(need=offline.nice_size(need), free=offline.nice_size(free)))
         offline.start_download(V, c, quality=quality)
-        return go(_back_to_course(c.id), ok="The videos are downloading. You can keep learning while they do.")
+        return go(back, ok="The videos are downloading. You can keep learning while they do.")
+
+    async def offline_video(request: Request):
+        """The download button under one lesson's video (or playlist)."""
+        c = _offline_course(request)
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        form = await request.form()
+        vid, plist = str(form.get("vid", "")), str(form.get("list", ""))
+        item = next((it for it in offline.course_videos(c)
+                     if (vid and it["kind"] == "video" and it["id"] == vid)
+                     or (plist and it["kind"] == "playlist" and it["id"] == plist)), None)
+        as_json = "application/json" in request.headers.get("accept", "")
+        ref = urlparse(request.headers.get("referer", "")).path
+        back = ref if ref.startswith("/learn/") else _back_to_course(c.id)
+
+        def answer(ok: str = "", err: str = ""):
+            if as_json:
+                state = offline.video_state(V, c, vid, plist) if item else {"state": "none"}
+                if state.get("why"):
+                    state["why"] = gettext(state["why"])
+                return JSONResponse({"ok": not err, "message": gettext(ok or err), **state})
+            return go(back, ok=ok) if not err else go(back, err=err)
+
+        if not item:
+            return answer(err="This video isn't part of the course.")
+        quality = V._meta(f"ytdlp_quality:{c.id}", "") or ""
+        q = quality if quality in offline.QUALITIES else (V._meta("ytdlp_quality", "720") or "720")
+        need = offline.item_size(V, c, item, q)
+        free = offline.free_space(offline.download_folder(V, c))
+        if 0 <= free < need + offline.KEEP_FREE and not form.get("anyway"):
+            return answer(err=gettext(
+                "Not enough space: this video needs about {need}, and only {free} is free there. inPace always leaves "
+                "300 MB free so your device keeps working. Free some space, or choose another folder on the course page.").format(need=offline.nice_size(need), free=offline.nice_size(free)))
+        offline.start_download(V, c, quality=quality, only=[item])
+        return answer(ok="The video is downloading. You can keep learning while it does.")
 
     async def offline_stop(request: Request):
         offline.stop(request.path_params["cid"])
@@ -1144,12 +1203,18 @@ def create_app(vault: Vault) -> Starlette:
         if not c:
             return JSONResponse({}, status_code=404)
         st = offline.status(V, c)
-        job = {k: v for k, v in (st["job"] or {}).items() if k != "stop"}
+        job = {k: v for k, v in (st["job"] or {}).items() if k not in ("stop", "pending")}
         if job.get("title") in ("Getting yt-dlp…", "Reading the playlist…"):
             job["title"] = gettext(job["title"])
         if job.get("error"):
             job["error"] = gettext(job["error"])
-        return JSONResponse({"have": st["have"], "total": st["total"], "job": job})
+        out = {"have": st["have"], "total": st["total"], "job": job}
+        vid, plist = request.query_params.get("vid", ""), request.query_params.get("list", "")
+        if vid or plist:  # one lesson's download button asks how its video is doing
+            out["video"] = offline.video_state(V, c, vid, plist)
+            if out["video"].get("why"):
+                out["video"]["why"] = gettext(out["video"]["why"])
+        return JSONResponse(out)
 
     async def offline_match(request: Request):
         """Step 1 of "I already have the videos": look in the folder and suggest which file is which video."""
@@ -3543,6 +3608,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/yt/{cid}/{vid}", needs_setup(yt_file)),
         Route("/courses/{cid}/offline/download", needs_setup(offline_download), methods=["POST"]),
         Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
+        Route("/courses/{cid}/offline/video", needs_setup(offline_video), methods=["POST"]),
         Route("/courses/{cid}/offline/status", needs_setup(offline_status)),
         Route("/courses/{cid}/offline/match", needs_setup(offline_match), methods=["POST"]),
         Route("/courses/{cid}/offline/save", needs_setup(offline_save), methods=["POST"]),

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.22.0
+
+- **A download button under every YouTube video.** Each lesson with a YouTube video now has **Download this video** right under it, with roughly how big it is (once inPace knows the video's length). Press it and the video downloads in the background while you keep learning. The button shows how far along it is, says **Saved on this device** when it's done, and **Play the saved copy** switches the lesson to the copy, which then plays without internet. Lessons with a YouTube playlist get **Download these videos**.
+  - Pressing several lessons' buttons, or downloading the whole course while one video downloads, adds to the same download instead of starting over.
+  - If a video doesn't download, the reason is right under it in plain words (no internet, or YouTube says the video isn't available), with **Try again**.
+  - Each video gets the same space check as the whole course, and uses the quality you chose for that course.
+- **A small "Download for offline" button at the top of the course page,** right under **Continue**. One tap downloads all the course's videos in the quality you used before for that course (720p unless you chose another), and shows the size. While it runs, it turns into **Downloading videos 3 / 10**; when everything is saved, it says **Videos saved for offline**. The full **Watch offline** box stays at the bottom of the page, with quality, folder and your own videos; **Options** next to the button opens it.
+
 ## v1.21.0
 
 - **Optional tasks.** A course maker can mark a module's upload or write-up as optional: the module opens the next one without it, while the quiz (or any task not marked optional) is still needed. Optional tasks say **Optional**, come after the required ones under their own heading, can still be done, and don't count against your progress. In the editor, tick **Optional** on any task. It works both ways with older versions: courses without it are exactly the same as before, and an older inPace simply treats an optional task as required. The four Maths for ML courses use it: the quiz finishes each module.

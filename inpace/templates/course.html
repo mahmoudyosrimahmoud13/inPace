@@ -17,6 +17,21 @@
   <a class="btn primary big continue-btn" href="/learn/{{ j.id }}/{{ 'lesson/' ~ nx.id if nx.kind == 'lesson' else 'module/' ~ nx.mid }}">
     <span><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ nx.title if nx.kind == 'lesson' else T('{name} tasks', name=nx.module) }}</b></span>{{ icon('arrow', 18) }}</a>
   {% elif prog.finished %}<p><span class="chip good">{% trans trimmed %}Course finished{% endtrans %}</span></p>{% endif %}
+  {% if offline %}{% set qjob = offline.job %}
+  <div class="offline-quick">
+    {% if qjob and qjob.state == 'running' %}
+    <a class="quick-run" href="#offline" data-offline-open><span class="spin" aria-hidden="true"></span>{% trans trimmed %}Downloading videos{% endtrans %} <b dir="ltr" data-offline-quick-num>{{ qjob.done }} / {{ qjob.total or '…' }}</b></a>
+    {% elif offline.total and offline.have >= offline.total %}
+    <a class="small muted" href="#offline" data-offline-open>{{ icon('check', 16) }} {% trans trimmed %}Videos saved for offline{% endtrans %}</a>
+    {% else %}
+    <form method="post" action="/courses/{{ j.course_id }}/offline/download">
+      <input type="hidden" name="from" value="top">
+      <button class="btn small" data-busy="{{ _('Starting…') }}">{{ icon('download', 16) }}{% if offline.have %}{% trans trimmed %}Download the rest for offline{% endtrans %}{% else %}{% trans trimmed %}Download for offline{% endtrans %}{% endif %}</button>
+      <span class="small muted">{% if offline.need %}{{ T('about {size}', size=nice_size(offline.need[quality])) }} · {% endif %}<a href="#offline" data-offline-open>{% trans trimmed %}Options{% endtrans %}</a></span>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
   </div>
 </div>
 

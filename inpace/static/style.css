@@ -1669,3 +1669,16 @@ article.card + .outline { margin-block-start: 1.2rem; }
 .jump-links a { font-size: .85rem; font-weight: 600; padding: .3rem .65rem; border: 2px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; }
 .jump-links a:hover, .jump-links a:focus-visible { background: var(--sun); color: #111; }
 [id] { scroll-margin-top: 4.5rem; }
+
+/* Downloading for offline: a small button at the top of the course page, and one under each lesson's video. */
+.offline-quick { margin-block-start: .8rem; }
+.offline-quick form { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; margin: 0; }
+.offline-quick a { display: inline-flex; align-items: center; gap: .35rem; }
+.quick-run { font-weight: 700; color: var(--ink); text-decoration: none; font-size: .9rem; }
+.spin { display: inline-block; flex-shrink: 0; width: 14px; height: 14px; margin-inline-end: .45rem; vertical-align: -2px;
+  border: 2.5px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: inpace-spin .8s linear infinite; }
+@keyframes inpace-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.yt-save { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: .6rem 0 0; }
+.yt-save-note { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
+.yt-save .btn svg { flex-shrink: 0; }

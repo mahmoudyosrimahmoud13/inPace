@@ -231,14 +231,87 @@ def free_space(folder: Path) -> int:
         return -1
 
 
-def _video_seconds(vault, course, it: dict) -> float:
-    """How long a video is: from YouTube when we know it, else from its lessons' minutes, else a guess."""
+def _video_seconds(vault, course, it: dict, guess: bool = True) -> float:
+    """How long a video is: from YouTube when we know it, else from its lessons' minutes, else a guess
+    (0 when guess is False and nothing is known)."""
     info = video_info(vault, it["id"])
     if info.get("duration"):
         return float(info["duration"])
     minutes = sum(int(les.get("minutes") or 0) for m in course.modules for les in m["lessons"]
                   if les["title"] in it.get("lessons", []))
-    return minutes * 60.0 if minutes else 15 * 60.0
+    return minutes * 60.0 if minutes else (15 * 60.0 if guess else 0.0)
+
+
+def item_size(vault, course, it: dict, quality: str, guess: bool = True) -> int:
+    """Roughly how many bytes one lesson's video (or playlist) still needs at this quality."""
+    mb = MB_PER_HOUR.get(quality if quality in MB_PER_HOUR else "720", 600)
+    if it["kind"] == "video":
+        if local_file(vault, course.id, it["id"]):
+            return 0
+        seconds = _video_seconds(vault, course, it, guess)
+    else:
+        vids = playlist_items(vault, course.id, it["id"])
+        if not vids:
+            seconds = 5 * 15 * 60.0 if guess else 0.0
+        else:
+            seconds = 0.0
+            for v in vids:
+                if not local_file(vault, course.id, v["id"]):
+                    dur = float(video_info(vault, v["id"]).get("duration") or 0)
+                    seconds += dur or (15 * 60.0 if guess else 0.0)
+    return int(seconds / 3600 * mb * 1024 * 1024)
+
+
+_WHY = (
+    (("Unable to connect", "Network is unreachable", "getaddrinfo", "timed out", "Temporary failure in name resolution",
+      "Tunnel connection failed", "Connection refused", "Connection reset", "No address associated", "Failed to resolve"),
+     "No internet connection, or YouTube can't be reached right now. Try again when you're online."),
+    (("Video unavailable", "Private video", "has been removed", "is not available", "account associated with this video"),
+     "YouTube says this video isn't available anymore."),
+    (("Sign in to confirm", "not a bot"),
+     "YouTube asked to check that you're not a robot. Try again later, or update yt-dlp in Settings."),
+)
+
+
+def plain_why(why: str) -> str:
+    """Why a video didn't download, in plain words for the common cases (else yt-dlp's own short message)."""
+    for needles, text in _WHY:
+        if any(n.lower() in (why or "").lower() for n in needles):
+            return text
+    return (why or "")[:160]
+
+
+def video_state(vault, course, vid: str = "", plist: str = "") -> dict:
+    """What a lesson's download button shows: "saved", "downloading" (with percent), "waiting" (other videos
+    first), "failed" (with why) or "none"."""
+    job = JOBS.get(course.id) or {}
+    running = job.get("state") == "running"
+    pending = {it.get("id") for it in job.get("pending", [])}
+    if vid:
+        if local_file(vault, course.id, vid):
+            return {"state": "saved"}
+        if running and job.get("current") == vid:
+            return {"state": "downloading", "percent": job.get("percent") or 0.0}
+        if running and (vid in job.get("queue", []) or vid in pending or job.get("want_all")):
+            return {"state": "waiting"}
+        fail = next((f for f in job.get("failed", []) if f.get("id") == vid), None)
+        if fail:
+            return {"state": "failed", "why": plain_why(fail.get("why", ""))}
+        if job.get("state") == "failed" and vid in job.get("asked", []):  # the whole download stopped
+            return {"state": "failed", "why": plain_why(job.get("error", ""))}
+        return {"state": "none"}
+    items = playlist_items(vault, course.id, plist)
+    have = sum(1 for v in items if local_file(vault, course.id, v["id"]))
+    out = {"have": have, "total": len(items)}
+    if items and have >= len(items):
+        return {"state": "saved", **out}
+    if running and (plist in job.get("lists", []) or plist in pending or job.get("want_all")):
+        now = job.get("current")
+        busy = bool(now and any(v["id"] == now for v in items))
+        return {"state": "downloading" if busy else "waiting", "percent": (job.get("percent") or 0.0) if busy else 0.0, **out}
+    if job.get("state") == "failed" and plist in job.get("asked", []):
+        return {"state": "failed", "why": plain_why(job.get("error", "")), **out}
+    return {"state": "none", **out}
 
 
 def space_needed(vault, course) -> dict:
@@ -459,14 +532,28 @@ class NoSpace(Exception):
     pass
 
 
-def start_download(vault, course, open_vault=None, quality: str = "") -> dict:
-    """Start downloading the course's videos in the background. Returns the job (it changes as it goes)."""
+def start_download(vault, course, open_vault=None, quality: str = "", only: list[dict] | None = None) -> dict:
+    """Start downloading in the background: all of the course's videos, or only some (only = items from
+    course_videos, like the video under one lesson). Asking again while it runs adds to the same download,
+    so pressing several lessons' buttons, or "download all" after one, just makes the list longer.
+    Returns the job (it changes as it goes)."""
     with _LOCK:
         job = JOBS.get(course.id)
         if job and job["state"] == "running":
+            if only is None:
+                if not job.get("all"):
+                    job["want_all"] = True
+            else:
+                for it in only:
+                    if it["id"] not in job["asked"]:
+                        job["asked"].append(it["id"])
+                    if it["id"] not in job["queue"] and all(p["id"] != it["id"] for p in job["pending"]):
+                        job["pending"].append(it)
             return job
         job = {"state": "running", "done": 0, "total": 0, "title": "", "percent": 0.0, "error": "", "stop": False,
-               "failed": [], "started": time.time(), "quality": quality if quality in QUALITIES else ""}
+               "failed": [], "started": time.time(), "quality": quality if quality in QUALITIES else "",
+               "pending": list(only or []), "want_all": only is None, "all": False, "queue": [], "lists": [],
+               "current": "", "asked": [it["id"] for it in only or []]}
         JOBS[course.id] = job
     home = vault.home
     opener = open_vault or (lambda: type(vault)(home))
@@ -517,55 +604,88 @@ def _run(opener, course, job) -> None:
             opts["merge_output_format"] = "mp4"
         if on_android() and "Movies" in out_dir.parts:
             opts["nopart"] = True  # Android's Movies folder refuses files that aren't media, like "video.mp4.part"
-        todo: list[tuple[str, str]] = []  # (video id, title)
-        with yt_dlp.YoutubeDL({**opts, "extract_flat": "in_playlist", "skip_download": True}) as ydl:
-            for it in course_videos(course):
+        todo: list[tuple[str, str]] = []  # (video id, title), each video once, in the order asked
+        seen: set[str] = set()
+
+        def add(vid: str, title: str) -> None:
+            if vid not in seen:
+                seen.add(vid)
+                todo.append((vid, title))
+                job["queue"].append(vid)
+                if vid not in job["asked"]:
+                    job["asked"].append(vid)
+            job["total"] = len(todo)
+
+        def expand(items: list[dict], flat) -> None:
+            """Turn lessons' videos and playlists into the list of single videos to download."""
+            for it in items:
                 if job["stop"]:
                     raise Stopped()
                 if it["kind"] == "video":
-                    todo.append((it["id"], it["lessons"][0] if it["lessons"] else it["id"]))
+                    add(it["id"], it.get("title") or (it["lessons"][0] if it.get("lessons") else it["id"]))
                     continue
                 job["title"] = "Reading the playlist…"
-                info = ydl.extract_info(watch_url(it), download=False) or {}
+                info = flat.extract_info(watch_url(it), download=False) or {}
                 entries = [{"id": e["id"], "title": e.get("title") or e["id"]}
                            for e in (info.get("entries") or []) if e and e.get("id")]
                 v._set_meta(f"ytlist:{course.id}:{it['id']}", json.dumps(entries, ensure_ascii=False))
                 for e in (info.get("entries") or []):
                     if e and e.get("id"):
                         _remember_info(v, e)
-                todo += [(e["id"], e["title"]) for e in entries]
-        seen, uniq = set(), []
-        for vid, title in todo:
-            if vid not in seen:
-                seen.add(vid)
-                uniq.append((vid, title))
-        job["total"] = len(uniq)
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            for vid, title in uniq:
-                if job["stop"]:
-                    raise Stopped()
-                job["title"], job["percent"] = title, 0.0
-                if local_file(v, course.id, vid):
-                    job["done"] += 1
-                    continue
-                try:
-                    info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=True) or {}
-                except (Stopped, NoSpace):
-                    raise
-                except Exception as e:
-                    if "NoSpace" in repr(e) or "No space left" in str(e):
-                        raise NoSpace()
-                    if "Stopped" in type(e).__name__ or job["stop"]:
+                if it["id"] not in job["lists"]:
+                    job["lists"].append(it["id"])
+                if it["id"] not in job["asked"]:
+                    job["asked"].append(it["id"])
+                for e in entries:
+                    add(e["id"], e["title"])
+
+        i = 0
+        with yt_dlp.YoutubeDL({**opts, "extract_flat": "in_playlist", "skip_download": True}) as flat, \
+                yt_dlp.YoutubeDL(opts) as ydl:
+            while True:
+                with _LOCK:  # what was asked for while this ran (more lessons, or the whole course)
+                    asked, job["pending"] = job["pending"], []
+                    whole = bool(job.get("want_all"))
+                    if whole:
+                        job["want_all"], job["all"] = False, True
+                    if not asked and not whole and i >= len(todo):
+                        job["state"] = "done" if not job["failed"] else "partly"
+                        break
+                if whole:
+                    expand(course_videos(course), flat)
+                if asked:
+                    expand(asked, flat)
+                while i < len(todo):
+                    vid, title = todo[i]
+                    i += 1
+                    if job["stop"]:
                         raise Stopped()
-                    job["failed"].append({"title": title, "why": _short(e)})
-                    job["done"] += 1
-                    continue
-                _remember_info(v, info)
-                path = _downloaded_path(info)
-                if path:
-                    set_local_file(v, course.id, vid, path, downloaded=True)
-                job["done"] += 1
-        job["state"] = "done" if not job["failed"] else "partly"
+                    job["title"], job["percent"], job["current"] = title, 0.0, vid
+                    try:
+                        if local_file(v, course.id, vid):
+                            job["done"] += 1
+                            continue
+                        try:
+                            info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=True) or {}
+                        except (Stopped, NoSpace):
+                            raise
+                        except Exception as e:
+                            if "NoSpace" in repr(e) or "No space left" in str(e):
+                                raise NoSpace()
+                            if "Stopped" in type(e).__name__ or job["stop"]:
+                                raise Stopped()
+                            job["failed"].append({"id": vid, "title": title, "why": _short(e)})
+                            job["done"] += 1
+                            continue
+                        _remember_info(v, info)
+                        path = _downloaded_path(info)
+                        if path:
+                            set_local_file(v, course.id, vid, path, downloaded=True)
+                        job["done"] += 1
+                    finally:
+                        job["current"] = ""
+                        if vid in job["queue"]:
+                            job["queue"].remove(vid)
     except Stopped:
         job["state"] = "stopped"
     except NoSpace:
@@ -578,7 +698,7 @@ def _run(opener, course, job) -> None:
     except Exception as e:
         job["state"], job["error"] = "failed", _short(e)
     finally:
-        job["title"], job["percent"] = "", 0.0
+        job["title"], job["percent"], job["current"] = "", 0.0, ""
         try:
             v.db.close()
         except Exception:

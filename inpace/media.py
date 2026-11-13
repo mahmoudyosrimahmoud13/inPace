@@ -37,7 +37,8 @@ class CourseFiles:
 
     def __init__(self, find: Callable, resume: Callable[[str], float] = lambda key: 0.0, speed: float = 1.0,
                  yt_local: Callable[[str], str | None] = lambda vid: None,
-                 yt_list: Callable[[str], list] = lambda plist: [], book: str = "", book_link: str = ""):
+                 yt_list: Callable[[str], list] = lambda plist: [], book: str = "", book_link: str = "",
+                 yt_save: Callable[[str, str], dict | None] = lambda vid, plist: None):
         self.find = find
         self.resume = resume
         self.speed = speed
@@ -45,6 +46,7 @@ class CourseFiles:
         self.yt_list = yt_list    # playlist id -> [{"id", "title", "url"}] of the videos that are on this computer
         self.book = book            # the course's book, which each learner gets themselves (not shared with it)
         self.book_link = book_link  # where to show inPace your copy
+        self.yt_save = yt_save      # (video id, playlist id) -> what the "Download this video" button needs, or None
 
     def __call__(self, rel: str) -> bool:
         return self.find(rel) is not None
@@ -174,8 +176,9 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     resume = files.resume(key) if files else 0.0
     if files and vid and files.yt_local(vid):
         return _offline_youtube(files.yt_local(vid), key, resume, files.speed, start, end, watch, cap, t)
+    save = save_button(files.yt_save(vid, "" if vid else plist), vid, "" if vid else plist, t) if files else ""
     if files and plist and files.yt_list(plist):
-        return _offline_playlist(course_id, files, files.yt_list(plist), watch, cap, t)
+        return _offline_playlist(course_id, files, files.yt_list(plist), watch, cap, t, save)
     if resume and (resume < start or (end and resume >= end - 5)):
         resume = 0.0
     piece = ""
@@ -191,7 +194,54 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
             f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{piece}{hint}'
             f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
             f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
-            f'</div>{cap}</figure>')
+            f'</div>{save}{cap}</figure>')
+
+
+_DOWNLOAD_ICON = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
+                  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/>'
+                  '<path d="m7 11 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>')
+
+
+def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
+    """The small "Download this video" button under a YouTube lesson, so it plays without internet next time.
+    It shows how the download is going; without JavaScript it's a plain form that comes back to the lesson."""
+    if not info or info.get("state") == "saved":
+        return ""
+    e = html.escape
+    state = info.get("state", "none")
+    labels = {"downloading": t("Downloading this video… {percent}"), "waiting": t("In the download list, after the videos before it."),
+              "saved": t("Saved on this device."), "play": t("Play the saved copy"),
+              "failed": t("It didn't download."), "again": t("Try again"), "offline": t("inPace isn't answering. Try again in a moment."),
+              "starting": t("Starting…")}
+    data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+    busy = state in ("downloading", "waiting")
+    if vid:
+        label = t("Download this video")
+    elif info.get("have"):
+        label = t("Download the rest of these videos")
+    else:
+        label = t("Download these videos")
+    if state == "downloading":
+        note = labels["downloading"].format(percent=f'{round(info.get("percent") or 0)}%')
+    elif state == "waiting":
+        note = labels["waiting"]
+    elif state == "failed":
+        note = f'{labels["failed"]} {info.get("why", "")}'.strip()
+    else:
+        note = (t("About {size}. Then it plays without internet.").format(size=info["size"]) if info.get("size")
+                else t("Then it plays without internet."))
+    spin = '<span class="spin" aria-hidden="true"></span>' if busy else ""
+    count = ""
+    if plist and info.get("total"):
+        count = f' <span class="small muted" dir="ltr">{info.get("have", 0)} / {info["total"]}</span>'
+    return (f'<form method="post" action="{e(info["action"])}" class="yt-save" data-yt-save="{e(info["status"])}" '
+            f'data-state="{e(state)}" {data}>'
+            f'<input type="hidden" name="vid" value="{e(vid)}"><input type="hidden" name="list" value="{e(plist)}">'
+            f'<button class="btn small"{" hidden" if busy else ""}>{_DOWNLOAD_ICON}'
+            f'<span>{e(t("Try again") if state == "failed" else label)}</span></button>{count}'
+            f'<span class="small {"muted" if not busy else ""} yt-save-note" data-yt-save-note dir="auto">'
+            f'{spin}{e(note)}</span>'
+            f'</form>')
 
 
 def _offline_youtube(url: str, key: str, resume: float, speed: float, start: int, end: int | None, watch: str,
@@ -208,7 +258,7 @@ def _offline_youtube(url: str, key: str, resume: float, speed: float, start: int
             f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{cap}</figure>')
 
 
-def _offline_playlist(course_id: str, files: CourseFiles, items: list, watch: str, cap: str, t: Tr) -> str:
+def _offline_playlist(course_id: str, files: CourseFiles, items: list, watch: str, cap: str, t: Tr, save: str = "") -> str:
     """A playlist lesson with its videos on this computer: one player per video, the first one open."""
     e = html.escape
     parts = []
@@ -218,7 +268,7 @@ def _offline_playlist(course_id: str, files: CourseFiles, items: list, watch: st
         parts.append(f'<details class="code-file"{" open" if i == 0 else ""}><summary dir="auto">{i + 1}. {e(it["title"])}</summary>{body}</details>')
     return (f'<figure class="media video offline-yt"><div class="code-folder">{"".join(parts)}</div>'
             f'<p class="small muted">{e(t("Playing the copies on this computer."))} '
-            f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{cap}</figure>')
+            f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{save}{cap}</figure>')
 
 
 def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], t: Tr) -> str:
