@@ -22,8 +22,8 @@ from .course import embed_id, is_url, local_ref, media_kind, page_range
 Tr = Callable[[str], str]
 
 _IMG = re.compile(r'<img src="([^"]*)" alt="([^"]*)"\s*/?>')
-_LONE_LINK = re.compile(r'<p>\s*<a href="([^"]+)">([^<]*)</a>\s*</p>')
-_LONE_URL = re.compile(r'<p>\s*(https?://[^\s<]+)\s*</p>')
+_LONE_LINK = re.compile(r'<p(?: dir="\w+")?>\s*<a href="([^"]+)">([^<]*)</a>\s*</p>')  # paragraphs carry their direction
+_LONE_URL = re.compile(r'<p(?: dir="\w+")?>\s*(https?://[^\s<]+)\s*</p>')
 _LINK = re.compile(r'<a href="([^"]+)">')
 
 

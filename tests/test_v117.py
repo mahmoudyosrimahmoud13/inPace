@@ -130,18 +130,19 @@ def test_villain_lines_fit_the_world_and_language():
 
 # ---- names, shells and the shop ------------------------------------------------------------------------
 
-def test_name_each_island(tmp_path):
+def test_one_island_with_its_own_name(tmp_path):
     v, c, jid = _python(tmp_path)
     garden.set_on(v, True)
-    c.post("/island/name", data={"t": jid, "title": "Python Point", "name": "Shelly"})
-    c.post("/island/name", data={"t": "", "title": "Home Reef"})
-    fleet = garden.turtles(v, "universal", "en")
-    assert fleet[0]["title"] == "Home Reef" and [t for t in fleet if t["id"] == jid][0]["title"] == "Python Point"
-    page = html.unescape(c.get(f"/island?t={jid}").text)
-    assert "Python Point" in page and "Shelly carries the island for Python Basics." in page
+    _plant(v, journey=jid)
+    _plant(v)
+    c.post("/island/name", data={"title": "Home Reef"})
+    isle = garden.island(v, "en")
+    assert isle["title"] == "Home Reef" and len(isle["plants"]) == 2  # trips for a course and for anything else
+    page = html.unescape(c.get("/island").text)
+    assert "Home Reef" in page and "isle-fleet" not in page and "carries the island for" not in page
 
 
-def test_shells_buy_things_for_each_island(tmp_path):
+def test_shells_buy_things_for_the_island(tmp_path):
     v, c, jid = _python(tmp_path)
     garden.set_on(v, True)
     st = garden.stats(v)
@@ -154,15 +155,14 @@ def test_shells_buy_things_for_each_island(tmp_path):
     c.post("/island/buy", data={"t": jid, "kind": "theme", "key": "beach"})
     w = garden.wallet(v, garden.stats(v))
     assert {"decor:lanterns", "theme:beach"} <= w["owned"] and w["spent"] == 35 + 40
-    look = garden.looks(v, jid)
+    look = garden.looks(v, "")
     assert look["theme"] == "beach" and look["decor"] == ["lanterns"]
-    assert garden.looks(v, "")["theme"] == "meadow"  # every island has its own look
-    c.post("/island/look", data={"t": jid, "kind": "decor", "key": "lanterns"})  # take it away again
-    assert garden.looks(v, jid)["decor"] == []
-    garden.set_look(v, jid, "water", "lagoon")  # not bought: nothing changes
-    assert garden.looks(v, jid)["water"] == "sea"
-    page = html.unescape(c.get(f"/island?t={jid}").text)
-    assert "Decorate Python Basics" in page and "Sandy beach" in page and "On this island" in page
+    c.post("/island/look", data={"kind": "decor", "key": "lanterns"})  # take it away again
+    assert garden.looks(v, "")["decor"] == []
+    garden.set_look(v, "", "water", "lagoon")  # not bought: nothing changes
+    assert garden.looks(v, "")["water"] == "sea"
+    page = html.unescape(c.get("/island").text)
+    assert "Decorate Tempo's Island" in page and "Sandy beach" in page and "On this island" in page
 
 
 def test_island_art_draws_looks_visitors_seasons_and_states():
@@ -343,3 +343,107 @@ def test_the_computer_says_when_the_trip_is_done(tmp_path, monkeypatch):
         time.sleep(0.2)
     assert rang == [("Your Oak is ready!", "tempo_cheer")]
     assert reminders.trip_done_now(v) is None  # said once
+
+
+# ---- courses pay off, once each -----------------------------------------------------------------------
+
+def _finish_lessons(v, c, jid, n):
+    lessons = [les["id"] for m in v.get_course(v.journey(jid)["course_id"]).modules for les in m["lessons"]]
+    for lid in lessons[:n]:
+        c.post(f"/learn/{jid}/lesson/{lid}/done", data={})
+    return lessons
+
+
+def test_courses_give_chests_and_count_once(tmp_path):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    before = garden.earned(garden.stats(v))
+    lessons = _finish_lessons(v, c, jid, 3)
+    row = garden.course_rewards(v)[0]
+    assert row["title"] == "Python Basics" and row["lessons"] == 3 and row["percent"] > 0
+    assert garden.earned(garden.stats(v)) > before
+    opened = [ch["at"] for ch in row["chests"] if ch["open"]]
+    assert all(row["percent"] >= at for at in opened)
+    # restart the course: the same lessons again don't pay twice
+    v.db.execute("UPDATE journeys SET archived=1 WHERE id=?", (jid,))
+    v.db.commit()
+    jid2 = v.start_journey(v.journey(jid)["course_id"])
+    _finish_lessons(v, c, jid2, 3)
+    assert garden.stats(v)["lessons"] == 3 and len(garden.course_rewards(v)) == 1
+
+
+def test_a_chest_opens_and_says_so(tmp_path, monkeypatch):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    real = v.progress
+    monkeypatch.setattr(v, "progress", lambda j: {**real(j), "percent": 55})
+    row = garden.course_rewards(v)[0]
+    assert [ch["open"] for ch in row["chests"]] == [True, True, False] and row["chest_shells"] == 30
+    assert row["next"] == {"at": 75, "shells": 30}
+    news = garden.news(v)
+    assert {n["key"] for n in news if n["kind"] == "chest"} == {"chest:python-basics:25", "chest:python-basics:50"}
+    page = html.unescape(c.get("/").text)  # the news pop-up was used up by news() above; Home shows the course's shells
+    assert "shells from this course" in page and "Next chest at 75%: 30 shells" in page
+    # chests stay open even if the course grows and the percent drops
+    monkeypatch.setattr(v, "progress", lambda j: {**real(j), "percent": 10})
+    assert garden.course_rewards(v)[0]["chest_shells"] == 30
+    monkeypatch.setattr(v, "progress", lambda j: {**real(j), "percent": 100, "finished": True})
+    st = garden.stats(v)
+    assert st["courses"] == 1 and "isle-trophy" in garden.island_svg([], set(), 1, trophies=st["courses"])
+
+
+# ---- sharing the island --------------------------------------------------------------------------------
+
+def test_friends_see_your_island(tmp_path):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    _plant(v, "oak")
+    c.post("/island/name", data={"title": "Omar's Reef"})
+    card = exchange.make_contact_card(v)
+    assert card["island"]["title"] == "Omar's Reef" and card["island"]["plants"][0]["kind"] == "oak"
+    exchange.check_contact_card(card)  # still a valid card
+    from tests.test_app import client as mk
+    v2, c2 = mk(tmp_path / "friend", "Sara")
+    c2.post("/people/add", data={"card": json.dumps(card), "relationship": "checks_me"})
+    assert "See their island" in c2.get("/people").text
+    page = html.unescape(c2.get(f"/people/{card['id']}/island").text)
+    assert "Omar's Reef" in page and "island-art" in page
+    garden.set_on(v2, True)
+    assert "Your friends' islands" in html.unescape(c2.get("/island").text)
+    # junk in a shared island is dropped, never drawn
+    junk = garden.clean_snapshot({"v": 1, "title": "<b>x</b>" * 20, "plants": [{"kind": "<script>", "goal": 5, "state": "grown"}],
+                                  "friends": ["owl", "dragon"], "look": {"theme": "lava", "decor": ["lighthouse", "bomb"]}})
+    assert junk["plants"] == [] and junk["friends"] == ["owl"] and junk["look"]["theme"] == "meadow"
+    assert junk["look"]["decor"] == ["lighthouse"] and len(junk["title"]) <= 30
+
+
+def test_you_can_keep_your_island_private(tmp_path):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    c.post("/island/sharing", data={"on": "0"})
+    assert "island" not in exchange.make_contact_card(v)
+    assert "Your island is private." in html.unescape(c.get("/island").text)
+    c.post("/island/sharing", data={"on": "1"})
+    assert "island" in exchange.make_contact_card(v)
+    garden.set_on(v, False)
+    assert "island" not in exchange.make_contact_card(v)  # no island when reward mode is off
+
+
+def test_progress_files_update_the_island_your_checker_sees(tmp_path):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    _plant(v, "pine")
+    data = exchange.make_progress_file(v, jid)
+    assert data["island"]["plants"][0]["kind"] == "pine"
+
+
+def test_share_a_picture_of_your_island(tmp_path):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    _plant(v, "oak")
+    r = c.get("/island/share.svg")
+    assert r.headers["content-type"].startswith("image/svg+xml") and "island-art" in r.text and "Tempo's Island" in html.unescape(r.text)
+    assert "data-share-island" in c.get("/island").text
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 20
+    r = c.post("/island/share.png", data={"png": "data:image/png;base64," + base64.b64encode(png).decode()})
+    assert r.content == png and "Island.png" in r.headers["content-disposition"]

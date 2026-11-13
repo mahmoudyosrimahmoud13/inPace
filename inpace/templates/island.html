@@ -22,9 +22,10 @@
     <li>{{ icon('users', 22) }}<span><b>{% trans trimmed %}Friends.{% endtrans %}</b> {% trans trimmed %}Lessons, reviews, milestones, races and finished courses bring animal friends to live on the island, and open new kinds of plants.{% endtrans %}</span></li>
     <li>{{ icon('check', 22) }}<span><b>{% trans trimmed %}Stopping early is fine.{% endtrans %}</b> {% trans trimmed %}Stop early and your sprout rests with the minutes it already has. Next time, you carry on. Slow and steady.{% endtrans %}</span></li>
     <li>{{ icon('alert', 22) }}<span><b>{% trans trimmed %}The fog is real.{% endtrans %}</b> {% trans trimmed %}Stay away too long and the Fog of Someday comes for your island. After 10 days your plants start to wilt, and a wilting plant dies two weeks later. Every trip you finish waters two of them. If you need a softer sea, you can turn on gentle mode.{% endtrans %}</span></li>
-    <li>{{ icon('shell', 22) }}<span><b>{% trans trimmed %}Shells.{% endtrans %}</b> {% trans trimmed %}Everything you learn earns shells. Spend them on new ground, skies, seas and things to put on your islands, or on a hat for your own turtle.{% endtrans %}</span></li>
+    <li>{{ icon('shell', 22) }}<span><b>{% trans trimmed %}Shells.{% endtrans %}</b> {% trans trimmed %}Everything you learn earns shells. Spend them on new ground, skies, seas and things to put on your island, or on a hat for your own turtle.{% endtrans %}</span></li>
     <li>{{ icon('book', 22) }}<span><b>{% trans trimmed %}An adventure.{% endtrans %}</b> {% trans trimmed %}Tempo sails toward the Far Shore, and a new chapter opens as your island grows. Your real pace is the weather: stop for days and the fog rolls in; come back and it lifts.{% endtrans %}</span></li>
-    <li>{{ icon('library', 22) }}<span><b>{% trans trimmed %}A turtle for every course.{% endtrans %}</b> {% trans trimmed %}Each course gets its own turtle and island. Your friends' turtles sail the same sea.{% endtrans %}</span></li>
+    <li>{{ icon('library', 22) }}<span><b>{% trans trimmed %}Your courses pay off.{% endtrans %}</b> {% trans trimmed %}Every lesson, module and finished course gives shells. Each course hides treasure chests at 25%, 50% and 75%, and a finished course puts a trophy on your island.{% endtrans %}</span></li>
+    <li>{{ icon('users', 22) }}<span><b>{% trans trimmed %}Share it.{% endtrans %}</b> {% trans trimmed %}People you add can see your island, and you can see theirs. Share my island makes a picture of it to send anywhere.{% endtrans %}</span></li>
   </ul>
   <form method="post" action="/island/mode" data-nav-form><input type="hidden" name="on" value="1">
     <button class="btn primary big">{{ icon('island', 20) }}{% trans trimmed %}Turn on Tempo's island{% endtrans %}</button></form>
@@ -101,31 +102,23 @@
 </section>
 {% endif %}
 
-{% if fleet|length > 1 %}
-<nav class="isle-fleet" aria-label="{{ _('Your islands') }}">
-  {% for t in fleet %}
-  <a class="isle-turtle {{ 'on' if t.id == shown.id }}" data-replace href="/island{{ '?t=' ~ t.id if t.id }}">
-    <span class="dot" style="background: {{ t.palette[0] }}; border-color: {{ t.palette[4] }}"></span>
-    <span><b dir="auto">{{ t.title }}</b><br><span class="small muted" dir="auto">{{ T('{name} carries it', name=t.name) }}</span></span>
-    <span class="small">{{ t.living }} {{ icon('island', 14) }}{% if t.wilting %} <span class="chip warn" title="{{ _('wilting') }}">{{ icon('alert', 12) }}{{ t.wilting }}</span>{% endif %}</span>
-  </a>
-  {% endfor %}
-</nav>
-{% endif %}
 <figure class="isle-scene">
   <figcaption class="isle-title">
     <span><b dir="auto">{{ shown.title }}</b> <span class="small muted">{{ phase_label }}</span></span>
     <details class="inline-more"><summary>{% trans trimmed %}Rename{% endtrans %}</summary>
-      <form method="post" action="/island/name" class="stack" data-nav-form><input type="hidden" name="t" value="{{ shown.id }}">
+      <form method="post" action="/island/name" class="stack" data-nav-form>
         <label>{% trans trimmed %}Island name{% endtrans %}<input name="title" value="{{ shown.title }}" maxlength="30" dir="auto"></label>
-        {% if not shown.tempo %}<label>{% trans trimmed %}Turtle name{% endtrans %}<input name="name" value="{{ shown.name }}" maxlength="24" dir="auto"></label>{% endif %}
         <button class="btn">{% trans trimmed %}Save{% endtrans %}</button></form></details>
   </figcaption>
   {{ picture|safe }}
-  {% if not shown.tempo %}<figcaption class="isle-caption"><span dir="auto">{{ T("{name} carries the island for {course}.", name=shown.name, course=shown.course) }}</span></figcaption>{% endif %}
   {% if shown.dead %}<figcaption class="isle-caption"><span>{{ T('{n} plants here were taken by the fog.', n=shown.dead) if shown.dead != 1 else _('1 plant here was taken by the fog.') }}</span>
-    <form method="post" action="/island/clear" data-nav-form><input type="hidden" name="t" value="{{ shown.id }}"><button class="btn small">{% trans trimmed %}Clear them away{% endtrans %}</button></form></figcaption>{% endif %}
+    <form method="post" action="/island/clear" data-nav-form><button class="btn small">{% trans trimmed %}Clear them away{% endtrans %}</button></form></figcaption>{% endif %}
   {% if st.blooming %}<figcaption>{% trans trimmed %}Your checker approved a milestone, so the island is blooming this week.{% endtrans %}</figcaption>{% endif %}
+  <figcaption class="isle-caption isle-share">
+    <span class="small muted">{% if sharing %}{% trans trimmed %}People you add can see your island.{% endtrans %}{% else %}{% trans trimmed %}Your island is private.{% endtrans %}{% endif %}</span>
+    <form method="post" action="/island/share.png" data-share-island><input type="hidden" name="png" value="">
+      <button class="btn small primary">{{ icon('send', 16) }}{% trans trimmed %}Share my island{% endtrans %}</button></form>
+  </figcaption>
 </figure>
 <p class="isle-friend-say bubble" data-friend-say hidden dir="auto"></p>
 <script type="application/json" id="friend-lines">{{ friend_lines|tojson }}</script>
@@ -192,12 +185,37 @@
   <div class="pace-box"><b>{{ T('{n} min', n=st.longest) }}</b><span>{% trans trimmed %}longest trip{% endtrans %}</span></div>
 </section>
 
+<section class="section" id="courses">
+  <h2>{% trans trimmed %}Your courses pay off{% endtrans %}</h2>
+  {% if rewards %}
+  <p class="muted">{% trans trimmed %}Lessons give 2 shells, modules 10, and a finished course 50 and a trophy on your island. Every course also hides treasure chests at 25%, 50% and 75%. Each course counts once, even if you start it again.{% endtrans %}</p>
+  <div class="isle-courses">
+    {% for c in rewards %}
+    <article class="card isle-course {{ 'done' if c.trophy }}">
+      <div class="row between wrap"><b dir="auto">{{ c.title }}</b><span class="chip shells">{{ icon('shell', 14) }}{{ T('{n} shells', n=c.shells) if c.shells != 1 else _('1 shell') }}</span></div>
+      <div class="isle-course-track" role="img" aria-label="{{ T('{n}% done', n=c.percent) }}">
+        <span class="bar"><span style="width: {{ c.percent }}%"></span></span>
+        {% for ch in c.chests %}<span class="isle-chest {{ 'open' if ch.open }}" style="inset-inline-start: {{ ch.at }}%" title="{{ T('{n}%: {s} shells', n=ch.at, s=ch.shells) }}">{{ chest(ch.open) }}</span>{% endfor %}
+        <span class="isle-chest trophy {{ 'open' if c.trophy }}" style="inset-inline-start: 100%" title="{{ _('A trophy for a finished course') }}">{{ chest(c.trophy, True) }}</span>
+      </div>
+      <p class="small muted" style="margin:0">{{ T('{n}% done', n=c.percent) }} · {{ T('{n} lessons', n=c.lessons) }}
+        {% if c.trophy %} · <b>{% trans trimmed %}Finished: the trophy is on your island.{% endtrans %}</b>
+        {% elif c.next %} · {{ T('Next chest at {n}%: {s} shells', n=c.next.at, s=c.next.shells) if c.next.at < 100 else T('Finish it for {s} shells and a trophy', s=c.next.shells) }}{% endif %}</p>
+      <a class="small" href="/learn/{{ c.journey }}">{% trans trimmed %}Continue the course{% endtrans %}</a>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">{% trans trimmed %}Start a course and it shows here, with the shells and chests it gives.{% endtrans %}</p>
+  {% endif %}
+</section>
+
 <section class="section" id="shop">
   <div class="row between wrap">
     <h2>{{ T('Decorate {name}', name=shown.title) }}</h2>
     <span class="chip shells">{{ icon('shell', 16) }}{{ T('{n} shells', n=wallet.balance) if wallet.balance != 1 else _('1 shell') }}</span>
   </div>
-  <p class="muted">{% trans trimmed %}Everything you learn earns shells: 1 for every 5 minutes of focus, 2 for a lesson, 3 for a daily review, 10 for a module, 15 for a milestone, 20 when your checker approves one, and 50 for a whole course. Each island can look different.{% endtrans %}</p>
+  <p class="muted">{% trans trimmed %}Everything you learn earns shells: 1 for every 5 minutes of focus, 2 for a lesson, 3 for a daily review, 10 for a module, 15 for a milestone, 20 when your checker approves one, and 50 for a whole course, plus the treasure chests in your courses.{% endtrans %}</p>
   {% for g in shop %}
   <h3 class="shop-head">{{ g.title }}</h3>
   <div class="shop-grid">
@@ -206,29 +224,29 @@
       <span class="shop-pre">{{ it.preview }}</span>
       <b dir="auto">{{ it.name }}</b>
       {% if not it.owned %}
-        <form method="post" action="/island/buy" data-nav-form><input type="hidden" name="t" value="{{ shown.id }}"><input type="hidden" name="kind" value="{{ g.kind }}"><input type="hidden" name="key" value="{{ it.key }}">
+        <form method="post" action="/island/buy" data-nav-form><input type="hidden" name="kind" value="{{ g.kind }}"><input type="hidden" name="key" value="{{ it.key }}">
           <button class="btn small" {{ 'disabled' if not it.afford }}>{{ icon('shell', 14) }}{{ it.price }}</button></form>
       {% elif g.kind == 'accessory' %}
         <a class="btn small" href="/settings#turtle">{% trans trimmed %}Wear it{% endtrans %}</a>
       {% elif g.kind == 'decor' %}
-        <form method="post" action="/island/look" data-nav-form><input type="hidden" name="t" value="{{ shown.id }}"><input type="hidden" name="kind" value="decor"><input type="hidden" name="key" value="{{ it.key }}">
+        <form method="post" action="/island/look" data-nav-form><input type="hidden" name="kind" value="decor"><input type="hidden" name="key" value="{{ it.key }}">
           <button class="btn small {{ '' if it.using else 'primary' }}">{{ _('Take it away') if it.using else _('Put it here') }}</button></form>
       {% elif it.using %}
         <span class="chip good">{% trans trimmed %}On this island{% endtrans %}</span>
       {% else %}
-        <form method="post" action="/island/look" data-nav-form><input type="hidden" name="t" value="{{ shown.id }}"><input type="hidden" name="kind" value="{{ g.kind }}"><input type="hidden" name="key" value="{{ it.key }}">
+        <form method="post" action="/island/look" data-nav-form><input type="hidden" name="kind" value="{{ g.kind }}"><input type="hidden" name="key" value="{{ it.key }}">
           <button class="btn small primary">{% trans trimmed %}Use it here{% endtrans %}</button></form>
       {% endif %}
     </article>
     {% endfor %}
   </div>
-  {% if g.kind == 'decor' %}<p class="small muted">{% trans trimmed %}Up to 4 things on each island. The lanterns, the campfire, the hut and the lighthouse light up at night.{% endtrans %}</p>{% endif %}
+  {% if g.kind == 'decor' %}<p class="small muted">{% trans trimmed %}Up to 4 things on your island. The lanterns, the campfire, the hut and the lighthouse light up at night.{% endtrans %}</p>{% endif %}
   {% endfor %}
 </section>
 
 <section class="section">
   <h2>{% trans trimmed %}The way to the Far Shore{% endtrans %}</h2>
-  <p class="muted">{% trans trimmed %}Tempo moves with the story. Each course's turtle moves with how much of the course you've done. Learners you check sail here too, and your checkers wait at the lighthouse.{% endtrans %}</p>
+  <p class="muted">{% trans trimmed %}Tempo moves with the story. Learners you check sail here too, by their progress, and your checkers wait at the lighthouse.{% endtrans %}</p>
   <figure class="isle-chart">{{ chart|safe }}</figure>
 </section>
 
@@ -289,8 +307,26 @@
   </div>
 </section>
 
+{% if friend_islands %}
+<section class="section" id="friends-islands">
+  <h2>{% trans trimmed %}Your friends' islands{% endtrans %}</h2>
+  <div class="isle-friends">
+    {% for f in friend_islands %}
+    <a class="card isle-friend-card" href="/people/{{ f.id }}/island">
+      <span class="isle-friend-pic">{{ f.picture }}</span>
+      <span class="row">{{ avatar(f.person, 28) }}<b dir="auto">{{ f.title }}</b></span>
+      <span class="small muted">{{ T('{name}, {n} plants', name=f.name, n=f.plants) }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <details class="more" style="margin-top:2rem">
   <summary>{% trans trimmed %}Island settings{% endtrans %}</summary>
+  <form method="post" action="/island/sharing" class="row" data-nav-form style="margin-top:.6rem"><input type="hidden" name="on" value="{{ '0' if sharing else '1' }}">
+    <span class="small muted">{% if sharing %}{% trans trimmed %}Your contact card and the files you send carry a copy of your island, so people you add can see it.{% endtrans %}{% else %}{% trans trimmed %}Your island stays on this device. People you add don't see it.{% endtrans %}{% endif %}</span>
+    <button class="btn">{{ _('Stop sharing my island') if sharing else _('Share my island with people I add') }}</button></form>
   <form method="post" action="/island/gentle" class="row" data-nav-form style="margin-top:.6rem"><input type="hidden" name="on" value="{{ '0' if wx.gentle else '1' }}">
     <span class="small muted">{% if wx.gentle %}{% trans trimmed %}Gentle sea is on. The fog still comes, but it never takes your plants.{% endtrans %}{% else %}{% trans trimmed %}Gentle sea: the fog still comes, but it never takes your plants. For hard weeks.{% endtrans %}{% endif %}</span>
     <button class="btn">{{ _('Turn off gentle sea') if wx.gentle else _('Turn on gentle sea') }}</button></form>

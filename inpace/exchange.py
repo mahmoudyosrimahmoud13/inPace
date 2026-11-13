@@ -109,7 +109,18 @@ def make_contact_card(v: Vault) -> dict:
     card["sig"] = v.identity.sign({k: card[k] for k in ("inpace", "id", "name", "color", "created_at")})
     if me.get("avatar"):
         card["avatar"] = me["avatar"]  # your turtle; not signed, so older versions still read the card
+    isle = _island(v)
+    if isle:
+        card["island"] = isle  # a copy of your island, if you share it (also not signed)
     return card
+
+
+def _island(v: Vault) -> dict | None:
+    from . import garden
+    try:
+        return garden.snapshot(v, v._meta("lang", "en") or "en")
+    except Exception:
+        return None
 
 
 def check_contact_card(card: dict) -> None:
@@ -184,6 +195,9 @@ def make_progress_file(v: Vault, journey: str, since: int = 0) -> dict:
         data["since"] = since
     else:
         data["outline"] = course_outline(course)
+    isle = _island(v)
+    if isle:
+        data["island"] = isle
     return data
 
 
@@ -271,6 +285,9 @@ def make_approval_file(v: Vault, data: dict, decision: str, note: str, seqs: lis
         v.add_receipt(learner, jid, m["body"]["seq"], m["hash"], decision, note.strip(), at)
     out = {"inpace": "approval", "v": APP_VERSION, "checker": v.me, "learner": learner,
            "journey": jid, "decisions": decisions, "created_at": at}
+    isle = _island(v)
+    if isle:
+        out["island"] = isle
     if extras:
         out["extras"] = extras
     return out

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/people">{{ _('People') }}</a></p>
+  <div class="row">{{ avatar(person, 52) }}<h1 dir="auto" style="margin:0">{{ title }}</h1></div>
+  <p class="muted">{{ T("{name}'s island, as they last shared it", name=who) }}{% if when %} ({{ when }}){% endif %}.</p>
+</div>
+<figure class="isle-scene">{{ picture }}</figure>
+<section class="isle-stats">
+  <div class="pace-box"><b>{{ snap.stats.plants }}</b><span>{% trans trimmed %}plants grown{% endtrans %}</span></div>
+  <div class="pace-box"><b>{{ T('{n} h', n=snap.stats.hours) }}</b><span>{% trans trimmed %}focus in total{% endtrans %}</span></div>
+  <div class="pace-box"><b>{{ snap.stats.streak }}</b><span>{% trans trimmed %}days in a row{% endtrans %}</span></div>
+  <div class="pace-box"><b>{{ snap.trophies }}</b><span>{% trans trimmed %}courses finished{% endtrans %}</span></div>
+</section>
+{% if friends %}
+<section class="section">
+  <h2>{% trans trimmed %}Who lives there{% endtrans %}</h2>
+  <div class="isle-grid">
+    {% for f in friends %}<article class="card isle-card">{{ friend_svg(f.key, 64, f.name)|safe }}<b>{{ f.name }}</b></article>{% endfor %}
+  </div>
+</section>
+{% endif %}
+<p class="small muted" style="margin-top:1.5rem">{% trans trimmed %}This is a copy. It updates when they send you their contact card, a progress file or a review again.{% endtrans %}</p>
+{% endblock %}

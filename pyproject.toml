@@ -31,4 +31,4 @@ inpace = "inpace.__main__:main"
 include = ["inpace*"]
 
 [tool.setuptools.package-data]
-inpace = ["templates/*.html", "static/*", "static/fonts/*", "static/pdfjs/*", "static/notify/*", "sample_courses/**/*", "locales/*.json"]
+inpace = ["templates/*.html", "static/*", "static/fonts/*", "static/pdfjs/*", "static/notify/*", "static/mermaid/*", "sample_courses/**/*", "locales/*.json"]

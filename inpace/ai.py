@@ -50,6 +50,8 @@ Rules:
   The app shows one right answer mixed with wrong ones, in random order.
 - Question ids are unique across the course (q1, q2, q3, ...).
 - Use plain, friendly language for {level_text}.
+- When a picture of the idea helps (steps, a flow, how parts connect, a timeline), add a diagram as a
+  ```mermaid code block inside the lesson text, for example a flowchart. Keep diagrams small and simple.
 {source_rules}- Output only the YAML code block.
 """
 

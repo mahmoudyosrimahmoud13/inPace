@@ -151,6 +151,22 @@ for the whole path and then for shorter and shorter endings of it, so a moved or
 When files are missing, inPace asks for the folder where they are now. `media_index: {path: size}` in
 `course.yaml` lists the course's files (made automatically when a folder becomes a course).
 
+**Lesson text** is CommonMark Markdown with tables. Raw HTML is not allowed. Code blocks are coloured on the
+device. Two additions:
+- **Diagrams:** a code block marked `mermaid` is drawn as a diagram (flowcharts, sequence diagrams, timelines,
+  mind maps and the rest of Mermaid 10). The drawing code is bundled, so it works offline. A diagram with a
+  mistake shows its text and a short note instead.
+
+  ````markdown
+  ```mermaid
+  flowchart LR
+      A[Lessons] --> B[Module done] --> C[Save a milestone]
+  ```
+  ````
+- **Right to left:** each paragraph, heading, list item, quote and table cell gets its own direction from the
+  words it mostly uses (code and links don't count), so Arabic and English can be mixed freely in one lesson.
+  Code is always left to right.
+
 **Course picture.** `image: <path>` in `course.yaml` (optional) is a picture file next to the course (jpg, png, webp, gif), found like any other course file. It is not part of the fingerprint. A shared pack includes it under `files/`.
 
 **Pack with files:** an optional `files/` folder inside the `.lpack` carries the course's files

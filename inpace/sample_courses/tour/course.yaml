@@ -2,7 +2,7 @@ id: tour
 title: A tour of inPace
 version: 1
 language: en
-description: "A short course that shows every kind of lesson inPace can hold: text, code, video, audio, YouTube, parts of a book, Word, PowerPoint and Excel files, web pages and pictures, then tasks and a quiz."
+description: "A short course that shows every kind of lesson inPace can hold: text, diagrams, code, video, audio, YouTube, parts of a book, Word, PowerPoint and Excel files, web pages and pictures, then tasks and a quiz."
 image: cover.jpg
 downloads:
   - title: inPace for every device

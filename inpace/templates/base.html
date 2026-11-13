@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=25">
+<link rel="stylesheet" href="/static/style.css?v=26">
 {% if dispose %}<meta name="inpace-dispose" content="{{ dispose }}">{% endif %}
 <script>
 /* Pages are never cached, but a few are one-off (a quiz you already sent, a finished focus session).
@@ -100,8 +100,10 @@
       {% if island_news %}
       <div class="yay isle-news" role="status" data-confetti>
         {% set n = island_news[0] %}
-        <span class="isle-news-art">{% if n.kind == 'plant' %}{{ island_plant(n.key)|safe }}{% else %}{{ island_friend(n.key)|safe }}{% endif %}</span>
-        <p><b>{{ _('New on your island!') }}</b><br>{% if n.kind == 'plant' %}{{ T('You can grow a {plant} now.', plant=_(n.name)) }}{% else %}{{ T('{name} moved in.', name=_(n.name)) }}{% endif %}
+        <span class="isle-news-art">{% if n.kind == 'plant' %}{{ island_plant(n.key)|safe }}{% elif n.kind in ('chest', 'trophy') %}{{ chest(True, n.kind == 'trophy') }}{% else %}{{ island_friend(n.key)|safe }}{% endif %}</span>
+        <p>{% if n.kind == 'chest' %}<b>{{ _('Treasure chest!') }}</b><br>{{ T('{s} shells for reaching {n}% of {course}.', s=n.shells, n=n.at, course=n.name) }}
+        {% elif n.kind == 'trophy' %}<b>{{ _('A trophy!') }}</b><br>{{ T('{s} shells for finishing {course}. The trophy is on your island.', s=n.shells, course=n.name) }}
+        {% else %}<b>{{ _('New on your island!') }}</b><br>{% if n.kind == 'plant' %}{{ T('You can grow a {plant} now.', plant=_(n.name)) }}{% else %}{{ T('{name} moved in.', name=_(n.name)) }}{% endif %}{% endif %}
           {% if island_news|length > 1 %}{{ T('And {n} more.', n=island_news|length - 1) }}{% endif %} <a href="/island">{{ _('See the island') }}</a></p>
         <button type="button" class="yay-close" aria-label="{{ _('Close') }}">×</button>
       </div>
@@ -159,6 +161,6 @@
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
 {% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
-<script src="/static/app.js?v=20"></script>
+<script src="/static/app.js?v=21"></script>
 </body>
 </html>

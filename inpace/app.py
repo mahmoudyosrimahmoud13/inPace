@@ -44,6 +44,9 @@ def _highlight(code: str, lang: str, attrs: str) -> str:
     from pygments.formatters import HtmlFormatter
     from pygments.lexers import get_lexer_by_name
     from pygments.util import ClassNotFound
+    if lang == "mermaid":
+        # A diagram: the page draws it (static/mermaid). Until then, and if it can't, the text shows.
+        return f'<pre class="mermaid" dir="ltr">{escape(code)}</pre>'
     if not lang:
         return escape(code)
     try:
@@ -54,6 +57,42 @@ def _highlight(code: str, lang: str, attrs: str) -> str:
 
 
 md = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight}).enable("table")
+
+# Right to left: a lesson can mix Arabic and English. Every paragraph, heading, list, quote and table gets its
+# own direction from the letters it mostly uses (code and links don't count), so an Arabic paragraph that
+# starts with "Python" is still right to left, and English inside an Arabic course is left to right.
+_RTL_LETTERS = re.compile(r"[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
+_LTR_LETTERS = re.compile(r"[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF]")
+_NOT_WORDS = re.compile(r"`[^`]*`|\]\([^)]*\)|https?://\S+")
+_BIDI_BLOCKS = {"paragraph_open", "heading_open", "blockquote_open", "bullet_list_open", "ordered_list_open",
+                "list_item_open", "table_open", "th_open", "td_open"}
+
+
+def text_dir(text: str) -> str:
+    """'rtl' or 'ltr', by which kind of words the text mostly has; 'auto' when it has none.
+    Words, not letters: Arabic words are shorter, so "درس عن Python" is still right to left."""
+    words = re.findall(r"\w+", _NOT_WORDS.sub(" ", text or ""))
+    r = sum(1 for w in words if _RTL_LETTERS.search(w))
+    l = sum(1 for w in words if not _RTL_LETTERS.search(w) and _LTR_LETTERS.search(w))
+    return "rtl" if r > l else "ltr" if l > r else "auto"
+
+
+def _bidi(state) -> None:
+    toks = state.tokens
+    for i, tok in enumerate(toks):
+        if tok.type not in _BIDI_BLOCKS or tok.hidden:
+            continue
+        depth, words = 0, []
+        for t in toks[i:]:
+            depth += t.nesting
+            if t.type == "inline":
+                words.append(t.content)
+            if depth <= 0:
+                break
+        tok.attrSet("dir", text_dir(" ".join(words)))
+
+
+md.core.ruler.push("bidi", _bidi)
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
                   extensions=["jinja2.ext.i18n"])
 LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="utf-8"))}
@@ -183,6 +222,25 @@ def avatar(p: dict, size: int = 36) -> Markup:
 
 
 env.globals["avatar"] = avatar
+
+
+def chest(opened: bool, trophy: bool = False) -> Markup:
+    """A little treasure chest (or the trophy at the end of a course) for the course rewards track."""
+    if trophy:
+        fill = "#FFD43B" if opened else "#E9E3D6"
+        return Markup(f'<svg width="26" height="26" viewBox="-14 -40 28 42" aria-hidden="true"><path d="M-12 -38 H12 V-26 Q12 -12 0 -10 Q-12 -12 -12 -26 Z" fill="{fill}" stroke="#111" stroke-width="3" stroke-linejoin="round"/>'
+                      f'<path d="M-3 -10 V-4 H3 V-10 M-9 0 H9 V-4 H-9 Z" fill="{fill}" stroke="#111" stroke-width="3" stroke-linejoin="round"/></svg>')
+    if opened:
+        return Markup('<svg width="26" height="24" viewBox="0 0 26 24" aria-hidden="true"><path d="M3 12 H23 V22 H3 Z" fill="#B5651D" stroke="#111" stroke-width="2"/>'
+                      '<path d="M3 12 L6 3 H20 L23 12" fill="#985518" stroke="#111" stroke-width="2" stroke-linejoin="round"/>'
+                      '<circle cx="10" cy="11" r="2.6" fill="#FFD43B" stroke="#111" stroke-width="1.2"/><circle cx="15" cy="10" r="2.6" fill="#F8BBD0" stroke="#111" stroke-width="1.2"/>'
+                      '<path d="M3 16 H23" stroke="#FFD43B" stroke-width="2"/></svg>')
+    return Markup('<svg width="26" height="24" viewBox="0 0 26 24" aria-hidden="true"><path d="M3 11 H23 V22 H3 Z" fill="#B5651D" stroke="#111" stroke-width="2"/>'
+                  '<path d="M3 11 Q3 4 13 4 Q23 4 23 11 Z" fill="#985518" stroke="#111" stroke-width="2"/>'
+                  '<path d="M3 13 H23" stroke="#FFD43B" stroke-width="2"/><rect x="11" y="11" width="4" height="5" fill="#FFD43B" stroke="#111" stroke-width="1.2"/></svg>')
+
+
+env.globals["chest"] = chest
 
 # Your colour follows your turtle's shell (the colours are close: green to green, blue to blue...).
 COLOR_FOR_SHELL = [1, 4, 7, 3, 0, 5, 6, 2]
@@ -536,18 +594,23 @@ def create_app(vault: Vault) -> Starlette:
     async def my_turtle_png(request: Request):
         """The page draws the picture as a PNG (phones and chat apps don't take SVG) and sends it here to save."""
         form = await request.form()
+        raw = _png_from_form(form)
+        if raw is None:
+            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
+        return download(raw, f"{V.me['name']} - my turtle.png", "image/png")
+
+    def _png_from_form(form) -> bytes | None:
+        """The PNG the page drew on a canvas (phones and chat apps don't take SVG), or None if it isn't one."""
         data = str(form.get("png", ""))
         head = "data:image/png;base64,"
-        if not data.startswith(head) or len(data) > 8_000_000:
-            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
+        if not data.startswith(head) or len(data) > 12_000_000:
+            return None
         import base64 as _b64
         try:
             raw = _b64.b64decode(data[len(head):], validate=True)
         except ValueError:
-            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
-        if not raw.startswith(b"\x89PNG"):
-            return go("/settings#turtle", err="The picture couldn't be made. Try the SVG instead.")
-        return download(raw, f"{V.me['name']} - my turtle.png", "image/png")
+            return None
+        return raw if raw.startswith(b"\x89PNG") else None
 
     async def home(request: Request):
         if not V.is_set_up:
@@ -561,7 +624,8 @@ def create_app(vault: Vault) -> Starlette:
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
                     reminders_set=bool(reminders.load(V)["items"]),
                     island_trip=garden.active(V) if garden.is_on(V) else None,
-                    island=_island_home() if garden.is_on(V) else None)
+                    island=_island_home() if garden.is_on(V) else None,
+                    island_rewards={r["journey"]: r for r in garden.course_rewards(V)} if garden.is_on(V) else {})
         return resp
 
     def _island_home() -> dict | None:
@@ -573,17 +637,15 @@ def create_app(vault: Vault) -> Starlette:
             st = garden.stats(V)
             wx = garden.weather(V, goal_met=_goal_met())
             world = garden.story.world_for(V._meta("island_world", "") or "", lang)
-            fleet = garden.turtles(V, world, lang)
-            last = garden.last_grown(V)
-            shown = next((t for t in fleet if last and t["id"] == (last.get("journey") or "")), fleet[0])
+            shown = garden.island(V, lang)
             have = garden.unlocked(V, st)
             labels = _island_labels()
             labels["villain"] = garden.story.villain_name(world, lang)
             picture = garden.island_svg(shown["plants"], have["friends"], 1 + shown["living"] // 10, st["blooming"],
                                         labels=labels, palette=shown["palette"], fog=wx["fog"], fair=wx["fair"],
-                                        home=shown["tempo"], look=garden.looks(V, shown["id"]), title=shown["title"],
-                                        villain=wx["threat"], season_now=garden.season(datetime.now().month),
-                                        visitor=garden.visitor_today(V), fled=wx["fled"])
+                                        look=garden.looks(V, ""), title=shown["title"], villain=wx["threat"],
+                                        season_now=garden.season(datetime.now().month),
+                                        visitor=garden.visitor_today(V), fled=wx["fled"], trophies=st["courses"])
             opened = json.loads(V._meta("island_story", "[]") or "[]")
             chapters = [k for k, *_ in garden.story.CHAPTERS]
             done = len([k for k in opened if k in chapters])
@@ -592,7 +654,7 @@ def create_app(vault: Vault) -> Starlette:
             locked = [f for f in coll["friends"] + coll["plants"] if not f["have"] and f["goal"]]
             nxt = max(locked, key=lambda f: f["progress"] / f["goal"][1], default=None)
             return {"picture": Markup(picture), "title": shown["title"], "wx": wx, "rot": rot, "st": st,
-                    "living": sum(t["living"] for t in fleet), "friends": len(have["friends"]),
+                    "living": shown["living"], "friends": len(have["friends"]),
                     "shells": garden.wallet(V, st)["balance"], "chapter": done, "chapters": len(chapters),
                     "waiting": waiting, "next": nxt,
                     "taunt": garden.story.taunt(wx["threat"], world, lang, wx["wilt_in"] or 0)}
@@ -2076,6 +2138,11 @@ def create_app(vault: Vault) -> Starlette:
         return download(exchange.dump(exchange.make_contact_card(V)), f"{V.me['name']} - contact card.inpace",
                         "application/json")
 
+    def _their_island(d: dict) -> str:
+        """Someone's island from their card or file, cleaned so only things we can draw get in."""
+        snap = garden.clean_snapshot(d.get("island")) if isinstance(d, dict) else None
+        return json.dumps(snap, sort_keys=True, ensure_ascii=False) if snap else ""
+
     def _their_turtle(d: dict) -> str:
         """Someone's turtle from their card or file, cleaned so only real turtle parts get in."""
         return json.dumps(mascot_mod.clean_avatar(d["avatar"]), sort_keys=True) if isinstance(d.get("avatar"), dict) else ""
@@ -2095,7 +2162,7 @@ def create_app(vault: Vault) -> Starlette:
         i_check = rel in ("i_check", "buddies")
         if not (checks_me or i_check):
             return go("/people", err="Choose how you're connected.")
-        V.add_person(card["id"], card["name"], card["color"], checks_me, i_check, _their_turtle(card))
+        V.add_person(card["id"], card["name"], card["color"], checks_me, i_check, _their_turtle(card), _their_island(card))
         nick = str(form.get("nickname", "")).strip()
         if nick:
             p = V.person(card["id"])
@@ -2239,6 +2306,7 @@ def create_app(vault: Vault) -> Starlette:
                                 progress_json=_json.dumps(data), existing=p,
                                 then=f"/review/{learner}/{data['journey']['id']}")
                 V.store_received(data)
+                V.update_person_extras(learner, _their_turtle(data["learner"]), _their_island(data))
                 return go(f"/review/{learner}/{data['journey']['id']}")
             if kind == "library-course":
                 return go("/library?show=" + quote(str(data.get("id", ""))))
@@ -2259,6 +2327,7 @@ def create_app(vault: Vault) -> Starlette:
                           ok=f"{res['name']} sent you a verified exam for “{res['task']}”.")
             if kind == "approval":
                 res = exchange.import_approval_file(V, data)
+                V.update_person_extras(data["checker"]["id"], _their_turtle(data["checker"]), _their_island(data))
                 first = {"approved": "{a} approved {b} milestone(s).", "question": "{a} has a question about {b} milestone(s).",
                          "flag": "{a} flagged {b} milestone(s)."}[res["decision"]]
                 lines = [first.format(a=res["name"], b=res["count"])]
@@ -2285,7 +2354,7 @@ def create_app(vault: Vault) -> Starlette:
             learner = data["learner"]
         except (ValueError, KeyError):
             return go("/open", err="Something went wrong. Open the file again.")
-        V.add_person(learner["id"], learner["name"], learner["color"], False, True, _their_turtle(learner))
+        V.add_person(learner["id"], learner["name"], learner["color"], False, True, _their_turtle(learner), _their_island(data))
         nick = str(form.get("nickname", "")).strip()
         if nick:
             V.set_roles(learner["id"], False, True, nick)
@@ -2485,7 +2554,8 @@ def create_app(vault: Vault) -> Starlette:
     def _island_labels() -> dict:
         CURRENT["lang"] = V._meta("lang", "en") or "en"
         out = {"island": say("Tempo carries your island"), "wilting": say("wilting"),
-               "dead": say("Taken by the fog"), "visitor": say("A visitor came, because you studied today")}
+               "dead": say("Taken by the fog"), "visitor": say("A visitor came, because you studied today"),
+               "trophy": say("A trophy for a finished course")}
         out.update({k: say(n) for k, n in garden.FRIEND_NAMES.items()})
         out.update({"plant_" + k: say(n) for k, n in garden.PLANT_NAMES.items()})
         out.update({"deco_" + k: say(n) for k, n in garden.SHOP_NAMES.items()})
@@ -2604,19 +2674,17 @@ def create_app(vault: Vault) -> Starlette:
         wx = garden.weather(V, goal_met=_goal_met())
         others = _island_others()
         tale = garden.story_state(V, st, wx, lang, people=len(others))
-        fleet = garden.turtles(V, tale["world"], lang)
-        pick = request.query_params.get("t", "")
-        shown = next((t for t in fleet if t["id"] == pick), fleet[0])
+        shown = garden.island(V, lang)
         ring = 1 + shown["living"] // 10
         labels = _island_labels()
         labels["villain"] = garden.story.villain_name(tale["world"], lang)
-        look = garden.looks(V, shown["id"])
+        look = garden.looks(V, "")
         sky = garden.sky_at()
         picture = garden.island_svg(shown["plants"], have["friends"], ring, st["blooming"], labels=labels,
-                                    palette=shown["palette"], fog=wx["fog"], fair=wx["fair"], home=shown["tempo"],
+                                    palette=shown["palette"], fog=wx["fog"], fair=wx["fair"],
                                     look=look, title=shown["title"], villain=wx["threat"],
                                     season_now=garden.season(datetime.now().month),
-                                    visitor=garden.visitor_today(V), fled=wx["fled"])
+                                    visitor=garden.visitor_today(V), fled=wx["fled"], trophies=st["courses"])
         ctx["wallet"] = garden.wallet(V, st)
         ctx["shop"] = _shop(ctx["wallet"], look)
         ctx["look"] = look
@@ -2626,10 +2694,13 @@ def create_app(vault: Vault) -> Starlette:
         ctx["taunt"] = garden.story.taunt(wx["threat"], tale["world"], lang, wx["wilt_in"] or 0)
         ctx["villain_svg"] = Markup(f'<svg viewBox="0 0 160 140" width="96" height="84" aria-hidden="true">{garden.art.villain(wx["threat"])}</svg>') if wx["threat"] else ""
         ctx["death_in"] = max(0, int((rot["next_death"] - _time.time()) // 86400)) if rot.get("next_death") else None
+        ctx["rewards"] = garden.course_rewards(V)
+        ctx["sharing"] = garden.share_on(V)
+        ctx["friend_islands"] = _friend_islands()
         story_pos = len([c for c in tale["chapters"] if not c["interlude"]]) / len(garden.story.CHAPTERS)
-        chart = garden.sea_chart(fleet, others, story_pos, labels={"chart": say("The way to the Far Shore")})
+        chart = garden.sea_chart([shown], others, story_pos, labels={"chart": say("The way to the Far Shore")})
         friend_lines = {k: say(n) + ": " + say(story) for k, n, _, story in garden.FRIENDS if k in have["friends"]}
-        return page("island.html", request, wx=wx, tale=tale, fleet=fleet, shown=shown, ring=ring, picture=picture,
+        return page("island.html", request, wx=wx, tale=tale, shown=shown, ring=ring, picture=picture,
                     chart=chart, world_setting=world_setting, others=others, friend_lines=friend_lines, **ctx)
 
     async def island_world(request: Request):
@@ -2640,13 +2711,8 @@ def create_app(vault: Vault) -> Starlette:
 
     async def island_name(request: Request):
         form = await request.form()
-        jid = str(form.get("t", ""))
-        if jid == "" or V.journey(jid):
-            if "title" in form:
-                garden.set_title(V, jid, str(form.get("title", "")))
-            if jid and "name" in form:
-                garden.rename(V, jid, str(form.get("name", "")))
-        return go(f"/island?t={jid}" if jid else "/island")
+        garden.set_title(V, "", str(form.get("title", "")))
+        return go("/island")
 
     def _shop(wallet: dict, look: dict) -> list[dict]:
         """The shop, grouped, with what you own and what this island uses."""
@@ -2691,27 +2757,115 @@ def create_app(vault: Vault) -> Starlette:
 
     async def island_buy(request: Request):
         form = await request.form()
-        kind, key, jid = str(form.get("kind", "")), str(form.get("key", "")), str(form.get("t", ""))
-        back = f"/island?t={jid}#shop" if jid else "/island#shop"
+        kind, key, jid = str(form.get("kind", "")), str(form.get("key", "")), ""
+        back = "/island#shop"
         problem = garden.buy(V, kind, key, garden.stats(V))
         if problem:
             return go(back, err=problem)
         if kind != "accessory":
             garden.set_look(V, jid, kind, key)
-            return go(back, ok="Bought, and it's on this island now.")
+            return go(back, ok="Bought, and it's on your island now.")
         return go(back, ok="Bought. Put it on your turtle in Settings.")
 
     async def island_look(request: Request):
         form = await request.form()
-        jid = str(form.get("t", ""))
-        garden.set_look(V, jid, str(form.get("kind", "")), str(form.get("key", "")))
-        return go(f"/island?t={jid}#shop" if jid else "/island#shop")
+        garden.set_look(V, "", str(form.get("kind", "")), str(form.get("key", "")))
+        return go("/island#shop")
 
     async def island_clear(request: Request):
         form = await request.form()
-        jid = str(form.get("t", ""))
-        garden.clear_dead(V, jid)
-        return go(f"/island?t={jid}" if jid else "/island", ok="Cleared. There's room to grow again.")
+        garden.clear_dead(V)
+        return go("/island", ok="Cleared. There's room to grow again.")
+
+    def _person_palette(p: dict):
+        if p.get("avatar"):
+            av = mascot_mod.clean_avatar(p["avatar"])
+            return tuple(mascot_mod.SHELLS[av["shell"]]) + tuple(mascot_mod.SCARVES[av["scarf"]])
+        return garden.PALETTES[0]
+
+    def _their_island_svg(p: dict, snap: dict) -> str:
+        """A friend's island, carried by their own turtle, under your sky."""
+        labels = _island_labels()
+        return garden.island_svg(snap["plants"], set(snap["friends"]), snap["ring"], labels=labels,
+                                 palette=_person_palette(p), look=snap["look"], title=snap["title"],
+                                 season_now=garden.season(datetime.now().month), trophies=snap["trophies"])
+
+    def _friend_islands() -> list[dict]:
+        out = []
+        for p in V.people():
+            try:
+                snap = garden.clean_snapshot(json.loads(p.get("island") or "null"))
+            except ValueError:
+                snap = None
+            if not snap:
+                continue
+            out.append({"id": p["id"], "person": p, "name": display_name(p),
+                        "title": snap["title"] or t("{name}'s island", name=display_name(p)),
+                        "plants": snap["stats"]["plants"], "picture": Markup(_their_island_svg(p, snap))})
+        return out[:12]
+
+    async def person_island(request: Request):
+        p = V.person(request.path_params["pid"])
+        try:
+            snap = garden.clean_snapshot(json.loads((p or {}).get("island") or "null"))
+        except ValueError:
+            snap = None
+        if not p or not snap:
+            return go("/people", err="This person hasn't shared an island with you yet.")
+        when = datetime.fromtimestamp(snap["at"]).strftime("%Y-%m-%d") if snap["at"] else ""
+        return page("person_island.html", request, person=p, who=display_name(p), snap=snap, when=when,
+                    title=snap["title"] or t("{name}'s island", name=display_name(p)),
+                    picture=Markup(_their_island_svg(p, snap)),
+                    friends=[{"key": k, "name": say(garden.FRIEND_NAMES[k])} for k in snap["friends"]],
+                    friend_svg=garden.friend_svg)
+
+    def _share_island_svg() -> str:
+        """A square picture of your island to share anywhere: its name, the island, and a few numbers."""
+        lang = V._meta("lang", "en") or "en"
+        st = garden.stats(V)
+        wx = garden.weather(V)
+        isle = garden.island(V, lang)
+        have = garden.unlocked(V, st)
+        art_svg = garden.island_svg(isle["plants"], have["friends"], 1 + isle["living"] // 10, st["blooming"],
+                                    labels=_island_labels(), fair=wx["fair"], look=garden.looks(V, ""),
+                                    title=isle["title"], season_now=garden.season(datetime.now().month),
+                                    trophies=st["courses"])
+        art_svg = art_svg.replace('<svg class="island-art', '<svg x="40" y="190" width="1000" height="588" class="island-art', 1)
+        esc = lambda x: str(Markup.escape(x))
+        facts = " · ".join([t("{n} plants", n=st["plants"]), t("{n} friends", n=len(have["friends"])),
+                            t("{n} h of focus", n=st["hours"]), t("{n} days in a row", n=st["streak"])])
+        font = 'font-family="system-ui, -apple-system, Segoe UI, sans-serif"'
+        me = V.me
+        head = str(mascot_mod.buddy_head(me.get("avatar") or {}, 90)) if me.get("avatar") else ""
+        head = head.replace('<svg class="buddy-head"', '<svg x="40" y="40" class="buddy-head"', 1)
+        return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">'
+                '<rect width="1080" height="1080" fill="#F7F3EA"/>'
+                f'<rect x="40" y="190" width="1000" height="588" fill="none" stroke="#111" stroke-width="6"/>'
+                f'{head}<text x="{150 if head else 40}" y="105" {font} font-size="64" font-weight="800" fill="#111">{esc(isle["title"])}</text>'
+                f'<text x="{150 if head else 40}" y="150" {font} font-size="32" fill="#5E5A52">{esc(t("{name} is growing it, one focus trip at a time.", name=me["name"]))}</text>'
+                f'{art_svg}'
+                f'<text x="540" y="870" text-anchor="middle" {font} font-size="40" font-weight="700" fill="#111">{esc(facts)}</text>'
+                f'<text x="540" y="1010" text-anchor="middle" {font} font-size="34" fill="#5E5A52">{esc(say("Slow and steady. Learning with inPace."))}</text>'
+                '</svg>')
+
+    async def island_share_svg(request: Request):
+        name = garden.island(V, V._meta("lang", "en") or "en")["title"]
+        return download(_share_island_svg().encode(), f"{name}.svg", "image/svg+xml")
+
+    async def island_share_png(request: Request):
+        form = await request.form()
+        raw = _png_from_form(form)
+        if raw is None:
+            return go("/island", err="The picture couldn't be made. Try the SVG instead.")
+        name = garden.island(V, V._meta("lang", "en") or "en")["title"]
+        return download(raw, f"{name}.png", "image/png")
+
+    async def island_sharing(request: Request):
+        form = await request.form()
+        V._set_meta("island_share", "1" if form.get("on") == "1" else "0")
+        if form.get("on") == "1":
+            return go("/island", ok="People you add will see your island. Send them your contact card again to show it now.")
+        return go("/island", ok="Your island is private now. New cards and files won't carry it.")
 
     async def island_gentle(request: Request):
         form = await request.form()
@@ -2971,6 +3125,10 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/look", needs_setup(island_look), methods=["POST"]),
         Route("/island/clear", needs_setup(island_clear), methods=["POST"]),
         Route("/island/gentle", needs_setup(island_gentle), methods=["POST"]),
+        Route("/island/sharing", needs_setup(island_sharing), methods=["POST"]),
+        Route("/island/share.svg", needs_setup(island_share_svg)),
+        Route("/island/share.png", needs_setup(island_share_png), methods=["POST"]),
+        Route("/people/{pid}/island", needs_setup(person_island)),
         Route("/island/start", needs_setup(island_start), methods=["POST"]),
         Route("/island/trip", needs_setup(island_trip)),
         Route("/island/rest", needs_setup(island_rest), methods=["POST"]),

@@ -53,8 +53,40 @@ document.querySelectorAll("[data-busy]").forEach((btn) => {
   btn.form.addEventListener("submit", () => { btn.disabled = true; btn.textContent = btn.dataset.busy; });
 });
 
+// Diagrams: code blocks marked "mermaid" are drawn as pictures. The drawing code (static/mermaid) is big,
+// so it only loads on pages that have a diagram. A diagram with a mistake shows its text and a note.
+(() => {
+  const blocks = [...document.querySelectorAll("pre.mermaid")];
+  if (!blocks.length) return;
+  const s = document.createElement("script");
+  s.src = "/static/mermaid/mermaid.min.js?v=10.9.8";
+  s.onload = async () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme === "dark" || (root.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default",
+      fontFamily: getComputedStyle(document.body).fontFamily });
+    for (const [i, pre] of blocks.entries()) {
+      const text = pre.textContent;
+      try {
+        await window.mermaid.parse(text);
+        const { svg } = await window.mermaid.render(`diagram-${i}`, text);
+        pre.innerHTML = svg;
+        pre.setAttribute("data-processed", "1");
+        pre.setAttribute("role", "img");
+      } catch (e) {
+        pre.classList.add("diagram-error");
+        const note = document.createElement("span");
+        note.className = "diagram-note";
+        note.textContent = root.lang === "ar" ? "هذا الرسم فيه خطأ، فيظهر نصه بدلًا منه." : "This diagram has a mistake, so its text shows instead.";
+        pre.appendChild(note);
+      }
+    }
+  };
+  document.head.appendChild(s);
+})();
+
 // Code blocks: language label + copy button.
-document.querySelectorAll(".prose pre").forEach((pre) => {
+document.querySelectorAll(".prose pre:not(.mermaid)").forEach((pre) => {
   const code = pre.querySelector("code");
   if (!code) return;
   const wrap = document.createElement("div");
@@ -672,7 +704,7 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   if (!bridge) return;
   document.documentElement.classList.add("android");
   const send = (msg) => bridge.postMessage(JSON.stringify(msg));
-  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$)/;
+  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$)/;
 
   // Downloads: the app saves or shares the file.
   document.addEventListener("click", (e) => {
@@ -689,8 +721,9 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   // Forms that answer with a file (backups): fetch it here and hand the file to the app.
   document.addEventListener("submit", async (e) => {
     const form = e.target;
-    if (!form.matches('form[action="/settings/backup"], form[action="/me/turtle.png"]')) return;
-    if (form.matches('form[action="/me/turtle.png"]') && !form.png.value) return;  // the picture isn't drawn yet
+    const picture = form.matches('form[action="/me/turtle.png"], form[action="/island/share.png"]');
+    if (!form.matches('form[action="/settings/backup"]') && !picture) return;
+    if (picture && !form.png.value) return;  // the picture isn't drawn yet
     e.preventDefault();
     const r = await fetch(form.action, { method: "POST", body: new FormData(form) });
     if (!r.ok || !(r.headers.get("content-disposition") || "").includes("attachment")) { location.href = r.url; return; }
@@ -1129,14 +1162,15 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
     maker.addEventListener("change", draw);
   });
 
-  const form = document.querySelector("[data-turtle-png]");
-  if (!form) return;
+  // "Save a picture of my turtle" and "Share my island": the page draws the SVG as a PNG and sends it back.
+  document.querySelectorAll("[data-turtle-png], [data-share-island]").forEach((form) => {
+  const src = form.hasAttribute("data-share-island") ? "/island/share.svg" : "/me/turtle.svg";
   form.addEventListener("submit", async (e) => {
     if (form.png.value) return;  // the picture is ready: let the form send it
     e.preventDefault();
     e.stopImmediatePropagation();
     try {
-      const svg = await (await fetch("/me/turtle.svg")).text();
+      const svg = await (await fetch(src)).text();
       const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
       const img = new Image();
       await new Promise((ok, bad) => { img.onload = ok; img.onerror = bad; img.src = url; });
@@ -1148,7 +1182,8 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       form.requestSubmit ? form.requestSubmit() : form.submit();
       setTimeout(() => { form.png.value = ""; }, 1000);
     } catch (err) {
-      location.href = "/me/turtle.svg";
+      location.href = src;
     }
   }, true);
+  });
 })();

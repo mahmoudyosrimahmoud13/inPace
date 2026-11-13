@@ -86,10 +86,13 @@ class Vault:
         self.db = sqlite3.connect(self.home / "vault.db", check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
-        if "avatar" not in {r[1] for r in self.db.execute("PRAGMA table_info(people)")}:
-            # v1.17: people can have a turtle (from their contact card) instead of a coloured letter
-            self.db.execute("ALTER TABLE people ADD COLUMN avatar TEXT DEFAULT ''")
-            self.db.commit()
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(people)")}
+        for col in ("avatar", "island"):
+            # v1.17: people can have a turtle (from their contact card) instead of a coloured letter,
+            # and a copy of their island that they chose to share
+            if col not in cols:
+                self.db.execute(f"ALTER TABLE people ADD COLUMN {col} TEXT DEFAULT ''")
+                self.db.commit()
         self._courses: dict[str, Course] = {}
         self._identity: Identity | None = None
 
@@ -448,7 +451,16 @@ class Vault:
         r = self.db.execute("SELECT * FROM people WHERE id=?", (pid,)).fetchone()
         return dict(r) if r else None
 
-    def add_person(self, pid: str, name: str, color: str, checks_me: bool, i_check: bool, avatar: str = "") -> None:
+    def update_person_extras(self, pid: str, avatar: str = "", island: str = "") -> None:
+        """Newer files from someone bring their newest turtle and island (only what they sent is changed)."""
+        if avatar:
+            self.db.execute("UPDATE people SET avatar=? WHERE id=?", (avatar, pid))
+        if island:
+            self.db.execute("UPDATE people SET island=? WHERE id=?", (island, pid))
+        self.db.commit()
+
+    def add_person(self, pid: str, name: str, color: str, checks_me: bool, i_check: bool, avatar: str = "",
+                   island: str = "") -> None:
         old = self.person(pid)
         if old:
             self.db.execute(
@@ -460,7 +472,7 @@ class Vault:
             self.db.execute("INSERT INTO people (id, name, color, nickname, checks_me, i_check, added_at, avatar) "
                             "VALUES (?,?,?,?,?,?,?,?)",
                             (pid, name, color, "", int(checks_me), int(i_check), now_utc(), avatar or ""))
-        self.db.commit()
+        self.update_person_extras(pid, island=island)
 
     def set_roles(self, pid: str, checks_me: bool, i_check: bool, nickname: str) -> None:
         self.db.execute("UPDATE people SET checks_me=?, i_check=?, nickname=? WHERE id=?",

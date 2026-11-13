@@ -283,6 +283,78 @@ def _streak(days: set[date], today: date) -> int:
     return n
 
 
+# ---- your courses pay off ------------------------------------------------------------------------------
+# Lessons, modules and finished courses give shells (see earned()). On top of that, every course hides
+# treasure chests at 25%, 50% and 75%, and a finished course puts a trophy on the island.
+# Each course counts once: restarting it, removing and adding it again, or having the same course
+# installed twice never pays twice.
+CHESTS = ((25, 10), (50, 20), (75, 30))   # (% of the course, shells in the chest)
+
+
+def _course_key(c) -> str:
+    return getattr(c, "hash", "") or c.id
+
+
+def _lessons_done(v: Vault) -> set[tuple[str, str]]:
+    """(course, lesson) pairs you finished, across every start of every course, each pair once."""
+    course_of = {r["id"]: r["course_id"] for r in v.db.execute("SELECT id, course_id FROM journeys")}
+    keys = {c.id: _course_key(c) for c in v.courses()}
+    out = set()
+    for r in v.db.execute("SELECT journey, data FROM events WHERE type='lesson_done'"):
+        try:
+            lesson = json.loads(r["data"]).get("lesson")
+        except (ValueError, TypeError):
+            continue
+        cid = course_of.get(r["journey"], r["journey"])
+        out.add((keys.get(cid, cid), str(lesson)))
+    return out
+
+
+def course_rewards(v: Vault) -> list[dict]:
+    """Every course you started, once, with its progress, its chests and what it paid you."""
+    best: dict[str, dict] = {}
+    for j in v.journeys():
+        c = v.get_course(j["course_id"])
+        if not c:
+            continue
+        try:
+            prog = v.progress(j["id"])
+        except Exception:
+            continue
+        row = {"journey": j["id"], "course_id": c.id, "key": _course_key(c), "title": c.title,
+               "percent": int(prog.get("percent", 0) or 0), "finished": bool(prog.get("finished")),
+               "modules": int(prog.get("modules_done", 0) or 0)}
+        if row["key"] not in best or row["percent"] > best[row["key"]]["percent"]:
+            best[row["key"]] = row  # the same course installed twice: the furthest one counts
+    try:
+        opened = json.loads(v._meta("course_chests", "{}") or "{}")
+    except ValueError:
+        opened = {}
+    changed = False
+    lessons = _lessons_done(v)
+    rows = []
+    for row in best.values():
+        # chests stay open even if a course later gets longer and the percent drops
+        reached = max([pct for pct, _ in CHESTS if row["percent"] >= pct] + [100 if row["finished"] else 0, 0])
+        had = int(opened.get(row["course_id"], 0) or 0)
+        if reached > had:
+            opened[row["course_id"]] = reached
+            changed = True
+        top = max(had, reached)
+        row["chests"] = [{"at": pct, "shells": n, "open": top >= pct} for pct, n in CHESTS]
+        row["chest_shells"] = sum(n for pct, n in CHESTS if top >= pct)
+        row["trophy"] = row["finished"] or top >= 100
+        row["lessons"] = sum(1 for k, _ in lessons if k == row["key"])
+        row["shells"] = 2 * row["lessons"] + 10 * row["modules"] + row["chest_shells"] + (50 if row["trophy"] else 0)
+        nxt = next(((pct, n) for pct, n in CHESTS if top < pct), None)
+        row["next"] = {"at": nxt[0], "shells": nxt[1]} if nxt else ({"at": 100, "shells": 50} if not row["trophy"] else None)
+        rows.append(row)
+    if changed:
+        v._set_meta("course_chests", json.dumps(opened, sort_keys=True))
+    rows.sort(key=lambda r: (r["trophy"], -r["percent"]))
+    return rows
+
+
 def stats(v: Vault, today: date | None = None) -> dict:
     setup(v)
     today = today or date.today()
@@ -290,14 +362,9 @@ def stats(v: Vault, today: date | None = None) -> dict:
     days = {_day(p["ended"]) for p in plants if p["ended"]}
     hours = [datetime.fromtimestamp(p["started"]).hour for p in plants if p["started"]]
     q = lambda sql: v.db.execute(sql).fetchone()[0] or 0
-    modules = courses = 0
-    for j in v.journeys():
-        try:
-            prog = v.progress(j["id"])
-        except Exception:
-            continue
-        modules += prog.get("modules_done", 0)
-        courses += 1 if prog.get("finished") else 0
+    mine = course_rewards(v)
+    modules = sum(c["modules"] for c in mine)
+    courses = sum(1 for c in mine if c["trophy"])
     focus_min = sum(p["goal"] for p in plants)
     week_ago = (datetime.now() - timedelta(days=7)).isoformat()
     return {
@@ -306,7 +373,8 @@ def stats(v: Vault, today: date | None = None) -> dict:
         "days": len(days), "streak": _streak(days, today),
         "morning": sum(1 for h in hours if 4 <= h < 8), "night": sum(1 for h in hours if h >= 21 or h < 4),
         "week_min": sum(p["goal"] for p in plants if p["ended"] and _day(p["ended"]) > today - timedelta(days=7)),
-        "lessons": q("SELECT COUNT(DISTINCT journey || data) FROM events WHERE type='lesson_done'"),
+        "lessons": len(_lessons_done(v)),
+        "chest_shells": sum(c["chest_shells"] for c in mine),
         "reviews": q("SELECT COUNT(*) FROM events WHERE type='review_done'"),
         "milestones": q("SELECT COUNT(*) FROM milestones"),
         "approved": q("SELECT COUNT(*) FROM approvals WHERE decision='approved'"),
@@ -352,6 +420,14 @@ def news(v: Vault) -> list[dict]:
     seen = set(json.loads(v._meta("garden_seen", "[]") or "[]"))
     new = [{"kind": "plant", "key": k, "name": PLANT_NAMES[k]} for k in sorted(have["plants"] - seen)]
     new += [{"kind": "friend", "key": k, "name": FRIEND_NAMES[k]} for k in sorted(have["friends"] - seen)]
+    for c in course_rewards(v):
+        for ch in c["chests"]:
+            k = f'chest:{c["course_id"]}:{ch["at"]}'
+            if ch["open"] and k not in seen:
+                new.append({"kind": "chest", "key": k, "name": c["title"], "at": ch["at"], "shells": ch["shells"]})
+        k = f'trophy:{c["course_id"]}'
+        if c["trophy"] and k not in seen:
+            new.append({"kind": "trophy", "key": k, "name": c["title"], "shells": 50})
     if new:
         v._set_meta("garden_seen", json.dumps(sorted(seen | {x["key"] for x in new})))
     return new
@@ -445,56 +521,15 @@ PALETTES = [  # shell, dark, shade, light, scarf, scarf dark
     ("#556B2F", "#3A4A1F", "#475A27", "#9DB36E", "#4CC9F0", "#2E93B5"),
     ("#E07A1F", "#A35512", "#C26818", "#F5B272", "#7B2CBF", "#561F87"),
 ]
-TURTLE_NAMES = {
-    "universal": ["Pip", "Juno", "Basil", "Marlo", "Nova", "Sage", "Otto", "Wren", "Clover", "Bo"],
-    "arab": ["Shams", "Nour", "Ziad", "Farida", "Karam", "Lulu", "Adham", "Yasmin", "Fares", "Hala"],
-}
-TURTLE_NAMES_AR = {
-    "universal": ["بيب", "جونو", "بازل", "مارلو", "نوفا", "سيج", "أوتو", "رين", "كلوفر", "بو"],
-    "arab": ["شمس", "نور", "زياد", "فريدة", "كرم", "لولو", "أدهم", "ياسمين", "فارس", "هالة"],
-}
-
-
-def _pick(seed: str, n: int) -> int:
-    return sum(ord(c) * (i + 1) for i, c in enumerate(seed)) % n
-
-
-def turtles(v: Vault, world: str, lang: str) -> list[dict]:
-    """Your fleet: Tempo carries trips that aren't for a course; each course has its own turtle and island."""
-    names = json.loads(v._meta("island_names", "{}") or "{}")
-    named = titles(v)
+def island(v: Vault, lang: str = "en") -> dict:
+    """Your island: one for everything. Every focus trip grows here, whatever you were studying."""
     plants = on_island(v)
-    out = [{"id": "", "name": "Tempo" if lang != "ar" else "تمبو", "palette": PALETTES[0], "course": "",
-            "title": named.get("") or ("Tempo's Island" if lang != "ar" else "جزيرة تمبو"),
-            "plants": [p for p in plants if not p.get("journey")], "percent": None, "tempo": True}]
-    pool = (TURTLE_NAMES_AR if lang == "ar" else TURTLE_NAMES)[world]
-    for j in v.journeys():
-        c = v.get_course(j["course_id"])
-        if not c:
-            continue
-        try:
-            pct = v.progress(j["id"])["percent"]
-        except Exception:
-            pct = 0
-        out.append({"id": j["id"], "name": names.get(j["id"]) or pool[_pick(j["id"], len(pool))],
-                    "palette": PALETTES[1 + _pick(j["id"] + "p", len(PALETTES) - 1)], "course": c.title,
-                    "title": named.get(j["id"]) or c.title,
-                    "plants": [p for p in plants if p.get("journey") == j["id"]], "percent": pct, "tempo": False})
-    for t in out:
-        t["living"] = sum(1 for p in t["plants"] if p["state"] == "grown")
-        t["wilting"] = sum(1 for p in t["plants"] if p["state"] == "wilted")
-        t["dead"] = sum(1 for p in t["plants"] if p["state"] == "dead")
+    out = {"id": "", "name": "Tempo" if lang != "ar" else "تمبو", "palette": PALETTES[0], "tempo": True,
+           "title": titles(v).get("") or ("Tempo's Island" if lang != "ar" else "جزيرة تمبو"), "plants": plants}
+    out["living"] = sum(1 for p in plants if p["state"] == "grown")
+    out["wilting"] = sum(1 for p in plants if p["state"] == "wilted")
+    out["dead"] = sum(1 for p in plants if p["state"] == "dead")
     return out
-
-
-def rename(v: Vault, jid: str, name: str) -> None:
-    names = json.loads(v._meta("island_names", "{}") or "{}")
-    name = " ".join(name.split())[:24]
-    if name:
-        names[jid] = name
-    else:
-        names.pop(jid, None)
-    v._set_meta("island_names", json.dumps(names))
 
 
 def recolor(svg: str, palette) -> str:
@@ -632,7 +667,7 @@ FREE = {"theme:meadow", "sky:auto", "water:sea"}
 def earned(st: dict) -> int:
     """Shells: 1 for every 5 minutes of focus, and more for real learning."""
     return (st["focus_min"] // 5 + 2 * st["lessons"] + 3 * st["reviews"] + 10 * st["modules"]
-            + 15 * st["milestones"] + 20 * st["approved"] + 50 * st["courses"])
+            + 15 * st["milestones"] + 20 * st["approved"] + 50 * st["courses"] + st.get("chest_shells", 0))
 
 
 def wallet(v: Vault, st: dict) -> dict:
@@ -692,6 +727,52 @@ def set_title(v: Vault, iid: str, title: str) -> None:
     v._set_meta("island_titles", json.dumps(allv))
 
 
+# ---- sharing your island ------------------------------------------------------------------------------
+# A small picture-free copy of your island travels on your contact card and the files you send, so the
+# people you add can see it. It's only what's drawn: names of plants, friends, the look, a few numbers.
+
+def share_on(v: Vault) -> bool:
+    return (v._meta("island_share", "1") or "1") != "0"
+
+
+def snapshot(v: Vault, lang: str = "en") -> dict | None:
+    """Your island as data to share, or None when the island is off or you chose not to share it."""
+    if not is_on(v) or not share_on(v):
+        return None
+    st = stats(v)
+    isle = island(v, lang)
+    shown = [{"kind": p["kind"], "goal": int(p["goal"]), "state": p["state"]} for p in isle["plants"]][-13:]
+    return {"v": 1, "title": isle["title"], "look": looks(v, ""), "plants": shown,
+            "friends": sorted(unlocked(v, st)["friends"]), "ring": 1 + isle["living"] // 10,
+            "trophies": st["courses"], "stats": {"plants": st["plants"], "hours": st["hours"], "streak": st["streak"]},
+            "at": int(time.time())}
+
+
+def clean_snapshot(d) -> dict | None:
+    """Someone else's island from their card or file: keep only what we know how to draw."""
+    if not isinstance(d, dict) or d.get("v") != 1:
+        return None
+    look = d.get("look") if isinstance(d.get("look"), dict) else {}
+    plants = []
+    for p in (d.get("plants") or [])[-13:]:
+        if isinstance(p, dict) and p.get("kind") in PLANT_NAMES and p.get("state") in ("grown", "wilted", "dead"):
+            try:
+                plants.append({"kind": p["kind"], "goal": max(10, min(90, int(p.get("goal", 25)))), "state": p["state"]})
+            except (TypeError, ValueError):
+                continue
+    num = lambda x, top: max(0, min(top, int(x))) if isinstance(x, (int, float)) else 0
+    stats_in = d.get("stats") if isinstance(d.get("stats"), dict) else {}
+    return {"v": 1, "title": " ".join(str(d.get("title", "")).split())[:30],
+            "look": {"theme": look.get("theme") if look.get("theme") in THEMES else "meadow",
+                     "sky": look.get("sky") if look.get("sky") in SKIES else "auto",
+                     "water": look.get("water") if look.get("water") in WATERS else "sea",
+                     "decor": [x for x in (look.get("decor") or []) if x in DECOR][:MAX_DECOR]},
+            "plants": plants, "friends": sorted({f for f in (d.get("friends") or []) if f in FRIEND_NAMES}),
+            "ring": num(d.get("ring", 1), 9) or 1, "trophies": num(d.get("trophies", 0), 99),
+            "stats": {k: num(stats_in.get(k, 0), 100000) for k in ("plants", "hours", "streak")},
+            "at": num(d.get("at", 0), 10 ** 11)}
+
+
 def season(month: int) -> str:
     return "winter" if month in (12, 1, 2) else "spring" if month in (3, 4, 5) else "summer" if month in (6, 7, 8) else "autumn"
 
@@ -709,7 +790,7 @@ def visitor_today(v: Vault, today: date | None = None) -> str | None:
 def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool = False, hour: int | None = None,
                labels: dict | None = None, palette=None, fog: int = 0, fair: bool = False, home: bool = True,
                look: dict | None = None, title: str = "", villain: int = 0, season_now: str = "", visitor: str | None = None,
-               fled: bool = False) -> str:
+               fled: bool = False, trophies: int = 0) -> str:
     """The whole island scene: sky, sea, a turtle, the newest plants on its shell, your friends,
     the things you bought, and, when you've been away, the villain."""
     labels = labels or {}
@@ -860,6 +941,14 @@ def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool 
                 if sk["stars"] > .3 and d in ("lanterns", "campfire", "hut") else "")
         parts.append(f'<g class="isle-deco" transform="translate({dx} {dy}) scale(.72)"><title>{labels.get("deco_" + d, d)}</title>'
                      f'{glow}{art.deco(d, title)}</g>')
+    # a golden cup for every course you finished (up to 5 shown)
+    for k in range(min(trophies, 5)):
+        tx = 452 + 22 * k
+        parts.append(f'<g class="isle-trophy" transform="translate({tx} {238 + 4 * (k % 2)}) scale(.55)"><title>{labels.get("trophy", "A finished course")}</title>'
+                     f'<path d="M-12 -38 H12 V-26 Q12 -12 0 -10 Q-12 -12 -12 -26 Z" fill="#FFD43B" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
+                     f'<path d="M-12 -34 Q-22 -34 -18 -24 Q-15 -19 -10 -20 M12 -34 Q22 -34 18 -24 Q15 -19 10 -20" fill="none" stroke="{I}" stroke-width="3"/>'
+                     f'<path d="M-3 -10 V-4 H3 V-10 M-9 0 H9 V-4 H-9 Z" fill="#D9A90F" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
+                     f'<path d="M-6 -33 Q-6 -20 0 -16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".7"/></g>')
     if home and not fled:
         def friend(key, transform, extra=""):
             z = _zzz(70, 10) if asleep else ""

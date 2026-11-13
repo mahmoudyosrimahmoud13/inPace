@@ -86,6 +86,8 @@
     {% elif c.milestones %}<span class="chip warn">{% trans trimmed %}Waiting for your checker{% endtrans %}</span>{% endif %}
   </div>
   <div class="bar" role="progressbar" aria-label="{{ _('Course progress') }}" aria-valuenow="{{ p.percent }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ p.percent }}%"></span></div>
+  {% set rw = island_rewards.get(c.journey.id) if island_rewards else none %}
+  {% if rw %}<p class="small course-reward"><a href="/island#courses">{{ icon('shell', 14) }}{{ T('{n} shells from this course', n=rw.shells) }}</a>{% if rw.next and not rw.trophy %} · {{ T('Next chest at {n}%: {s} shells', n=rw.next.at, s=rw.next.shells) if rw.next.at < 100 else T('Finish it for {s} shells and a trophy', s=rw.next.shells) }}{% elif rw.trophy %} · {% trans trimmed %}Finished: the trophy is on your island.{% endtrans %}{% endif %}</p>{% endif %}
   <div class="stats">
     <div><b>{{ p.percent }}%</b><span>{% trans trimmed %}done{% endtrans %}</span></div>
     <div><b>{{ p.lessons_done }}/{{ p.lessons_total }}</b><span>{% trans trimmed %}lessons{% endtrans %}</span></div>

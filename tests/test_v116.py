@@ -72,10 +72,9 @@ def test_a_trip_grows_a_plant_and_resting_keeps_the_minutes(tmp_path):
     page = html.unescape(c.get("/island/trip").text)
     assert "joined the island" in page
     assert len(garden.grown(v)) == 1 and garden.active(v) is None
-    # it grows on the course's own turtle, not on Tempo
-    fleet = garden.turtles(v, "universal", "en")
-    assert fleet[0]["tempo"] and not fleet[0]["plants"]
-    assert [t for t in fleet if t["id"] == jid][0]["plants"]
+    # one island for everything (v1.17): the course is remembered, the plant grows on Tempo's island
+    isle = garden.island(v, "en")
+    assert isle["tempo"] and len(isle["plants"]) == 1 and isle["plants"][0]["journey"] == jid
 
 
 def test_phone_down_mode_pauses_while_away(tmp_path):
@@ -131,11 +130,10 @@ def test_two_story_worlds_in_two_languages():
                 assert "{" not in " ".join(island_story.chapter(key, w, lang)["paras"])
 
 
-def test_island_page_shows_fleet_chart_and_rename(tmp_path):
+def test_island_page_shows_one_island_and_the_chart(tmp_path):
     v, c, jid = _python(tmp_path)
     garden.set_on(v, True)
     page = html.unescape(c.get("/island").text)
-    assert "isle-fleet" in page and "sea-chart" in page
-    c.post("/island/name", data={"t": jid, "name": "Shelly"})
-    assert json.loads(v._meta("island_names"))[jid] == "Shelly"
-    assert "Shelly carries the island for Python Basics" in html.unescape(c.get(f"/island?t={jid}").text)
+    assert "isle-fleet" not in page and "sea-chart" in page  # v1.17: one island, no fleet of course turtles
+    c.post("/island/name", data={"title": "Reef of Focus"})
+    assert "Reef of Focus" in html.unescape(c.get("/island").text)

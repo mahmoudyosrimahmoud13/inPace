@@ -64,6 +64,7 @@
       </p>
     </div>
     {% if p.waiting %}<span class="chip warn">{{ T('{n} waiting', n=p.waiting) }}</span>{% endif %}
+    {% if p.island %}<a class="btn small" href="/people/{{ p.id }}/island">{{ icon('island', 16) }}{% trans trimmed %}See their island{% endtrans %}</a>{% endif %}
   </div>
 
   {% if p.i_check %}

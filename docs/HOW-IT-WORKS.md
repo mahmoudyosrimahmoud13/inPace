@@ -126,6 +126,9 @@ Every file is served by the local server under `/m/<course>/<path>`. That keeps 
 | Web page (HTML) | Runs in a locked box (a sandbox), so it can't touch the rest of the app. |
 | YouTube, Vimeo | Loads only when you press play, using YouTube's privacy-enhanced mode (youtube-nocookie). Nothing is fetched before you press play. |
 | Other links | A normal link that opens in your browser. |
+| Diagram | A code block marked `mermaid` in the lesson text is drawn as a diagram by [Mermaid](https://mermaid.js.org/) 10 (bundled in `static/mermaid`, works offline, loaded only on pages that have a diagram). It follows light or dark mode. A diagram with a mistake shows its text and a short note. |
+
+**Arabic and English in one lesson.** When a lesson is drawn (`text_dir` in `app.py`), each paragraph, heading, list, list item, quote and table cell gets its own direction from the words it mostly has (Arabic words against Latin words; code and links don't count). Lists have room on both sides so every bullet fits, and inline code is always left to right inside a right-to-left line. This is the same in both languages of the app, because it depends on the lesson, not on the interface.
 
 ---
 
@@ -439,7 +442,11 @@ An optional reward for studying, off until you turn it on from **Tempo's island*
 - **Rest for now** keeps the minutes. Starting again carries on with the same sprout.
 - The plant's size follows the length; an hour or more grows fruit or flowers.
 
-**Your turtles.** Trips for a course grow on that course's own turtle, with its own colors and name. Trips for anything else grow on Tempo. Every 10 living plants a turtle's shell grows a ring and its island has room for more. Each island has its own name too (`island_titles` in `meta`); **Rename** above the picture changes both.
+**One island.** Every trip grows on Tempo's island, whatever you were studying (the course is still saved with the trip). Every 10 living plants Tempo's shell grows a ring and the island has room for more. **Rename** above the picture names the island (`island_titles` in `meta`).
+
+**Your courses pay off** (`garden.course_rewards`). Each course you started counts once: rows are grouped by the course's fingerprint (so the same course installed twice is one), lessons are counted as (course, lesson) pairs across every start of a course, and the chests you opened are kept in `meta` as `course_chests`, so they stay open if a course later gets longer. Chests open at 25%, 50% and 75% (10, 20 and 30 shells); a finished course gives 50 shells and a trophy drawn on the island. A pop-up says when a chest or trophy arrives.
+
+**Sharing** (`garden.snapshot`, `garden.clean_snapshot`). With the island on and sharing allowed (`island_share` in `meta`, on unless you turn it off), your contact card, progress files and reviews carry a copy of the island: its name, look, the newest plants, friends, trophies and three numbers. It's next to the signed parts, not inside them, so older versions still read the files. On the other side it's cleaned (only known plants, friends and items; short names) and stored in `people.island`, and a newer file replaces it. **See their island** (`/people/<id>/island`) draws it carried by their own turtle. **Share my island** draws a 1080 px picture (`/island/share.svg`), which the page turns into a PNG like the turtle picture.
 
 **Unlocks.** 14 plants and 8 friends, worked out from your own data each time something changes:
 
@@ -477,7 +484,7 @@ A small pop-up says when something new arrives, once.
 
 `decay()` works out what happened while you were away, from the last activity to now, so it gives the same result whenever it runs: on every page, on the island page, and in the computer's hourly reminder job. **Gentle sea** (`island_gentle`) keeps the fog from taking plants: the villain still comes, but no closer than the shore.
 
-**Shells and the shop.** Shells are worked out from your data, never stored: 1 for every 5 minutes of focus, 2 per lesson, 3 per review, 10 per module, 15 per milestone, 20 per approval and 50 per finished course. Only what you spent (`island_spent`) and what you own (`island_owned`) are stored. Each island has its own look (`island_looks`): ground, sky, sea and up to 4 things on it. The crown and the wizard hat are for your own turtle.
+**Shells and the shop.** Shells are worked out from your data, never stored: 1 for every 5 minutes of focus, 2 per lesson, 3 per review, 10 per module, 15 per milestone, 20 per approval, 50 per finished course, and the course chests. Only what you spent (`island_spent`), what you own (`island_owned`) and which chests opened (`course_chests`) are stored. The island's look (`island_looks`) is its ground, sky, sea and up to 4 things on it. The crown and the wizard hat are for your own turtle.
 
 **The sky follows the real clock** (`garden.sky_at`): sunrise and sunset move with the time of year (about 7:00 to 17:00 in December and 5:00 to 19:00 in June), the colors blend from night to dawn, morning, day, sunset and dusk, and the sun and moon move across. On a phone, Python doesn't know the time zone, so the app passes it in `INPACE_TZ_MINUTES` and every page sends a `tz` cookie (`clock.py`). Seasons add snow, petals or leaves; on days you study a visitor swims by.
 
@@ -485,9 +492,9 @@ A small pop-up says when something new arrives, once.
 
 There are two worlds with the same plot: **the Sea of Things to Learn** (the default in English) and **Alexandria and the Great Green Sea** (the default in Arabic, with Teta Lulua, the Pharos and the Library of Alexandria). You can pick either in either language. The text is written once per language with placeholders that each world fills in.
 
-**The sea chart** shows all your turtles on the way to the Far Shore (Tempo by the story, a course's turtle by its progress), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse. People who made a turtle sail in its colors.
+**The sea chart** shows Tempo on the way to the Far Shore (by the story), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse. People who made a turtle sail in its colors.
 
-**On Home** a card shows the island most recently grown, the weather or the villain, wilting plants, shells, how far the story is, and what you unlock next.
+**On Home** a card shows your island, the weather or the villain, wilting plants, shells, how far the story is, and what you unlock next. Each course card shows the shells it gave and its next chest.
 
 **Your own turtle.** Instead of a coloured letter, you make a turtle on the first page or in Settings: one of 8 shells, 8 scarves, 4 skins, and something to wear (`mascot.clean_avatar`, `buddy`, `buddy_head`). It's saved in `meta` as `avatar`, and your colour follows the shell. Your contact card carries it next to the signed fields (not signed, so older versions still read the card), and it's cleaned before it's stored in `people.avatar`. **Save a picture of my turtle** draws a 1080 px square: the page turns `/me/turtle.svg` into a PNG on a canvas and sends it back to `/me/turtle.png` to save (or to the Android share sheet).
 
