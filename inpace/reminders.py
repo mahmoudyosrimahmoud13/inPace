@@ -395,6 +395,8 @@ def plan(v: Vault, now: datetime | None = None) -> dict:
                          "picture": m["picture"]})
     if d["auto"]["island"]:
         for x in _island(v, now):
+            if x["key"].startswith("trip:"):
+                continue  # the app shows the trip's own countdown and schedules "your plant is ready" with it
             auto.append({k: x[k] for k in ("key", "after", "title", "body", "url", "picture")} | {"exact": bool(x.get("exact"))})
     labels = {"stop": say("Stop"), "snooze": say("Snooze 10 min"), "open": say("Start studying"),
               "snoozed": say("Snoozed for 10 minutes."), "channel": say("Reminders"), "alarms": say("Alarms"),

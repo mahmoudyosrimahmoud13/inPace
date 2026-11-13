@@ -187,7 +187,7 @@ def test_island_notifications_carry_tempo(tmp_path):
     garden.start(v, "oak", 25, "anywhere", jid)
     plan = reminders.plan(v)
     keys = {a["key"].split(":")[0]: a for a in plan["auto"]}
-    assert keys["trip"]["exact"] and keys["trip"]["picture"] == "tempo_cheer"
+    assert "trip" not in keys  # the phone's trip notification schedules "your plant is ready" itself
     assert keys["villain"]["picture"] == "villain" and "at your shore" in keys["villain"]["title"]
     assert keys["wilt"]["picture"] == "villain" and keys["dying"]["picture"] == "tempo_sad"
     assert all(a.get("picture") for a in plan["auto"])
@@ -300,3 +300,46 @@ def test_tempo_shows_in_the_test_notification(tmp_path, monkeypatch):
     page = c.get("/reminders").text
     assert '/static/notify/tempo_wave.png' in page and "notif-preview" in page
     assert reminders.plan(v)["test"]["picture"] == "tempo_wave"  # the Android test notification too
+
+
+# ---- the focus trip in a notification ------------------------------------------------------------------
+
+def test_the_phone_gets_the_trip_for_its_countdown(tmp_path, monkeypatch):
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    assert c.get("/island/live.json").json() == {"trip": None}
+    assert 'id="inpace-trip"' not in c.get("/").text  # only the phone app gets it
+    c.post("/island/start", data={"kind": "oak", "minutes": "25", "mode": "anywhere", "journey": jid})
+    live = c.get("/island/live.json").json()["trip"]
+    assert live["state"] == "running" and live["title"] == "Focus trip: Oak"
+    assert abs(live["ends_ms"] / 1000 - (time.time() + 25 * 60)) < 5
+    assert live["done_title"] == "Your Oak is ready!" and "phone" not in live["mode"]
+    monkeypatch.setenv("INPACE_MOBILE", "android")
+    page = c.get("/").text
+    data = json.loads(page.split('<script type="application/json" id="inpace-trip">')[1].split("</script>")[0])
+    assert data["id"] == live["id"] and data["state"] == "running"
+    c.post("/island/rest")
+    page = c.get("/").text
+    assert '<script type="application/json" id="inpace-trip">null</script>' in page  # resting: the countdown goes away
+    v._set_meta("lang", "ar")
+    c.post("/island/start", data={})
+    assert c.get("/island/live.json").json()["trip"]["title"] == "رحلة تركيز: البلوط"
+
+
+def test_the_computer_says_when_the_trip_is_done(tmp_path, monkeypatch):
+    from inpace import notifier
+    v, c, jid = _python(tmp_path)
+    garden.set_on(v, True)
+    rang = []
+    monkeypatch.setattr(notifier, "notify", lambda title, body, path="/", home=None, picture="": rang.append((title, picture)) or True)
+    monkeypatch.setenv("INPACE_TEST_TRIP_TIMER", "1")
+    c.post("/island/start", data={"kind": "oak", "minutes": "10", "mode": "anywhere", "journey": jid})
+    v.db.execute("UPDATE garden SET banked=598 WHERE state='running'")
+    v.db.commit()
+    c.get("/")  # any page sets the timer for the trip's last second
+    for _ in range(40):
+        if rang:
+            break
+        time.sleep(0.2)
+    assert rang == [("Your Oak is ready!", "tempo_cheer")]
+    assert reminders.trip_done_now(v) is None  # said once

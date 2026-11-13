@@ -45,6 +45,9 @@ class Reminders {
   static final plugin = FlutterLocalNotificationsPlugin();
   static const snoozeId = 900000; // snoozed alarms: a new plan never removes them
   static const testId = 899999;
+  static const tripId = 850001; // the focus trip's countdown, shown while a trip runs
+  static const tripDoneId = 850002; // "your plant is ready", at the trip's last second
+  static String _tripKey = '';
   static Map<String, dynamic> labels = {};
   static String? pendingPage; // a page to open, from a tapped notification
   static void Function(String page)? onOpen;
@@ -157,7 +160,7 @@ class Reminders {
   static Future<void> sync(Map<String, dynamic> plan) async {
     labels = Map<String, dynamic>.from((plan['labels'] as Map?) ?? {});
     for (final p in await plugin.pendingNotificationRequests()) {
-      if (p.id < testId) await plugin.cancel(id: p.id);
+      if (p.id < tripId) await plugin.cancel(id: p.id); // the trip and the test have their own, kept
     }
     final now = DateTime.now();
     var id = 1;
@@ -181,6 +184,54 @@ class Reminders {
       final when = exact ? after : _onOrAfter(after, int.parse(evening[0]), int.parse(evening[1]), now);
       await _at(id++, when, a['title'] as String, a['body'] as String, 'tempo', a['url'] as String,
           picture: (a['picture'] as String?) ?? '', exact: exact);
+    }
+  }
+
+  // The focus trip in a notification: Tempo and a countdown that Android keeps running by itself, so it
+  // works while inPace is in the background or even closed. It disappears when the time is up, and
+  // "your plant is ready" rings at that moment. In "Phone down" mode, leaving the trip pauses it instead.
+  static Future<void> trip(Map<String, dynamic>? t) async {
+    final state = t?['state'] as String?;
+    final key = t == null ? '' : '${t['id']}|$state|${t['ends_ms']}';
+    if (key == _tripKey) return;
+    _tripKey = key;
+    try {
+      if (t == null || (state != 'running' && state != 'paused')) {
+        await plugin.cancel(id: tripId);
+        await plugin.cancel(id: tripDoneId);
+        return;
+      }
+      final channel = (t['channel'] as String?) ?? 'Focus trip';
+      final payload = jsonEncode({'url': '/island/trip'});
+      if (state == 'paused') {
+        await plugin.cancel(id: tripDoneId);
+        final body = (t['paused_body'] as String?) ?? '';
+        await plugin.show(id: tripId, title: t['paused_title'] as String?, body: body, payload: payload,
+            notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
+                importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+                category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+                largeIcon: const DrawableResourceAndroidBitmap('tempo_sleepy'))));
+        return;
+      }
+      final ends = DateTime.fromMillisecondsSinceEpoch((t['ends_ms'] as num).toInt());
+      final left = ends.difference(DateTime.now());
+      if (left.inSeconds <= 0) {
+        await plugin.cancel(id: tripId);
+        return;
+      }
+      final body = (t['body'] as String?) ?? '';
+      await plugin.show(id: tripId, title: t['title'] as String?, body: body, payload: payload,
+          notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
+              importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+              ongoing: true, autoCancel: false,
+              showWhen: true, when: ends.millisecondsSinceEpoch, usesChronometer: true, chronometerCountDown: true,
+              timeoutAfter: left.inMilliseconds, // gone when the time is up
+              category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+              largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
+      await _at(tripDoneId, ends, (t['done_title'] as String?) ?? '', (t['done_body'] as String?) ?? '', 'tempo',
+          '/island/trip', picture: 'tempo_cheer', exact: true);
+    } catch (_) {
+      _tripKey = ''; // notifications not allowed (yet): try again on the next page
     }
   }
 
@@ -381,6 +432,8 @@ class _ShellState extends State<Shell> {
         await Share.share(msg['text'] as String);
       case 'notifySync':
         await Reminders.sync(Map<String, dynamic>.from(msg['plan'] as Map));
+      case 'trip':
+        await Reminders.trip(msg['trip'] == null ? null : Map<String, dynamic>.from(msg['trip'] as Map));
       case 'notifyState':
         await _sendNotifyState();
       case 'notifyAllow':

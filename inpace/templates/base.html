@@ -158,6 +158,7 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
-<script src="/static/app.js?v=19"></script>
+{% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
+<script src="/static/app.js?v=20"></script>
 </body>
 </html>

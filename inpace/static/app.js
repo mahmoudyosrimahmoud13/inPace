@@ -748,6 +748,19 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
     });
   });
 
+  // Focus trip: the app shows Tempo's countdown in a notification while a trip runs, and it keeps counting
+  // when inPace is in the background or closed. Every page tells the app how the trip stands now.
+  let trip = null;
+  try { trip = JSON.parse((document.getElementById("inpace-trip") || {}).textContent || "null"); } catch (e) {}
+  if (document.getElementById("inpace-trip")) send({ type: "trip", trip });
+  window.inpaceTripChanged = async () => {
+    try {
+      const r = await fetch("/island/live.json", { cache: "no-store" });
+      if (r.ok) { trip = (await r.json()).trip; send({ type: "trip", trip }); }
+    } catch (e) {}
+  };
+  window.inpaceTripPaused = () => { if (trip) send({ type: "trip", trip: { ...trip, state: "paused", ends_ms: null } }); };
+
   // "More apps…" opens Android's share sheet.
   document.querySelectorAll("[data-share]").forEach((btn) => {
     btn.hidden = false;
@@ -1036,8 +1049,10 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       });
     } catch (e) { /* no sound here */ }
   };
+  const told = () => { if (window.inpaceTripChanged) window.inpaceTripChanged(); };  // the phone's notification
   const done = () => {
     box.hidden = true;
+    told();
     const d = document.querySelector("[data-trip-done]");
     if (d) d.hidden = false;
     document.title = title;
@@ -1070,6 +1085,7 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       if (d.grown) return done();
       if (state === "paused" && note) note.hidden = false;
       base = d.elapsed; t0 = Date.now(); state = d.state;
+      told();
     } catch (e) { /* offline: keep counting here */ }
   };
   let lock = null;
@@ -1080,6 +1096,7 @@ document.querySelectorAll("[data-days]").forEach((btn) => {
       if (mode === "phone" && state === "running") {
         base = now(); state = "paused";
         if (navigator.sendBeacon) navigator.sendBeacon("/island/pause"); else fetch("/island/pause", { method: "POST", keepalive: true });
+        if (window.inpaceTripPaused) window.inpaceTripPaused();
       }
     } else {
       sync();

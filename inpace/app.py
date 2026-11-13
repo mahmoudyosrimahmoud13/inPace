@@ -350,6 +350,13 @@ def create_app(vault: Vault) -> Starlette:
             base["active_path"] = request.url.path
             base["resume"] = _last_lesson()
             base["island_on"] = garden.is_on(V)
+            if os.environ.get("INPACE_MOBILE"):
+                try:
+                    base["trip_live_json"] = json.dumps(_trip_live()).replace("<", "\\u003c")
+                except Exception:
+                    base["trip_live_json"] = "null"
+            elif base["island_on"]:
+                _arm_trip_timer()
             if base["island_on"] and not request.url.path.startswith("/island/trip"):
                 try:
                     garden.decay(V)  # what the fog did while you were away
@@ -2507,6 +2514,64 @@ def create_app(vault: Vault) -> Starlette:
                 out.append({"name": display_name(p), "pos": 0.4, "palette": palette(p)})
         return out[:8]
 
+    def _trip_live() -> dict | None:
+        """The running focus trip, for the phone's countdown notification (None when there's nothing to show)."""
+        if not garden.is_on(V):
+            return None
+        trip = garden.active(V)
+        if not trip or trip["state"] not in ("running", "paused"):
+            return None
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        plant = say(garden.PLANT_NAMES.get(trip["kind"], ""))
+        left = max(0, trip["goal"] * 60 - garden.elapsed(trip))
+        return {"id": trip["id"], "state": trip["state"], "mode": trip["mode"], "goal": trip["goal"],
+                "ends_ms": int((_time.time() + left) * 1000) if trip["state"] == "running" else None,
+                "channel": say("Focus trip"),
+                "title": t("Focus trip: {plant}", plant=plant),
+                "body": say("Tempo is swimming. Your plant grows while you study."),
+                "paused_title": t("Your {plant} sprout is waiting", plant=plant),
+                "paused_body": say("Phone down: the clock only counts while the trip screen is open. Come back to keep growing."),
+                "done_title": t("Your {plant} is ready!", plant=plant),
+                "done_body": say("Tempo finished the trip. Come and see it join the island.")}
+
+    _trip_timer: dict = {"key": None, "timer": None}
+
+    def _arm_trip_timer() -> None:
+        """On a computer: while inPace is open (even minimized), say "your plant is ready" the minute the trip ends.
+        (When inPace is closed, the hourly reminder check says it instead. Phones schedule it themselves.)"""
+        if os.environ.get("INPACE_MOBILE"):
+            return
+        if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("INPACE_TEST_TRIP_TIMER"):
+            return  # no real notifications while the tests run
+        try:
+            trip = garden.active(V) if garden.is_on(V) else None
+            key, left = None, 0.0
+            if trip and trip["state"] == "running" and reminders.load(V)["auto"]["island"]:
+                left = trip["goal"] * 60 - garden.elapsed(trip)
+                key = f'{trip["id"]}:{trip["run_from"]}:{trip["banked"]}'
+            if key == _trip_timer["key"]:
+                return
+            if _trip_timer["timer"]:
+                _trip_timer["timer"].cancel()
+            _trip_timer.update(key=key, timer=None)
+            if key:
+                timer = threading.Timer(max(1.0, left + 1), _trip_ring)
+                timer.daemon = True
+                timer.start()
+                _trip_timer["timer"] = timer
+        except Exception:
+            pass
+
+    def _trip_ring() -> None:
+        try:
+            reminders.use_language(V)
+            item = reminders.trip_done_now(V)
+            if item and notifier.notify(item["title"], item["body"], item["url"], V.home, picture=item.get("picture", "")):
+                reminders.mark_sent(V, item)
+        except Exception:
+            pass
+        _trip_timer.update(key=None, timer=None)
+
     def _goal_met() -> bool:
         for j in V.journeys():
             card = journey_card(j)
@@ -2709,14 +2774,20 @@ def create_app(vault: Vault) -> Starlette:
         trip = garden.active(V)
         if trip and trip["mode"] == "phone":
             garden.rest(V, state="paused")
+        _arm_trip_timer()
         return Response(status_code=204)
 
     async def island_resume(request: Request):
         garden.resume(V)
         just = garden.check(V)
         trip = garden.active(V)
+        _arm_trip_timer()
         return JSONResponse({"grown": bool(just), "elapsed": int(garden.elapsed(trip)) if trip else 0,
                              "state": trip["state"] if trip else "grown"})
+
+    async def island_live(request: Request):
+        """What the phone's notification should show about the focus trip right now."""
+        return JSONResponse({"trip": _trip_live()}, headers={"Cache-Control": "no-store"})
 
     async def island_done(request: Request):
         just = garden.check(V)
@@ -2907,6 +2978,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/pause", needs_setup(island_pause), methods=["POST"]),
         Route("/island/resume", needs_setup(island_resume), methods=["POST"]),
         Route("/island/done", needs_setup(island_done), methods=["POST"]),
+        Route("/island/live.json", needs_setup(island_live)),
         Route("/tour/done", needs_setup(tour_done), methods=["POST"]),
         Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),
