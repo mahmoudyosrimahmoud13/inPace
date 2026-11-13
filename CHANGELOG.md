@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.18.0
+
+- **Build a course on one page.** New **Build it myself** (on Add a course, and **Edit** on every course): parts and lessons on one page. Add a YouTube or web link, files from your device (or drag them in), or a text lesson with one button; drag lessons and parts to reorder them (or use the arrows on a phone); write notes under any video. It saves by itself as you go, keeps everyone's progress and your tasks and quizzes, and the old step-by-step forms and text mode are still there.
+- **A course from links, made easy.** New **Links: YouTube, Udemy or any website** on Add a course. Paste your links one per line. Under a long YouTube video, paste its chapter times (from the video's description) and each chapter becomes its own lesson. Udemy and other sites open on their own site, and you still tick them off in inPace.
+- **YouTube remembers where you stopped.** A YouTube lesson can be one piece of a long video (it starts and stops at that piece), and it continues from the second you stopped at. Playlist links work too. The play box shows its dark background again (it was white, so its text was hard to read).
+- **Folders on My courses.** Make folders like "Programming languages" or "Networks", move courses into them from a course's **More** menu (or pick one when you add a course), rename or delete them. Deleting a folder keeps its courses.
+- **The course library works on Android.** Python inside the phone app had no list of trusted certificates, so every secure download failed and the library looked offline. inPace now ships the standard list (certifi) and uses it on phones, and anywhere the system's own check fails. Updates and YouTube titles were fixed by the same change.
+- **Course pictures show whole.** The picture at the top of a course and on My courses was cut into a thin strip; now it keeps its shape, next to the course title.
+
 ## v1.17.1
 
 - **A better course library.** The library is now a grid of big course covers, with the hours of lessons, modules and language on each card. Buttons for the most common topics (python, machine learning, flutter...) narrow the list in one tap, next to the search box.

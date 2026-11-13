@@ -64,7 +64,8 @@ def newer(latest: str, current: str = __version__) -> bool:
 def _get(url: str, timeout: float = 15):
     req = urllib.request.Request(url, headers={"User-Agent": f"inPace/{__version__}",
                                                "Accept": "application/vnd.github+json"})
-    return urllib.request.urlopen(req, timeout=timeout)
+    from .net import urlopen
+    return urlopen(req, timeout=timeout)
 
 
 def check() -> dict | None:

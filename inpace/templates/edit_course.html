@@ -13,6 +13,7 @@
   <p class="muted small" style="margin:0">{{ T('Version {n} · every change is checked, then saved as a new version.', n=c.version) }}</p>
   <div class="row builder-tools">
     {% if can_undo %}<form method="post"><input type="hidden" name="action" value="undo"><button class="btn">{{ icon('undo', 18) }}{% trans trimmed %}Undo last change{% endtrans %}</button></form>{% endif %}
+    <a class="btn primary" href="/build/{{ c.id }}">{{ icon('pen', 18) }}{% trans trimmed %}Open in the builder{% endtrans %}</a>
     <a class="btn" href="/edit/{{ c.id }}/yaml">{{ icon('code', 18) }}{% trans trimmed %}Edit as one file{% endtrans %}</a>
     {% if journey %}<a class="btn" href="/learn/{{ journey }}">{{ icon('play', 18) }}{% trans trimmed %}Open as a learner{% endtrans %}</a>{% endif %}
   </div>

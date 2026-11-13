@@ -17,7 +17,7 @@ import re
 from typing import Callable
 from urllib.parse import quote, unquote
 
-from .course import embed_id, is_url, local_ref, media_kind, page_range
+from .course import embed_id, is_url, local_ref, media_kind, page_range, youtube_playlist, youtube_segment
 
 Tr = Callable[[str], str]
 
@@ -145,6 +145,40 @@ def video_player(url: str, key: str, resume: float, speed: float, t: Tr) -> str:
             f'<video controls preload="metadata" playsinline src="{url}"></video></div>{hint}')
 
 
+def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], bool], t: Tr) -> str:
+    """A YouTube video, a piece of one (t=... and end=... in the link), or a playlist.
+    It loads only when you press play, and it continues from where you stopped (saved on this computer)."""
+    e = html.escape
+    vid, plist = embed_id(ref), youtube_playlist(ref)
+    start, end = youtube_segment(ref)
+    files = exists if isinstance(exists, CourseFiles) else None
+    if vid:
+        src = f"https://www.youtube-nocookie.com/embed/{vid}?autoplay=1&rel=0&enablejsapi=1"
+        watch = f"https://www.youtube.com/watch?v={vid}" + (f"&t={start}s" if start else "")
+        key = f"{course_id}|yt:{vid}:{start}-{end or ''}"
+    else:
+        src = f"https://www.youtube-nocookie.com/embed/videoseries?list={plist}&autoplay=1&rel=0&enablejsapi=1"
+        watch = f"https://www.youtube.com/playlist?list={plist}"
+        key = f"{course_id}|ytlist:{plist}"
+    resume = files.resume(key) if files else 0.0
+    if resume and (resume < start or (end and resume >= end - 5)):
+        resume = 0.0
+    piece = ""
+    if vid and (start or end):
+        piece = (f'<span class="small yt-piece">{e(t("This lesson is the part from {a} to {b}.").format(a=_clock(start), b=_clock(end)))}</span>'
+                 if end else f'<span class="small yt-piece">{e(t("This lesson starts at {a}.").format(a=_clock(start)))}</span>')
+    hint = ""
+    if resume > start + 5:
+        hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
+                f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
+    return (f'<figure class="media embed"><div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
+            f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}">'
+            f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{piece}{hint}'
+            f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
+            f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
+            f'</div>{cap}</figure>')
+
+
 def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], t: Tr) -> str:
     """HTML for one media item. ref is a web link or a path inside the course."""
     ref = html.unescape(ref).strip()
@@ -157,15 +191,15 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
     e = html.escape
     cap = f"<figcaption>{e(label)}</figcaption>" if label else ""
 
-    if kind in ("youtube", "vimeo"):
+    if kind == "youtube":
+        return youtube_player(course_id, ref, cap, exists, t)
+    if kind == "vimeo":
         vid = embed_id(ref)
-        src = (f"https://www.youtube-nocookie.com/embed/{vid}?autoplay=1&rel=0" if kind == "youtube"
-               else f"https://player.vimeo.com/video/{vid}?autoplay=1")
-        site = "YouTube" if kind == "youtube" else "Vimeo"
+        src = f"https://player.vimeo.com/video/{vid}?autoplay=1"
         return (f'<figure class="media embed"><div class="embed-box" data-embed="{e(src)}">'
                 f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>'
-                f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site=site))}</span>'
-                f'<a class="small" href="{e(ref)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site=site))}</a>'
+                f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="Vimeo"))}</span>'
+                f'<a class="small" href="{e(ref)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="Vimeo"))}</a>'
                 f'</div>{cap}</figure>')
 
     if is_url(ref):

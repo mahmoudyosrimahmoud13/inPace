@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Course builder') }}{% endblock %}
+{% block main %}
+<div class="page-head b-head">
+  <p class="eyebrow"><a href="{{ '/courses' if cid else '/add' }}">{{ _('My courses') if cid else _('Add a course') }}</a></p>
+  <h1>{{ _('Build your course') if not cid else _('Edit your course') }}.</h1>
+  <p class="muted">{% trans trimmed %}Add parts and lessons, drop in videos and files, paste YouTube links. Everything saves by itself.{% endtrans %}</p>
+</div>
+
+<div id="builder" data-draft="{{ draft }}" data-cid="{{ cid }}">
+  <section class="card b-course">
+    <label class="b-title-label">{% trans trimmed %}Course title{% endtrans %}
+      <input id="b-title" class="b-title" dir="auto" placeholder="{{ _('For example: Networks for beginners') }}" autocomplete="off"></label>
+    <div class="b-course-row">
+      <label>{% trans trimmed %}Lesson language{% endtrans %}
+        <select id="b-lang"><option value="en">{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar">{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
+      <label>{% trans trimmed %}Folder{% endtrans %}
+        <select id="b-folder"><option value="">{% trans trimmed %}No folder{% endtrans %}</option>
+          {% for fd in folder_list %}<option value="{{ fd.id }}" {{ 'selected' if folder_now == fd.id }}>{{ fd.name }}</option>{% endfor %}
+          <option value="__new__">{% trans trimmed %}New folder…{% endtrans %}</option></select></label>
+      <label id="b-new-folder-box" hidden>{% trans trimmed %}New folder name{% endtrans %}<input id="b-new-folder" dir="auto"></label>
+    </div>
+    <details class="more"><summary>{% trans trimmed %}Short description (optional){% endtrans %}</summary>
+      <textarea id="b-desc" rows="2" dir="auto"></textarea></details>
+    <div class="b-status-row">
+      <span id="b-status" class="b-status" role="status" aria-live="polite"></span>
+      <span class="row wrap b-links">
+        <a class="btn primary" id="b-open" hidden>{{ icon('arrow', 18) }}{% trans trimmed %}Open the course{% endtrans %}</a>
+        <a class="btn" id="b-tasks" hidden>{{ icon('check', 18) }}{% trans trimmed %}Tasks and quizzes{% endtrans %}</a>
+        <a class="btn ghost small" id="b-text" hidden>{% trans trimmed %}Text mode{% endtrans %}</a>
+      </span>
+    </div>
+  </section>
+
+  <div id="b-modules" class="b-modules"></div>
+  <button type="button" class="b-add-module" id="b-add-module">{{ icon('plus', 20) }}{% trans trimmed %}Add a part{% endtrans %}</button>
+  <noscript><p class="note warn">{% trans trimmed %}The builder needs JavaScript. You can still use the simple forms.{% endtrans %}</p></noscript>
+</div>
+
+<script type="application/json" id="b-data">{{ data_json|safe }}</script>
+<script type="application/json" id="b-l10n">{{ {
+  "part": _("Part"), "partTitle": _("Part title"), "lessons": _("lessons"), "oneLesson": _("1 lesson"),
+  "lessonTitle": _("Lesson title"), "minutes": _("Minutes"), "notes": _("Notes"), "write": _("Write the lesson"),
+  "moveUp": _("Move up"), "moveDown": _("Move down"), "delete": _("Delete"), "drag": _("Drag to move"),
+  "addLink": _("YouTube or web link"), "addFiles": _("Files from this device"), "addText": _("Text lesson"),
+  "linksPlaceholder": _("Paste one or more links, one per line. Under a YouTube link you can paste its chapter times to cut it into lessons."),
+  "fetch": _("Get video titles from YouTube (goes online)"), "add": _("Add"), "cancel": _("Cancel"),
+  "dropHere": _("Or drop files here"), "uploading": _("Copying"), "newLesson": _("New lesson"), "newPart": _("New part"),
+  "saved": _("Saved."), "saving": _("Saving…"), "notYet": _("Add a title and one lesson, and the course saves itself."),
+  "problem": _("Not saved:"), "emptyPart": _("No lessons yet. Add a video, a file, a link or some text."),
+  "deletePart": _("Delete this part and its lessons?"), "tasks": _("tasks"), "quiz": _("quiz"),
+  "kind_youtube": _("YouTube"), "kind_vimeo": _("Vimeo"), "kind_video": _("Video"), "kind_audio": _("Audio"),
+  "kind_pdf": _("PDF"), "kind_image": _("Picture"), "kind_office": _("Office file"), "kind_html": _("Web page"),
+  "kind_link": _("Link"), "kind_code": _("Code"), "kind_folder": _("Folder"), "kind_text": _("Text"),
+  "media": _("Video, file or link"), "min": _("min"), "offline": _("Couldn't save. Is inPace still open?")
+}|tojson }}</script>
+<script src="/static/builder.js?v=1"></script>
+{% endblock %}

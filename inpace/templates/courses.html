@@ -4,7 +4,8 @@
 <details class="menu course-menu">
   <summary class="btn icon-btn" aria-label="{{ _('More') }}" title="{{ _('More') }}">{{ icon('more', 20) }}</summary>
   <div class="menu-box">
-    <a href="/edit/{{ c.id }}"><b>{% trans trimmed %}Edit{% endtrans %}</b></a>
+    <a href="/build/{{ c.id }}"><b>{% trans trimmed %}Edit{% endtrans %}</b></a>
+    <a href="/edit/{{ c.id }}">{% trans trimmed %}Tasks, quizzes and more settings{% endtrans %}</a>
     <p class="menu-h">{% trans trimmed %}Share{% endtrans %}</p>
     <a href="/courses/{{ c.id }}/share">{% trans trimmed %}Send a link…{% endtrans %}</a>
     <a href="/courses/{{ c.id }}/export">{% trans trimmed %}For learners (no answers){% endtrans %}</a>
@@ -14,24 +15,20 @@
     <p class="menu-h">{% trans trimmed %}Update{% endtrans %}</p>
     <a href="/open">{% trans trimmed %}From a newer course file{% endtrans %}</a>
     {% if r.media_root %}<form method="post" action="/courses/{{ c.id }}/refresh"><button class="link btn" style="justify-content:flex-start">{% trans trimmed %}Refresh from its folder{% endtrans %}</button></form>{% endif %}
+    <p class="menu-h">{% trans trimmed %}Folder{% endtrans %}</p>
+    <form method="post" action="/courses/{{ c.id }}/folder" class="menu-form">
+      {% if folder_list %}<select name="folder" aria-label="{{ _('Folder') }}">
+        <option value="">{% trans trimmed %}Not in a folder{% endtrans %}</option>
+        {% for fd in folder_list %}<option value="{{ fd.id }}" {{ 'selected' if folder_of.get(c.id) == fd.id }}>{{ fd.name }}</option>{% endfor %}
+      </select>{% endif %}
+      <input name="new_name" dir="auto" placeholder="{{ _('New folder name') }}" aria-label="{{ _('New folder name') }}">
+      <button class="btn small">{% trans trimmed %}Move{% endtrans %}</button>
+    </form>
     <p class="menu-h"></p>
     <a class="danger" href="/courses/{{ c.id }}/remove">{% trans trimmed %}Delete course…{% endtrans %}</a>
   </div>
 </details>{% endmacro %}
-{% block main %}
-<div class="page-head courses-head">
-  <h1>{% trans trimmed %}My courses{% endtrans %}.</h1>
-  <a class="btn primary" href="/add">{{ icon('plus', 18) }}{% trans trimmed %}Add a course{% endtrans %}</a>
-</div>
-
-{% if rows %}
-{% if rows|length > 3 %}
-<label class="course-filter course-find">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search your courses and lessons') }}" aria-label="{{ _('Search your courses and lessons') }}"></label>
-{% endif %}
-<p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
-<div class="course-grid">
-{% for r in rows %}
-{% set c = r.course %}
+{% macro course_card(r) %}{% set c = r.course %}
 <article class="card course-card{{ ' finished' if r.finished }}" data-course-search="{{ r.search }}">
   {% if r.journey %}
   <a class="course-main" href="/learn/{{ r.journey }}">
@@ -55,8 +52,63 @@
   {% if r.journey %}</a>{% else %}</button></form>{% endif %}
   {{ course_menu(r) }}
 </article>
-{% endfor %}
+{% endmacro %}
+{% block main %}
+<div class="page-head courses-head">
+  <h1>{% trans trimmed %}My courses{% endtrans %}.</h1>
+  <span class="row">
+    {% if rows %}<details class="menu new-folder">
+      <summary class="btn">{{ icon('folder', 18) }}{% trans trimmed %}New folder{% endtrans %}</summary>
+      <div class="menu-box">
+        <form method="post" action="/folders/new" class="menu-form">
+          <input name="name" dir="auto" required placeholder="{{ _('For example: Networks') }}" aria-label="{{ _('Folder name') }}">
+          <button class="btn primary small">{% trans trimmed %}Make folder{% endtrans %}</button>
+        </form>
+      </div>
+    </details>{% endif %}
+    <a class="btn primary" href="/add">{{ icon('plus', 18) }}{% trans trimmed %}Add a course{% endtrans %}</a>
+  </span>
 </div>
+
+{% if rows %}
+{% if rows|length > 3 %}
+<label class="course-filter course-find">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search your courses and lessons') }}" aria-label="{{ _('Search your courses and lessons') }}"></label>
+{% endif %}
+<p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
+{% if folder_list %}
+{% for g in groups %}
+<section class="folder-box" id="folder-{{ g.id or 'none' }}" data-folder-box>
+  <details open>
+    <summary class="folder-head">
+      <span class="folder-ico">{{ icon('folder', 20) }}</span>
+      <b dir="auto">{{ g.name if g.id else _('Not in a folder') }}</b>
+      <span class="muted small">{{ _('1 course') if g.rows|length == 1 else T('{n} courses', n=g.rows|length) }}</span>
+    </summary>
+    {% if g.id %}
+    <details class="menu folder-menu">
+      <summary class="btn icon-btn small" aria-label="{{ _('Folder options') }}" title="{{ _('Folder options') }}">{{ icon('more', 18) }}</summary>
+      <div class="menu-box">
+        <form method="post" action="/folders/{{ g.id }}/rename" class="menu-form">
+          <input name="name" dir="auto" value="{{ g.name }}" aria-label="{{ _('Folder name') }}" required>
+          <button class="btn small">{% trans trimmed %}Rename{% endtrans %}</button>
+        </form>
+        <form method="post" action="/folders/{{ g.id }}/delete"><button class="link btn danger" style="justify-content:flex-start">{% trans trimmed %}Delete folder (keeps its courses){% endtrans %}</button></form>
+      </div>
+    </details>
+    {% endif %}
+    {% if g.rows %}
+    <div class="course-grid">{% for r in g.rows %}{{ course_card(r) }}{% endfor %}</div>
+    {% else %}
+    <p class="muted small folder-empty">{% trans trimmed %}No courses here yet. Open More on a course and choose this folder.{% endtrans %}</p>
+    {% endif %}
+  </details>
+</section>
+{% endfor %}
+{% else %}
+<div class="course-grid">
+{% for r in rows %}{{ course_card(r) }}{% endfor %}
+</div>
+{% endif %}
 {% else %}
 <section class="card empty-courses">
   {{ mascot('wave', 72) }}

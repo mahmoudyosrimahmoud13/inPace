@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inpace"
-version = "1.17.1"
+version = "1.18.0"
 description = "Learn at your pace. Prove you kept it. A local, open-source learning accountability app."
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,6 +19,7 @@ dependencies = [
   "pypdf>=4.0",
   "python-multipart>=0.0.9",
   "pygments>=2.17",
+  "certifi",
 ]
 
 [project.optional-dependencies]

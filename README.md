@@ -13,7 +13,8 @@ A free, open-source app that helps you follow a course and lets someone you trus
 
 **Learn**
 - **Follow a course step by step.** Lessons, then tasks: upload your work, explain it in your own words, take a quiz. The next module unlocks when you finish.
-- **Add a course the easy way:** press **Add**, then pick a folder of class material, some files, a course file, the course library, AI, or simple forms. No YAML or Markdown needed (it's there if you want it).
+- **Add a course the easy way:** press **Add**, then paste YouTube or Udemy links (a long video is cut into lessons at its chapters), build it on one page with drag and drop, or pick a folder of class material, some files, a course file, the course library or AI. No YAML or Markdown needed (it's there if you want it).
+- **Folders:** sort My courses into folders like "Programming languages" or "Networks".
 - **Messy folders are fine:** inPace sorts your files by the week, lecture or chapter numbers in their names (or by kind: videos, slides, notes). You fix anything by dragging files between sections, or ask AI to sort them. Then choose: leave the files where they are (no extra space, even for a 60 GB course) or copy them into inPace.
 - **Turn a book into a course.** Give inPace a PDF book: each chapter becomes a part of the course and each section a lesson that opens only its own pages (`book.pdf#pages=12-19`). Your place is saved in each part.
 - **Videos, audio, PDFs, Word, PowerPoint, Excel, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Word, PowerPoint and Excel files show as a light, read-only preview right in the lesson, with a button to open them in their own app. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play.

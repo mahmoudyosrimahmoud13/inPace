@@ -8,6 +8,11 @@
 
 <h2 class="add-h">{% trans trimmed %}I have the material{% endtrans %}</h2>
 <div class="add-grid">
+  <a class="card tile add-pick" href="/add/links">
+    <span class="ico">{{ icon('video') }}</span>
+    <span><b>{% trans trimmed %}Links: YouTube, Udemy or any website{% endtrans %}</b>
+    <span>{% trans trimmed %}Paste your links, one per line. A long YouTube video can be cut into lessons at its chapters, and inPace remembers where you stopped.{% endtrans %}</span></span>
+  </a>
   <a class="card tile add-pick" href="/add/folder">
     <span class="ico">{{ icon('folder') }}</span>
     <span><b>{% trans trimmed %}A folder on this device{% endtrans %}</b>
@@ -42,15 +47,16 @@
     <span><b>{% trans trimmed %}From the course library{% endtrans %}</b>
     <span>{% trans trimmed %}Free courses other learners shared.{% endtrans %}</span></span>
   </a>
-  <a class="card tile add-pick" href="/edit/new">
+  <a class="card tile add-pick" href="/build">
     <span class="ico">{{ icon('pen') }}</span>
-    <span><b>{% trans trimmed %}Write it myself{% endtrans %}</b>
-    <span>{% trans trimmed %}Simple forms: a title, then modules and lessons. Paste video links or write the text.{% endtrans %}</span></span>
+    <span><b>{% trans trimmed %}Build it myself{% endtrans %}</b>
+    <span>{% trans trimmed %}One page: add parts and lessons, drop in videos and files, paste YouTube links, drag to reorder. It saves by itself.{% endtrans %}</span></span>
   </a>
 </div>
 
 <details class="more add-advanced">
-  <summary>{% trans trimmed %}Advanced: write the course file yourself{% endtrans %}</summary>
+  <summary>{% trans trimmed %}Other ways: step-by-step forms, or write the course file yourself{% endtrans %}</summary>
+  <p class="small"><a href="/edit/new">{% trans trimmed %}Make a course with step-by-step forms{% endtrans %}</a></p>
   <p class="small muted">{% trans trimmed %}For people who like plain text: a course is one course.yaml file, and lessons are written in Markdown. Make a course with the simple forms first, then press "Edit as one file" on its edit page.{% endtrans %}
     <a href="https://github.com/mahmoudyosrimahmoud13/inPace/blob/main/SPEC.md" target="_blank" rel="noopener">{% trans trimmed %}How course files work{% endtrans %}</a></p>
 </details>

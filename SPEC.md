@@ -112,6 +112,8 @@ format, giving options neutral ids from `"o" + sha256(qid + "\x1f" + text)[:6]`.
 lessons:
   - {title: Welcome, media: "01 Intro/01 - Welcome.mp4"}        # a file next to the course
   - {title: Talk, media: "https://www.youtube.com/watch?v=..."} # YouTube or Vimeo: loads only on play
+  - {title: Part 2, media: "https://www.youtube.com/watch?v=...&t=1189&end=3014"}  # one piece of a long video
+  - {title: Playlist, media: "https://www.youtube.com/playlist?list=..."}  # a whole playlist in one player
   - {title: Lab, media: "/home/sara/Videos/lab.mp4"}            # a full path also works
 ```
 
@@ -125,6 +127,8 @@ Kinds: video (`.mp4 .webm .m4v .mov .ogv .mkv`), audio (`.mp3 .m4a .aac .ogg .og
 web page (`.html .htm`), picture, PDF, office (`.docx .pptx .xlsx .xlsm`: a read-only preview plus a download
 button), code (`.py .js .ts .java .go .sql .yaml .json .ipynb Dockerfile` and more, shown with colours), a project
 folder (a path ending in `/`: all its code files), YouTube, Vimeo, and any other link.
+A YouTube link's `t` (or `start`) and `end` (seconds, `1h2m3s` or `1:02:03`) make the lesson play only that piece;
+apps remember the second the learner stopped at, per piece, and start there next time.
 
 **Part of a PDF.** A PDF path may end in `#pages=A-B` (or `#pages=A` for one page), both 1-based and inclusive:
 `media: "book.pdf#pages=12-19"`. The reader shows only those pages and keeps a separate reading position for each

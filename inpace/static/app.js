@@ -294,7 +294,7 @@ document.querySelectorAll(".embed-box").forEach((box) => {
     let el;
     if (box.dataset.embed) {
       el = document.createElement("iframe");
-      el.src = box.dataset.embed;
+      el.src = box.dataset.ytKey ? youtubeSrc(box) : box.dataset.embed;
       el.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
       el.allowFullscreen = true;
       el.referrerPolicy = "strict-origin-when-cross-origin";
@@ -310,8 +310,53 @@ document.querySelectorAll(".embed-box").forEach((box) => {
     wrap.className = el.tagName === "IFRAME" ? "frame-wrap video-ratio" : "";
     wrap.appendChild(el);
     box.replaceWith(wrap);
+    if (box.dataset.ytKey) youtubeRemember(el, box);
   });
+  const restart = box.querySelector("[data-yt-restart]");
+  if (restart) restart.addEventListener("click", () => { box.dataset.resume = "0"; restart.parentElement.hidden = true; btn.click(); });
 });
+
+// YouTube lessons: a lesson can be one piece of a long video (start and end), and it continues from the
+// second you stopped at. The player tells us where it is through its own messages (no extra script).
+function youtubeSrc(box) {
+  const start = +box.dataset.start || 0, end = +box.dataset.end || 0, resume = +box.dataset.resume || 0;
+  const from = resume > start + 5 && (!end || resume < end - 5) ? resume : start;
+  let src = box.dataset.embed + "&origin=" + encodeURIComponent(location.origin);
+  if (from) src += "&start=" + Math.floor(from);
+  if (end) src += "&end=" + Math.floor(end);
+  return src;
+}
+function youtubeRemember(frame, box) {
+  const key = box.dataset.ytKey, end = +box.dataset.end || 0;
+  let now = 0, length = 0, sent = -1;
+  const send = (beacon) => {
+    if (now <= 0 || Math.abs(now - sent) < 1) return;
+    sent = now;
+    const body = new FormData();
+    body.append("key", key); body.append("t", now.toFixed(1)); body.append("d", String(end || length || 0));
+    if (beacon && navigator.sendBeacon) navigator.sendBeacon("/media-pos", body);
+    else fetch("/media-pos", { method: "POST", body, keepalive: true }).catch(() => {});
+  };
+  window.addEventListener("message", (ev) => {
+    if (ev.source !== frame.contentWindow) return;
+    let d = ev.data;
+    try { if (typeof d === "string") d = JSON.parse(d); } catch (e) { return; }
+    const info = d && d.info;
+    if (!info || typeof info !== "object") return;
+    if (typeof info.duration === "number" && info.duration > 0) length = info.duration;
+    if (typeof info.currentTime === "number") {
+      now = info.currentTime;
+      if (Math.abs(now - sent) >= 5) send();
+    }
+    if (info.playerState === 2 || info.playerState === 0) send();  // paused or ended
+  });
+  const hello = () => {
+    try { frame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: key, channel: "widget" }), "*"); } catch (e) {}
+  };
+  frame.addEventListener("load", () => { hello(); setTimeout(hello, 1000); setTimeout(hello, 3000); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) send(true); });
+  window.addEventListener("pagehide", () => send(true));
+}
 
 // Web pages in lessons can go full screen.
 document.querySelectorAll("[data-fullscreen]").forEach((btn) => {
@@ -815,6 +860,10 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
       shown += ok;
     });
     if (none) none.hidden = shown > 0;
+    document.querySelectorAll("[data-folder-box]").forEach((f) => {
+      f.hidden = words.length > 0 && !f.querySelector("[data-course-search]:not([hidden])");
+      if (words.length && !f.hidden) f.querySelector("details").open = true;
+    });
   };
   box.addEventListener("input", run);
   document.querySelectorAll("[data-lib-topic]").forEach((b) => b.addEventListener("click", () => {

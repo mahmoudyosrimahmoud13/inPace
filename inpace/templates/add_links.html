@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ _('A course from links') }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}A course from links{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Paste links to YouTube videos, Udemy lessons or any website. Each link becomes a lesson, and inPace keeps track of what you finished.{% endtrans %}</p>
+</div>
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
+
+<form method="post" class="card stack" data-nav-form>
+  <label>{% trans trimmed %}Course title{% endtrans %}<input name="title" required dir="auto" value="{{ form.title or '' }}" placeholder="{{ _('For example: Networks for beginners') }}" autofocus></label>
+
+  <label>{% trans trimmed %}Links, one per line{% endtrans %}
+    <textarea name="links" rows="11" dir="ltr" required placeholder="https://www.youtube.com/watch?v=...&#10;Lesson 2 | https://youtu.be/...&#10;https://www.udemy.com/course/...">{{ form.links or '' }}</textarea></label>
+
+  <details class="more links-help" open>
+    <summary>{% trans trimmed %}How to write the list{% endtrans %}</summary>
+    <ul class="small">
+      <li>{% trans trimmed %}One link per line. Each one becomes a lesson.{% endtrans %}</li>
+      <li>{% trans trimmed %}To name a lesson yourself, write the name, then | then the link.{% endtrans %}</li>
+      <li>{% trans trimmed %}A line that starts with # starts a new part of the course, for example: # Week 1{% endtrans %}</li>
+      <li>{% trans trimmed %}A long YouTube video: paste its link, then its chapter times under it (copy them from the video's description). Each chapter becomes its own lesson, and only that piece of the video plays.{% endtrans %}</li>
+      <li>{% trans trimmed %}Udemy and other websites open on their own site, because they don't allow playing inside other apps. You still tick them off in inPace.{% endtrans %}</li>
+      <li>{% trans trimmed %}YouTube remembers where you stopped in each lesson.{% endtrans %}</li>
+    </ul>
+    <pre class="links-example" dir="ltr"># Docker
+https://www.youtube.com/watch?v=PrusdhS2lmo
+00:00:30 Introduction to Containers
+00:19:49 Container Architecture
+00:50:14 Introduction to Docker
+# Practice
+Docker on Udemy | https://www.udemy.com/course/...</pre>
+  </details>
+
+  <label class="check"><input type="checkbox" name="fetch_titles" value="1" {{ 'checked' if form.fetch_titles }}> <span>{% trans trimmed %}Get the video titles from YouTube (this goes online){% endtrans %}</span></label>
+
+  <fieldset class="folder-pick">
+    <legend>{% trans trimmed %}Folder (optional){% endtrans %}</legend>
+    <div class="row wrap">
+      {% if folder_list %}<select name="folder" aria-label="{{ _('Folder') }}">
+        <option value="">{% trans trimmed %}No folder{% endtrans %}</option>
+        {% for fd in folder_list %}<option value="{{ fd.id }}" {{ 'selected' if form.folder == fd.id }}>{{ fd.name }}</option>{% endfor %}
+      </select>{% endif %}
+      <input name="new_folder" dir="auto" value="{{ form.new_folder or '' }}" placeholder="{{ _('Or a new folder, for example: Programming languages') }}" aria-label="{{ _('New folder') }}">
+    </div>
+  </fieldset>
+
+  <details class="more">
+    <summary>{% trans trimmed %}More options{% endtrans %}</summary>
+    <div class="stack">
+      <label>{% trans trimmed %}Short description (optional){% endtrans %}<input name="description" dir="auto" value="{{ form.description or '' }}"></label>
+      <label>{% trans trimmed %}Lesson language{% endtrans %}<select name="language"><option value="en">{% trans trimmed %}English (left to right){% endtrans %}</option><option value="ar" {{ 'selected' if form.language == 'ar' or (not form.language and lang == 'ar') }}>{% trans trimmed %}Arabic (right to left){% endtrans %}</option></select></label>
+    </div>
+  </details>
+
+  <button class="btn primary big">{% trans trimmed %}Make the course{% endtrans %}</button>
+</form>
+{% endblock %}

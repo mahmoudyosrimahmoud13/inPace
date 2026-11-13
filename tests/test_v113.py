@@ -109,5 +109,5 @@ def test_ai_sorting_by_copy_paste(tmp_path):
 def test_phone_tabs_and_add_page(tmp_path):
     v, c = client(tmp_path, "Omar")
     page = html.unescape(c.get("/add").text)
-    assert 'class="tabbar"' in page and "A folder on this device" in page and "Write it myself" in page
+    assert 'class="tabbar"' in page and "A folder on this device" in page and "Build it myself" in page and "/edit/new" in page
     assert 'href="/add" class="tab-add on"' in page

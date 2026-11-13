@@ -44,6 +44,7 @@ CODE_NAMES = ("dockerfile", "makefile", "procfile", "jenkinsfile", "vagrantfile"
 MEDIA_EXT = VIDEO_EXT + AUDIO_EXT + HTML_EXT + IMAGE_EXT + DOC_EXT + OFFICE_EXT + CODE_EXT
 _YT = re.compile(r"^https?://(?:www\.|m\.)?(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,15})")
 _VIMEO = re.compile(r"^https?://(?:www\.)?(?:player\.)?vimeo\.com/(?:video/)?(\d{5,12})")
+_YT_LIST = re.compile(r"^https?://(?:www\.|m\.)?youtube\.com/playlist\?(?:.*&)?list=([A-Za-z0-9_-]{10,64})")
 
 
 def is_url(ref: str) -> bool:
@@ -53,7 +54,7 @@ def is_url(ref: str) -> bool:
 def media_kind(ref: str) -> str:
     """video, audio, html, image, pdf, office, youtube, vimeo, link, code, folder, or '' for anything else."""
     ref = (ref or "").strip()
-    if _YT.match(ref):
+    if _YT.match(ref) or _YT_LIST.match(ref):
         return "youtube"
     if _VIMEO.match(ref):
         return "vimeo"
@@ -75,6 +76,46 @@ def media_kind(ref: str) -> str:
 def embed_id(ref: str) -> str:
     m = _YT.match(ref) or _VIMEO.match(ref)
     return m.group(1) if m else ""
+
+
+def youtube_playlist(ref: str) -> str:
+    """The playlist id of a youtube.com/playlist?list=... link, or ''."""
+    m = _YT_LIST.match((ref or "").strip())
+    return m.group(1) if m else ""
+
+
+def clock_seconds(text: str) -> int | None:
+    """'90', '1m30s', '1h2m3s', '1:30' or '1:02:03' -> seconds. None if it isn't a time."""
+    text = (text or "").strip().lower()
+    if re.fullmatch(r"\d{1,6}s?", text):
+        return int(text.rstrip("s"))
+    m = re.fullmatch(r"(?:(\d{1,3})h)?(?:(\d{1,4})m)?(?:(\d{1,5})s)?", text)
+    if m and any(m.groups()):
+        h, mi, se = (int(x or 0) for x in m.groups())
+        return h * 3600 + mi * 60 + se
+    m = re.fullmatch(r"(?:(\d{1,3}):)?(\d{1,2}):(\d{2})", text)
+    if m:
+        return int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
+    return None
+
+
+def youtube_segment(ref: str) -> tuple[int, int | None]:
+    """Where a YouTube link starts and stops: ...watch?v=ID&t=1189&end=3014 -> (1189, 3014).
+    t, start and #t= set the start; end sets the stop. A lesson can be one piece of a long video."""
+    from urllib.parse import parse_qs, urlsplit
+    parts = urlsplit((ref or "").strip())
+    q = parse_qs(parts.query)
+    frag = parse_qs(parts.fragment)
+    start = None
+    for key in ("t", "start"):
+        for src in (q, frag):
+            if key in src and start is None:
+                start = clock_seconds(src[key][0])
+    end = clock_seconds(q["end"][0]) if "end" in q else None
+    start = start or 0
+    if end is not None and end <= start:
+        end = None
+    return start, end
 
 
 def parse_downloads(raw) -> list[dict]:

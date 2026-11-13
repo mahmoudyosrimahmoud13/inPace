@@ -21,7 +21,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, checks, clock, editor, encourage, exchange, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
+from . import ai, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, organize, pace, races, record, reminders, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -697,6 +697,86 @@ def create_app(vault: Vault) -> Starlette:
         return go("/?tour=1")
 
     # ---- courses ---------------------------------------------------------------
+    # ---- the course builder: a whole course on one page ----------------------------------------------
+    async def build_page(request: Request):
+        import secrets
+        cid = request.path_params.get("cid", "")
+        data = None
+        if cid:
+            c = V.get_course(cid)
+            if not c:
+                return go("/courses", err="That course isn't installed.")
+            data = builder.to_page(c)
+        fdata = folders.load(V)
+        return page("builder.html", request, data_json=json.dumps(data, ensure_ascii=False).replace("<", "\\u003c"),
+                    draft="" if cid else secrets.token_hex(8), cid=cid, folder_list=fdata["folders"],
+                    folder_now=fdata["of"].get(cid, "") if cid else "", lang=V._meta("lang", "en") or "en")
+
+    def _build_draft_dir(token: str) -> Path | None:
+        return _drafts() / f"build-{token}" if re.fullmatch(r"[0-9a-f]{16}", token or "") else None
+
+    async def build_save(request: Request):
+        try:
+            data = await request.json()
+        except ValueError:
+            return JSONResponse({"ok": False, "problems": [say("Something went wrong. Try again.")]}, status_code=400)
+        if not isinstance(data, dict):
+            return JSONResponse({"ok": False, "problems": [say("Something went wrong. Try again.")]}, status_code=400)
+        try:
+            c = builder.save(V, data, _build_draft_dir(str(data.get("draft", ""))))
+        except CourseError as e:
+            return JSONResponse({"ok": False, "problems": [say(p) for p in e.problems]})
+        fid = str(data.get("folder", ""))
+        if str(data.get("new_folder", "")).strip():
+            fid = folders.create(V, str(data["new_folder"]))
+        if "folder" in data or fid:
+            folders.move(V, c.id, fid)
+        return JSONResponse({"ok": True, "cid": c.id, "data": builder.to_page(c), "folder": fid})
+
+    async def build_upload(request: Request):
+        """Files picked in the builder: copied into the course (or a draft folder until the course is saved)."""
+        form = await request.form()
+        cid = str(form.get("cid", ""))
+        if cid:
+            if not V.get_course(cid):
+                return JSONResponse({"ok": False}, status_code=404)
+            folder = V.media_dir(cid) / builder.UPLOAD_DIR
+        else:
+            folder = _build_draft_dir(str(form.get("draft", "")))
+            if not folder:
+                return JSONResponse({"ok": False}, status_code=400)
+        out = []
+        from .course import _nice_title
+        for up in form.getlist("files"):
+            if not getattr(up, "filename", ""):
+                continue
+            name = builder.safe_name(up.filename)
+            if not _media_kind(name) or _media_kind(name) in ("link", "folder"):
+                out.append({"ok": False, "name": name, "problem": say("inPace can't show this kind of file: %s", [name])})
+                continue
+            dst = builder.unique_path(folder, name)
+            with open(dst, "wb") as f:
+                while chunk := await up.read(4 * 1024 * 1024):
+                    f.write(chunk)
+            out.append({"ok": True, "media": f"{builder.UPLOAD_DIR}/{dst.name}", "title": _nice_title(dst.name),
+                        "kind": _media_kind(dst.name)})
+        return JSONResponse({"ok": True, "files": out})
+
+    async def build_links(request: Request):
+        """Links typed or pasted in the builder, read the same way as on the "course from links" page."""
+        try:
+            data = await request.json()
+        except ValueError:
+            data = {}
+        from starlette.concurrency import run_in_threadpool
+        try:
+            groups = await run_in_threadpool(editor.parse_link_lines, str(data.get("text", "")), bool(data.get("fetch")))
+        except CourseError as e:
+            return JSONResponse({"ok": False, "problems": [say(p) for p in e.problems]})
+        lessons = [{"title": les["title"], "media": les["media"], "minutes": int(les.get("minutes") or 0),
+                    "kind": _media_kind(les["media"])} for _, ls in groups for les in ls]
+        return JSONResponse({"ok": True, "lessons": lessons})
+
     async def courses(request: Request):
         installed = V.courses()
         have = {c.id for c in installed}
@@ -724,7 +804,68 @@ def create_app(vault: Vault) -> Starlette:
                          "media_root": V.media_root(c.id)})
         # Courses you're in the middle of first, then ones not started, then finished ones.
         rows.sort(key=lambda r: 2 if r["finished"] else (0 if r["journey"] else 1))
-        return page("courses.html", request, rows=rows, samples=samples)
+        fdata = folders.load(V)
+        return page("courses.html", request, rows=rows, samples=samples, groups=folders.group(V, rows),
+                    folder_list=fdata["folders"], folder_of=fdata["of"])
+
+    # ---- folders on My courses ------------------------------------------------
+    async def folder_new(request: Request):
+        f = await request.form()
+        fid = folders.create(V, str(f.get("name", "")))
+        if not fid:
+            return go("/courses", err="Give the folder a name.")
+        cid = str(f.get("course", ""))
+        if cid and V.get_course(cid):
+            folders.move(V, cid, fid)
+        return go(f"/courses#folder-{fid}", ok="Folder ready.")
+
+    async def folder_rename(request: Request):
+        f = await request.form()
+        fid = request.path_params["fid"]
+        if not folders.rename(V, fid, str(f.get("name", ""))):
+            return go("/courses", err="Give the folder a name.")
+        return go(f"/courses#folder-{fid}", ok="Folder renamed.")
+
+    async def folder_delete(request: Request):
+        folders.delete(V, request.path_params["fid"])
+        return go("/courses", ok="Folder deleted. Its courses are still here, under Not in a folder.")
+
+    async def course_folder(request: Request):
+        cid = request.path_params["cid"]
+        if not V.get_course(cid):
+            return go("/courses", err="That course isn't installed.")
+        f = await request.form()
+        fid = str(f.get("folder", ""))
+        if str(f.get("new_name", "")).strip():
+            fid = folders.create(V, str(f.get("new_name", "")))
+        folders.move(V, cid, fid)
+        return go(f"/courses#folder-{fid}" if fid else "/courses", ok="Moved.")
+
+    async def add_links(request: Request):
+        """A course from links: YouTube videos (a long one can be cut at its chapters), Udemy or any website."""
+        lang = V._meta("lang", "en") or "en"
+        flist = folders.load(V)["folders"]
+        if request.method == "POST":
+            f = await request.form()
+            form = {k: str(v) for k, v in f.items()}
+            try:
+                if not form.get("links", "").strip():
+                    raise CourseError(["Paste at least one link."])
+                from starlette.concurrency import run_in_threadpool
+                c = await run_in_threadpool(
+                    editor.new_course, V, form.get("title", ""), form.get("description", ""), "", "", "",
+                    form["links"], form.get("language", "en"), bool(form.get("fetch_titles")))
+            except CourseError as e:
+                return page("add_links.html", request, problems=e.problems, form=form, folder_list=flist, lang=lang)
+            fid = form.get("folder", "")
+            if form.get("new_folder", "").strip():
+                fid = folders.create(V, form["new_folder"])
+            if fid:
+                folders.move(V, c.id, fid)
+            return go(f"/courses#folder-{fid}" if fid else "/courses",
+                      ok="Course added. Press it to start, or open More, then Edit to add tasks and questions.")
+        return page("add_links.html", request, form={"fetch_titles": "1"}, folder_list=flist, lang=lang,
+                    problems=None)
 
     # ---- the course library ---------------------------------------------------
     async def library_page(request: Request):
@@ -1368,6 +1509,7 @@ def create_app(vault: Vault) -> Starlette:
             V.archive_course(cid)
         else:
             V.delete_course(cid)
+            folders.forget(V, cid)
         return go("/courses", ok=f"Deleted “{c.title}”.")
 
     # ---- updating a course to a newer version ---------------------------------
@@ -3073,6 +3215,16 @@ def create_app(vault: Vault) -> Starlette:
         Route("/reminders/plan.json", needs_setup(reminders_plan)),
         Route("/reminders/test", needs_setup(reminders_test), methods=["POST"]),
         Route("/add/folder", needs_setup(add_folder)),
+        Route("/add/links", needs_setup(add_links), methods=["GET", "POST"]),
+        Route("/build", needs_setup(build_page)),
+        Route("/build/save", needs_setup(build_save), methods=["POST"]),
+        Route("/build/upload", needs_setup(build_upload), methods=["POST"]),
+        Route("/build/links", needs_setup(build_links), methods=["POST"]),
+        Route("/build/{cid}", needs_setup(build_page)),
+        Route("/folders/new", needs_setup(folder_new), methods=["POST"]),
+        Route("/folders/{fid}/rename", needs_setup(folder_rename), methods=["POST"]),
+        Route("/folders/{fid}/delete", needs_setup(folder_delete), methods=["POST"]),
+        Route("/courses/{cid}/folder", needs_setup(course_folder), methods=["POST"]),
         Route("/add/files", needs_setup(add_files), methods=["GET", "POST"]),
         Route("/add/book", needs_setup(add_book), methods=["GET", "POST"]),
         Route("/add/organize", needs_setup(add_organize), methods=["GET", "POST"]),

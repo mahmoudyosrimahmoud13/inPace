@@ -102,47 +102,90 @@ def youtube_title(url: str) -> str:
     import urllib.request
     try:
         q = "https://www.youtube.com/oembed?format=json&url=" + urllib.parse.quote(url, safe="")
-        with urllib.request.urlopen(urllib.request.Request(q, headers={"User-Agent": "inPace"}), timeout=8) as r:
+        from .net import urlopen
+        with urlopen(urllib.request.Request(q, headers={"User-Agent": "inPace"}), timeout=8) as r:
             return str(json.loads(r.read().decode("utf-8")).get("title") or "")[:150]
     except Exception:
         return ""
 
 
+_CHAPTER = re.compile(r"^[\(\[]?((?:\d{1,2}:)?\d{1,2}:\d{2})[\)\]]?\s*(?:[-–—:|.]\s*)?(.*)$")
+
+
 def parse_link_lines(text: str, fetch_titles: bool = False) -> list:
     """One lesson per line:  link   or   Title | link   or   a file path.
     A line starting with '#' starts a new module:  # Module title
+    Time lines under a YouTube link split that video into lessons, one per chapter:
+        https://www.youtube.com/watch?v=...
+        00:00 Intro
+        12:30 Installing
+    Links to Udemy or any other site become lessons that open the page.
     Returns [(module title or None, [lesson, ...]), ...]."""
-    from .course import is_url, local_ref, media_kind
+    from .course import _nice_title, clock_seconds, embed_id, is_url, local_ref, media_kind, youtube_segment
     groups: list = [[None, []]]
+    last_video = None  # the YouTube lesson that time lines belong to
     for raw in text.splitlines():
-        line = raw.strip()
+        line = raw.strip().replace("\u200f", "").replace("\u200e", "")
         if not line:
+            continue
+        chap = _CHAPTER.match(line)
+        if chap and not is_url(line):
+            if last_video is None:
+                raise CourseError([f"This time line needs a YouTube link above it: {line[:80]}"])
+            sec = clock_seconds(chap.group(1))
+            last_video["chapters"].append((sec, chap.group(2).strip() or chap.group(1)))
             continue
         if line.startswith("#"):
             groups.append([line.lstrip("#").strip() or "Module", []])
+            last_video = None
             continue
         title, _, ref = line.rpartition("|") if "|" in line else ("", "", line)
         ref, title = ref.strip().strip('"').strip("<>"), title.strip()
+        if not is_url(ref) and " http" in ref:  # "Title https://..." without the |
+            title, ref = ref.rsplit(" http", 1)[0].strip(" -–:"), "http" + ref.rsplit(" http", 1)[1]
         if not (is_url(ref) or (local_ref(ref) and media_kind(ref))):
             raise CourseError([f"This line isn't a link or a file inPace can show: {line[:80]}"])
+        kind = media_kind(ref)
         if not title:
-            if fetch_titles and media_kind(ref) in ("youtube", "vimeo"):
-                title = youtube_title(ref) if media_kind(ref) == "youtube" else ""
-            if not title:
-                from .course import _nice_title
-                title = _nice_title(ref.rstrip("/").rsplit("/", 1)[-1]) if not is_url(ref) else ""
-        groups[-1][1].append({"title": title, "media": ref.replace("\\", "/")})
-    return [g for g in groups if g[1]]
+            if fetch_titles and kind in ("youtube", "vimeo"):
+                title = youtube_title(ref) if kind == "youtube" else ""
+            if not title and not is_url(ref):
+                title = _nice_title(ref.rstrip("/").rsplit("/", 1)[-1])
+        lesson = {"title": title, "media": ref.replace("\\", "/"), "chapters": []}
+        groups[-1][1].append(lesson)
+        last_video = lesson if kind == "youtube" and embed_id(ref) else None
+    out = []
+    for mtitle, lessons in groups:
+        flat = []
+        for les in lessons:
+            chapters = sorted(les.pop("chapters"))
+            if not chapters:
+                flat.append(les)
+                continue
+            vid = embed_id(les["media"])
+            first, _ = youtube_segment(les["media"])
+            for i, (sec, name) in enumerate(chapters):
+                nxt = chapters[i + 1][0] if i + 1 < len(chapters) else None
+                if nxt is not None and nxt <= sec:
+                    continue
+                url = f"https://www.youtube.com/watch?v={vid}&t={sec}" + (f"&end={nxt}" if nxt else "")
+                flat.append({"title": name[:150], "media": url, "minutes": round((nxt - sec) / 60) if nxt else 0})
+        if flat:
+            out.append((mtitle, flat))
+    return out
 
 
 def modules_from_links(text: str, fetch_titles: bool, first_title: str = "Module 1", start: int = 1) -> list:
+    from .course import media_kind
     out = []
     for gi, (mtitle, lessons) in enumerate(parse_link_lines(text, fetch_titles)):
         mid = f"m{start + gi}"
         les = []
         for li, l in enumerate(lessons, start=1):
-            les.append({"id": f"{mid}-l{li}", "title": l["title"] or f"Video {li}", "content": "", "minutes": 0,
-                        "media": l["media"]})
+            kind = media_kind(l["media"])
+            fallback = f"Video {li}" if kind in ("youtube", "vimeo", "video") else f"Lesson {li}"
+            les.append({"id": f"{mid}-l{li}", "title": l["title"] or fallback, "content": "",
+                        "minutes": int(l.get("minutes") or 0), "media": l["media"]})
         out.append({"id": mid, "title": mtitle or (first_title if gi == 0 else f"Module {start + gi}"),
                     "lessons": les, "requires": []})
     if not out:
