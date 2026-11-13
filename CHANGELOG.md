@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.19.1
+
+- **Tests that pass on every machine.** The new offline-video tests no longer depend on the computer they run on: they don't use the real disk space, wait longer for background downloads on slow machines, build the stand-in downloader the way real zip apps are built, and clean up after themselves so they can run in any order.
+- **The guide, the website and How it works** now explain watching YouTube lessons offline: downloading in the quality you choose, where the videos are saved, matching videos you already have, the space check, and that sharing and backups never carry the videos.
+
 ## v1.19.0
 
 - **Watch YouTube lessons offline.** A course with YouTube videos now has a **Watch offline** box on its page.

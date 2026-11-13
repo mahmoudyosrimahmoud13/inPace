@@ -27,6 +27,24 @@ Networking for beginners | https://youtu.be/qiQR5rTSshw
 """
 
 
+@pytest.fixture(autouse=True)
+def clean_up():
+    """After each test: let background downloads end, and forget any stand-in yt-dlp, so tests never affect
+    each other (whatever order they run in, on any machine)."""
+    import sys
+    yield
+    for job in offline.JOBS.values():
+        job["stop"] = True
+    end = time.time() + 30
+    while any(j.get("state") == "running" for j in offline.JOBS.values()) and time.time() < end:
+        time.sleep(0.05)
+    offline.JOBS.clear()
+    for entry in [e for e in sys.path if e.endswith("yt-dlp.zip")]:
+        sys.path.remove(entry)
+        offline._purge(Path(entry))
+    offline._purge()
+
+
 def app(tmp_path):
     v = Vault(tmp_path / "me")
     c = TestClient(create_app(v))
@@ -120,11 +138,25 @@ def test_mp4_length_is_read_from_the_header(tmp_path):
 
 # ---- getting and updating yt-dlp ------------------------------------------------------------------------------
 def fake_tool(ver: str, module: str = "") -> bytes:
+    """A stand-in for the yt-dlp file: a zip app, built like the real one (the first line, then the zip,
+    with the zip's own offsets counted from the start of the file)."""
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as z:
+    buf.write(b"#!/usr/bin/env python3\n")
+    with zipfile.ZipFile(buf, "a") as z:
         z.writestr("yt_dlp/__init__.py", module or "class YoutubeDL: pass\n")
         z.writestr("yt_dlp/version.py", f"__version__ = '{ver}'\n")
-    return b"#!/usr/bin/env python3\n" + buf.getvalue()
+    return buf.getvalue()
+
+
+def wait_for(course_id: str, seconds: float = 30) -> dict:
+    """Wait for a background download to finish (CI machines can be slow)."""
+    end = time.time() + seconds
+    while time.time() < end:
+        job = offline.JOBS.get(course_id) or {}
+        if job.get("state") != "running":
+            return job
+        time.sleep(0.05)
+    raise AssertionError("the download didn't finish in time")
 
 
 def fetcher(data: bytes, wrong_sum: bool = False):
@@ -211,7 +243,8 @@ def home(tmp_path, monkeypatch):
     return h
 
 
-def test_download_a_course(tmp_path, home):
+def test_download_a_course(tmp_path, home, monkeypatch):
+    monkeypatch.setattr(offline, "free_space", lambda folder: 500 * 1024 ** 3)  # plenty, whatever the machine has
     v, c = app(tmp_path)
     course, jid = course_with_videos(v, c)
     offline.tool_path(v.home).parent.mkdir(parents=True)
@@ -222,11 +255,8 @@ def test_download_a_course(tmp_path, home):
     assert '<option value="1080"' in page and "Best available" in page
     c.post(f"/courses/{course.id}/offline/download", data={"quality": "480"})
     assert offline.JOBS[course.id]["quality"] == "480" and v._meta(f"ytdlp_quality:{course.id}") == "480"
-    for _ in range(100):
-        st = c.get(f"/courses/{course.id}/offline/status").json()
-        if st["job"].get("state") != "running":
-            break
-        time.sleep(0.05)
+    wait_for(course.id)
+    st = c.get(f"/courses/{course.id}/offline/status").json()
     assert st["job"]["state"] == "partly" and st["have"] == 2 and st["total"] == 3
     assert "Video unavailable" in st["job"]["failed"][0]["why"]
     p = offline.local_file(v, course.id, "PrusdhS2lmo")
@@ -332,8 +362,6 @@ def test_an_update_is_used_without_restarting(tmp_path):
     assert offline.load(tmp_path).WHICH == "old"
     offline.update_tool(tmp_path, fetcher(fake_tool("2", "WHICH = 'new, and longer than before'\n")))
     assert offline.load(tmp_path).WHICH == "new, and longer than before"
-    sys.path.remove(str(offline.tool_path(tmp_path)))
-    offline._purge(offline.tool_path(tmp_path))
 
 
 def test_quality_choices_make_valid_formats(monkeypatch):
@@ -377,16 +405,14 @@ def test_where_videos_are_saved(tmp_path, home, monkeypatch):
 
 
 def test_unwritable_folder_falls_back_and_says_so(tmp_path, home, monkeypatch):
+    monkeypatch.setattr(offline, "free_space", lambda folder: 500 * 1024 ** 3)
     v, c = app(tmp_path)
     course, jid = course_with_videos(v, c)
     offline.tool_path(v.home).parent.mkdir(parents=True)
     offline.tool_path(v.home).write_bytes(fake_tool("2026.03.03", FAKE_YTDLP))
     monkeypatch.setattr(offline, "_writable", lambda folder: False)
     c.post(f"/courses/{course.id}/offline/download")
-    for _ in range(100):
-        if offline.JOBS[course.id]["state"] != "running":
-            break
-        time.sleep(0.05)
+    wait_for(course.id)
     assert offline.local_file(v, course.id, "X48VuDVv0do").parent == v.media_dir(course.id) / "videos"
     assert "couldn't save to" in html.unescape(c.get(f"/learn/{jid}").text)
     offline.JOBS.clear()
@@ -407,6 +433,7 @@ def test_space_is_checked_before_downloading(tmp_path, home, monkeypatch):
     course, jid = course_with_videos(v, c)
     need = offline.space_needed(v, course)
     assert need["1080"] > need["720"] > need["360"] > 0
+    monkeypatch.setattr(offline, "free_space", lambda folder: 500 * 1024 ** 3)
     page = html.unescape(c.get(f"/learn/{jid}").text)
     assert "free where the videos are saved" in page and "Not enough space." not in page
     monkeypatch.setattr(offline, "free_space", lambda folder: 50 * 1024 * 1024)  # 50 MB left
@@ -424,10 +451,7 @@ def test_download_stops_when_the_disk_fills(tmp_path, home, monkeypatch):
     offline.tool_path(v.home).write_bytes(fake_tool("2026.03.03", FAKE_YTDLP))
     monkeypatch.setattr(offline, "free_space", lambda folder: 10 * 1024 * 1024)
     c.post(f"/courses/{course.id}/offline/download", data={"anyway": "1"})
-    for _ in range(100):
-        if offline.JOBS[course.id]["state"] != "running":
-            break
-        time.sleep(0.05)
+    wait_for(course.id)
     job = offline.JOBS[course.id]
     assert job["state"] == "failed" and "almost full" in job["error"]
     assert offline.status(v, course)["have"] == 0

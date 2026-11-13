@@ -50,11 +50,12 @@ inPace/
   outbox/           progress files, cards and replies you made, ready to send
   received_files/   files a learner sent you when you asked to see their work
   updates/          downloaded app updates
+  tools/yt-dlp.zip  the video downloader for offline YouTube lessons, once you use it
   running.json      which port the running copy uses
 ```
 
 - **History is append-only.** inPace never edits or deletes past events in `vault.db`. It only adds new ones. That's what makes the history trustworthy.
-- **Backups** (Settings → Backups) put this whole folder into one password-protected file that you can restore on any computer.
+- **Backups** (Settings → Backups) put this whole folder into one password-protected file that you can restore on any computer. They leave out `tools/`, downloaded YouTube videos and any file over 50 MB, so they stay small.
 
 ---
 
@@ -124,9 +125,18 @@ Every file is served by the local server under `/m/<course>/<path>`. That keeps 
 | Word, PowerPoint, Excel | A light, read-only preview made inside inPace (`office.py`): headings, lists, tables and pictures; slides in order; each sheet as a table (up to 500 rows and 40 columns). It reads the file's XML with Python's own tools, refuses files that try XML tricks, and caps sizes. A button downloads the file to open in its own app. |
 | Code | Coloured code with a Copy button. A project folder shows all its code files. |
 | Web page (HTML) | Runs in a locked box (a sandbox), so it can't touch the rest of the app. |
-| YouTube, Vimeo | Loads only when you press play, using YouTube's privacy-enhanced mode (youtube-nocookie). Nothing is fetched before you press play. |
+| YouTube, Vimeo | Loads only when you press play, using YouTube's privacy-enhanced mode (youtube-nocookie). Nothing is fetched before you press play. A YouTube video that has a copy on this device plays that copy instead (see below). |
 | Other links | A normal link that opens in your browser. |
 | Diagram | A code block marked `mermaid` in the lesson text is drawn as a diagram by [Mermaid](https://mermaid.js.org/) 10 (bundled in `static/mermaid`, works offline, loaded only on pages that have a diagram). It follows light or dark mode, and has zoom, Fit and Full screen (drag to move around, two-finger pinch, Ctrl + wheel). A diagram with a mistake shows its text and a short note. |
+
+**YouTube lessons offline** (`offline.py`, v1.19). A course's YouTube videos can be kept on the device, two ways:
+
+- **Download them.** inPace uses [yt-dlp](https://github.com/yt-dlp/yt-dlp). It fetches the yt-dlp zip app from yt-dlp's latest GitHub release into `<data folder>/tools/yt-dlp.zip`, checks it against the release's `SHA2-256SUMS`, and imports it from there (no install, works in the packaged apps and on Android). By default it looks for a newer copy once a day; **Settings → Video downloads** can make that manual. Downloads run in a background thread, one video at a time, with a progress bar on the course page. Without ffmpeg only single-file formats are used (usually up to 720p); with ffmpeg it can merge separate video and sound up to 1080p.
+- **Point to files you already have.** inPace lists the video files in the folder and scores each file against each video: words in common after cleaning both names the same way (lower case, Arabic letter forms unified, marks removed, numbering and quality tags like `(720p)` ignored, small typos allowed), the lesson number, the YouTube id when the file name has it, and the length (read from the MP4 header, or with ffprobe). Each file is used once, best matches first. The person sees every match, marked Sure or Please check, and saves.
+
+Where downloads go: `Downloads/inPace/<course name>/` by default (on Android `/storage/emulated/0/Download/inPace/...`). Settings can choose the Videos folder, inPace's own folder or any folder, and each course can have its own folder and folder name. If the folder can't be written, inPace uses its own folder and says so. Before a download starts, inPace estimates the space each quality needs (from the videos' lengths) and compares it with the free space; it refuses if it won't fit (unless you tick **Download anyway**), always leaves 300 MB free, and stops safely if the disk fills during a download.
+
+The lesson then uses inPace's player on `/yt/<course>/<video id>`, still playing only the lesson's own piece (`t=` to `end=`), and saves the position under the same key as the YouTube player, so you continue from the same second either way. inPace remembers which files it downloaded itself: **Delete downloaded videos** deletes only those, never files you pointed it to. Shared course files and backups never carry these videos.
 
 **Arabic and English in one lesson.** When a lesson is drawn (`text_dir` in `app.py`), each paragraph, heading, list, list item, quote and table cell gets its own direction from the words it mostly has (Arabic words against Latin words; code and links don't count). Lists have room on both sides so every bullet fits, and inline code is always left to right inside a right-to-left line. This is the same in both languages of the app, because it depends on the lesson, not on the interface.
 
@@ -334,6 +344,7 @@ Only for things you turn on or press:
 - Opening the **Course library**, adding a course from it, or loading course pictures there.
 - Opening an online video you pressed play on.
 - Looking up YouTube titles when you paste links, if you tick that box.
+- Downloading YouTube videos for offline (through yt-dlp), getting yt-dlp the first time, and checking for a newer yt-dlp once a day if automatic updates for it are on (**Settings → Video downloads**).
 - A share button you click for Telegram, WhatsApp or email. That opens that app with your message ready.
 - Opening an inPace link shows the inPace website first. The data after `#` stays in your browser.
 
