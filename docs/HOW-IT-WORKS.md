@@ -380,7 +380,7 @@ The phone app is the full inPace, not a smaller copy. The same Python code, page
 4. The pages know they're on a phone (`INPACE_MOBILE=android`), so they hide things that only make sense on a computer, like the update bar and the **Quit** button.
 
 **Starting fast** (v1.21). What used to slow the start down, and what's done about it:
-- **Compiled code.** On Android, Python imports its libraries straight from zip files and can't save compiled `.pyc` copies there, so it compiled every module on every start. The build now packages the code already compiled (`--compile-app --compile-packages` for serious_python, used when the packager supports them), with Python 3.12 on the build machine to match the phone.
+- **Plain code on phones.** 1.21 tried shipping the code already compiled (`--compile-app --compile-packages` for serious_python), but on phones Python couldn't start with it, so since 1.22.2 the app is packed as plain files again, like 1.20. If Python fails while starting, `mobile/app/src/main.py` writes the reason to `<data folder>/start-error.txt`, and the Flutter error screen shows it.
 - **Compiled templates.** Jinja turns each page template into Python the first time it's used. The compiled templates are kept in `<data folder>/cache/templates` (`FileSystemBytecodeCache`); Jinja checks each template's source, so a new version never uses an old copy. (All 47 templates: 0.8 s compiled, 0.01 s from the cache, on a computer.)
 - **Less to load at start.** The Markdown renderer is created the first time a lesson needs it.
 - **In parallel.** The web view (which loads the browser engine) is created while Python starts; notifications are set up while the splash shows, not before it.

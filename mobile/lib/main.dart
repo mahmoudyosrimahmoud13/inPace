@@ -333,10 +333,16 @@ class _ShellState extends State<Shell> {
         if (ext != null && i > 0) storage = ext.path.substring(0, i);
       } catch (_) {}
       _port = await _freePort();
+      // If Python fails while starting, main.py writes why to this file, and the error screen shows it.
+      _errorFile = File('${data.path}/inPace/start-error.txt');
+      try {
+        if (await _errorFile!.exists()) await _errorFile!.delete();
+      } catch (_) {}
       // Python runs on its own thread for as long as the app is open.
-      // No file name: the runner picks main.pyc (the build ships compiled code) or main.py, whichever is there.
-      // Naming main.py here broke 1.21 and 1.22, because the compiled build has no main.py.
+      // The build ships the plain main.py, exactly like 1.20 (1.21 and 1.22 shipped compiled-only code without it,
+      // and Python couldn't start).
       SeriousPython.run(
+        appFileName: 'main.py',
         environmentVariables: {
           'INPACE_HOME': '${data.path}/inPace',
           'INPACE_PORT': '$_port',
@@ -367,17 +373,34 @@ class _ShellState extends State<Shell> {
     }
   }
 
+  File? _errorFile;
+
+  Future<String> _pythonError() async {
+    try {
+      final f = _errorFile;
+      if (f != null && await f.exists()) {
+        final text = (await f.readAsString()).trim();
+        final lines = text.split('\n');
+        return lines.length > 25 ? lines.sublist(lines.length - 25).join('\n') : text;
+      }
+    } catch (_) {}
+    return '';
+  }
+
   Future<void> _waitUntilUp() async {
-    final deadline = DateTime.now().add(const Duration(seconds: 60));
+    // A phone can be slow right after an update (the app unpacks itself first), so wait up to two minutes.
+    final deadline = DateTime.now().add(const Duration(seconds: 120));
     while (DateTime.now().isBefore(deadline)) {
       try {
-        final r = await http.get(Uri.parse('${_base}ping')).timeout(const Duration(seconds: 1));
+        final r = await http.get(Uri.parse('${_base}ping')).timeout(const Duration(seconds: 3));
         if (r.statusCode == 200) return;
       } catch (_) {}
-      // Ask often: until Python listens, each try fails at once, so this costs nothing and saves up to 250 ms.
-      await Future.delayed(const Duration(milliseconds: 50));
+      final why = await _pythonError();
+      if (why.isNotEmpty) throw Exception('Python stopped while starting:\n$why');
+      await Future.delayed(const Duration(milliseconds: 100));
     }
-    throw Exception('inPace took too long to start.');
+    final why = await _pythonError();
+    throw Exception('inPace took too long to start.${why.isEmpty ? '' : '\n$why'}');
   }
 
   // inpace://open/<data> links from chats, email or the website.
@@ -621,7 +644,7 @@ class _ShellState extends State<Shell> {
     if (_problem != null) {
       return Scaffold(
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Text('inPace could not start', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),

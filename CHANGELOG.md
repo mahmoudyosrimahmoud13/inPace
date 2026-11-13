@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.22.2
+
+- **Fixed for real: the phone app starts again.** 1.21 to 1.22.1 packed the app's Python code in compiled-only form to start faster, and on phones Python couldn't start with it. The phone app is now packed exactly like 1.20, which works. It starts about a second slower than 1.21 was meant to, and it starts.
+- **If the phone app can't start, it now says why.** Python writes the reason to a file in the app's folder, and the "inPace could not start" screen shows it (and it scrolls), instead of only "took too long". It also waits up to two minutes, because a phone right after an update can be slow.
+
 ## v1.22.1
 
 - **Fixed: the phone app didn't start in 1.21 and 1.22** ("inPace could not start: inPace took too long to start"). The faster build ships Python's code already compiled and removed the plain `main.py` file, but the app still asked to start `main.py`, so Python never started. The app now starts whichever file is there, and the build keeps the plain files too. Your courses and progress were never touched: update and it opens as before.

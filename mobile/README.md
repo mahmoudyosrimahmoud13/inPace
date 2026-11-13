@@ -24,10 +24,10 @@ How the app works (start-up, data folder, files, links, permissions, updates): s
 [How inPace works → On Android](../docs/HOW-IT-WORKS.md#13-on-android). Screenshots are on the
 [website](https://mahmoudyosrimahmoud13.github.io/inPace/#phone).
 
-**Fast start:** the build packages Python's code already compiled (`.pyc`), using whichever of `--compile-app`,
-`--compile-packages` and `--cleanup` the serious_python packager offers. GitHub builds with Python 3.12, the same
-version as the phone. **Settings → Where your data lives → Show details** on the phone shows how long the last
-start took.
+**Packaging:** the build packs Python's code as plain files, like 1.20. Don't add `--compile-app`,
+`--compile-packages` or `--cleanup` without testing on a real phone: 1.21 to 1.22.1 used them and the app couldn't
+start. If Python fails while starting, it writes why to `start-error.txt` in the app's folder and the error screen
+shows it. **Settings → Where your data lives → Show details** on the phone shows how long the last start took.
 
 The Android project files (`android/`) aren't kept in git. GitHub makes them fresh with `flutter create` on every
 build, and `tools/prepare_android.py` adjusts them.

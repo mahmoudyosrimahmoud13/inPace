@@ -30,17 +30,9 @@ fi
 dart run flutter_native_splash:create
 
 echo "== 4. Python and its libraries for Android"
-# Ship the code already compiled (.pyc). On a phone Python reads its libraries straight from a zip and can't save
-# compiled copies, so without this it compiles every module again on every start (1 to 2 seconds on a
-# mid-range phone). Only the options this version of the packager knows are used, so the build never breaks.
-PACK_FLAGS=()
-HELP=$(dart run serious_python:main package --help 2>&1 || true)
-# Never --cleanup: it deletes the .py files (main.py too), and the app must keep working whatever the runner looks for.
-for flag in --compile-app --compile-packages; do
-  if grep -q -- "$flag" <<<"$HELP"; then PACK_FLAGS+=("$flag"); fi
-done
-echo "Packaging with: ${PACK_FLAGS[*]:-(no extra options)}"
-dart run serious_python:main package app/src -p Android "${PACK_FLAGS[@]}" -r -r -r app/src/requirements.txt
+# Plain packaging, exactly like 1.20 (which works on phones). 1.21 and 1.22 shipped compiled-only code and the
+# phone app couldn't start: don't add --compile-app, --compile-packages or --cleanup again without testing on a phone.
+dart run serious_python:main package app/src -p Android -r -r -r app/src/requirements.txt
 
 echo "== 5. The APKs"
 # Same version as inPace itself. The build number must grow with every release, or Android refuses the update.
