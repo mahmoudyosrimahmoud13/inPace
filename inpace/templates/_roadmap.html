@@ -1,0 +1,42 @@
+{# Roadmap pieces shared by the Roadmaps page, the library and Home (v1.24). #}
+
+{% macro dots(st) %}
+<ol class="rm-dots" aria-hidden="true">{% for s in st.steps %}<li class="{{ s.state }}{{ ' here' if st.current and s.n == st.current.n }}{{ ' opt' if s.optional }}" title="{{ s.n }}. {{ s.title }}">{% if s.state == 'done' %}✓{% else %}{{ s.n }}{% endif %}</li>{% endfor %}<li class="harbour">⚓</li></ol>
+{% endmacro %}
+
+{% macro hours_text(minutes) %}{% if minutes and minutes < 90 %}{{ T('{n} min of lessons', n=minutes) }}{% elif minutes %}{{ T('about {n} h of lessons', n=(minutes / 60)|round|int) }}{% endif %}{% endmacro %}
+
+{# A library roadmap you could follow. titles: course id → title, from the library's list. #}
+{% macro lib_card(r, titles, followed=False) %}
+<article class="lib-card rm-lib-card" id="rm-{{ r.id }}" data-course-search="{{ (r.title ~ ' ' ~ r.description ~ ' ' ~ r.tags|join(' ') ~ ' ' ~ r.author)|lower }}" data-tags="{{ r.tags|join('|') }}">
+  <a class="rm-lib-top" href="/roadmaps/{{ r.id }}" tabindex="-1" aria-hidden="true">
+    <span class="rm-lib-icon">{{ icon('route', 30) }}</span>
+    <span class="rm-lib-count">{{ T('{n} courses', n=r.steps|length) }}</span>
+  </a>
+  <div class="lib-body">
+    <h3 dir="auto"><a href="/roadmaps/{{ r.id }}">{{ r.title }}</a></h3>
+    <ul class="lib-facts">
+      {% if r.minutes %}<li>{{ icon('clock', 15) }}{{ hours_text(r.minutes) }}</li>{% endif %}
+      <li>{{ 'العربية' if r.language == 'ar' else 'English' }}</li>
+    </ul>
+    {% if r.description %}<p class="lib-desc" dir="auto">{{ r.description }}</p>{% endif %}
+    <ol class="rm-mini">{% for s in r.steps[:4] %}<li dir="auto">{{ titles.get(s.course) or s.title or s.course }}</li>{% endfor %}{% if r.steps|length > 4 %}<li class="more">{{ T('and {n} more', n=r.steps|length - 4) }}</li>{% endif %}</ol>
+    {% if r.author %}<p class="muted small lib-by">{{ T('by {name}', name=r.author) }}{% if r.verified %} ✓{% endif %}</p>{% endif %}
+    <div class="lib-actions">
+      {% if followed %}<span class="chip good">{% trans trimmed %}Following{% endtrans %}</span>
+      {% else %}<form method="post" action="/roadmaps/{{ r.id }}/follow"><button class="btn primary">{% trans trimmed %}Follow{% endtrans %}</button></form>{% endif %}
+      <a class="btn" href="/roadmaps/{{ r.id }}">{% trans trimmed %}See the path{% endtrans %}</a>
+    </div>
+  </div>
+</article>
+{% endmacro %}
+
+{# The small strip on Home and on a course page: where you are on a roadmap. #}
+{% macro strip(rm, st) %}
+<a class="rm-strip" href="/roadmaps/{{ rm.id }}">
+  <span class="rm-strip-icon">{{ icon('route', 22) }}</span>
+  <span class="grow"><span class="small muted">{% trans trimmed %}Your roadmap{% endtrans %}</span><b dir="auto">{{ rm.title }}</b>
+    {% if st.current %}<span class="small" dir="auto">{{ T('Course {a} of {b}: {name}', a=st.current.n, b=st.steps|length, name=st.current.title) }}</span>{% elif st.finished %}<span class="small">{% trans trimmed %}Finished. You reached the harbour!{% endtrans %}</span>{% endif %}</span>
+  {{ dots(st) }}
+</a>
+{% endmacro %}

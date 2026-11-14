@@ -21,7 +21,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, updater
+from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -300,6 +300,7 @@ _ICONS = {
     "folder": '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     "library": '<path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m16 5.2 3.9-1 3.6 15.3-3.9 1z"/>',
     "plus": '<path d="M12 5v14M5 12h14"/>',
+    "route": '<circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/>',
     "more": '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
     "grip": '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
     "x": '<path d="M6 6l12 12M18 6 6 18"/>',
@@ -680,7 +681,15 @@ def create_app(vault: Vault) -> Starlette:
         last = {r[0]: r[1] or "" for r in V.db.execute("SELECT journey, MAX(at) FROM events GROUP BY journey")}
         cards.sort(key=lambda card: last.get(card["journey"]["id"], ""), reverse=True)
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
-        resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(),
+        rm_index = library.cached_index(V.home)
+        road, rm_of = [], {}
+        for rm in roadmaps.mine(V.home):
+            for i, step in enumerate(rm["steps"], 1):
+                rm_of.setdefault(step["course"], (rm, i))
+            rst = roadmaps.status(V, rm, rm_index)
+            if not rst["finished"]:
+                road.append({"rm": rm, "st": rst})
+        resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(), road=road[:2], rm_of=rm_of,
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
                     reminders_set=bool(reminders.load(V)["items"]),
                     island_trip=garden.active(V) if garden.is_on(V) else None,
@@ -928,7 +937,8 @@ def create_app(vault: Vault) -> Starlette:
         try:
             index = await run_in_threadpool(library.load_index, V.home, request.query_params.get("refresh") == "1")
         except library.LibraryProblem as e:
-            return page("library.html", request, problem=str(e), entries=[], index={})
+            return page("library.html", request, problem=str(e), entries=[], index={}, tab="courses", lib_roadmaps=[],
+                        followed=set(), titles={})
         entries = []
         for e in index.get("courses", []):
             local = V.get_course(str(e.get("id", "")))
@@ -943,15 +953,22 @@ def create_app(vault: Vault) -> Starlette:
             for tag in {str(x).strip().lower() for x in (e.get("tags") or []) if str(x).strip()}:
                 counts[tag] = counts.get(tag, 0) + 1
         topics = [tag for tag, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])) if n > 1][:10]
+        tab = "roadmaps" if request.query_params.get("tab") == "roadmaps" else "courses"
+        followed = {r["id"] for r in roadmaps.mine(V.home)}
+        lib_roadmaps = roadmaps.library_list(index)
+        lang = V._meta("lang", "en") or "en"
+        lib_roadmaps.sort(key=lambda r: (r["id"] in followed, r.get("language") != lang))
+        titles = {str(e.get("id")): e.get("title", "") for e in entries}
+        extra = {"tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles}
         show = str(request.query_params.get("show", ""))
         if show and not any(e.get("id") == show for e in entries):
             # A friend's link to a course we don't have in our list yet: look again.
             if request.query_params.get("refresh") != "1":
                 return go("/library?refresh=1&show=" + quote(show))
             return page("library.html", request, entries=entries, index=index, problem=None, report_url=library.REPORT_URL,
-                        site=library.SITE, show="", missing=True, topics=topics)
+                        site=library.SITE, show="", missing=True, topics=topics, **extra)
         return page("library.html", request, entries=entries, index=index, problem=None,
-                    report_url=library.REPORT_URL, site=library.SITE, show=show, topics=topics)
+                    report_url=library.REPORT_URL, site=library.SITE, show=show, topics=topics, **extra)
 
     async def library_course(request: Request):
         """One library course up close, before adding it: what's inside, its tasks, and a lesson to read."""
@@ -972,7 +989,8 @@ def create_app(vault: Vault) -> Starlette:
         if sample and isinstance(sample.get("text"), str):
             sample_html = md.render(_drop_title(sample["text"][:12000], str(sample.get("title", ""))))
         minutes = int(e.get("minutes") or 0)
-        return page("library_course.html", request, e=e, state=state, outline=outline, sample=sample,
+        on_rm = [r for r in roadmaps.library_list(index) if any(st["course"] == cid for st in r["steps"])]
+        return page("library_course.html", request, e=e, state=state, outline=outline, sample=sample, on_rm=on_rm,
                     sample_html=sample_html, hours=round(minutes / 60) if minutes else 0, report_url=library.REPORT_URL,
                     dispose=None)
 
@@ -989,6 +1007,249 @@ def create_app(vault: Vault) -> Starlette:
             return go("/library", err=str(e))
         import io as _io
         return _install_pack(request, _io.BytesIO(data), f"{cid}.zip")
+
+    # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
+    async def _library_now(online: bool = True) -> dict:
+        """The library's list: fresh when it's more than an hour old and we're online, else the last copy."""
+        from starlette.concurrency import run_in_threadpool
+        if not online:
+            return library.cached_index(V.home)
+        try:
+            return await run_in_threadpool(library.load_index, V.home)
+        except library.LibraryProblem:
+            return library.cached_index(V.home)
+
+    def _roadmap_where(rid: str, index: dict) -> tuple[dict | None, str]:
+        """Your copy of a roadmap if you have one, else the library's. ("", None) if neither."""
+        rm = roadmaps.get(V.home, rid)
+        if rm:
+            return rm, "mine"
+        rm = roadmaps.library_find(index, rid)
+        return (rm, "library") if rm else (None, "")
+
+    def _picker_courses(index: dict) -> list[dict]:
+        """Every course you can put on a roadmap: yours and the library's (each once)."""
+        out, seen = [], set()
+        for c in V.courses():
+            e = library.find(index, c.id)
+            out.append({"id": c.id, "title": c.title, "description": c.description, "language": c.language,
+                        "tags": (e or {}).get("tags") or [], "where": "mine",
+                        "minutes": sum(int(les.get("minutes") or 0) for m in c.modules for les in m["lessons"]),
+                        "lessons": c.lesson_count, "library": bool(e)})
+            seen.add(c.id)
+        for e in index.get("courses") or []:
+            if isinstance(e, dict) and e.get("id") and e["id"] not in seen:
+                out.append({"id": e["id"], "title": e.get("title", ""), "description": e.get("description", ""),
+                            "language": e.get("language", "en"), "tags": e.get("tags") or [], "where": "library",
+                            "minutes": int(e.get("minutes") or 0), "lessons": int(e.get("lessons") or 0), "library": True})
+                seen.add(e["id"])
+        return out
+
+    def _roadmap_card(rm: dict, index: dict) -> dict:
+        return {"rm": rm, "st": roadmaps.status(V, rm, index)}
+
+    async def roadmaps_page(request: Request):
+        index = await _library_now(online=False)
+        cards = [_roadmap_card(rm, index) for rm in roadmaps.mine(V.home)]
+        cards.sort(key=lambda c: (c["st"]["finished"], 0))  # the ones you're on first
+        followed = {c["rm"]["id"] for c in cards}
+        lang = V._meta("lang", "en") or "en"
+        lib = [r for r in roadmaps.library_list(index) if r["id"] not in followed]
+        lib.sort(key=lambda r: r.get("language") != lang)
+        titles = {str(e.get("id")): e.get("title", "") for e in index.get("courses") or [] if isinstance(e, dict)}
+        return page("roadmaps.html", request, cards=cards, lib=lib[:6], lib_count=len(roadmaps.library_list(index)),
+                    titles=titles, has_index=bool(index.get("courses")))
+
+    async def roadmap_page(request: Request):
+        rid = request.path_params["rid"]
+        index = await _library_now()
+        rm, where = _roadmap_where(rid, index)
+        if not rm:
+            if request.query_params.get("refresh") != "1" and not index.get("offline"):
+                from starlette.concurrency import run_in_threadpool
+                try:
+                    await run_in_threadpool(library.load_index, V.home, True)
+                    return go(f"/roadmaps/{quote(rid)}?refresh=1")
+                except library.LibraryProblem:
+                    pass
+            return go("/roadmaps", err="That roadmap isn't on this device or in the library.")
+        return _show_roadmap(request, rm, where, index)
+
+    def _show_roadmap(request: Request, rm: dict, where: str, index: dict, shared_json: str = ""):
+        st = roadmaps.status(V, rm, index)
+        lib_copy = roadmaps.library_find(index, rm["id"])
+        newer = bool(where == "mine" and rm.get("source") == "library" and lib_copy
+                     and lib_copy["hash"] != rm.get("library_hash") and roadmaps.fingerprint(lib_copy) != roadmaps.fingerprint(rm))
+        chart = garden.voyage_chart(st, labels=_voyage_labels(), compact=True)
+        return page("roadmap.html", request, rm=rm, st=st, where=where, lib_copy=lib_copy, newer=newer,
+                    chart=chart, shared_json=shared_json, island_on=garden.is_on(V),
+                    in_library=bool(lib_copy and roadmaps.fingerprint(lib_copy) == roadmaps.fingerprint(rm)))
+
+    async def roadmap_follow(request: Request):
+        """Follow a library roadmap: keep a copy here so its progress shows on Home and on the island."""
+        rid = request.path_params["rid"]
+        index = await _library_now()
+        lib_copy = roadmaps.library_find(index, rid)
+        if not lib_copy:
+            return go("/roadmaps", err="That roadmap isn't in the library anymore.")
+        mine = roadmaps.get(V.home, rid)
+        if mine and mine.get("source") == "mine":
+            return go(f"/roadmaps/{rid}", err="You already have a roadmap with this name.")
+        copy = {**lib_copy, "source": "library", "library_hash": lib_copy["hash"],
+                "followed_at": (mine or {}).get("followed_at") or now_utc()}
+        for s in copy["steps"]:  # remember course names, for before the courses are added
+            e = library.find(index, s["course"])
+            if e and not s.get("title"):
+                s["title"] = e.get("title", "")
+        roadmaps.save(V.home, copy)
+        return go(f"/roadmaps/{rid}", ok="Updated to the library's version." if mine else "You're following this roadmap. Add its first course to start.")
+
+    async def roadmap_follow_shared(request: Request):
+        """Follow a roadmap someone sent you as a link (the whole roadmap is inside the link)."""
+        form = await request.form()
+        try:
+            data = json.loads(str(form.get("data", "")))
+            rm = roadmaps.parse(data, "link")
+        except (ValueError, roadmaps.RoadmapError):
+            return go("/roadmaps", err="That roadmap link is damaged. Ask for it again.")
+        existing = roadmaps.get(V.home, rm["id"])
+        if existing and roadmaps.fingerprint(existing) != roadmaps.fingerprint(rm):
+            rm["id"] = roadmaps.free_id(V.home, rm["id"])
+        rm["followed_at"] = now_utc()
+        roadmaps.save(V.home, rm)
+        return go(f"/roadmaps/{rm['id']}", ok="You're following this roadmap.")
+
+    async def roadmap_remove(request: Request):
+        rid = request.path_params["rid"]
+        rm = roadmaps.get(V.home, rid)
+        roadmaps.delete(V.home, rid)
+        msg = ("Deleted the roadmap. Its courses and your progress in them stay." if rm and rm.get("source") == "mine"
+               else "You stopped following the roadmap. Its courses and your progress in them stay.")
+        return go("/roadmaps", ok=msg)
+
+    async def roadmap_add_course(request: Request):
+        """Add one course of a roadmap from the library, then come back to the roadmap."""
+        from starlette.concurrency import run_in_threadpool
+        rid, cid = request.path_params["rid"], request.path_params["cid"]
+        try:
+            index = await run_in_threadpool(library.load_index, V.home)
+            entry = library.find(index, cid)
+            if not entry:
+                return go(f"/roadmaps/{rid}", err="That course isn't in the library anymore.")
+            data = await run_in_threadpool(library.download, entry)
+        except library.LibraryProblem as e:
+            return go(f"/roadmaps/{rid}", err=str(e))
+        import io as _io
+        return _install_pack(request, _io.BytesIO(data), f"{cid}.zip", then=f"/roadmaps/{rid}")
+
+    async def roadmap_start(request: Request):
+        rid, cid = request.path_params["rid"], request.path_params["cid"]
+        if not V.get_course(cid):
+            return go(f"/roadmaps/{rid}", err="Add the course first.")
+        return go(f"/learn/{V.start_journey(cid)}")
+
+    def _roadmap_form_steps(form, index: dict) -> list[dict]:
+        steps = []
+        raw = str(form.get("steps", "") or "").strip()
+        if raw:
+            try:
+                data = json.loads(raw)
+                steps = [s for s in data if isinstance(s, dict)] if isinstance(data, list) else []
+            except ValueError:
+                steps = []
+        else:  # without JavaScript: the ticked courses, in the order of the list
+            steps = [{"course": str(x)} for x in form.getlist("pick")]
+        titles = {c["id"]: c["title"] for c in _picker_courses(index)}
+        for s in steps:
+            s["title"] = titles.get(str(s.get("course", "")), s.get("title", ""))
+        return steps
+
+    async def roadmap_new(request: Request):
+        return await _roadmap_maker(request, None)
+
+    async def roadmap_edit(request: Request):
+        rm = roadmaps.get(V.home, request.path_params["rid"])
+        if not rm:
+            return go("/roadmaps", err="That roadmap isn't on this device.")
+        if rm.get("source") != "mine":
+            return go(f"/roadmaps/new?copy={quote(rm['id'])}")
+        return await _roadmap_maker(request, rm)
+
+    async def _roadmap_maker(request: Request, rm: dict | None):
+        index = await _library_now()
+        courses = _picker_courses(index)
+        lang = V._meta("lang", "en") or "en"
+        if request.method == "POST":
+            form = await request.form()
+            draft = {"id": (rm or {}).get("id") or "", "title": form.get("title", ""), "description": form.get("description", ""),
+                     "language": form.get("language", lang), "tags": str(form.get("tags", "")),
+                     "author": V.me["name"] if V.me else "", "steps": _roadmap_form_steps(form, index)}
+            try:
+                if not draft["id"]:
+                    draft["id"] = roadmaps.free_id(V.home, roadmaps.slug(str(draft["title"])))
+                clean = roadmaps.parse(draft, "mine")
+            except roadmaps.RoadmapError as e:
+                return page("roadmap_edit.html", request, rm=rm, draft=draft, courses=courses, problems=e.problems,
+                            goal="", suggested=False, lang=lang)
+            clean["made_at"] = (rm or {}).get("made_at") or now_utc()
+            roadmaps.save(V.home, clean)
+            return go(f"/roadmaps/{clean['id']}", ok="Saved the roadmap." if rm else "Made your roadmap. Share it, or publish it to the library.")
+        goal = str(request.query_params.get("goal", "")).strip()[:120]
+        draft = dict(rm) if rm else {"title": "", "description": "", "language": lang, "tags": [], "steps": []}
+        copy = roadmaps.get(V.home, str(request.query_params.get("copy", ""))) or (
+            roadmaps.library_find(index, str(request.query_params.get("copy", ""))) if request.query_params.get("copy") else None)
+        if copy and not rm:
+            draft = {**copy, "id": "", "title": say("My version of “%s”", [copy["title"]])[:120], "source": "mine"}
+        suggested = False
+        if goal and not rm:
+            ids = roadmaps.suggest(goal, courses, lang)
+            titles = {c["id"]: c["title"] for c in courses}
+            draft["steps"] = [{"course": i, "title": titles.get(i, i), "note": ""} for i in ids]
+            if not draft.get("title"):
+                draft["title"] = goal[:1].upper() + goal[1:]
+            suggested = True
+        return page("roadmap_edit.html", request, rm=rm, draft=draft, courses=courses, problems=None, goal=goal,
+                    suggested=suggested, lang=lang)
+
+    async def roadmap_share(request: Request):
+        """Send a roadmap, or publish it to the library."""
+        rid = request.path_params["rid"]
+        index = await _library_now()
+        rm, where = _roadmap_where(rid, index)
+        if not rm:
+            return go("/roadmaps", err="That roadmap isn't on this device or in the library.")
+        lib_copy = roadmaps.library_find(index, rid)
+        in_library = bool(lib_copy and roadmaps.fingerprint(lib_copy) == roadmaps.fingerprint(rm))
+        share = exchange.share_links(say("A learning roadmap for you on inPace 🐢 Tap the link to see it:"),
+                                     roadmaps.share_data(rm, in_library), say("A roadmap for you on inPace"))
+        not_in_lib = [s for s in rm["steps"] if not library.find(index, s["course"])]
+        text = roadmaps.to_yaml({**rm, "author": rm.get("author") or (V.me["name"] if V.me else "")})
+        form_url = (f"{library.SUBMIT_URL}?template=submit-roadmap.yml&title={quote('Roadmap: ' + rm['title'])}"
+                    f"&roadmap_title={quote(rm['title'])}&roadmap={quote(text)}")
+        return page("roadmap_share.html", request, rm=rm, where=where, share=share, in_library=in_library,
+                    not_in_lib=not_in_lib, text=text, form_url=form_url if len(form_url) < 7500 else "",
+                    form_plain=f"{library.SUBMIT_URL}?template=submit-roadmap.yml", has_index=bool(index.get("courses")))
+
+    async def roadmap_file(request: Request):
+        rm = roadmaps.get(V.home, request.path_params["rid"])
+        if not rm:
+            return go("/roadmaps", err="That roadmap isn't on this device.")
+        return download(roadmaps.to_yaml(rm).encode("utf-8"), f"{rm['id']}.roadmap.yaml", "text/yaml")
+
+    def _voyage_labels() -> dict:
+        return {"chart": say("Tempo's voyage along the roadmap"), "harbour": say("Harbour"), "you": say("You are here")}
+
+    async def island_voyages(request: Request):
+        """Tempo's island, voyage mode: every roadmap you follow is a sea route, and each course a port."""
+        index = await _library_now(online=False)
+        voyages = []
+        for rm in roadmaps.mine(V.home):
+            st = roadmaps.status(V, rm, index)
+            voyages.append({"rm": rm, "st": st, "chart": garden.voyage_chart(st, labels=_voyage_labels())})
+        voyages.sort(key=lambda x: (x["st"]["finished"], -x["st"]["percent"]))
+        st_all = garden.stats(V)
+        return page("island_voyages.html", request, voyages=voyages, on=garden.is_on(V), st=st_all,
+                    gull=garden.friend_svg("gull", 72), has_gull=garden._have(garden.GULL_GOAL, st_all))
 
     async def share_course(request: Request):
         """Send a course to someone. If it's in the library, a small link that adds it from there."""
@@ -2100,7 +2361,8 @@ def create_app(vault: Vault) -> Starlette:
         missing = V.missing_media(course) if course else []
         if book:  # the book has its own box; the general "where are the files" box is for the rest
             missing = [m for m in missing if m != book["name"]]
-        return page("course.html", request, j=j, prog=V.progress(j["id"]), book=book,
+        on_rm = roadmaps.on_roadmaps(V.home, course.id) if course else []
+        return page("course.html", request, j=j, prog=V.progress(j["id"]), book=book, on_rm=on_rm,
                     missing=missing,
                     media_root=V.media_root(j["course_id"]) if course else None,
                     offline=offline.status(V, course) if course and offline.course_videos(course) else None,
@@ -2713,7 +2975,7 @@ def create_app(vault: Vault) -> Starlette:
         return go("/people", ok="Saved.")
 
     # ---- one place to open any file ------------------------------------------
-    def _install_pack(request: Request, fileobj, fname: str):
+    def _install_pack(request: Request, fileobj, fname: str, then: str | None = None):
         import shutil
         import zipfile
         try:
@@ -2744,7 +3006,7 @@ def create_app(vault: Vault) -> Starlette:
             lines.append("It came without answers, so practice quizzes are off.")
         if not inside and V.missing_media(c):
             lines.append("Its videos and other files aren't inside. Choose their folder on the course page.")
-        return go("/courses", ok="\n".join(lines))
+        return go(then or "/courses", ok="\n".join(lines))
 
     async def open_link(request: Request):
         """inPace was opened from a link (inpace://open/...). Hand the data to Open, like a pasted code."""
@@ -2796,6 +3058,13 @@ def create_app(vault: Vault) -> Starlette:
                 text = raw.decode("utf-8-sig")
             except UnicodeDecodeError:
                 return go("/open", err="This file isn't text inPace can read.")
+            if re.search(r"(?m)^steps:", text) and not re.search(r"(?m)^modules:", text):  # a roadmap (v1.24)
+                try:
+                    rm = roadmaps.parse(strip_fences(text), "link")
+                except roadmaps.RoadmapError as e:
+                    return page("open.html", request, problems=e.problems, filename=fname)
+                return _show_roadmap(request, rm, "shared", await _library_now(),
+                                     shared_json=json.dumps(roadmaps.share_data(rm, False), ensure_ascii=False))
             try:
                 course = load_course({"course.yaml": strip_fences(text)})
             except CourseError as e:
@@ -2841,6 +3110,18 @@ def create_app(vault: Vault) -> Starlette:
                 return go(f"/review/{learner}/{data['journey']['id']}")
             if kind == "library-course":
                 return go("/library?show=" + quote(str(data.get("id", ""))))
+            if kind == "library-roadmap":
+                return go("/roadmaps/" + quote(str(data.get("id", ""))))
+            if kind == "roadmap":
+                try:
+                    rm = roadmaps.parse(data, "link")
+                except roadmaps.RoadmapError:
+                    return go("/open", err="That roadmap link is damaged. Ask for it again.")
+                index = await _library_now()
+                have = roadmaps.get(V.home, rm["id"])
+                if have and roadmaps.fingerprint(have) == roadmaps.fingerprint(rm):
+                    return go(f"/roadmaps/{rm['id']}")
+                return _show_roadmap(request, rm, "shared", index, shared_json=json.dumps(data, ensure_ascii=False))
             if kind == "race":
                 races.check_race(data)
                 if races.get_race(V, data["id"]):
@@ -3620,6 +3901,18 @@ def create_app(vault: Vault) -> Starlette:
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
         Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),
+        Route("/roadmaps", needs_setup(roadmaps_page)),
+        Route("/roadmaps/new", needs_setup(roadmap_new), methods=["GET", "POST"]),
+        Route("/roadmaps/shared", needs_setup(roadmap_follow_shared), methods=["POST"]),
+        Route("/roadmaps/{rid}", needs_setup(roadmap_page)),
+        Route("/roadmaps/{rid}/follow", needs_setup(roadmap_follow), methods=["POST"]),
+        Route("/roadmaps/{rid}/edit", needs_setup(roadmap_edit), methods=["GET", "POST"]),
+        Route("/roadmaps/{rid}/remove", needs_setup(roadmap_remove), methods=["POST"]),
+        Route("/roadmaps/{rid}/share", needs_setup(roadmap_share)),
+        Route("/roadmaps/{rid}/file", needs_setup(roadmap_file)),
+        Route("/roadmaps/{rid}/add/{cid}", needs_setup(roadmap_add_course), methods=["POST"]),
+        Route("/roadmaps/{rid}/start/{cid}", needs_setup(roadmap_start), methods=["POST"]),
+        Route("/island/voyages", needs_setup(island_voyages)),
         Route("/library", needs_setup(library_page)),
         Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
         Route("/library/{cid}", needs_setup(library_course)),

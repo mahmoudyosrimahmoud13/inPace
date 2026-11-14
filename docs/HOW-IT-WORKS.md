@@ -329,6 +329,29 @@ course isn't in the library, the page offers to publish it or send the file.
 **Big videos:** a course can list `downloads:` in `course.yaml` (title, link, size). Learners see **Get this
 course's videos**, download them, and choose the folder. The lessons' relative paths then find every file.
 
+**Roadmaps (v1.24, `roadmaps.py`).** A roadmap is an ordered list of courses toward one goal ("Become a data
+analyst"), each with an optional note ("why here") and an optional flag. It holds course ids, never course files.
+- **Where they live:** each roadmap you follow or make is one small file, `roadmaps/<id>.json` in your data
+  folder, with `source` saying where it came from: `mine` (you made it), `library` or `link`.
+- **Your place on it** is worked out from your progress every time (`roadmaps.status`), never stored. Each step is
+  `done` (100%), `active` (started), `start` (installed, not started), `add` (in the library, not on this device)
+  or `missing`. The roadmap's percent is the mean of the steps that aren't optional, and the current step is the
+  first one that isn't finished.
+- **Making one:** **Roadmaps → Make a roadmap**. Type a goal and **Suggest courses** picks matching courses from
+  your courses and the library (`roadmaps.suggest`: words in the title count most, then tags, id and
+  description), keeps one language when a course comes in both, keeps a series together, and puts basics first
+  and advanced or interview courses last. You then reorder, add notes, mark steps optional and save.
+- **Following one:** the library has a **Roadmaps** tab. **Follow this roadmap** saves it; you add each course
+  from the library when you get to it, so nothing big downloads up front. Home shows the roadmaps you're on, and
+  every course card and course page that's on a roadmap says which step it is.
+- **Sharing:** a library roadmap goes as a short link (`{inpace: "library-roadmap", id}`). One you made goes as a
+  link that carries the whole roadmap (it's only ids and notes), or as a `.yaml` file that **Open a file** reads.
+- **Publishing:** **Share → Publish it to the library** opens the roadmap form on GitHub with the YAML filled in.
+  The bot checks that every course is in the library and that the id is free, then opens a pull request. Every
+  course on a library roadmap must be in the library.
+- **Old versions:** `library.json` lists roadmaps under `roadmaps`, which older apps ignore. Roadmap links and
+  the website's roadmap pages say they need inPace 1.24 or newer.
+
 ---
 
 ## 11. Updates
@@ -442,6 +465,7 @@ inpace/
   exchange.py     progress, approval, card and pack files, and links that carry them
   links.py        opening inPace from inpace:// links on each kind of computer
   library.py      the course library: signed course files, the list, downloads
+  roadmaps.py     roadmaps: reading and checking them, your place on each, goal suggestions, sharing
   checks.py       what the checker sees: verifying a learner's history and files
   exam.py         quizzes and verified exams from a seed
   pace.py         weekly goals, streaks, breaks, finish dates
@@ -455,7 +479,7 @@ inpace/
   reminders.py    reminders, alarms and Tempo's notifications: what's due, the messages, the Android plan
   notifier.py     notifications and alarms on a computer, and its scheduler (Task Scheduler, launchd, systemd, cron)
   garden.py       Tempo's island: focus trips, unlocks, the weather and the villain, shells and the shop, the sky, the drawings
-  garden_art.py   the 14 plants, 8 animal friends, the villain, decorations and sea visitors, drawn as SVG
+  garden_art.py   the 14 plants, 9 animal friends, the villain, decorations and sea visitors, drawn as SVG
   island_story.py the island's adventure: 10 chapters and 5 interludes, and what the villain says, in two worlds and two languages
   mascot.py       Tempo himself, in 11 moods, and your own turtle (shells, scarves, skins, things to wear)
   clock.py        the real local time on phones, where Python doesn't know the time zone
@@ -489,7 +513,7 @@ An optional reward for studying, off until you turn it on from **Tempo's island*
 
 **Sharing** (`garden.snapshot`, `garden.clean_snapshot`). With the island on and sharing allowed (`island_share` in `meta`, on unless you turn it off), your contact card, progress files and reviews carry a copy of the island: its name, look, the newest plants, friends, trophies and three numbers. It's next to the signed parts, not inside them, so older versions still read the files. On the other side it's cleaned (only known plants, friends and items; short names) and stored in `people.island`, and a newer file replaces it. **See their island** (`/people/<id>/island`) draws it carried by their own turtle. **Share my island** draws a 1080 px picture (`/island/share.svg`), which the page turns into a PNG like the turtle picture.
 
-**Unlocks.** 14 plants and 8 friends, worked out from your own data each time something changes:
+**Unlocks.** 14 plants and 9 friends, worked out from your own data each time something changes:
 
 | Unlock | How |
 |---|---|
@@ -509,6 +533,7 @@ An optional reward for studying, off until you turn it on from **Tempo's island*
 | Farfoura the butterfly | Focus on 7 different days |
 | Arnoob the hare | Join a race |
 | Kaboria the crab | Finish a whole course |
+| Nawras the seagull | Finish a course on one of your roadmaps |
 
 A small pop-up says when something new arrives, once.
 
@@ -525,13 +550,15 @@ A small pop-up says when something new arrives, once.
 
 `decay()` works out what happened while you were away, from the last activity to now, so it gives the same result whenever it runs: on every page, on the island page, and in the computer's hourly reminder job. **Gentle sea** (`island_gentle`) keeps the fog from taking plants: the villain still comes, but no closer than the shore.
 
-**Shells and the shop.** Shells are worked out from your data, never stored: 1 for every 5 minutes of focus, 2 per lesson, 3 per review, 10 per module, 15 per milestone, 20 per approval, 50 per finished course, and the course chests. Only what you spent (`island_spent`), what you own (`island_owned`) and which chests opened (`course_chests`) are stored. The island's look (`island_looks`) is its ground, sky, sea and up to 4 things on it. The crown and the wizard hat are for your own turtle.
+**Shells and the shop.** Shells are worked out from your data, never stored: 1 for every 5 minutes of focus, 2 per lesson, 3 per review, 10 per module, 15 per milestone, 20 per approval, 50 per finished course, the course chests, 10 per course finished on a roadmap and 100 per roadmap finished. Only what you spent (`island_spent`), what you own (`island_owned`) and which chests opened (`course_chests`) are stored. The island's look (`island_looks`) is its ground, sky, sea and up to 4 things on it. The crown and the wizard hat are for your own turtle.
 
 **The sky follows the real clock** (`garden.sky_at`): sunrise and sunset move with the time of year (about 7:00 to 17:00 in December and 5:00 to 19:00 in June), the colors blend from night to dawn, morning, day, sunset and dusk, and the sun and moon move across. On a phone, Python doesn't know the time zone, so the app passes it in `INPACE_TZ_MINUTES` and every page sends a `tz` cookie (`clock.py`). Seasons add snow, petals or leaves; on days you study a visitor swims by.
 
 **The story** (`island_story.py`) has three acts and ten chapters, from the bay to the Far Shore, against the Fog of Someday. Chapters open at 0, 1, 3, 5, 10, 15, 20, 30, 40 and 50 plants; the fight at the heart of the fog also needs 3 days in a row; and no new chapter opens in thick fog. Five interludes happen because of what you really do: coming back after the fog, keeping a weekly goal, having other learners in your sea, the villain reaching your shore for the first time, and the first plant it takes. Opened chapters stay open.
 
 There are two worlds with the same plot: **the Sea of Things to Learn** (the default in English) and **Alexandria and the Great Green Sea** (the default in Arabic, with Teta Lulua, the Pharos and the Library of Alexandria). You can pick either in either language. The text is written once per language with placeholders that each world fills in.
+
+**Voyages (v1.24, `garden.voyage_chart`).** The island has a second view, **Voyages** (`/island/voyages`): every roadmap you follow is a voyage. Each course is a port with a lighthouse, the end is a harbour with a chest, and Tempo's boat sails to the first port you haven't reached. A lighthouse lights up when its course is done (10 shells), and reaching the harbour opens the chest (100 shells, `VOYAGE_PORT` and `VOYAGE_HARBOUR`). Like all shells, these are worked out from your progress, and a course that's on several roadmaps counts once. Reaching a harbour shows a pop-up once, like a new friend. The same chart, smaller, is on every roadmap's page.
 
 **The sea chart** shows Tempo on the way to the Far Shore (by the story), the learners you check (by the progress they sent you), and your checkers, waiting at the lighthouse. People who made a turtle sail in its colors.
 

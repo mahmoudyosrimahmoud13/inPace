@@ -1488,7 +1488,7 @@ document.addEventListener("click", (ev) => {
 //  * Pages slide in going forward and slide back going back; tabs fade (the CSS reads <html data-nav>).
 //  * A thin bar shows at the top when a page takes more than a moment.
 (() => {
-  const ROOTS = ["/", "/courses", "/add", "/milestones", "/island", "/races", "/library", "/people", "/open", "/reminders", "/settings"];
+  const ROOTS = ["/", "/courses", "/roadmaps", "/add", "/milestones", "/island", "/races", "/library", "/people", "/open", "/reminders", "/settings"];
   const clean = (p) => p.replace(/\/+$/, "") || "/";
   const isRoot = (p) => ROOTS.includes(clean(p));
   const here = () => clean(location.pathname);
@@ -1623,3 +1623,112 @@ document.addEventListener("click", (ev) => {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) back(); });
   window.addEventListener("focus", back);
 })();
+
+// ---- Make a roadmap (v1.24) ------------------------------------------------------------------------------------
+// The path is a list you put in order: add courses from the list below, move them up and down, add a note and
+// mark a course optional. It's sent as one hidden field (steps). Without JavaScript the ticked courses are used.
+(() => {
+  const form = document.querySelector("[data-rm-maker]");
+  if (!form) return;
+  const L = form.dataset;
+  const list = form.querySelector("[data-rm-steps]");
+  const empty = form.querySelector("[data-rm-empty]");
+  const count = form.querySelector("[data-rm-count]");
+  const field = form.querySelector("[data-rm-json]");
+  const pick = form.querySelector("[data-rm-pick]");
+  const find = form.querySelector("[data-rm-find]");
+  const none = form.querySelector("[data-rm-none]");
+  const items = pick ? [...pick.querySelectorAll("li[data-id]")] : [];
+  form.classList.add("js");
+  const icon = (d) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const UP = icon('<path d="m6 15 6-6 6 6"/>'), DOWN = icon('<path d="m6 9 6 6 6-6"/>'), X = icon('<path d="M6 6l12 12M18 6 6 18"/>');
+
+  const row = (course, title, note, optional) => {
+    const li = document.createElement("li");
+    li.className = "rm-edit-step";
+    li.dataset.course = course;
+    li.innerHTML = `<span class="rm-edit-num"></span>
+      <div class="rm-edit-main"><b dir="auto"></b>
+        <input class="rm-edit-note" dir="auto" maxlength="400">
+        <label class="check small"><input type="checkbox" class="rm-edit-opt"> <span></span></label></div>
+      <span class="rm-edit-tools">
+        <button type="button" class="btn icon-btn small" data-up>${UP}</button>
+        <button type="button" class="btn icon-btn small" data-down>${DOWN}</button>
+        <button type="button" class="btn icon-btn small" data-x>${X}</button></span>`;
+    li.querySelector("b").textContent = title;
+    const n = li.querySelector(".rm-edit-note");
+    n.value = note || ""; n.placeholder = L.lNote; n.setAttribute("aria-label", L.lNote);
+    li.querySelector(".rm-edit-opt").checked = !!optional;
+    li.querySelector(".check span").textContent = L.lOptional;
+    li.querySelector("[data-up]").setAttribute("aria-label", L.lUp);
+    li.querySelector("[data-down]").setAttribute("aria-label", L.lDown);
+    li.querySelector("[data-x]").setAttribute("aria-label", L.lRemove);
+    return li;
+  };
+  // the path as the server drew it becomes editable rows
+  [...list.children].forEach((li) => {
+    list.replaceChild(row(li.dataset.course, li.dataset.title, li.dataset.note, li.dataset.optional === "1"), li);
+  });
+
+  const ids = () => [...list.children].map((li) => li.dataset.course);
+  const sync = () => {
+    const have = ids();
+    [...list.children].forEach((li, i) => {
+      li.querySelector(".rm-edit-num").textContent = i + 1;
+      li.querySelector("[data-up]").disabled = i === 0;
+      li.querySelector("[data-down]").disabled = i === have.length - 1;
+    });
+    empty.hidden = have.length > 0;
+    count.textContent = L.lCount.replace("{n}", have.length);
+    items.forEach((it) => {
+      const b = it.querySelector("[data-rm-add]");
+      const on = have.includes(it.dataset.id);
+      b.disabled = on; b.textContent = on ? L.lAdded : L.lAdd;
+      it.classList.toggle("added", on);
+      it.querySelector("input[type=checkbox]").checked = on;
+    });
+  };
+  list.addEventListener("click", (e) => {
+    const li = e.target.closest("li");
+    if (!li) return;
+    if (e.target.closest("[data-up]") && li.previousElementSibling) list.insertBefore(li, li.previousElementSibling);
+    else if (e.target.closest("[data-down]") && li.nextElementSibling) list.insertBefore(li.nextElementSibling, li);
+    else if (e.target.closest("[data-x]")) li.remove();
+    else return;
+    sync();
+  });
+  items.forEach((it) => {
+    const b = it.querySelector("[data-rm-add]");
+    b.hidden = false;
+    b.addEventListener("click", () => {
+      if (ids().includes(it.dataset.id)) return;
+      const li = row(it.dataset.id, it.dataset.title, "", false);
+      list.appendChild(li);
+      sync();
+      li.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  });
+  if (find) find.addEventListener("input", () => {
+    const words = find.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    items.forEach((it) => { const ok = words.every((w) => it.dataset.q.includes(w)); it.hidden = !ok; shown += ok; });
+    if (none) none.hidden = shown > 0;
+  });
+  form.addEventListener("submit", () => {
+    field.value = JSON.stringify([...list.children].map((li) => ({
+      course: li.dataset.course, note: li.querySelector(".rm-edit-note").value.trim(),
+      optional: li.querySelector(".rm-edit-opt").checked })));
+  });
+  sync();
+})();
+
+
+// Voyage charts (v1.24): a long roadmap scrolls sideways on a phone; start with Tempo's boat in view.
+document.querySelectorAll(".voyage-scroll").forEach((box) => {
+  const boat = box.querySelector(".voyage-boat");
+  if (!boat || box.scrollWidth <= box.clientWidth) return;
+  const b = boat.getBoundingClientRect(), r = box.getBoundingClientRect();
+  const rtl = getComputedStyle(box).direction === "rtl";
+  const want = b.left - r.left + box.scrollLeft - box.clientWidth / 3;
+  box.scrollLeft = rtl ? -(box.scrollWidth - box.clientWidth - want) : Math.max(0, want);
+});

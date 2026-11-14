@@ -425,8 +425,22 @@ def crab() -> str:
             + f'<circle cx="62" cy="70" r="6" fill="#FFD43B" {O2}/><path d="M62 67 v6" stroke="#D9A90F" stroke-width="2" stroke-linecap="round"/>')
 
 
+def gull() -> str:
+    """Nawras the seagull (v1.24): flies ahead on your roadmaps. White, grey wings, a little captain's cap."""
+    return (f'<path d="M10 40 Q22 22 40 34 Q30 44 10 40 Z" fill="#B8C1CC" {O2}/>'
+            f'<ellipse cx="40" cy="48" rx="22" ry="17" fill="#fff" {O}/>'
+            f'<path d="M44 40 Q60 22 74 30 Q60 48 44 40 Z" fill="#B8C1CC" {O2}/>'
+            f'<circle cx="54" cy="34" r="11" fill="#fff" {O}/>'
+            f'<path d="M64 34 L78 37 L64 40 Z" fill="#FFB020" {O2}/>'
+            + _eye(57, 32, 3.6) + _cheek(58, 40)
+            + f'<path d="M44 24 Q54 16 64 24 Z" fill="#1E3A5F" {O2}/><path d="M42 25 H66" {O2}/>'
+            f'<circle cx="54" cy="20" r="1.8" fill="#FFD43B"/>'
+            f'<path d="M32 64 v8 M44 64 v8" stroke="#FFB020" stroke-width="2.6" stroke-linecap="round"/>'
+            f'<path d="M26 44 q6 -6 14 -6" fill="none" stroke="#DCE3EA" stroke-width="2.6" stroke-linecap="round"/>')
+
+
 FRIEND_ART = {"snail": snail, "sparrow": sparrow, "frog": frog, "bee": bee, "owl": owl,
-              "butterfly": butterfly, "hare": hare, "crab": crab}
+              "butterfly": butterfly, "hare": hare, "crab": crab, "gull": gull}
 
 
 # ---- the villain: the Fog of Someday, in person --------------------------------------------------------

@@ -65,7 +65,12 @@ FRIENDS = [
      "Yes, that hare. He heard you joined a race and came to cheer. He still can't believe Tempo won."),
     ("crab", "Kaboria the crab", ("courses", 1, "Finish a whole course"),
      "The day you finished a course, Kaboria found a treasure chest on the seabed. Inside was your certificate."),
+    ("gull", "Nawras the seagull", ("roadmap_steps", 1, "Finish a course on one of your roadmaps"),
+     "Nawras flies ahead of every ship to see what's next. When you reached your first port on a roadmap, he landed on the mast and said: \"I'll show you the way to the next one.\""),
 ]
+GULL_GOAL = ("roadmap_steps", 1, "Finish a course on one of your roadmaps")
+VOYAGE_PORT = 10      # shells for each roadmap course you finish (on top of what the course itself pays)
+VOYAGE_HARBOUR = 100  # shells for reaching the end of a roadmap
 
 PLANT_NAMES = {k: n for k, n, _ in PLANTS}
 FRIEND_NAMES = {k: n for k, n, _, _ in FRIENDS}
@@ -379,10 +384,18 @@ def stats(v: Vault, today: date | None = None) -> dict:
         "milestones": q("SELECT COUNT(*) FROM milestones"),
         "approved": q("SELECT COUNT(*) FROM approvals WHERE decision='approved'"),
         "races": q("SELECT COUNT(*) FROM races"),
-        "modules": modules, "courses": courses,
+        "modules": modules, "courses": courses, **_roadmap_stats(v),
         "blooming": bool(v.db.execute("SELECT 1 FROM approvals WHERE decision='approved' AND at >= ? LIMIT 1",
                                       (week_ago[:10],)).fetchone()),
     }
+
+
+def _roadmap_stats(v: Vault) -> dict:
+    try:
+        from . import roadmaps
+        return roadmaps.island_stats(v)
+    except Exception:
+        return {"roadmap_steps": 0, "roadmaps": 0}
 
 
 def _have(goal, st: dict) -> bool:
@@ -428,6 +441,14 @@ def news(v: Vault) -> list[dict]:
         k = f'trophy:{c["course_id"]}'
         if c["trophy"] and k not in seen:
             new.append({"kind": "trophy", "key": k, "name": c["title"], "shells": 50})
+    try:  # the end of a roadmap: the harbour (v1.24)
+        from . import roadmaps
+        for rm in roadmaps.mine(v.home):
+            k = f'harbour:{rm["id"]}'
+            if k not in seen and roadmaps.status(v, rm)["finished"]:
+                new.append({"kind": "harbour", "key": k, "name": rm["title"], "shells": VOYAGE_HARBOUR})
+    except Exception:
+        pass
     if new:
         v._set_meta("garden_seen", json.dumps(sorted(seen | {x["key"] for x in new})))
     return new
@@ -667,7 +688,8 @@ FREE = {"theme:meadow", "sky:auto", "water:sea"}
 def earned(st: dict) -> int:
     """Shells: 1 for every 5 minutes of focus, and more for real learning."""
     return (st["focus_min"] // 5 + 2 * st["lessons"] + 3 * st["reviews"] + 10 * st["modules"]
-            + 15 * st["milestones"] + 20 * st["approved"] + 50 * st["courses"] + st.get("chest_shells", 0))
+            + 15 * st["milestones"] + 20 * st["approved"] + 50 * st["courses"] + st.get("chest_shells", 0)
+            + VOYAGE_PORT * st.get("roadmap_steps", 0) + VOYAGE_HARBOUR * st.get("roadmaps", 0))
 
 
 def wallet(v: Vault, st: dict) -> dict:
@@ -960,10 +982,12 @@ def island_svg(plants: list[dict], friends: set[str], ring: int, blooming: bool 
                 parts.append(friend(key, f"translate({fx - 40 * fs:.1f} {y - 78 * fs:.1f}) scale({fs})"))
         if "snail" in friends:
             parts.append(friend("snail", "translate(112 300) rotate(-38) scale(.62)"))
-        for key, (fx, fy, fs) in {"sparrow": (250, 66, .74), "butterfly": (556, 118, .56), "bee": (470, 160, .5)}.items():
+        for key, (fx, fy, fs) in {"sparrow": (250, 66, .74), "butterfly": (556, 118, .56), "bee": (470, 160, .5),
+                                  "gull": (690, 70, .66)}.items():
             if key in friends:
                 if asleep:  # in the fog the flyers sit down and nap
-                    fx, fy = {"sparrow": (300, dome_y(300) - 6), "butterfly": (520, dome_y(520) - 4), "bee": (440, dome_y(440) - 2)}[key]
+                    fx, fy = {"sparrow": (300, dome_y(300) - 6), "butterfly": (520, dome_y(520) - 4), "bee": (440, dome_y(440) - 2),
+                              "gull": (640, dome_y(640) - 6)}[key]
                 parts.append(friend(key, f"translate({fx - 40 * fs:.1f} {fy - 40 * fs:.1f}) scale({fs})", ""))
     if blooming and fog == 0:
         for x, y in ((150, 140), (620, 170), (330, 110), (430, 96), (250, 200)):
@@ -1034,6 +1058,88 @@ def sea_chart(fleet: list[dict], others: list[dict], story_pos: float, labels: d
         x, y = at(pos)
         parts.append(f'<g class="chart-mine">{little(x, y - 6, t["palette"], t["name"])}</g>')
     parts.append("</svg>")
+    return "".join(parts)
+
+
+def voyage_chart(st: dict, labels: dict | None = None, compact: bool = False) -> str:
+    """Voyage mode (v1.24): a roadmap as a sea route. Each course is a little island port, numbered in order.
+    Finished ports have a lit lighthouse, Tempo sails his boat next to the port you're on, optional ports are
+    smaller, and the route ends at the harbour, whose chest opens when the whole roadmap is done."""
+    labels = labels or {}
+    I = art.INK
+    steps = st["steps"]
+    n = max(1, len(steps))
+    W = max(560, 140 + 115 * n)  # about the same space for each port, so long roadmaps scroll instead of shrinking
+    H = 200 if compact else 240
+    top, bottom = 58, H - 52
+    # on a phone the chart keeps a readable size (about 70 px a port) and scrolls sideways
+    parts = [f'<div class="voyage-scroll"><svg class="voyage-chart" style="--vw:{round(W * 0.62)}px;--vmax:{W}px" viewBox="0 0 {W} {H}" role="img" aria-label="{labels.get("chart", "Voyage")}">',
+             f'<rect width="{W}" height="{H}" fill="#CDE8F2"/>']
+    for x in range(30, W, 120):  # little waves
+        parts.append(f'<path d="M{x} {H - 18} q10 -6 20 0 q10 -6 20 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>')
+    left, right = 110, W - 120
+
+    def at(i: int):
+        f = i / (n - 1) if n > 1 else 0.5
+        x = left + (right - left) * f
+        y = (top + bottom) / 2 + ((bottom - top) / 2 - 6) * math.sin(f * math.pi * (2 if n > 4 else 1) + 0.4)
+        return x, y
+
+    pts = [at(i) for i in range(n)] + [(W - 54, (top + bottom) / 2)]
+    d = f"M{pts[0][0]:.0f} {pts[0][1]:.0f}" + "".join(
+        f" Q{(a[0] + b[0]) / 2:.0f} {(a[1] + b[1]) / 2 + (14 if k % 2 else -14):.0f} {b[0]:.0f} {b[1]:.0f}"
+        for k, (a, b) in enumerate(zip(pts, pts[1:])))
+    parts.append(f'<path d="{d}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 14"/>')
+    scale = 1.0
+    here = st.get("current")
+    for i, s in enumerate(steps):
+        x, y = pts[i]
+        k = scale * (0.75 if s.get("optional") else 1.0)
+        done = s["state"] == "done"
+        land = "#6CBF4A" if done else "#E7D3A1"
+        dash = ' stroke-dasharray="5 4"' if s.get("optional") else ""
+        title = str(s.get("title", "")).replace("&", "&amp;").replace("<", "&lt;")
+        g = [f'<g class="port port-{s["state"]}" transform="translate({x:.0f} {y:.0f}) scale({k:.2f})"><title>{s["n"]}. {title}</title>',
+             f'<ellipse cx="0" cy="10" rx="34" ry="13" fill="{land}" stroke="{I}" stroke-width="3"{dash}/>',
+             f'<ellipse cx="-6" cy="6" rx="14" ry="5" fill="#fff" opacity=".35"/>']
+        if done:  # a lit lighthouse
+            g.append(f'<rect x="-6" y="-26" width="12" height="32" fill="#fff" stroke="{I}" stroke-width="2.6"/>'
+                     f'<rect x="-6" y="-16" width="12" height="7" fill="#E6007E"/>'
+                     f'<path d="M-9 -26 h18 l-9 -10 z" fill="#FFD43B" stroke="{I}" stroke-width="2.6" stroke-linejoin="round"/>'
+                     f'<path d="M10 -32 l22 -8 M10 -28 l22 4" stroke="#FFD43B" stroke-width="3.4" stroke-linecap="round"/>')
+        elif s["percent"]:  # a flag that rises with your progress
+            h = 8 + 22 * s["percent"] / 100
+            g.append(f'<path d="M-10 6 V-30" stroke="{I}" stroke-width="2.6"/>'
+                     f'<path d="M-10 {-30 + (30 - h):.0f} h18 l-5 5 l5 5 h-18 z" fill="#FFD43B" stroke="{I}" stroke-width="2.2" stroke-linejoin="round"/>')
+        else:
+            g.append(f'<path d="M-4 6 q-2 -16 8 -22 M4 -16 q-12 -2 -16 4 M4 -16 q10 -6 16 0" fill="none" stroke="#3E8E2E" stroke-width="3" stroke-linecap="round"/>')
+        g.append(f'<circle cx="0" cy="28" r="12" fill="{"#1F9D6A" if done else "#FFD43B" if s is here else "#fff"}" stroke="{I}" stroke-width="2.6"/>'
+                 f'<text x="0" y="33" text-anchor="middle" font-size="14" font-weight="800" font-family="system-ui,sans-serif" '
+                 f'fill="{"#fff" if done else "#111"}">{s["n"]}</text></g>')
+        parts.append("".join(g))
+    # the harbour at the end
+    hx, hy = pts[-1]
+    chest_open = st.get("finished")
+    parts.append(f'<g class="harbour" transform="translate({hx:.0f} {hy:.0f})"><title>{labels.get("harbour", "Harbour")}</title>'
+                 f'<path d="M-40 18 q10 -16 40 -14 q30 -2 40 14 z" fill="#E7D3A1" stroke="{I}" stroke-width="3"/>'
+                 f'<rect x="-22" y="-20" width="30" height="26" fill="#F2EDE2" stroke="{I}" stroke-width="3"/>'
+                 f'<path d="M-27 -20 h40 l-20 -16 z" fill="#3D8FD1" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
+                 f'<rect x="12" y="{-6 if chest_open else -2}" width="20" height="{14 if chest_open else 10}" fill="#B5651D" stroke="{I}" stroke-width="2.6"/>'
+                 + (f'<path d="M12 -6 l4 -12 h16 l-4 12 z" fill="#B5651D" stroke="{I}" stroke-width="2.6"/><circle cx="22" cy="-8" r="4" fill="#FFD43B"/>'
+                    f'<path d="M22 -20 v-6 M14 -18 l-4 -5 M30 -18 l4 -5" stroke="#FFD43B" stroke-width="2.6" stroke-linecap="round"/>'
+                    if chest_open else f'<path d="M12 -2 h20 v-5 q-10 -6 -20 0 z" fill="#8B4A12" stroke="{I}" stroke-width="2.6"/>')
+                 + '</g>')
+    # Tempo in his boat, next to the port you're on (at the harbour when it's all done)
+    if here is not None or chest_open:
+        bx, by = (pts[-1][0] - 44, pts[-1][1] + 34) if chest_open else (pts[here["n"] - 1][0] - 30 * scale - 28, pts[here["n"] - 1][1] - 6)
+        body = str(tempo.mascot("happy" if chest_open else "wave", 80)).replace('class="tempo', 'class="voyage-tempo tempo')
+        body = body.replace('width="80" height="57"', f'x="{bx - 26:.0f}" y="{by - 42:.0f}" width="52" height="37"', 1)
+        parts.append(f'<g class="voyage-boat"><title>{labels.get("you", "You are here")}</title>'
+                     f'<path d="M{bx - 30:.0f} {by - 6:.0f} h60 l-10 16 h-40 z" fill="#B5651D" stroke="{I}" stroke-width="3" stroke-linejoin="round"/>'
+                     f'<path d="M{bx + 8:.0f} {by - 6:.0f} V{by - 52:.0f}" stroke="{I}" stroke-width="2.6"/>'
+                     f'<path d="M{bx + 10:.0f} {by - 50:.0f} q18 14 0 30 z" fill="#fff" stroke="{I}" stroke-width="2.6" stroke-linejoin="round"/>'
+                     f'{body}</g>')
+    parts.append("</svg></div>")
     return "".join(parts)
 
 

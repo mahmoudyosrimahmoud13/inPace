@@ -7,7 +7,8 @@
 <div class="page-head{{ ' head-with-cover' if prog.course.extra.image }}">
   {% if prog.course.extra.image %}{{ cover(prog.course, True) }}{% endif %}
   <div class="head-text">
-  <p class="eyebrow"><a data-up href="/courses">{{ _('My courses') }}</a></p>
+  <p class="eyebrow"><a data-up href="/courses">{{ _('My courses') }}</a>{% for rm, n in on_rm[:2] %}
+    <a class="rm-chip" href="/roadmaps/{{ rm.id }}">{{ icon('route', 14) }}<span dir="auto">{{ T('Course {n} of {b} on “{name}”', n=n, b=rm.steps|length, name=rm.title) }}</span></a>{% endfor %}</p>
   <h1 dir="auto">{{ prog.course.title }}.</h1>
   <div class="row" style="margin-block-start: .9rem">
     <div class="bar grow" style="max-width: 460px"><span style="width: {{ prog.percent }}%"></span></div>

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Share a roadmap') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="/roadmaps/{{ rm.id }}">{{ rm.title }}</a></p>
+  <h1 dir="auto">{{ T('Share “{title}”', title=rm.title) }}.</h1>
+</div>
+
+<section class="card stack">
+  <h2>{% trans trimmed %}Send a link{% endtrans %}</h2>
+  {% if in_library %}
+  <p class="small">{% trans trimmed %}This roadmap is in the inPace library, so the link is short. Your friend taps it, sees the path, and follows it with one tap.{% endtrans %}</p>
+  {% else %}
+  <p class="small">{% trans trimmed %}The whole roadmap fits in the link: it's only the list of courses and your notes. Your friend adds the courses from the library.{% endtrans %}</p>
+  {% if not_in_lib %}<p class="note warn small">{{ T('{n} of its courses aren’t in the library, so your friend can’t get them:', n=not_in_lib|length) }}
+    {% for s in not_in_lib %}<b dir="auto">{{ s.title or s.course }}</b>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+  {% endif %}
+  {% if not share.fits %}<p class="note warn small">{% trans trimmed %}This link is long. Some chat apps cut long messages, so you may want to send the file instead.{% endtrans %}</p>{% endif %}
+  {% with share=share, sid='roadmap-link', label=_('Roadmap link') %}{% include '_share.html' %}{% endwith %}
+  <p class="small muted">{% trans trimmed %}The link opens in inPace 1.24 or newer.{% endtrans %}</p>
+  {% if where == 'mine' %}<p class="small"><a href="/roadmaps/{{ rm.id }}/file">{% trans trimmed %}Or download it as a file{% endtrans %}</a> {% trans trimmed %}(anyone can open it with Open a file).{% endtrans %}</p>{% endif %}
+</section>
+
+{% if where == 'mine' and rm.source == 'mine' and not in_library %}
+<section class="card stack" id="publish">
+  <h2>{% trans trimmed %}Publish it to the library{% endtrans %}</h2>
+  <p class="small">{% trans trimmed %}Then anyone can find it under Roadmaps in the library, in the app and on the website. It's reviewed first.{% endtrans %}</p>
+  {% if not has_index %}
+  <p class="note warn small">{% trans trimmed %}Open the course library once, so inPace can check that all the courses are there.{% endtrans %} <a href="/library">{% trans trimmed %}Open the library{% endtrans %}</a></p>
+  {% elif not_in_lib %}
+  <p class="note warn small">{% trans trimmed %}A library roadmap can only use courses that are in the library. Publish these courses first, or take them off the roadmap:{% endtrans %}
+    {% for s in not_in_lib %}<b dir="auto">{{ s.title or s.course }}</b>{{ ', ' if not loop.last }}{% endfor %}</p>
+  {% else %}
+  <ol class="small">
+    <li>{% trans trimmed %}Press Open the form. Your roadmap is already filled in.{% endtrans %}</li>
+    <li>{% trans trimmed %}Sign in to GitHub (it's free), tick the boxes and submit.{% endtrans %}</li>
+    <li>{% trans trimmed %}A bot checks it within a few minutes and replies there.{% endtrans %}</li>
+  </ol>
+  <div class="row wrap">
+    {% if form_url %}<a class="btn primary" href="{{ form_url }}" target="_blank" rel="noopener">{{ icon('send', 18) }}{% trans trimmed %}Open the form{% endtrans %}</a>
+    {% else %}<a class="btn primary" href="{{ form_plain }}" target="_blank" rel="noopener">{{ icon('send', 18) }}{% trans trimmed %}Open the form{% endtrans %}</a>{% endif %}
+    <button type="button" class="btn" data-copy="#roadmap-text">{% trans trimmed %}Copy the roadmap{% endtrans %}</button>
+  </div>
+  {% if not form_url %}<p class="small muted">{% trans trimmed %}This roadmap is long, so paste it into the form yourself: copy it with the button above.{% endtrans %}</p>{% endif %}
+  <details class="more"><summary>{% trans trimmed %}What gets published{% endtrans %}</summary>
+    <textarea id="roadmap-text" class="code-box" readonly rows="10" dir="ltr">{{ text }}</textarea></details>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

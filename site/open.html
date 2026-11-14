@@ -169,6 +169,18 @@
       var a = document.createElement("a"); a.href = "https://mahmoudyosrimahmoud13.github.io/inpace-library/#" + encodeURIComponent(String(d.id || ""));
       say(a, "See it in the library first", "شاهدها في المكتبة أولًا"); see.appendChild(a);
       what.parentNode.insertBefore(see, what.nextSibling);
+    } else if (kind === "library-roadmap" || kind === "roadmap") {
+      var rt = String(d.title || "a roadmap");
+      var n = (d.steps || []).length;
+      say(title, "A learning roadmap for you: " + rt, "مسار تعلّم لك: " + rt);
+      say(what, (kind === "roadmap" && n ? n + " courses in order" : "Several courses in order, toward one goal") + (d.author ? ", made by " + String(d.author) : "") + ". Open it in inPace 1.24 or newer to see the path and follow it.",
+          (kind === "roadmap" && n ? n + " دورات بالترتيب" : "عدة دورات بالترتيب نحو هدف واحد") + (d.author ? "، من إعداد " + String(d.author) : "") + ". افتحه في inPace 1.24 أو أحدث لترى المسار وتتابعه.");
+      if (kind === "library-roadmap") {
+        var seeR = document.createElement("p"); seeR.className = "small";
+        var aR = document.createElement("a"); aR.href = "https://mahmoudyosrimahmoud13.github.io/inpace-library/r/" + encodeURIComponent(String(d.id || "")) + ".html";
+        say(aR, "See it in the library first", "شاهده في المكتبة أولًا"); seeR.appendChild(aR);
+        what.parentNode.insertBefore(seeR, what.nextSibling);
+      }
     } else if (kind === "race") {
       name = String((d.creator && d.creator.name) || "A friend");
       say(title, name + " invited you to a race on inPace", name + " دعاك إلى سباق على inPace");

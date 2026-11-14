@@ -130,7 +130,7 @@ def build_deb() -> Path:
         f"Package: inpace\nVersion: {__version__}\nSection: education\nPriority: optional\n"
         f"Architecture: amd64\nInstalled-Size: {size_kb}\n"
         "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n"
-        "Maintainer: Mahmoud Saad <noreply@github.com>\n"
+        "Maintainer: Mahmoud Saad Mahmoud Yosri <noreply@github.com>\n"
         "Homepage: https://github.com/mahmoudyosrimahmoud13/inpace\n"
         "Description: Learn at your pace. Prove you kept it.\n"
         " A local, open-source learning app. Follow a course, save signed milestones,\n"

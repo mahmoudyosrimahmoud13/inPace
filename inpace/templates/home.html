@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_roadmap.html" as R with context %}
 {% block title %}{{ _('Home') }}{% endblock %}
 {% set live_page = true %}
 {% block main %}
@@ -72,7 +73,8 @@
 <section class="card">
   <div class="hero">
     <div>
-      <p class="eyebrow"><a href="/learn/{{ c.journey.id }}">{{ p.course.title }}</a></p>
+      <p class="eyebrow"><a href="/learn/{{ c.journey.id }}">{{ p.course.title }}</a>{% set on = rm_of.get(p.course.id) %}{% if on %}
+        <a class="rm-chip" href="/roadmaps/{{ on[0].id }}">{{ icon('route', 14) }}<span dir="auto">{{ T('Course {n} of {b} on “{name}”', n=on[1], b=on[0].steps|length, name=on[0].title) }}</span></a>{% endif %}</p>
       <h2>{% if p.finished %}{{ _('You finished the course!') }}{% elif p.current_module %}{{ p.current_module.title }}{% endif %}</h2>
     </div>
     {% if c.chain_problems %}<span class="chip bad">{% trans trimmed %}Problem with your record{% endtrans %}</span>
@@ -156,6 +158,8 @@
   {% endif %}
 </section>
 {% endfor %}
+
+{% if road %}<div class="rm-strips">{% for x in road %}{{ R.strip(x.rm, x.st) }}{% endfor %}</div>{% endif %}
 
 {% if cards and not reminders_set %}
 <a class="card tile rem-tip" href="/reminders">

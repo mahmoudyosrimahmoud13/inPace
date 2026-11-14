@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% import "_roadmap.html" as R with context %}
+{% block title %}{{ rm.title }}{% endblock %}
+{% block main %}
+{% set here = st.current %}
+<div class="page-head rm-head">
+  <p class="eyebrow"><a data-up href="/roadmaps">{% trans trimmed %}Roadmaps{% endtrans %}</a></p>
+  <h1 dir="auto">{{ rm.title }}.</h1>
+  {% if rm.description %}<p class="lead rm-desc" dir="auto">{{ rm.description }}</p>{% endif %}
+  <ul class="lib-facts rm-facts">
+    <li>{{ icon('book', 15) }}{{ T('{n} courses', n=st.steps|length) }}{% if st.steps|length != st.total %} · {{ T('{n} optional', n=st.steps|length - st.total) }}{% endif %}</li>
+    {% if st.minutes %}<li>{{ icon('clock', 15) }}{{ R.hours_text(st.minutes) }}</li>{% endif %}
+    <li>{{ 'العربية' if rm.language == 'ar' else 'English' }}</li>
+    {% if rm.author %}<li>{{ T('by {name}', name=rm.author) }}{% if lib_copy and lib_copy.verified %} ✓{% endif %}</li>{% endif %}
+    {% if in_library %}<li><span class="chip plain">{{ icon('library', 14) }}{% trans trimmed %}In the library{% endtrans %}</span></li>{% endif %}
+  </ul>
+
+  {% if where == 'mine' %}
+  <div class="row rm-progress"><div class="bar grow" style="max-width: 460px"><span style="width: {{ st.percent }}%"></span></div><b>{{ st.percent }}%</b>
+    <span class="muted small">{{ T('{a} of {b} courses done', a=st.done, b=st.total) }}</span></div>
+  {% if here %}
+    {% if here.state == 'active' %}
+    <a class="btn primary big continue-btn" href="/learn/{{ here.journey }}"><span><span class="small">{{ T('Course {n}', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('arrow', 18) }}</a>
+    {% elif here.state == 'start' %}
+    <form method="post" action="/roadmaps/{{ rm.id }}/start/{{ here.course }}"><button class="btn primary big continue-btn"><span><span class="small">{{ T('Start course {n}', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('arrow', 18) }}</button></form>
+    {% elif here.state == 'add' %}
+    <form method="post" action="/roadmaps/{{ rm.id }}/add/{{ here.course }}"><button class="btn primary big continue-btn" data-busy="{{ _('Adding…') }}"><span><span class="small">{{ T('Add course {n} from the library', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('download', 18) }}</button></form>
+    {% endif %}
+  {% elif st.finished %}<p><span class="chip good">{% trans trimmed %}Roadmap finished. Tempo reached the harbour!{% endtrans %}</span></p>{% endif %}
+  {% elif where == 'library' %}
+  <form method="post" action="/roadmaps/{{ rm.id }}/follow" class="rm-follow"><button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
+    <span class="small muted">{% trans trimmed %}Its progress shows on Home, and Tempo sails it with you on the island. You add its courses one at a time, when you get to them.{% endtrans %}</span></form>
+  {% elif where == 'shared' %}
+  <form method="post" action="/roadmaps/shared" class="rm-follow"><input type="hidden" name="data" value="{{ shared_json }}">
+    <button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
+    <span class="small muted">{% trans trimmed %}Someone sent you this roadmap. Its courses come from the course library.{% endtrans %}</span></form>
+  {% endif %}
+
+  <div class="row wrap rm-actions">
+    {% if where != 'shared' %}<a class="btn" href="/roadmaps/{{ rm.id }}/share">{{ icon('send', 18) }}{% trans trimmed %}Share{% endtrans %}</a>{% endif %}
+    {% if where == 'mine' and rm.source == 'mine' %}<a class="btn" href="/roadmaps/{{ rm.id }}/edit">{{ icon('pen', 18) }}{% trans trimmed %}Edit{% endtrans %}</a>
+    {% else %}<a class="btn" href="/roadmaps/new?copy={{ rm.id }}">{{ icon('pen', 18) }}{% trans trimmed %}Make my own version{% endtrans %}</a>{% endif %}
+    {% if where == 'mine' %}
+    <details class="menu course-menu">
+      <summary class="btn icon-btn" aria-label="{{ _('More') }}" title="{{ _('More') }}">{{ icon('more', 20) }}</summary>
+      <div class="menu-box">
+        <a href="/roadmaps/{{ rm.id }}/file">{% trans trimmed %}Download as a file{% endtrans %}</a>
+        <form method="post" action="/roadmaps/{{ rm.id }}/remove"><button class="link btn danger" style="justify-content:flex-start">{% if rm.source == 'mine' %}{% trans trimmed %}Delete the roadmap{% endtrans %}{% else %}{% trans trimmed %}Stop following{% endtrans %}{% endif %}</button></form>
+        <p class="small muted" style="margin:.3rem .6rem">{% trans trimmed %}Its courses and your progress in them stay.{% endtrans %}</p>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+</div>
+
+{% if newer %}
+<form class="note warn row between" method="post" action="/roadmaps/{{ rm.id }}/follow">
+  <span>{% trans trimmed %}The library has a newer version of this roadmap.{% endtrans %}</span>
+  <button class="btn small">{% trans trimmed %}Update{% endtrans %}</button>
+</form>
+{% endif %}
+{% if where == 'mine' and st.to_add|length > 1 %}
+<p class="muted small">{{ T("{n} of its courses aren't on this device yet. Add each one when you get to it.", n=st.to_add|length) }}</p>
+{% endif %}
+
+<figure class="card voyage-card">
+  {{ chart|safe }}
+  <figcaption class="small muted">{% trans trimmed %}Tempo sails this roadmap with you: every course you finish lights a lighthouse, and the end is a harbour with a chest.{% endtrans %}
+    <a href="/island/voyages">{% trans trimmed %}Voyage mode on Tempo's island{% endtrans %}</a></figcaption>
+</figure>
+
+<ol class="rm-path">
+{% for s in st.steps %}
+<li class="rm-step {{ s.state }}{{ ' here' if here and s.n == here.n }}{{ ' opt' if s.optional }}" id="step-{{ s.n }}">
+  <span class="rm-num">{% if s.state == 'done' %}{{ icon('check', 22) }}{% else %}{{ '%02d'|format(s.n) }}{% endif %}</span>
+  <div class="card rm-step-card">
+    <span class="rm-cover">{% if s.course_obj %}{{ cover(s.course_obj) }}{% elif s.cover %}<img class="cover" src="{{ s.cover }}" alt="" loading="lazy">{% else %}<span class="cover blank" style="--hue:{{ (s.course|length * 47) % 360 }}" aria-hidden="true">{{ (s.title or '?')[:1]|upper }}</span>{% endif %}</span>
+    <div class="grow rm-step-body">
+      <p class="small muted rm-step-kicker">{{ T('Course {n}', n=s.n) }}{% if s.optional %} · <span class="chip plain">{% trans trimmed %}Optional{% endtrans %}</span>{% endif %}
+        {% if s.state == 'done' %} · <b>{% trans trimmed %}Finished{% endtrans %}</b>{% endif %}</p>
+      <h3 dir="auto">{% if s.journey %}<a href="/learn/{{ s.journey }}">{{ s.title }}</a>{% elif s.entry %}<a href="/library/{{ s.course }}">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}</h3>
+      <p class="small muted">{% if s.lessons %}{{ T('{n} lessons', n=s.lessons) }}{% endif %}{% if s.minutes %} · {{ R.hours_text(s.minutes) }}{% endif %}</p>
+      {% if s.note %}<p class="rm-note" dir="auto">{{ s.note }}</p>{% endif %}
+      {% if s.state == 'active' %}<div class="row"><div class="bar grow"><span style="width: {{ s.percent }}%"></span></div><b class="small">{{ s.percent }}%</b></div>{% endif %}
+    </div>
+    <div class="rm-step-act">
+      {% if s.state == 'done' %}<a class="btn small" href="/learn/{{ s.journey }}">{% trans trimmed %}Open{% endtrans %}</a>
+      {% elif s.state == 'active' %}<a class="btn small {{ 'primary' if here and s.n == here.n }}" href="/learn/{{ s.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
+      {% elif s.state == 'start' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/start/{{ s.course }}"><button class="btn small">{% trans trimmed %}Start{% endtrans %}</button></form>{% endif %}
+      {% elif s.state == 'add' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/add/{{ s.course }}"><button class="btn small" data-busy="{{ _('Adding…') }}">{{ icon('download', 16) }}{% trans trimmed %}Add{% endtrans %}</button></form>{% else %}<a class="btn small" href="/library/{{ s.course }}">{% trans trimmed %}See it{% endtrans %}</a>{% endif %}
+      {% else %}<span class="small muted">{% trans trimmed %}Not in the library{% endtrans %}</span>{% endif %}
+    </div>
+  </div>
+</li>
+{% endfor %}
+<li class="rm-step harbour{{ ' done' if st.finished }}">
+  <span class="rm-num" aria-hidden="true">⚓</span>
+  <div class="card rm-step-card soft">
+    <div class="grow"><h3>{% trans trimmed %}The harbour{% endtrans %}</h3>
+      <p class="small muted">{% if st.finished %}{% trans trimmed %}You made it. The chest on Tempo's island holds 100 shells for you.{% endtrans %}{% else %}{% trans trimmed %}Finish every course that isn't optional. On Tempo's island, the harbour's chest holds 100 shells.{% endtrans %}{% endif %}</p></div>
+  </div>
+</li>
+</ol>
+{% if st.missing and where == 'mine' and rm.source == 'mine' %}
+<p class="note warn small">{% trans trimmed %}Some courses on this roadmap aren't in the library. That's fine for you, but people you share it with can't get them.{% endtrans %}</p>
+{% endif %}
+{% endblock %}

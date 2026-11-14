@@ -19,15 +19,17 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Turn a book into a course.** Give inPace a PDF book: each chapter becomes a part of the course and each section a lesson that opens only its own pages (`book.pdf#pages=12-19`). Your place is saved in each part.
 - **Videos, audio, PDFs, Word, PowerPoint, Excel, code and web pages.** The video player remembers the second you stopped at. PDFs open in a built-in reader that remembers your page. Word, PowerPoint and Excel files show as a light, read-only preview right in the lesson, with a button to open them in their own app. Code shows in colour with a Copy button. Web pages run in a locked box. YouTube and Vimeo load only when you press play. **Watch YouTube lessons offline:** download a course's videos with one button, in the quality you choose, into your Downloads folder (or any folder you pick) (inPace uses yt-dlp and keeps it up to date, automatically or when you press Update), or point to a folder where you already have them and inPace matches each file to its lesson, even when the names are a bit different.
 - **AI courses around your own material.** Attach a book or some files when you make a course with AI. They become part of the course, and the prompt tells the AI the book's chapters and pages so each lesson opens the right part.
-- **Tempo's island, a reward with a story (optional).** Every focus trip grows a plant on Tempo's shell (14 kinds), and lessons, reviews, milestones and races bring 8 animal friends to live there. Ten chapters of adventure open as the island grows, and your real pace is the weather: stop for days and the Fog of Someday comes for the island, and after 10 days your plants start to wilt (a gentle mode is there for hard weeks). Shells you earn by learning (courses hide treasure chests along the way) decorate the island, which has your name for it, and the sky follows your real clock. Friends you add see your island, and you can share a picture of it.
+- **Tempo's island, a reward with a story (optional).** Every focus trip grows a plant on Tempo's shell (14 kinds), and lessons, reviews, milestones and races bring 9 animal friends to live there. Ten chapters of adventure open as the island grows, and your real pace is the weather: stop for days and the Fog of Someday comes for the island, and after 10 days your plants start to wilt (a gentle mode is there for hard weeks). Shells you earn by learning (courses hide treasure chests along the way) decorate the island, which has your name for it, and the sky follows your real clock. Friends you add see your island, and you can share a picture of it.
 - **Your own turtle.** Make a turtle (shell, scarf, skin, something to wear) instead of picking a colour. It's your picture everywhere, travels on your contact card, and you can save it as a picture to share. Tempo shows up in your notifications too.
 - **Fair quizzes.** Each question has several right and wrong answers. Every quiz shows one right answer mixed with wrong ones, in a new order each time.
 - **Daily review.** Old questions come back over days and weeks so they stick.
+- **Roadmaps (new in 1.24).** A roadmap puts several courses in order toward one goal, like "Become a data analyst". Follow one from the library, or make your own: type a goal and inPace picks the matching courses and puts the basics first. Home keeps your place, and on Tempo's island each roadmap is a voyage with a lighthouse for every course and a chest at the end.
 
 **Share and find courses**
 - **[Course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)** <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/"><img alt="Courses in the library" align="top" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmahmoudyosrimahmoud13.github.io%2Finpace-library%2Fstats.json&query=%24.courses&label=courses&color=FFD43B&labelColor=111111"></a>**.** Browse free courses other learners made, look inside each one (every module, lesson and task, plus a lesson to read), and add it with a click, right inside the app.
 - **Publish your own** with **More → Publish to the library**. It's signed with your inPace key, so only you can update it.
 - **Courses that read a book you get yourself.** A course can follow a free book that can't be shared (like *Mathematics for Machine Learning*). Download it once, press **Find it for me**, and inPace finds your copy by its title and number of pages, whatever the file is called. Lessons then open the right pages.
+- **Share roadmaps too.** Publish a roadmap to the library, or send it as a link: it only holds the course list and your notes, so it's tiny.
 - **Send a course as a short link.** A course from the library goes as a link, not a file, and your friend always gets the newest version.
 - **Courses with big videos** can point to a download link (Google Drive, MEGA, archive.org…). Learners download the videos, choose the folder, and every lesson finds its video.
 
@@ -158,7 +160,7 @@ Built with Python, Starlette, Jinja, SQLite and PyNaCl (Ed25519 signatures). No 
 
 ## License
 
-MIT. Free to use, change and share.
+MIT, copyright (c) 2026 Mahmoud Saad Mahmoud Yosri. Free to use, change and share. See [LICENSE](LICENSE).
 
 The pictures of the sample courses were added by the project owner.
 

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Edit the roadmap') if rm else _('Make a roadmap') }}{% endblock %}
+{% block main %}
+{% set ids = draft.steps|map(attribute='course')|list %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="{{ '/roadmaps/' ~ rm.id if rm else '/roadmaps' }}">{{ rm.title if rm else _('Roadmaps') }}</a></p>
+  <h1>{{ _('Edit the roadmap') if rm else _('Make a roadmap') }}.</h1>
+  <p class="muted">{% trans trimmed %}Put the courses in the order you'd take them, and say why each one comes where it does. Courses from the library can be shared with anyone; your own courses only work for you until you publish them.{% endtrans %}</p>
+</div>
+
+{% if not rm %}
+<form class="card stack rm-goal" method="get" action="/roadmaps/new">
+  <label for="rm-goal"><b>{% trans trimmed %}Start from a goal{% endtrans %}</b>
+    <span class="small muted" style="font-weight:400">{% trans trimmed %}inPace picks the courses that match, from your courses and the library, and puts them in order: the basics first, and the parts of a series together. You can change everything after.{% endtrans %}</span></label>
+  <div class="row">
+    <input id="rm-goal" class="grow" name="goal" value="{{ goal }}" dir="auto" placeholder="{{ _('For example: data analyst, machine learning, English') }}">
+    <button class="btn">{{ icon('spark', 18) }}{% trans trimmed %}Suggest courses{% endtrans %}</button>
+  </div>
+  {% if suggested and not draft.steps %}<p class="note warn" style="margin:0">{{ T('No course matches “{goal}”. Try another word, or pick courses below.', goal=goal) }}</p>
+  {% elif suggested %}<p class="note ok" style="margin:0">{{ T('{n} courses for “{goal}”. Change the order, add a note to each, then save.', n=draft.steps|length, goal=goal) }}</p>{% endif %}
+</form>
+{% endif %}
+
+{% if problems %}<div class="note bad"><ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul></div>{% endif %}
+
+<form method="post" class="stack rm-maker" data-rm-maker
+      data-l-up="{{ _('Move up') }}" data-l-down="{{ _('Move down') }}" data-l-remove="{{ _('Remove') }}"
+      data-l-note="{{ _('Why this course, and why here? (optional)') }}" data-l-optional="{{ _('Optional') }}"
+      data-l-count="{{ _('{n} courses') }}" data-l-added="{{ _('Added') }}" data-l-add="{{ _('Add') }}">
+  <section class="card stack">
+    <label>{% trans trimmed %}Title{% endtrans %}
+      <input name="title" required maxlength="120" dir="auto" value="{{ draft.title }}" placeholder="{{ _('For example: Become a data analyst') }}"></label>
+    <label>{% trans trimmed %}What it's for{% endtrans %}
+      <textarea name="description" rows="2" maxlength="600" dir="auto" placeholder="{{ _('One or two sentences: who it is for and where it takes them.') }}">{{ draft.description }}</textarea></label>
+    <div class="row wrap">
+      <label>{% trans trimmed %}Language{% endtrans %}
+        <select name="language"><option value="en" {{ 'selected' if draft.language != 'ar' }}>English</option><option value="ar" {{ 'selected' if draft.language == 'ar' }}>العربية</option></select></label>
+      <label class="grow">{% trans trimmed %}Tags{% endtrans %}
+        <input name="tags" dir="auto" value="{{ (draft.tags or [])|join(', ') if draft.tags is not string else draft.tags }}" placeholder="{{ _('data, career') }}"></label>
+    </div>
+  </section>
+
+  <section class="card stack">
+    <div class="row between"><h2 style="margin:0">{% trans trimmed %}The path{% endtrans %}</h2><span class="chip" data-rm-count>{{ T('{n} courses', n=draft.steps|length) }}</span></div>
+    <ol class="rm-edit-steps" data-rm-steps>
+      {% for s in draft.steps %}
+      <li class="rm-edit-step" data-course="{{ s.course }}" data-title="{{ s.title or s.course }}" data-note="{{ s.note or '' }}" data-optional="{{ '1' if s.optional }}">
+        <span class="rm-edit-num">{{ loop.index }}</span><b dir="auto">{{ s.title or s.course }}</b>
+        {% if s.note %}<span class="small muted" dir="auto">{{ s.note }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="muted" data-rm-empty {{ 'hidden' if draft.steps }}>{% trans trimmed %}No courses yet. Add them from the list below.{% endtrans %}</p>
+    <input type="hidden" name="steps" value="" data-rm-json>
+  </section>
+
+  <section class="card stack">
+    <h2 style="margin:0">{% trans trimmed %}Add courses{% endtrans %}</h2>
+    {% if courses %}
+    <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-rm-find dir="auto" placeholder="{{ _('Search your courses and the library') }}" aria-label="{{ _('Search your courses and the library') }}"></label>
+    <ul class="rm-pick" data-rm-pick>
+      {% for c in courses %}
+      <li data-id="{{ c.id }}" data-title="{{ c.title }}" data-q="{{ (c.title ~ ' ' ~ c.id ~ ' ' ~ (c.tags or [])|join(' ') ~ ' ' ~ c.description)|lower }}">
+        <label class="check rm-pick-label"><input type="checkbox" name="pick" value="{{ c.id }}" {{ 'checked' if c.id in ids }}>
+          <span><b dir="auto">{{ c.title }}</b><br><span class="small muted">{{ _('Yours') if c.where == 'mine' else _('Library') }}{% if c.where == 'mine' and not c.library %} · {% trans trimmed %}only on this device{% endtrans %}{% endif %}{% if c.lessons %} · {{ T('{n} lessons', n=c.lessons) }}{% endif %} · {{ 'العربية' if c.language == 'ar' else 'English' }}</span></span></label>
+        <button type="button" class="btn small" data-rm-add hidden>{{ _('Add') }}</button>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="muted" data-rm-none hidden>{% trans trimmed %}No course matches that.{% endtrans %}</p>
+    {% else %}
+    <p class="muted">{% trans trimmed %}You have no courses yet, and the library couldn't be reached.{% endtrans %} <a href="/library">{% trans trimmed %}Open the library{% endtrans %}</a></p>
+    {% endif %}
+  </section>
+
+  <div class="row wrap">
+    <button class="btn primary big">{% trans trimmed %}Save the roadmap{% endtrans %}</button>
+    <a class="btn" href="{{ '/roadmaps/' ~ rm.id if rm else '/roadmaps' }}">{% trans trimmed %}Cancel{% endtrans %}</a>
+  </div>
+</form>
+{% endblock %}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}{% trans trimmed %}inPace{% endtrans %}{% endblock %} {% trans trimmed %}· inPace{% endtrans %}</title>
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/style.css?v=32">
+<link rel="stylesheet" href="/static/style.css?v=33">
 {% if dispose %}<meta name="inpace-dispose" content="{{ dispose }}">{% endif %}
 <script>
 /* Pages are never cached, but a few are one-off (a quiz you already sent, a finished focus session).
@@ -70,6 +70,7 @@
     <p class="side-h">{% trans trimmed %}My learning{% endtrans %}</p>
     <a href="/" class="{{ 'on' if p == '/' }}">{{ icon('home', 22) }}{{ _("Home") }}</a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}{{ _("My courses") }}</a>
+    <a href="/roadmaps" class="{{ 'on' if p.startswith('/roadmaps') }}">{{ icon('route', 22) }}{{ _("Roadmaps") }}</a>
     <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield', 22) }}{{ _("Milestones") }}</a>
     <a href="/island" class="{{ 'on' if p.startswith('/island') }}">{{ icon('island', 22) }}{{ _("Tempo's island") }}</a>
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
@@ -118,11 +119,12 @@
       {% if island_news %}
       <div class="yay isle-news" role="status" data-confetti>
         {% set n = island_news[0] %}
-        <span class="isle-news-art">{% if n.kind == 'plant' %}{{ island_plant(n.key)|safe }}{% elif n.kind in ('chest', 'trophy') %}{{ chest(True, n.kind == 'trophy') }}{% else %}{{ island_friend(n.key)|safe }}{% endif %}</span>
+        <span class="isle-news-art">{% if n.kind == 'plant' %}{{ island_plant(n.key)|safe }}{% elif n.kind in ('chest', 'trophy', 'harbour') %}{{ chest(True, n.kind == 'trophy') }}{% else %}{{ island_friend(n.key)|safe }}{% endif %}</span>
         <p>{% if n.kind == 'chest' %}<b>{{ _('Treasure chest!') }}</b><br>{{ T('{s} shells for reaching {n}% of {course}.', s=n.shells, n=n.at, course=n.name) }}
+        {% elif n.kind == 'harbour' %}<b>{{ _('You reached the harbour!') }}</b><br>{{ T('{s} shells for finishing the roadmap “{name}”.', s=n.shells, name=n.name) }}
         {% elif n.kind == 'trophy' %}<b>{{ _('A trophy!') }}</b><br>{{ T('{s} shells for finishing {course}. The trophy is on your island.', s=n.shells, course=n.name) }}
         {% else %}<b>{{ _('New on your island!') }}</b><br>{% if n.kind == 'plant' %}{{ T('You can grow a {plant} now.', plant=_(n.name)) }}{% else %}{{ T('{name} moved in.', name=_(n.name)) }}{% endif %}{% endif %}
-          {% if island_news|length > 1 %}{{ T('And {n} more.', n=island_news|length - 1) }}{% endif %} <a href="/island">{{ _('See the island') }}</a></p>
+          {% if island_news|length > 1 %}{{ T('And {n} more.', n=island_news|length - 1) }}{% endif %} <a href="{{ '/island/voyages' if n.kind == 'harbour' else '/island' }}">{{ _('See the voyage') if n.kind == 'harbour' else _('See the island') }}</a></p>
         <button type="button" class="yay-close" aria-label="{{ _('Close') }}">×</button>
       </div>
       {% endif %}
@@ -153,7 +155,7 @@
   {% if me %}
   {% set p = active_path %}
   {% set waiting = checking|sum(attribute='waiting') if checking else 0 %}
-  {% set more_on = p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') %}
+  {% set more_on = p.startswith('/roadmaps') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') %}
   <nav class="tabbar" aria-label="{{ _('Main') }}">
     <a href="/" class="{{ 'on' if p == '/' }}" {{ 'aria-current=page' if p == '/' }}>{{ icon('home', 22) }}<span>{{ _("Home") }}</span></a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}<span>{{ _("Courses") }}</span></a>
@@ -163,6 +165,7 @@
   </nav>
   <dialog class="more-sheet" data-more-sheet aria-label="{{ _('More') }}">
     <div class="sheet-head"><b>{{ _("More") }}</b><button type="button" class="btn icon-btn" data-more-close aria-label="{{ _('Close') }}">{{ icon('x', 20) }}</button></div>
+    <a href="/roadmaps" class="{{ 'on' if p.startswith('/roadmaps') }}">{{ icon('route', 22) }}{{ _("Roadmaps") }}</a>
     <a href="/island" class="{{ 'on' if p.startswith('/island') }}">{{ icon('island', 22) }}{{ _("Tempo's island") }}</a>
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
     <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}</a>
@@ -179,6 +182,6 @@
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
 {% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
-<script src="/static/app.js?v=27"></script>
+<script src="/static/app.js?v=28"></script>
 </body>
 </html>

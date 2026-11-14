@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_roadmap.html" as R with context %}
+{% block title %}{{ _('Roadmaps') }}{% endblock %}
+{% block main %}
+<div class="page-head rm-page-head">
+  <div class="grow">
+    <h1>{% trans trimmed %}Roadmaps{% endtrans %}.</h1>
+    <p class="muted">{% trans trimmed %}A roadmap puts several courses in the right order, toward one goal. Follow one from the library, or make your own from the courses there are.{% endtrans %}</p>
+  </div>
+  <a class="btn primary" href="/roadmaps/new">{{ icon('plus', 18) }}{% trans trimmed %}Make a roadmap{% endtrans %}</a>
+</div>
+
+{% if cards %}
+<div class="rm-list">
+{% for c in cards %}{% set rm = c.rm %}{% set st = c.st %}
+<a class="card rm-card {{ 'done' if st.finished }}" href="/roadmaps/{{ rm.id }}">
+  <span class="rm-card-head">
+    <span class="chip {{ 'good' if st.finished else 'warn' }}">{% if st.finished %}{% trans trimmed %}Finished{% endtrans %}{% else %}{{ T('{a} of {b} courses done', a=st.done, b=st.total) }}{% endif %}</span>
+    {% if rm.source == 'mine' %}<span class="chip muted">{% trans trimmed %}Made by you{% endtrans %}</span>{% endif %}
+  </span>
+  <h2 dir="auto">{{ rm.title }}</h2>
+  {{ R.dots(st) }}
+  <span class="row"><span class="bar grow"><span style="width: {{ st.percent }}%"></span></span><b>{{ st.percent }}%</b></span>
+  {% if st.current %}<span class="rm-next"><span class="small muted">{% trans trimmed %}Next{% endtrans %}</span><b dir="auto">{{ st.current.title }}</b></span>{% endif %}
+</a>
+{% endfor %}
+</div>
+{% else %}
+<section class="card empty rm-empty">
+  {{ mascot('think', 110) }}
+  <div class="stack">
+    <h2>{% trans trimmed %}Pick a goal, then follow the path{% endtrans %}</h2>
+    <p>{% trans trimmed %}"Become a data analyst", "Maths for machine learning", "English from A1 to B1": a roadmap shows which courses to take and in what order, keeps your place, and Tempo sails it with you on the island.{% endtrans %}</p>
+    <div class="row wrap">
+      <a class="btn primary" href="/library?tab=roadmaps">{{ icon('library', 18) }}{% trans trimmed %}Browse roadmaps{% endtrans %}</a>
+      <a class="btn" href="/roadmaps/new">{% trans trimmed %}Make your own{% endtrans %}</a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if lib %}
+<section class="section">
+  <div class="row between"><h2>{% trans trimmed %}From the library{% endtrans %}</h2>
+    <a href="/library?tab=roadmaps">{{ T('See all {n}', n=lib_count) }}</a></div>
+  <div class="lib-grid">{% for r in lib %}{{ R.lib_card(r, titles) }}{% endfor %}</div>
+</section>
+{% elif not has_index %}
+<p class="muted">{% trans trimmed %}Roadmaps other people made are in the course library.{% endtrans %} <a href="/library?tab=roadmaps">{% trans trimmed %}Open the library{% endtrans %}</a></p>
+{% endif %}
+{% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_roadmap.html" as R with context %}
 {% block title %}{{ _('Course library') }}{% endblock %}
 {% block main %}
 <div class="lib-hero">
@@ -9,14 +10,37 @@
   {% if not problem and entries %}
   <div class="lib-stats">
     <div><b>{{ entries|length }}</b><span>{% trans trimmed %}courses{% endtrans %}</span></div>
+    {% if lib_roadmaps %}<div><b>{{ lib_roadmaps|length }}</b><span>{% trans trimmed %}roadmaps{% endtrans %}</span></div>{% endif %}
     <div><b>{{ entries|sum(attribute='hours') }}</b><span>{% trans trimmed %}hours of lessons{% endtrans %}</span></div>
   </div>
   {% endif %}
 </div>
+{% if not problem %}
+<nav class="lib-tabs" aria-label="{{ _('Library') }}">
+  <a href="/library" class="{{ 'on' if tab == 'courses' }}" {{ 'aria-current=page' if tab == 'courses' }}>{{ icon('book', 18) }}{% trans trimmed %}Courses{% endtrans %} <span class="n">{{ entries|length }}</span></a>
+  <a href="/library?tab=roadmaps" class="{{ 'on' if tab == 'roadmaps' }}" {{ 'aria-current=page' if tab == 'roadmaps' }}>{{ icon('route', 18) }}{% trans trimmed %}Roadmaps{% endtrans %} <span class="n">{{ lib_roadmaps|length }}</span></a>
+</nav>
+{% endif %}
 
 {% if problem %}
 <section class="card empty">{{ mascot('think', 110) }}<p>{{ _(problem) }}</p>
   <div class="row"><a class="btn primary" href="/library?refresh=1">{% trans trimmed %}Try again{% endtrans %}</a></div></section>
+{% elif tab == 'roadmaps' %}
+{% if index.offline %}<p class="note warn">{% trans trimmed %}You're offline, so this is the list from the last time you looked.{% endtrans %}</p>{% endif %}
+<p class="muted">{% trans trimmed %}A roadmap is a path through several courses of the library, in order, toward one goal. Follow one, and add each course when you get to it.{% endtrans %}</p>
+{% if lib_roadmaps %}
+<div class="lib-tools">
+  <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" placeholder="{{ _('Search the roadmaps') }}" aria-label="{{ _('Search the roadmaps') }}"></label>
+</div>
+<p class="muted" data-course-none hidden>{% trans trimmed %}No roadmap matches that. Try another word.{% endtrans %}</p>
+<div class="lib-grid">{% for r in lib_roadmaps %}{{ R.lib_card(r, titles, r.id in followed) }}{% endfor %}</div>
+{% else %}
+<section class="card empty">{{ mascot('think', 100) }}<p>{% trans trimmed %}No roadmaps in the library yet. Make the first one!{% endtrans %}</p></section>
+{% endif %}
+<section class="card soft row between" style="margin-top:2rem">
+  <span><b>{% trans trimmed %}Make your own roadmap{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Pick a goal and inPace suggests the courses. Then share it, or publish it here.{% endtrans %}</span></span>
+  <a class="btn" href="/roadmaps/new">{% trans trimmed %}Make a roadmap{% endtrans %}</a>
+</section>
 {% else %}
 {% if missing %}<p class="note warn">{% trans trimmed %}The course in that link isn't in the library anymore.{% endtrans %}</p>{% endif %}
 {% if index.offline %}<p class="note warn">{% trans trimmed %}You're offline, so this is the list from the last time you looked.{% endtrans %}</p>{% endif %}
@@ -58,8 +82,10 @@
 </div>
 {% endif %}
 
+{% if tab != 'roadmaps' %}
 <section class="card soft row between" style="margin-top:2rem">
   <span><b>{% trans trimmed %}Share your own course{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}In My courses, open More on your course and choose Publish to the library.{% endtrans %}</span></span>
   <a class="btn" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
 </section>
+{% endif %}
 {% endblock %}

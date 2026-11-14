@@ -269,3 +269,29 @@ updated, link}]}`. Apps download `pack` only from the library's own site and ins
 
 **Course links.** `{inpace: "library-course", id, title, author}` sent as a link (§11) opens that course in the
 Course library.
+
+## 13. Roadmaps
+
+A roadmap (inPace 1.24 and newer) is an ordered list of courses toward one goal. It names courses by id and never
+carries course files.
+
+**Roadmap file.** YAML or JSON: `{id, title, description, language, tags, author, steps: [{course, note,
+optional, title}]}`. `id` is 3 to 63 small letters, digits and `-` (made from the title if missing). `steps` has 1
+to 30 entries, each `course` at most once and at least one not optional. `note` says why the course is there (up to
+400 characters), `optional: true` leaves the step out of the roadmap's percent, and `title` is the course's name for
+when it isn't on the device yet. A plain string step is read as `{course: <it>}`. Library roadmaps in
+`roadmaps/<id>.yaml` may also have `official`, `order` and `updated`. A roadmap file has `steps:` and no `modules:`,
+which is how apps tell it from a course.
+
+**Fingerprint.** The first 16 hex digits of the SHA-256 of the JSON (sorted keys, UTF-8) of `{title, description,
+steps}`, with each step as `{course, note, optional}` and empty fields left out. The app offers **Update** when the
+library's copy has a different fingerprint.
+
+**In library.json.** `roadmaps: [{id, title, description, language, tags, author: {name, verified}, steps: [{course,
+note, optional}], courses, minutes, lessons, updated, needs: "1.24", hash, link}]`. Every `course` must be in the
+same library, and each course entry lists the roadmaps it's on in `roadmaps`. Older apps ignore both keys.
+`stats.json` has `roadmaps`, the number of roadmaps.
+
+**Roadmap links** (§11). `{inpace: "library-roadmap", id, title, author}` opens that roadmap from the library.
+`{inpace: "roadmap", id, title, description, language, author, tags, steps}` carries the whole roadmap; the app shows
+it, and the learner follows it and adds each course from the library.

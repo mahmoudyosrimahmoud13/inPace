@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Voyages') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="/island">{% trans trimmed %}Tempo's island{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Voyages{% endtrans %}.</h1>
+  <p class="muted">{% trans trimmed %}Every roadmap you follow is a voyage, and each of its courses is a port. Finish a course and its lighthouse lights up (10 shells). Reach the harbour at the end and its chest is yours (100 shells).{% endtrans %}</p>
+</div>
+<nav class="isle-modes" aria-label="{{ _('Island views') }}">
+  <a href="/island">{{ icon('island', 18) }}{% trans trimmed %}The island{% endtrans %}</a>
+  <a href="/island/voyages" class="on" aria-current="page">{{ icon('route', 18) }}{% trans trimmed %}Voyages{% endtrans %}</a>
+</nav>
+{% if not on %}<p class="note warn small">{% trans trimmed %}Tempo's island is off, so voyages don't give shells yet.{% endtrans %} <a href="/island">{% trans trimmed %}Turn it on{% endtrans %}</a></p>{% endif %}
+
+{% if voyages %}
+{% for v in voyages %}{% set st = v.st %}{% set here = st.current %}
+<section class="card voyage {{ 'done' if st.finished }}">
+  <div class="row between wrap">
+    <h2 dir="auto" style="margin:0"><a href="/roadmaps/{{ v.rm.id }}">{{ v.rm.title }}</a></h2>
+    <span class="chip {{ 'good' if st.finished else 'warn' }}">{% if st.finished %}{% trans trimmed %}In the harbour{% endtrans %}{% else %}{{ T('Port {a} of {b}', a=st.done, b=st.total) }}{% endif %}</span>
+  </div>
+  {{ v.chart|safe }}
+  {% if st.finished %}
+  <p class="voyage-say">{{ mascot('cheer', 56) }}<span class="bubble">{% trans trimmed %}Land ho! We made it to the harbour. The chest was full of shells.{% endtrans %}</span></p>
+  {% elif here %}
+  <div class="row between wrap voyage-next">
+    <span><span class="small muted">{% trans trimmed %}Next port{% endtrans %}</span><br><b dir="auto">{{ here.n }}. {{ here.title }}</b></span>
+    {% if here.state == 'active' %}<a class="btn primary" href="/learn/{{ here.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
+    {% elif here.state == 'start' %}<form method="post" action="/roadmaps/{{ v.rm.id }}/start/{{ here.course }}"><button class="btn primary">{% trans trimmed %}Start{% endtrans %}</button></form>
+    {% elif here.state == 'add' %}<form method="post" action="/roadmaps/{{ v.rm.id }}/add/{{ here.course }}"><button class="btn primary" data-busy="{{ _('Adding…') }}">{% trans trimmed %}Add the course{% endtrans %}</button></form>
+    {% else %}<a class="btn" href="/roadmaps/{{ v.rm.id }}">{% trans trimmed %}See the roadmap{% endtrans %}</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+{% else %}
+<section class="card empty rm-empty">
+  {{ mascot('water', 120) }}
+  <div class="stack">
+    <h2>{% trans trimmed %}No voyage yet{% endtrans %}</h2>
+    <p>{% trans trimmed %}Follow a roadmap and Tempo sets sail: one port for each course, a harbour at the end.{% endtrans %}</p>
+    <div class="row wrap"><a class="btn primary" href="/library?tab=roadmaps">{% trans trimmed %}Browse roadmaps{% endtrans %}</a>
+      <a class="btn" href="/roadmaps/new">{% trans trimmed %}Make your own{% endtrans %}</a></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="card soft row voyage-gull">
+  <span class="{{ '' if has_gull else 'locked' }}">{{ gull|safe }}</span>
+  <span class="grow">{% if has_gull %}<b>{{ _('Nawras the seagull') }}</b><br><span class="small">{{ _("Nawras flies ahead of every ship to see what's next. When you reached your first port on a roadmap, he landed on the mast and said: \"I'll show you the way to the next one.\"") }}</span>
+    {% else %}<b>{% trans trimmed %}A friend is waiting at the first port{% endtrans %}</b><br><span class="small muted">{% trans trimmed %}Finish a course on one of your roadmaps, and a new friend flies to the island.{% endtrans %}</span>{% endif %}</span>
+</section>
+{% endblock %}

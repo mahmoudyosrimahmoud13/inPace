@@ -42,6 +42,11 @@
   </p>
 </div>
 
+<nav class="isle-modes" aria-label="{{ _('Island views') }}">
+  <a href="/island" class="on" aria-current="page">{{ icon('island', 18) }}{% trans trimmed %}The island{% endtrans %}</a>
+  <a href="/island/voyages">{{ icon('route', 18) }}{% trans trimmed %}Voyages{% endtrans %}</a>
+</nav>
+
 <div class="isle-weather tempo-say fog-{{ wx.fog }}">
   {{ mascot({0: ('cheer' if wx.fair else 'happy'), 1: 'think', 2: 'sleepy', 3: 'sad'}[wx.fog], 84) }}
   <p class="bubble">{% if wx.fog == 0 and wx.fair %}{% trans trimmed %}Fair winds! You kept your goal this week, and the current is carrying us forward.{% endtrans %}

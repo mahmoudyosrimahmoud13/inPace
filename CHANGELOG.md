@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.24.0
+
+- **Roadmaps: several courses in order, toward one goal.** "Become a data analyst", "Maths for machine learning", "English from A1 to B1": a roadmap says which courses to take, in what order, and why each one comes where it does.
+  - **Roadmaps** is a new place in the sidebar (and under More on phones). It shows the roadmaps you're on, how far you are in each, and the next course.
+  - Each roadmap's page is the path itself: every course with its picture, your note, how long it is and your progress, and one button for what's next (**Continue**, **Start** or **Add the course**).
+  - **Home** shows the roadmaps you're on under your courses, and every course card and course page says when a course is step 2 of a roadmap.
+- **Make your own roadmap from the courses there are.** Type a goal and press **Suggest courses**: inPace picks the matching courses from your courses and the library, keeps one language, keeps a series together, and puts the basics first and the advanced courses last. Then move courses up and down, add a note to each, mark some optional, and save. You can also make your own version of any library roadmap.
+- **Roadmaps in the library.** The course library has a new **Roadmaps** tab with 10 roadmaps to start with. **Follow this roadmap** saves it; you add each course when you get to it, so nothing big downloads up front. A library course's page says which roadmaps it's on.
+- **Share and publish roadmaps.** A library roadmap goes as a short link. One you made goes as a link that holds the whole roadmap (it's only the course list and your notes), or as a file. **Publish it to the library** opens the form on GitHub with your roadmap already filled in, and a bot checks that all its courses are in the library.
+- **Voyages, a new mode on Tempo's island.** Every roadmap you follow is a voyage: each course is a port with a lighthouse, and the end is a harbour with a chest. Tempo's boat sails to the next port as you go.
+  - Finish a course on a roadmap and its lighthouse lights up: **10 shells**. Finish the whole roadmap and the harbour's chest is yours: **100 shells**.
+  - **A new friend, Nawras the seagull,** flies to the island when you finish your first course on a roadmap.
+  - The island page has two views now, **The island** and **Voyages**, and every roadmap's page shows its voyage.
+- **The website and the library site show roadmaps** as a new-in-1.24 feature: roadmap cards and pages, how many roadmaps there are, and a note that following one needs inPace 1.24 or newer. Older versions of inPace ignore roadmaps and keep working as before.
+- In Arabic, roadmaps are called مسارات التعلّم, and every new page is translated.
+
 ## v1.23.0
 
 - **Faster pages, most of all on phones.**

@@ -1729,3 +1729,151 @@ html.nav-busy::after { content: ""; position: fixed; z-index: 9999; inset-block-
 @keyframes inpace-in-start { from { opacity: 0; transform: translateX(-26px); } }
 @keyframes inpace-fade-out { to { opacity: 0; } }
 @keyframes inpace-fade-in { from { opacity: 0; } }
+
+/* ---- Roadmaps (v1.24) ------------------------------------------------------------------------------------------
+   A path through several courses. Same pieces as the rest of the app: black outlines, hard shadows, the sun yellow
+   for where you are, green for what's done. The steps read top to bottom, joined by a dashed line like the trail. */
+.rm-page-head { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; justify-content: space-between; }
+.rm-page-head p { margin: .3rem 0 0; max-width: 44rem; }
+.rm-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 1.2rem; margin-block-end: 2rem; }
+.rm-card { display: flex; flex-direction: column; gap: .7rem; color: inherit; text-decoration: none; }
+.rm-card h2 { margin: 0; font-size: 1.25rem; line-height: 1.25; }
+.rm-card-head { display: flex; flex-wrap: wrap; gap: .4rem; }
+.rm-next { display: flex; flex-direction: column; gap: .1rem; }
+.rm-next b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-empty { display: flex; gap: 1.5rem; align-items: center; text-align: start; flex-wrap: wrap; }
+.rm-empty .tempo { margin: 0; }
+.rm-empty .stack { flex: 1 1 18rem; }
+.rm-empty h2 { margin: 0; }
+.rm-empty .row { justify-content: flex-start; margin: 0; }
+
+/* the little row of numbered ports */
+.rm-dots { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: 0; padding: 0; list-style: none; }
+.rm-dots li { display: grid; place-items: center; width: 26px; height: 26px; font-size: .72rem; font-weight: 800; color: var(--ink);
+  background: var(--surface); border: 2px solid var(--black); position: relative; margin-inline-end: 12px; }
+.rm-dots li:not(:last-child)::after { content: ""; position: absolute; inset-inline-start: 100%; width: 12px; border-top: 2px dashed var(--black); }
+.rm-dots li.done { background: var(--shell); color: #fff; }
+.rm-dots li.here { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+.rm-dots li.opt { border-style: dashed; transform: scale(.85); }
+.rm-dots li.harbour { border: 0; background: none; font-size: 1rem; }
+
+/* library cards for roadmaps */
+.rm-lib-top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .9rem 1.05rem; text-decoration: none;
+  color: #111; background: var(--sky); border-bottom: 2.5px solid var(--black);
+  background-image: repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.55) 22px 30px); }
+.rm-lib-icon { display: grid; place-items: center; width: 48px; height: 48px; background: var(--sun); border: 2.5px solid var(--black); box-shadow: var(--hard-sm); }
+.rm-lib-count { font-weight: 800; font-size: .9rem; background: var(--surface); border: 2px solid var(--black); padding: .1rem .55rem; }
+.rm-mini { margin: 0; padding: 0; list-style: none; counter-reset: rm; display: grid; gap: .2rem; font-size: .86rem; }
+.rm-mini li { counter-increment: rm; display: flex; gap: .45rem; align-items: baseline; }
+.rm-mini li::before { content: counter(rm); flex: none; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; font-size: .7rem; font-weight: 800;
+  border: 1.5px solid var(--black); background: var(--raised); }
+.rm-mini li.more { color: var(--muted); }
+.rm-mini li.more::before { content: "…"; border-style: dashed; }
+
+/* Home and course page: where you are on a roadmap */
+.rm-strips { display: grid; gap: .8rem; margin-block-end: 1.4rem; }
+.rm-strip { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; padding: .8rem 1rem; color: inherit; text-decoration: none;
+  background: var(--sky); color: #111; border: 2.5px solid var(--black); box-shadow: var(--hard-sm); }
+.rm-strip .grow { display: flex; flex-direction: column; min-width: 12rem; }
+.rm-strip .small.muted { color: #333; }
+.rm-strip .rm-dots li { color: #111; background: #fff; }
+.rm-strip .rm-dots li.done { background: var(--shell); color: #fff; } .rm-strip .rm-dots li.here { background: var(--sun); }
+.rm-strip-icon { display: grid; place-items: center; width: 42px; height: 42px; background: var(--sun); border: 2.5px solid var(--black); flex: none; }
+.rm-chip { display: inline-flex; align-items: center; gap: .3rem; margin-inline-start: .7rem; padding: .05rem .5rem; font-size: .8rem;
+  background: var(--sky); color: #111 !important; border: 2px solid var(--black); text-decoration: none !important; }
+
+/* a roadmap's page */
+.rm-head h1 { margin-block-end: .4rem; }
+.rm-desc { max-width: 46rem; margin: 0 0 .7rem; }
+.rm-facts { font-size: .88rem; margin-block-end: 1rem; }
+.rm-progress { margin-block: .4rem .2rem; }
+.rm-follow { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-block: 1rem .4rem; }
+.rm-follow .small { max-width: 30rem; }
+.rm-actions { margin-block-start: 1rem; }
+.voyage-card { margin: 0 0 1.6rem; padding: 0; overflow: hidden; }
+.voyage-card figcaption { padding: .6rem 1rem .8rem; border-top: 2.5px solid var(--black); }
+.voyage-scroll { overflow-x: auto; overscroll-behavior-x: contain; direction: ltr; background: #CDE8F2; }
+/* never smaller than about 70 px a port (it scrolls), never bigger than its own size (it stays crisp and calm) */
+.voyage-chart { display: block; margin-inline: auto; width: max(var(--vw, 0px), min(100%, var(--vmax, 100%))); height: auto; }
+.voyage-chart .port-done .tempo, .voyage-chart text { pointer-events: none; }
+
+.rm-path { list-style: none; margin: 0 0 2rem; padding: 0; display: grid; gap: 1rem; position: relative; }
+.rm-path::before { content: ""; position: absolute; inset-block: 22px 22px; inset-inline-start: 21px; border-inline-start: 3px dashed var(--black); opacity: .5; }
+.rm-step { display: grid; grid-template-columns: 46px 1fr; gap: .8rem; align-items: start; position: relative; }
+.rm-num { display: grid; place-items: center; width: 46px; height: 46px; font-weight: 800; background: var(--surface); border: 2.5px solid var(--black);
+  box-shadow: var(--hard-sm); position: relative; z-index: 1; }
+.rm-step.done .rm-num { background: var(--shell); color: #fff; }
+.rm-step.here .rm-num { background: var(--sun); color: #111; }
+.rm-step.opt .rm-num { border-style: dashed; }
+.rm-step.harbour .rm-num { font-size: 1.3rem; background: var(--sky); color: #111; }
+.rm-step.harbour.done .rm-num { background: var(--sun); }
+.rm-step-card { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 0; padding: .9rem 1rem; }
+.rm-step.here .rm-step-card { border-color: var(--black); box-shadow: 5px 5px 0 var(--sun), 5px 5px 0 2.5px var(--black); }
+.rm-step.missing .rm-step-card { opacity: .7; }
+.rm-cover .cover { width: 92px; }
+.rm-cover .cover.blank { font-size: 1.6rem; background: hsl(var(--hue) 75% 75%); }
+.rm-step-body { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 14rem; min-width: 0; }
+.rm-step-body h3 { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.rm-step-body h3 a { color: inherit; }
+.rm-step-body p { margin: 0; }
+.rm-step-kicker .chip { font-size: .7rem; padding: 0 .4rem; }
+.rm-note { position: relative; margin: .3rem 0 0 !important; padding: .45rem .7rem; font-size: .9rem; background: var(--raised); border-inline-start: 4px solid var(--sun); }
+.rm-step-act { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.rm-step-act form { margin: 0; }
+@media (max-width: 640px) {
+  .rm-step { grid-template-columns: 38px 1fr; gap: .55rem; }
+  .rm-num { width: 38px; height: 38px; font-size: .85rem; }
+  .rm-path::before { inset-inline-start: 17px; }
+  .rm-cover { display: none; }
+  .rm-step-card { padding: .75rem .8rem; gap: .6rem; }
+  .rm-step-act { width: 100%; }
+  .rm-strip .rm-dots { display: none; }
+}
+
+/* making a roadmap */
+.rm-goal input { min-width: 0; }
+.rm-edit-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.rm-edit-step { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "num title tools" "note note note" "opt opt opt";
+  gap: .45rem .7rem; align-items: center; padding: .7rem; background: var(--raised); border: 2px solid var(--black); }
+.rm-edit-num { grid-area: num; display: grid; place-items: center; width: 32px; height: 32px; font-weight: 800; background: var(--sun); color: #111; border: 2px solid var(--black); }
+.rm-edit-main { display: contents; }
+.rm-edit-main > b { grid-area: title; min-width: 0; line-height: 1.3; }
+.rm-edit-note { grid-area: note; width: 100%; font-size: .9rem; }
+.rm-edit-main > .check { grid-area: opt; }
+.rm-edit-step > .small { grid-column: 2 / -1; }
+.rm-edit-tools { grid-area: tools; display: flex; gap: .25rem; }
+.rm-edit-tools .btn { min-height: 36px; min-width: 36px; padding: .2rem; box-shadow: none; }
+.rm-pick { list-style: none; margin: 0; padding: 0; max-height: 26rem; overflow-y: auto; border: 2px solid var(--hair); }
+.rm-pick li { display: flex; align-items: center; gap: .6rem; justify-content: space-between; padding: .55rem .7rem; border-bottom: 1px solid var(--hair); }
+.rm-pick li[hidden] { display: none; }
+.rm-pick li.added { background: var(--raised); }
+.rm-pick-label { flex: 1; min-width: 0; }
+.rm-maker.js .rm-pick-label input { display: none; }
+.rm-maker .course-filter { flex: none; max-width: none; }
+
+/* the library: Courses | Roadmaps */
+.lib-tabs { display: flex; gap: .5rem; margin-block: 0 1.2rem; flex-wrap: wrap; }
+.lib-tabs a { display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .9rem; font-weight: 700; color: var(--ink); text-decoration: none;
+  background: var(--surface); border: 2.5px solid var(--black); }
+.lib-tabs a.on { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+.lib-tabs .n { font-size: .78rem; padding: 0 .4rem; border: 1.5px solid currentColor; }
+.lib-on-rm { display: flex; gap: .5rem; align-items: center; padding: .6rem .9rem; background: var(--sky); color: #111; border: 2px solid var(--black); }
+.lib-on-rm a { color: #111; font-weight: 700; }
+
+/* Tempo's island: The island | Voyages */
+.isle-modes { display: flex; gap: .5rem; margin-block: 0 1.2rem; flex-wrap: wrap; }
+.isle-modes a { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .9rem; font-weight: 700; color: var(--ink); text-decoration: none;
+  background: var(--surface); border: 2.5px solid var(--black); }
+.isle-modes a.on { background: var(--sky); color: #111; box-shadow: var(--hard-sm); }
+.voyage { display: flex; flex-direction: column; gap: .8rem; margin-block-end: 1.4rem; }
+.voyage .voyage-scroll { border: 2.5px solid var(--black); }
+.voyage h2 a { color: inherit; }
+.voyage-next .btn { flex: none; }
+.voyage-say { display: flex; align-items: center; gap: .6rem; margin: 0; }
+.voyage-say .bubble { background: var(--surface); border: 2px solid var(--black); padding: .5rem .8rem; }
+.voyage-gull { gap: 1rem; align-items: center; }
+.voyage-gull .locked svg { filter: grayscale(1) brightness(.5); opacity: .5; }
+@media (prefers-reduced-motion: no-preference) {
+  .voyage-boat { animation: inpace-bob 3.2s ease-in-out infinite; transform-box: fill-box; }
+}
+@keyframes inpace-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }

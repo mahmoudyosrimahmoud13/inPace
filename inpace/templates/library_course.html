@@ -28,6 +28,10 @@
   </div>
 </header>
 
+{% if on_rm %}
+<p class="lib-on-rm">{{ icon('route', 18) }}<span>{% trans trimmed %}On these roadmaps:{% endtrans %}
+  {% for r in on_rm %}<a href="/roadmaps/{{ r.id }}" dir="auto">{{ r.title }}</a>{{ ', ' if not loop.last }}{% endfor %}</span></p>
+{% endif %}
 <h2 class="lib-section">{% trans trimmed %}What's inside{% endtrans %}</h2>
 {% if outline %}
 <p class="muted small">{% trans trimmed %}Each module ends with tasks. The next module opens when they're done.{% endtrans %}</p>
