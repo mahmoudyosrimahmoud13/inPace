@@ -261,6 +261,8 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
                "minutes": int(f.get("minutes") or 0)}
         if media:
             les["media"] = media
+        if f.get("optional") == "1":
+            les["optional"] = True
         mod["lessons"].append(les)
     elif action == "add_links" and mod:
         for l in parse_link_lines(f.get("links", ""), bool(f.get("fetch_titles"))):
@@ -327,6 +329,11 @@ def edit(v: Vault, course_id: str, action: str, f: dict) -> Course:
                     les["title"] = f.get("title", "").strip() or les["title"]
                     les["content"] = f.get("content", "")
                     les["minutes"] = int(f.get("minutes") or 0)
+                    if f.get("has_optional"):  # the form has the checkbox, so a missing tick means "required"
+                        if f.get("optional") == "1":
+                            les["optional"] = True
+                        else:
+                            les.pop("optional", None)
                     if "media" in f:
                         media = _lesson_media(f)
                         if media:
@@ -404,6 +411,8 @@ def course_to_yaml(c: Course) -> str:
                 e["media"] = les["media"]
             if les.get("minutes"):
                 e["minutes"] = les["minutes"]
+            if les.get("optional"):
+                e["optional"] = True
             if les.get("content", "").strip():
                 e["content"] = les["content"].rstrip() + "\n"
             lessons.append(e)

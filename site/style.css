@@ -214,9 +214,10 @@ main > .chapter { display: grid; grid-template-columns: auto 1fr 1.1fr; gap: cla
 .chapter code { font-family: "JetBrains Mono", monospace; font-size: .9em; background: var(--cream); padding: 0 .3rem; }
 .chapter .frame img { width: 100%; }
 .chapter-tempo { width: 220px; justify-self: center; }
+.chapter .shots { display: grid; gap: 18px; align-content: start; }
 @media (max-width: 960px) {
   main > .chapter { grid-template-columns: auto 1fr; }
-  .chapter .frame, .chapter-tempo { grid-column: 1 / -1; }
+  .chapter .frame, .chapter-tempo, .chapter .shots { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) { main > .chapter { grid-template-columns: 1fr; } .guide-head { flex-direction: column; align-items: flex-start; } }
 main > .chapter { max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); }

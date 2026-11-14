@@ -115,7 +115,7 @@
     notes.value = les.content || "";
     const notesBox = el("div", { class: "b-notes-box" }, notes);
     notesBox.hidden = !(kind === "text" || (les.content || "").trim() || les.open);
-    const row = el("li", { class: "b-les", draggable: "true", "data-kind": kind },
+    const row = el("li", { class: "b-les" + (les.optional ? " is-opt" : ""), draggable: "true", "data-kind": kind },
       el("span", { class: "b-grip", title: L.drag, "aria-hidden": "true" }, svg("grip")),
       el("span", { class: `b-kind k-${kind}` }, L["kind_" + kind] || kind),
       el("span", { class: "b-les-main" },
@@ -125,6 +125,9 @@
       el("label", { class: "b-min small muted" },
         el("input", { type: "number", min: "0", max: "999", value: les.minutes || "", "aria-label": L.minutes,
           oninput: (e) => { les.minutes = +e.target.value || 0; later(); } }), L.min),
+      el("label", { class: "b-opt small", title: L.optionalHelp },
+        el("input", { type: "checkbox", checked: les.optional ? "" : null,
+          onchange: (e) => { les.optional = e.target.checked; row.classList.toggle("is-opt", les.optional); later(); } }), L.optional),
       el("span", { class: "b-tools" },
         kind !== "text" ? iconBtn("note", L.notes, () => { les.open = notesBox.hidden; notesBox.hidden = !notesBox.hidden; if (!notesBox.hidden) notes.focus(); }) : null,
         iconBtn("up", L.moveUp, () => moveLesson(mi, li, -1)),
@@ -247,7 +250,8 @@
     busy = true;
     const payload = { cid, draft, title: state.title, description: state.description, language: state.language,
       modules: state.modules.map((m) => ({ id: m.id, title: m.title,
-        lessons: m.lessons.map((l) => ({ id: l.id, title: l.title, media: l.media, content: l.content, minutes: l.minutes })) })) };
+        lessons: m.lessons.map((l) => ({ id: l.id, title: l.title, media: l.media, content: l.content, minutes: l.minutes,
+          optional: !!l.optional })) })) };
     if (folderSel.value === "__new__") payload.new_folder = $("b-new-folder").value;
     else payload.folder = folderSel.value;
     try {

@@ -86,7 +86,7 @@
   <div class="next next-top">
     <div>
       <p class="eyebrow">{% trans trimmed %}Next up{% endtrans %}</p>
-      <p class="next-title" dir="auto">{{ p.next.title if p.next.kind == 'lesson' else _('Finish the module tasks') }}</p>
+      <p class="next-title" dir="auto">{{ p.next.title if p.next.kind == 'lesson' else _('Finish the module tasks') }}{% if p.next.optional %} <span class="chip muted">{{ _('Optional') }}</span>{% endif %}</p>
     </div>
     {% if p.next.kind == 'lesson' %}
       <a class="btn primary big" href="/learn/{{ c.journey.id }}/lesson/{{ p.next.id }}">{{ _("Continue") }} {{ icon('arrow', 18) }}</a>

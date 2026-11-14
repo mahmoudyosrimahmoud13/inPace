@@ -43,6 +43,7 @@
     <ul>
     {% for les in m.lessons %}
       <li><span dir="auto">{{ les.title }}</span>
+        {% if les.optional %}<span class="kind opt">{{ _('optional') }}</span>{% endif %}
         {% if les.media == 'pdf' %}<span class="kind">{% trans trimmed %}slides{% endtrans %}</span>{% elif les.media in ('video', 'audio') %}<span class="kind">{{ _(les.media) }}</span>{% elif les.media == 'youtube' %}<span class="kind">YouTube</span>{% endif %}
         <span class="mins">{% if les.minutes %}{{ T('{n} min', n=les.minutes) }}{% endif %}</span></li>
     {% endfor %}

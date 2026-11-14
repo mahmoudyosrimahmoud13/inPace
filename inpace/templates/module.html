@@ -2,12 +2,13 @@
 {% block title %}{{ T('{name} tasks', name=module.title) }}{% endblock %}
 {% block width %}read{% endblock %}
 {% block main %}
-{% set lessons_left = mstate.lessons|rejectattr('done')|list %}
+{% set lessons_left = mstate.lessons|rejectattr('optional')|rejectattr('done')|list %}
+{% set extra_left = mstate.lessons|selectattr('optional')|rejectattr('done')|list %}
 <div class="page-head">
   <p class="eyebrow"><a data-up href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
   <h1 dir="auto">{{ module.title }}</h1>
-  {% set has_optional = mstate.requires|selectattr('optional')|list %}
-  <p class="muted">{% if has_optional %}{% trans trimmed %}To finish this module, read every lesson and complete the tasks that aren't marked optional.{% endtrans %}{% else %}{% trans trimmed %}To finish this module, read every lesson and complete these tasks.{% endtrans %}{% endif %}
+  {% set has_optional = (mstate.requires|selectattr('optional')|list) or (mstate.lessons|selectattr('optional')|list) %}
+  <p class="muted">{% if has_optional %}{% trans trimmed %}To finish this module, read the lessons and complete the tasks that aren't marked optional.{% endtrans %}{% else %}{% trans trimmed %}To finish this module, read every lesson and complete these tasks.{% endtrans %}{% endif %}
   {% if mstate.status == 'done' %}<span class="chip good">{% trans trimmed %}Module done{% endtrans %}</span>{% endif %}</p>
 </div>
 {% if mstate.status == 'done' %}
@@ -42,8 +43,9 @@
   <span class="ico">{{ icon('check' if not lessons_left else 'book') }}</span>
   <div>
     <div class="task-head"><h3>{% trans trimmed %}Read all lessons{% endtrans %}</h3>{% if not lessons_left %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% endif %}</div>
-    <p class="muted" style="margin:0">{{ _('%s of %s done.')|format(mstate.lessons_done, mstate.lessons|length) }}
+    <p class="muted" style="margin:0">{{ _('%s of %s done.')|format(mstate.lessons_done, mstate.lessons_needed if mstate.lessons_needed is defined else mstate.lessons|length) }}
     {% if lessons_left %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ lessons_left[0].id }}">{{ T('Continue with “{name}”', name=lessons_left[0].title) }}</a>{% endif %}</p>
+    {% if extra_left %}<p class="small muted" style="margin:.3rem 0 0">{{ _('Optional lessons:') }} {% for l in extra_left %}<a data-replace href="/learn/{{ j.id }}/lesson/{{ l.id }}" dir="auto">{{ l.title }}</a>{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
   </div>
 </section>
 

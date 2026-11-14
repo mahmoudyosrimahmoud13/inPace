@@ -19,6 +19,7 @@
   <a class="btn primary big continue-btn" href="/learn/{{ j.id }}/{{ 'lesson/' ~ nx.id if nx.kind == 'lesson' else 'module/' ~ nx.mid }}">
     <span><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ nx.title if nx.kind == 'lesson' else T('{name} tasks', name=nx.module) }}</b></span>{{ icon('arrow', 18) }}</a>
   {% elif prog.finished %}<p><span class="chip good">{% trans trimmed %}Course finished{% endtrans %}</span></p>{% endif %}
+  {% if note_count %}<p class="course-notes-link"><a href="/learn/{{ j.id }}/notes">{{ icon('pen', 16) }} {{ _('Your notes') }} <span class="chip plain">{{ note_count }}</span></a></p>{% endif %}
   {% if offline %}{% set qjob = offline.job %}
   <div class="offline-quick">
     {% if qjob and qjob.state == 'running' %}
@@ -104,7 +105,7 @@
 {% set ns = namespace(here_given=false) %}
 {% for m in prog.modules %}
 {% set treq = m.requires|rejectattr('optional')|list %}{% set tdone = treq|selectattr('done')|list|length %}
-{% set lessons_left = m.lessons|rejectattr('done')|list|length %}
+{% set lessons_left = m.lessons|rejectattr('optional')|rejectattr('done')|list|length %}
 {% set count = m.lessons|length + 1 %}
 {% set h = count * step + 24 %}
 <section class="trail-module {{ m.status }}">
@@ -124,12 +125,13 @@
 
     {% for l in m.lessons %}
       {% set i = loop.index0 %}{% set x = xs[i % 6] %}{% set y = i * step + step // 2 + 12 %}
-      {% set is_here = m.status == 'open' and not l.done and not ns.here_given %}
+      {# The same rule as "Continue": optional lessons you already opened and left are passed over. #}
+      {% set is_here = m.status == 'open' and not l.done and not (l.optional and l.opened) and not ns.here_given %}
       {% if is_here %}{% set ns.here_given = true %}{% endif %}
-      <a class="stone {{ 'done' if l.done }} {{ 'here' if is_here }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
+      <a class="stone {{ 'done' if l.done }} {{ 'here' if is_here }} {{ 'opt' if l.optional }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
          style="inset-inline-start: {{ x }}%; top: {{ y }}px" {% if m.status != 'locked' %}href="/learn/{{ j.id }}/lesson/{{ l.id }}"{% endif %}>
         <span class="rock">{% if l.done %}{{ icon('check', 22) }}{% else %}{{ loop.index }}{% endif %}</span>
-        <span class="label" dir="auto">{{ l.title }}{% if l.minutes %}<small>{{ T('{n} min', n=l.minutes) }}</small>{% endif %}</span>
+        <span class="label" dir="auto">{{ l.title }}{% if l.minutes or l.optional %}<small>{% if l.optional %}{{ _('Optional') }}{% if l.minutes %} · {% endif %}{% endif %}{% if l.minutes %}{{ T('{n} min', n=l.minutes) }}{% endif %}</small>{% endif %}</span>
         {% if is_here %}<span class="walker">{{ mascot('wave', 64) }}</span>{% endif %}
       </a>
     {% endfor %}
@@ -148,7 +150,7 @@
   {% if m.status == 'open' %}{{ trail }}
   {% else %}
   <details class="trail-fold">
-    <summary>{{ T('{n} lessons', n=m.lessons|length) }}{% if treq %} · {{ _('Module tasks') }}{% endif %}</summary>
+    <summary>{{ T('{n} lessons', n=m.lessons|length) }}{% set nopt = m.lessons|selectattr('optional')|list|length %}{% if nopt %} ({{ T('{n} of them optional', n=nopt) }}){% endif %}{% if treq %} · {{ _('Module tasks') }}{% endif %}</summary>
     {{ trail }}
   </details>
   {% endif %}

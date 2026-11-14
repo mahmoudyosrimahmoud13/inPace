@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.25.0
+
+- **Optional lessons.** A course can now mark a lesson as an extra (further reading, a long video, a bonus exercise) that the module doesn't wait for.
+  - On the lesson, an **Optional** label and a **Skip it** button sit at the top, before the text. **Done, next lesson** still works if you read it.
+  - The module finishes without its optional lessons, and they don't count in the lessons total or the percent. Reading one still shows it as done.
+  - **Continue** shows each optional lesson once, in its place. Once you've opened it and moved on, Continue goes to the next lesson you need.
+  - The trail draws optional lessons as dashed stones, the module page lists them apart, and the lesson dots and the course outline mark them.
+  - Every way to make a course has it: an **Optional lesson** tick box in the lesson editor, in **Add a lesson** and in the drag-and-drop builder, and `optional: true` in the course file and **Edit as one file**. A module needs at least one lesson that isn't optional.
+  - **Make a course with AI** now tells the AI to put only extras in optional lessons.
+  - The course library marks optional lessons in each course's outline. Older versions of inPace treat them as normal lessons.
+- **Notes on lessons.** Select a sentence in a lesson and a **Take a note** button appears next to it. Press it, write your thought (or nothing), and save: the page stays where you are.
+  - Sentences you took notes on are highlighted in the lesson, and **Show in the lesson** takes you back to one.
+  - Each lesson ends with **Your notes**: edit or delete them there, or write a note without selecting anything.
+  - **Your notes** on the course page lists all of them in the course's order, and **Download as a file (.md)** saves them to keep or print.
+  - Notes are private: they stay on this device and in your backups, and are never sent with milestones or shared courses.
+- **A better PDF reader.**
+  - A zoom list: fit to width, fit to page, or 50% to 400%, with the zoom shown as you change it.
+  - Zoom with **Ctrl + mouse wheel** or a touchpad pinch (around the pointer), with **two fingers** on a phone, or with **+**, **−** and **0** on the keyboard. Zooming keeps the spot you were reading in place, and pages no longer go blank while they're drawn sharp again.
+  - **Rotate** for scanned pages that are sideways, and **night mode** for dark pages at night.
+  - Page buttons gray out on the first and last page, **Home** and **End** jump there, and "fit" zooms fit again when the window changes size.
+  - Each PDF remembers its zoom and rotation; night mode is remembered for all of them.
+  - Long books at a big zoom use much less memory: only the pages near the screen keep a drawn picture.
+- **Pictures and charts open big.** Click a picture in a lesson, or the small button in its corner: it fills the screen. Zoom with the buttons, the mouse wheel, **+** and **−**, or two fingers; drag to look around; double-click or double-tap to zoom in or fit again; rotate; **←** and **→** go to the lesson's other pictures; **Escape** closes it.
+- **Settings has a gear icon** now, instead of one that looked like the sun (and like the light and dark switch).
+- New Arabic translations for everything above.
+
 ## v1.24.0
 
 - **Roadmaps: several courses in order, toward one goal.** "Become a data analyst", "Maths for machine learning", "English from A1 to B1": a roadmap says which courses to take, in what order, and why each one comes where it does.

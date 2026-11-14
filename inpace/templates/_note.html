@@ -1,0 +1,20 @@
+{# One note on a lesson. Used on the lesson page, the course's notes page, and sent back by "Take a note". #}
+<li class="note-item" id="note-{{ n.id }}"{% if n.quote %} data-quote="{{ n.quote }}"{% endif %}>
+  {% if n.quote %}<blockquote class="note-quote" dir="auto">{{ n.quote }}</blockquote>{% endif %}
+  {% if n.text %}<p class="note-text" dir="auto">{{ n.text }}</p>{% endif %}
+  <div class="note-tools">
+    <span class="small muted">{{ n.updated_at[:10] }}</span>
+    {% if n.quote and jump %}<button type="button" class="btn ghost small-btn" data-show-note>{{ _('Show in the lesson') }}</button>{% endif %}
+    <details class="note-edit">
+      <summary class="btn ghost small-btn">{{ _('Edit') }}</summary>
+      <form method="post" action="/notes/{{ n.id }}" class="stack">
+        <input type="hidden" name="back" value="{{ back }}">
+        <label>{{ _('Your note') }}<textarea name="text" rows="3" dir="auto">{{ n.text }}</textarea></label>
+        <div class="row wrap">
+          <button class="btn primary">{{ _('Save note') }}</button>
+          <button class="btn ghost danger" name="delete" value="1">{{ _('Delete note') }}</button>
+        </div>
+      </form>
+    </details>
+  </div>
+</li>

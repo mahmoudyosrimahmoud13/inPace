@@ -207,6 +207,303 @@ function diagramBox(svgText) {
   document.head.appendChild(s);
 })();
 
+// Pictures in a lesson open in a viewer: fit to the screen, zoom with the buttons, the mouse wheel, + and −, or two
+// fingers; drag to move around; double-click (or double-tap) to zoom in or fit again; ← and → for the other pictures
+// of the lesson; Escape closes it. The page behind stays where it was.
+(() => {
+  const imgs = [...document.querySelectorAll(".prose img")].filter((img) => !img.closest("a, .diagram-box, .code-wrap"));
+  if (!imgs.length) return;
+  const ar = document.documentElement.lang === "ar";
+  const T = ar ? { open: "تكبير الصورة", out: "تصغير", in: "تكبير", fit: "ملاءمة الشاشة", real: "الحجم الأصلي", rot: "تدوير",
+                   prev: "الصورة السابقة", next: "الصورة التالية", close: "إغلاق", orig: "فتح الصورة وحدها", of: "من" }
+               : { open: "Zoom into the picture", out: "Zoom out", in: "Zoom in", fit: "Fit to screen", real: "Actual size", rot: "Rotate",
+                   prev: "Previous picture", next: "Next picture", close: "Close", orig: "Open the picture on its own", of: "of" };
+  const P = { out: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/>', in: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/>',
+              fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', real: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M8 10v5M12 10v.01M12 14v.01M16 10v5"/>',
+              rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>', prev: '<path d="M15 5l-7 7 7 7"/>', next: '<path d="M9 5l7 7-7 7"/>',
+              close: '<path d="M6 6l12 12M18 6 6 18"/>', orig: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>' };
+  const svg = (k) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
+  const btn = (k) => `<button type="button" class="iv-btn" data-iv="${k}" title="${T[k]}" aria-label="${T[k]}">${svg(k)}</button>`;
+
+  // A small button on each picture (and a click on the picture) opens the viewer.
+  imgs.forEach((img, i) => {
+    const holder = img.closest("figure") || img.parentElement;
+    holder.classList.add("iv-holder");
+    img.classList.add("iv-zoomable");
+    img.addEventListener("click", () => open(i));
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "iv-open"; b.title = T.open; b.setAttribute("aria-label", T.open); b.innerHTML = svg("fit");
+    b.addEventListener("click", () => open(i));
+    img.insertAdjacentElement("afterend", b);
+  });
+
+  let dlg, stage, pic, cap, label, counter, idx = 0, s = 1, fitS = 1, x = 0, y = 0, rot = 0, natW = 1, natH = 1, back = null;
+  const MIN = 0.05, MAX = 8;
+  function make() {
+    dlg = document.createElement("div");
+    dlg.className = "iv"; dlg.setAttribute("role", "dialog"); dlg.setAttribute("aria-modal", "true"); dlg.dir = "ltr";
+    dlg.innerHTML = `<div class="iv-bar" role="toolbar">
+        <span class="iv-count" aria-live="polite"></span>${btn("prev")}${btn("next")}
+        <span class="iv-gap"></span>${btn("out")}<span class="iv-zoom" aria-live="polite">100%</span>${btn("in")}${btn("fit")}${btn("real")}${btn("rot")}
+        <a class="iv-btn" data-iv="orig" target="_blank" rel="noopener" title="${T.orig}" aria-label="${T.orig}">${svg("orig")}</a>${btn("close")}
+      </div><div class="iv-stage"><img class="iv-pic" alt="" draggable="false"></div><p class="iv-cap" dir="auto"></p>`;
+    document.body.appendChild(dlg);
+    stage = dlg.querySelector(".iv-stage"); pic = dlg.querySelector(".iv-pic"); cap = dlg.querySelector(".iv-cap");
+    label = dlg.querySelector(".iv-zoom"); counter = dlg.querySelector(".iv-count");
+    dlg.querySelector(".iv-bar").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-iv]");
+      if (!b || b.dataset.iv === "orig") return;
+      ({ prev: () => show(idx - 1), next: () => show(idx + 1), in: () => zoom(s * 1.25), out: () => zoom(s / 1.25),
+         fit: fitNow, real: () => zoom(1), rot: () => { rot = (rot + 90) % 360; measure(); fitNow(); }, close })[b.dataset.iv]();
+    });
+    stage.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const f = Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * (e.ctrlKey ? 0.01 : 0.004));
+      zoom(s * f, point(e));
+    }, { passive: false });
+    // One pointer drags, two pinch. A quick second click or tap zooms in where you tapped, or fits again.
+    const pts = new Map();
+    let drag = null, pinch = null, lastTap = 0;
+    const gap = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+    const mid = () => { const [a, b] = [...pts.values()]; const r = stage.getBoundingClientRect(); return { x: (a.x + b.x) / 2 - r.left, y: (a.y + b.y) / 2 - r.top }; };
+    stage.addEventListener("pointerdown", (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      if (pts.size === 2) { pinch = { d: gap(), s, m: mid(), x, y }; drag = null; return; }
+      const now = Date.now();
+      if (now - lastTap < 320) { lastTap = 0; s > fitS * 1.05 ? fitNow() : zoom(Math.max(fitS * 2.5, 1), point(e)); return; }
+      lastTap = now;
+      drag = { px: e.clientX, py: e.clientY, x, y };
+      stage.classList.add("dragging");
+    });
+    stage.addEventListener("pointermove", (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && pts.size === 2) {
+        const m = mid(), ns = clamp(pinch.s * gap() / pinch.d);
+        x = m.x - (pinch.m.x - pinch.x) * ns / pinch.s; y = m.y - (pinch.m.y - pinch.y) * ns / pinch.s; s = ns;
+        place(); return;
+      }
+      if (drag) { x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; place(); }
+    });
+    const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; if (!pts.size) { drag = null; stage.classList.remove("dragging"); } };
+    stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+    dlg.addEventListener("keydown", (e) => {
+      const big = s > fitS * 1.02, step = 60;
+      const k = e.key;
+      if (k === "Escape") { e.preventDefault(); close(); }
+      else if (k === "+" || k === "=") { e.preventDefault(); zoom(s * 1.25); }
+      else if (k === "-" || k === "_") { e.preventDefault(); zoom(s / 1.25); }
+      else if (k === "0") { e.preventDefault(); fitNow(); }
+      else if (k === "1") { e.preventDefault(); zoom(1); }
+      else if (k === "ArrowLeft" || k === "ArrowRight") {
+        e.preventDefault();
+        if (big) { x += k === "ArrowLeft" ? step : -step; place(); }
+        else show(idx + ((k === "ArrowRight") !== ar ? 1 : -1));
+      } else if ((k === "ArrowUp" || k === "ArrowDown") && big) { e.preventDefault(); y += k === "ArrowUp" ? step : -step; place(); }
+      else if (k === "Tab") {  // keep the focus inside the viewer
+        const f = [...dlg.querySelectorAll(".iv-btn:not([hidden]):not(:disabled)")];
+        const i = f.indexOf(document.activeElement);
+        e.preventDefault();
+        f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+      }
+    });
+    window.addEventListener("resize", () => { if (dlg.classList.contains("on")) fitNow(); });
+  }
+  const clamp = (v) => Math.max(MIN, Math.min(MAX, v));
+  const point = (e) => { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  // The picture's size on screen, turned.
+  const box = () => (rot % 180 ? { w: natH * s, h: natW * s } : { w: natW * s, h: natH * s });
+  function place() {
+    const W = stage.clientWidth, H = stage.clientHeight, b = box();
+    // Smaller than the screen: keep it in the middle. Bigger: don't let it slide away from the edges.
+    x = b.w <= W ? (W - b.w) / 2 : Math.min(0, Math.max(W - b.w, x));
+    y = b.h <= H ? (H - b.h) / 2 : Math.min(0, Math.max(H - b.h, y));
+    const cx = x + b.w / 2, cy = y + b.h / 2;
+    pic.style.width = natW + "px"; pic.style.height = natH + "px";
+    pic.style.transform = `translate(${cx - natW / 2}px, ${cy - natH / 2}px) rotate(${rot}deg) scale(${s})`;
+    label.textContent = Math.round(s * 100) + "%";
+    stage.classList.toggle("big", b.w > W + 1 || b.h > H + 1);
+    dlg.querySelector('[data-iv="out"]').disabled = s <= MIN;
+    dlg.querySelector('[data-iv="in"]').disabled = s >= MAX;
+  }
+  function zoom(next, at) {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    at = at || { x: W / 2, y: H / 2 };
+    const ns = clamp(next);
+    x = at.x - (at.x - x) * ns / s; y = at.y - (at.y - y) * ns / s; s = ns;
+    place();
+  }
+  function measure() {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    const w = rot % 180 ? natH : natW, h = rot % 180 ? natW : natH;
+    fitS = Math.min(1, (W - 24) / w, (H - 24) / h);
+  }
+  function fitNow() { measure(); s = fitS; x = y = 0; place(); }
+  function show(i) {
+    idx = (i + imgs.length) % imgs.length;
+    const img = imgs[idx];
+    rot = 0;
+    const done = () => { natW = pic.naturalWidth || img.naturalWidth || 800; natH = pic.naturalHeight || img.naturalHeight || 600; fitNow(); };
+    pic.onload = done;
+    pic.src = img.currentSrc || img.src;
+    pic.alt = img.alt || "";
+    if (pic.complete && pic.naturalWidth) done();
+    const fc = img.closest("figure") && img.closest("figure").querySelector("figcaption");
+    cap.textContent = (fc && fc.textContent) || img.alt || "";
+    cap.hidden = !cap.textContent;
+    dlg.querySelector('[data-iv="orig"]').href = pic.src;
+    const many = imgs.length > 1;
+    counter.textContent = many ? `${idx + 1} ${T.of} ${imgs.length}` : "";
+    dlg.querySelectorAll('[data-iv="prev"], [data-iv="next"]').forEach((b) => (b.hidden = !many));
+  }
+  function open(i) {
+    if (!dlg) make();
+    back = document.activeElement;
+    dlg.classList.add("on");
+    document.body.classList.add("iv-open-page");
+    show(i);
+    dlg.querySelector('[data-iv="close"]').focus();
+  }
+  function close() {
+    dlg.classList.remove("on");
+    document.body.classList.remove("iv-open-page");
+    if (back && back.focus) back.focus({ preventScroll: true });
+  }
+})();
+
+// Notes on a lesson. Select some of the lesson and a "Take a note" button appears next to it (under it on touch
+// screens, where the phone's own menu sits above). It saves the sentence you selected and what you write, without
+// leaving the page. Sentences you took notes on are highlighted, and "Show in the lesson" scrolls back to one.
+(() => {
+  const prose = document.querySelector(".prose[data-notes]");
+  const list = document.getElementById("note-list");
+  if (!prose || !list) return;
+  const ar = document.documentElement.lang === "ar";
+  const T = ar ? { take: "دوّن ملاحظة", save: "احفظ الملاحظة", cancel: "إلغاء", ph: "ملاحظتك (اختيارية)", fail: "تعذّر حفظ الملاحظة. هل inPace ما زال مفتوحًا؟", saved: "حُفظت الملاحظة" }
+               : { take: "Take a note", save: "Save note", cancel: "Cancel", ph: "Your note (optional)", fail: "Couldn't save the note. Is inPace still open?", saved: "Note saved" };
+  const pen = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>';
+  const touch = matchMedia("(pointer: coarse)").matches;
+
+  const fab = document.createElement("button");
+  fab.type = "button"; fab.className = "note-fab"; fab.hidden = true; fab.innerHTML = `${pen}<span>${T.take}</span>`;
+  const pop = document.createElement("div");
+  pop.className = "note-pop"; pop.hidden = true; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", T.take);
+  pop.innerHTML = `<blockquote dir="auto"></blockquote><textarea rows="3" dir="auto" placeholder="${T.ph}"></textarea>
+    <p class="note-pop-err small" hidden></p>
+    <div class="row wrap"><button type="button" class="btn primary" data-save>${T.save}</button><button type="button" class="btn ghost" data-cancel>${T.cancel}</button></div>`;
+  document.body.append(fab, pop);
+  const area = pop.querySelector("textarea"), err = pop.querySelector(".note-pop-err");
+  let quote = "", where = null;
+
+  const picked = () => {
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) return null;
+    const r = sel.getRangeAt(0);
+    if (!prose.contains(r.commonAncestorContainer)) return null;
+    const text = sel.toString().replace(/\s+/g, " ").trim();
+    return text.length >= 2 ? { r, text } : null;
+  };
+  // Next to the selection, inside the window: above it with a mouse, under it on touch screens.
+  const place = (el, rect, below) => {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    let top = below || rect.top < h + 16 ? rect.bottom + 10 : rect.top - h - 10;
+    top = Math.min(top, innerHeight - h - 8);
+    const left = Math.max(8, Math.min(innerWidth - w - 8, rect.left + rect.width / 2 - w / 2));
+    el.style.top = top + scrollY + "px"; el.style.left = left + scrollX + "px";
+  };
+  let timer;
+  const update = () => {
+    if (!pop.hidden) return;
+    const p = picked();
+    if (!p) { fab.hidden = true; return; }
+    quote = p.text.slice(0, 2000);
+    where = p.r.getBoundingClientRect();
+    fab.hidden = false;
+    place(fab, where, touch);
+  };
+  document.addEventListener("selectionchange", () => { clearTimeout(timer); timer = setTimeout(update, touch ? 350 : 150); });
+  fab.addEventListener("pointerdown", (e) => e.preventDefault());  // keep the selection while pressing
+  const close = () => { pop.hidden = true; err.hidden = true; };
+  fab.addEventListener("click", () => {
+    fab.hidden = true;
+    pop.querySelector("blockquote").textContent = quote;
+    area.value = "";
+    pop.hidden = false;
+    place(pop, where, touch);
+    area.focus({ preventScroll: true });
+  });
+  pop.querySelector("[data-cancel]").addEventListener("click", close);
+  const save = async () => {
+    const body = new FormData();
+    body.append("quote", quote); body.append("text", area.value);
+    const btn = pop.querySelector("[data-save]");
+    btn.disabled = true;
+    try {
+      const res = await fetch(prose.dataset.notes, { method: "POST", body, headers: { "X-Inpace-Fetch": "1" } });
+      if (!res.ok) throw new Error(await res.text());
+      list.insertAdjacentHTML("beforeend", await res.text());
+      const count = document.querySelector("[data-note-count]");
+      if (count) { count.textContent = list.children.length; count.hidden = false; }
+      close();
+      getSelection().removeAllRanges();
+      paint();
+      const done = document.createElement("div");
+      done.className = "note-saved"; done.setAttribute("role", "status"); done.textContent = T.saved;
+      document.body.appendChild(done);
+      setTimeout(() => done.remove(), 1800);
+    } catch (e) {
+      err.textContent = (e && e.message && e.message.length < 200 && !/fetch|network/i.test(e.message)) ? e.message : T.fail;
+      err.hidden = false;
+    } finally { btn.disabled = false; }
+  };
+  pop.querySelector("[data-save]").addEventListener("click", save);
+  pop.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+    else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); }
+  });
+  document.addEventListener("pointerdown", (e) => { if (!pop.hidden && !pop.contains(e.target)) close(); });
+
+  // Find a saved sentence in the lesson again. Spaces and line breaks are ignored, because the text you select
+  // across paragraphs and the text inside the page are spaced differently.
+  const find = (q) => {
+    const want = q.replace(/\s+/g, "");
+    if (!want) return null;
+    const walk = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => n.parentElement.closest("button, .code-bar, .iv-open, .diagram-tools, script, style") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    let flat = ""; const at = [];
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const t = n.nodeValue;
+      for (let i = 0; i < t.length; i++) if (!/\s/.test(t[i])) { flat += t[i]; at.push([n, i]); }
+    }
+    const i = flat.indexOf(want);
+    if (i < 0) return null;
+    const r = document.createRange();
+    r.setStart(at[i][0], at[i][1]);
+    const end = at[i + want.length - 1];
+    r.setEnd(end[0], end[1] + 1);
+    return r;
+  };
+  const canPaint = window.CSS && CSS.highlights && typeof Highlight === "function";
+  const paint = () => {
+    if (!canPaint) return;
+    const ranges = [...list.querySelectorAll("[data-quote]")].map((el) => find(el.dataset.quote)).filter(Boolean);
+    CSS.highlights.set("inpace-notes", new Highlight(...ranges));
+  };
+  list.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-show-note]");
+    if (!b) return;
+    const r = find(b.closest("[data-quote]").dataset.quote);
+    if (!r) return;
+    const rect = r.getBoundingClientRect();
+    scrollTo({ top: scrollY + rect.top - innerHeight / 3, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    if (canPaint) { CSS.highlights.set("inpace-note-now", new Highlight(r)); setTimeout(() => CSS.highlights.delete("inpace-note-now"), 2200); }
+  });
+  // Diagrams and pictures change the lesson after it loads, so paint again once they're in place.
+  paint();
+  setTimeout(paint, 1500);
+})();
+
 // Code blocks: language label + copy button.
 document.querySelectorAll(".prose pre:not(.mermaid)").forEach((pre) => {
   const code = pre.querySelector("code");

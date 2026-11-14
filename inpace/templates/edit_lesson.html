@@ -33,6 +33,9 @@
   </div>
   <div data-pane="preview" hidden><div class="prose preview-box" dir="{{ 'rtl' if c.language == 'ar' else 'auto' }}"></div></div>
   <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" value="{{ lesson.minutes or '' }}" style="max-width:8rem"></label>
+  <input type="hidden" name="has_optional" value="1">
+  <label class="check"><input type="checkbox" name="optional" value="1" {{ 'checked' if lesson.optional }}> {% trans trimmed %}Optional lesson: the module can be finished without it{% endtrans %}</label>
+  <p class="small muted" style="margin:0">{% trans trimmed %}Good for extras: a long video, further reading or a bonus exercise. inPace shows it, but doesn't wait for it, and it doesn't count in the progress.{% endtrans %}</p>
   <button class="btn primary big">{% trans trimmed %}Save lesson{% endtrans %}</button>
 </form>
 

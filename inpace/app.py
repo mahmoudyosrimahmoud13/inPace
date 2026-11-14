@@ -29,7 +29,7 @@ from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course
                      files_from_folder, files_from_zip, load_course, media_in_zip, strip_fences, write_pack_with_media)
 from . import media as media_mod
 from .exam import NoAnswers, build_exam, grade, new_seed
-from .vault import COLORS, Vault, display_name
+from .vault import COLORS, Vault, display_name, lesson_ahead
 
 HERE = Path(__file__).parent
 mimetypes.add_type("text/javascript", ".mjs")  # the PDF reader's scripts
@@ -264,6 +264,14 @@ ACC_NAMES = {"none": "Nothing", "cap": "Cap", "beanie": "Beanie", "bow": "Bow", 
              "headphones": "Headphones", "flower": "Flower", "crown": "Crown", "wizard": "Wizard hat", "gradcap": "Graduation cap"}
 
 _ICONS = {
+    # the PDF reader and the picture viewer (v1.25)
+    "zoom-in": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/>',
+    "zoom-out": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/>',
+    "fit-width": '<path d="M3 5v14M21 5v14M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3"/>',
+    "fit-page": '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+    "rotate": '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+    "expand": '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+    "actual": '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M8 10v5M12 10v.01M12 14v.01M16 10v5"/>',
     "back": '<path d="M15 5l-7 7 7 7"/>',
     "forward": '<path d="M9 5l7 7-7 7"/>',
     "home": '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
@@ -283,7 +291,7 @@ _ICONS = {
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "moon": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-    "settings": '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    "settings": '<path d="M10.31 5.21 L10.66 2.49 L13.34 2.49 L13.69 5.21 L15.61 6.00 L17.78 4.33 L19.67 6.22 L18.00 8.39 L18.79 10.31 L21.51 10.66 L21.51 13.34 L18.79 13.69 L18.00 15.61 L19.67 17.78 L17.78 19.67 L15.61 18.00 L13.69 18.79 L13.34 21.51 L10.66 21.51 L10.31 18.79 L8.39 18.00 L6.22 19.67 L4.33 17.78 L6.00 15.61 L5.21 13.69 L2.49 13.34 L2.49 10.66 L5.21 10.31 L6.00 8.39 L4.33 6.22 L6.22 4.33 L8.39 6.00Z"/><circle cx="12" cy="12" r="3"/>',  # a gear (v1.25; it used to look like a sun)
     "file": '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/>',
     "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
     "up": '<path d="m6 15 6-6 6 6"/>',
@@ -2363,6 +2371,7 @@ def create_app(vault: Vault) -> Starlette:
             missing = [m for m in missing if m != book["name"]]
         on_rm = roadmaps.on_roadmaps(V.home, course.id) if course else []
         return page("course.html", request, j=j, prog=V.progress(j["id"]), book=book, on_rm=on_rm,
+                    note_count=len(V.notes(j["course_id"])),
                     missing=missing,
                     media_root=V.media_root(j["course_id"]) if course else None,
                     offline=offline.status(V, course) if course and offline.course_videos(course) else None,
@@ -2397,7 +2406,7 @@ def create_app(vault: Vault) -> Starlette:
         return page("lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
                     lstate=lstate, html=media_mod.lesson_html(course.id, les, md.render(_drop_title(les["content"], les["title"])),
                                                        _course_files_view(course.id), gettext),
-                    next_id=nxt, prev_id=prv,
+                    next_id=nxt, prev_id=prv, notes=V.notes(course.id, les["id"]),
                     has_answers=course.has_answers, prog=prog)
 
     async def module_page(request: Request):
@@ -2419,7 +2428,7 @@ def create_app(vault: Vault) -> Starlette:
         for m in prog["modules"][idx + 1:]:
             if m["status"] == "locked":
                 break
-            left = next((les for les in m["lessons"] if not les["done"]), None)
+            left = lesson_ahead(m["lessons"])
             if left or m["status"] != "done":
                 after = {"title": m["title"],
                          "url": f"/learn/{j['id']}/lesson/{left['id']}" if left else f"/learn/{j['id']}/module/{m['id']}"}
@@ -2538,6 +2547,91 @@ def create_app(vault: Vault) -> Starlette:
         if target:
             return go(f"/learn/{jid}/lesson/{target}", yay="lesson")
         return go(f"/learn/{jid}/module/{found[0]['id']}", ok="All lessons read. Now the tasks.")
+
+    # ---- notes on lessons (v1.25): private, kept in vault.db ------------------
+    def _safe_back(value, fallback: str) -> str:
+        back = str(value or "")
+        return back if back.startswith("/") and not back.startswith("//") else fallback
+
+    def _note_html(n: dict, back: str, jump: bool = True) -> str:
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        return env.get_template("_note.html").render(n=n, back=back, jump=jump)
+
+    async def add_note(request: Request):
+        jid, lid = request.path_params["jid"], request.path_params["lid"]
+        j = journey_or_404(jid)
+        course = V.get_course(j["course_id"]) if j else None
+        if not course or not course.find_lesson(lid):
+            return go("/", err="That lesson wasn't found.")
+        form = await request.form()
+        back = f"/learn/{jid}/lesson/{lid}"
+        quick = request.headers.get("x-inpace-fetch") == "1"  # the "Take a note" button on selected text
+        try:
+            n = V.add_note(course.id, lid, jid, str(form.get("quote", "")), str(form.get("text", "")))
+        except ValueError as e:
+            return Response(gettext(str(e)), status_code=400) if quick else go(back + "#notes", err=str(e))
+        if quick:
+            return HTMLResponse(_note_html(n, back))
+        return go(f"{back}#note-{n['id']}", ok="Note saved.")
+
+    async def edit_note(request: Request):
+        n = V.note(request.path_params["nid"])
+        form = await request.form()
+        back = _safe_back(form.get("back"), "/")
+        if not n:
+            return go(back, err="That note wasn't found.")
+        if form.get("delete"):
+            V.delete_note(n["id"])
+            return go(back.split("#")[0] + "#notes", ok="Note deleted.")
+        try:
+            V.edit_note(n["id"], str(form.get("text", "")))
+        except ValueError as e:
+            return go(back, err=str(e))
+        return go(back.split("#")[0] + f"#note-{n['id']}", ok="Note saved.")
+
+    def _notes_by_lesson(j: dict, course) -> list[dict]:
+        """All notes on a course, in the course's own order: module, lesson, then oldest first."""
+        mine = V.notes(course.id)
+        out = []
+        for m in course.modules:
+            for les in m["lessons"]:
+                here = [n for n in mine if n["lesson"] == les["id"]]
+                if here:
+                    out.append({"module": m["title"], "lesson": les, "notes": here})
+        known = {les["id"] for m in course.modules for les in m["lessons"]}
+        lost = [n for n in mine if n["lesson"] not in known]  # the course changed and that lesson is gone
+        if lost:
+            out.append({"module": "", "lesson": {"id": "", "title": gettext("Lessons no longer in the course")}, "notes": lost})
+        return out
+
+    async def notes_page(request: Request):
+        j = journey_or_404(request.path_params["jid"])
+        if not j:
+            return go("/", err="That course wasn't found.")
+        course = V.get_course(j["course_id"])
+        return page("notes.html", request, j=j, course=course, groups=_notes_by_lesson(j, course))
+
+    async def notes_file(request: Request):
+        """Your notes on a course as a Markdown file, to keep or print."""
+        j = journey_or_404(request.path_params["jid"])
+        if not j:
+            return go("/", err="That course wasn't found.")
+        course = V.get_course(j["course_id"])
+        lines = [f"# {course.title}", "", gettext("My notes, from inPace."), ""]
+        last_module = None
+        for g in _notes_by_lesson(j, course):
+            if g["module"] and g["module"] != last_module:
+                lines += [f"## {g['module']}", ""]
+                last_module = g["module"]
+            lines += [f"### {g['lesson']['title']}", ""]
+            for n in g["notes"]:
+                if n["quote"]:
+                    lines += ["> " + n["quote"], ""]
+                if n["text"]:
+                    lines += [n["text"], ""]
+                lines += [f"*{n['updated_at'][:10]}*", ""]
+        name = f"{course.title} - {gettext('notes')}.md"
+        return download("\n".join(lines).encode("utf-8"), name, "text/markdown; charset=utf-8")
 
     async def _req_ctx(request: Request):
         j = journey_or_404(request.path_params["jid"])
@@ -3952,6 +4046,10 @@ def create_app(vault: Vault) -> Starlette:
         Route("/learn/{jid}/practice", needs_setup(practice), methods=["GET", "POST"]),
         Route("/learn/{jid}/practice/result", needs_setup(practice_result)),
         Route("/learn/{jid}/lesson/{lid}/done", needs_setup(lesson_done), methods=["POST"]),
+        Route("/learn/{jid}/lesson/{lid}/notes", needs_setup(add_note), methods=["POST"]),
+        Route("/learn/{jid}/notes", needs_setup(notes_page)),
+        Route("/learn/{jid}/notes.md", needs_setup(notes_file)),
+        Route("/notes/{nid}", needs_setup(edit_note), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/evidence", needs_setup(add_evidence), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/git", needs_setup(add_git), methods=["POST"]),
         Route("/learn/{jid}/task/{rid}/writeup", needs_setup(save_writeup), methods=["POST"]),

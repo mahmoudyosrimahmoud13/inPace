@@ -50,6 +50,9 @@ Rules:
   The app shows one right answer mixed with wrong ones, in random order.
 - Question ids are unique across the course (q1, q2, q3, ...).
 - Use plain, friendly language for {level_text}.
+- Extras that help but aren't needed (further reading, a bonus exercise, a long video) can go in their own lesson
+  with `optional: true` under its title. The module can be finished without it, so never put core teaching there.
+  At most one optional lesson per module, and only when it adds real value.
 - When a picture of the idea helps (steps, a flow, how parts connect, a timeline), add a diagram as a
   ```mermaid code block inside the lesson text, for example a flowchart. Keep diagrams small and simple.
 {source_rules}- Output only the YAML code block.

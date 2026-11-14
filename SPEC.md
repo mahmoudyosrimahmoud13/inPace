@@ -93,6 +93,18 @@ isn't optional is done; optional tasks can still be done and show as done, but d
 is written only when it's true, so courses without it keep the same fingerprint, and older apps (which don't know
 it) treat the task as required.
 
+A lesson can have `optional: true` too (v1.25): an extra such as further reading, a long video or a bonus exercise.
+The module is finished without it; it doesn't count in `lessons_total`, `lessons_done` or the percent, but reading it
+still records `lesson_done`. "Continue" offers an optional lesson once, in its place, and passes over it after it
+has been opened (a `lesson_opened` event) without being marked done. A module needs at least one lesson that isn't
+optional. Like the task flag, the key is written only when it's true, and older apps treat the lesson as required.
+
+```yaml
+    lessons:
+      - {id: m3-l1, title: Lists, file: lessons/m3-l1.md, minutes: 20}
+      - {id: m3-l2, title: "Going further: the official tutorial", file: lessons/m3-l2.md, minutes: 15, optional: true}
+```
+
 ```yaml
 # questions.yaml: no hint about which options are right
 q1:

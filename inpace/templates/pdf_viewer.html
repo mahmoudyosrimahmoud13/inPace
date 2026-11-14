@@ -4,44 +4,93 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ file_name }} · inPace</title>
-<link rel="stylesheet" href="/static/style.css?v=33">
+<link rel="stylesheet" href="/static/style.css?v=34">
 <style>
   html, body { height: 100%; margin: 0; }
   body { display: flex; flex-direction: column; background: var(--raised); }
-  .pdf-bar { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; padding: .45rem .6rem; background: var(--cream);
+  .pdf-bar { display: flex; align-items: center; gap: .35rem .6rem; flex-wrap: wrap; padding: .4rem .55rem; background: var(--cream);
     border-bottom: 3px solid var(--line); direction: ltr; position: sticky; top: 0; z-index: 2; }
-  .pdf-bar .btn { padding: .3rem .6rem; min-width: 2.2rem; box-shadow: 2px 2px 0 var(--line); }
-  .pdf-bar input { width: 3.6rem; padding: .25rem .4rem; text-align: center; }
-  .pdf-name { font-weight: 700; margin-inline-end: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
-  .pdf-pages { position: relative; flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-  .pdf-page { background: #fff; box-shadow: 4px 4px 0 var(--line); border: 2px solid var(--line); position: relative; }
+  .pdf-group { display: inline-flex; align-items: center; gap: .25rem; }
+  .pdf-bar .btn { padding: .3rem .45rem; min-width: 2.15rem; min-height: 2.15rem; box-shadow: 2px 2px 0 var(--line); justify-content: center; }
+  .pdf-bar .btn[aria-pressed="true"] { background: var(--sun); color: #111; }
+  .pdf-bar .btn:disabled { opacity: .4; box-shadow: none; }
+  .pdf-bar input { width: 3.4rem; padding: .25rem .3rem; text-align: center; }
+  .pdf-bar select { padding: .25rem .3rem; font: inherit; font-weight: 700; min-width: 6.4rem; }
+  .pdf-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pdf-name { font-weight: 700; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pdf-pages { position: relative; flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; align-items: center;
+    gap: 1rem; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+  .pdf-pages:focus { outline: none; }  /* a scrolling area: the toolbar buttons show their own focus */
+  .pdf-page { flex: none; background: #fff; box-shadow: 4px 4px 0 var(--line); border: 2px solid var(--line); position: relative; }
   .pdf-page canvas { display: block; width: 100%; height: 100%; }
+  .pdf-page .pdf-num { position: absolute; inset-block-end: .35rem; inset-inline-end: .5rem; font-size: .72rem; color: #8a8478; }
+  body.night .pdf-pages { background: #1b1a17; }
+  body.night .pdf-page { background: #111; border-color: #333; box-shadow: 4px 4px 0 #000; }
+  body.night .pdf-page canvas { filter: invert(1) hue-rotate(180deg); }
   .pdf-msg { margin: 3rem auto; text-align: center; max-width: 30rem; }
+  .pdf-toast { position: fixed; inset-block-end: 1rem; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: .35rem .8rem;
+    font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 3; }
+  .pdf-toast.on { opacity: .92; }
+  @media (max-width: 560px) { .pdf-name, .pdf-wide { display: none; } .pdf-bar { justify-content: center; } }
+  @media (prefers-reduced-motion: reduce) { .pdf-toast { transition: none; } }
 </style>
 </head>
 <body>
-<div class="pdf-bar" role="toolbar">
-  {% if standalone %}<button type="button" class="btn" onclick="history.length > 1 ? history.back() : window.close()" title="{{ _('Back') }}">←</button>{% endif %}
+<div class="pdf-bar" role="toolbar" aria-label="{{ _('PDF reader') }}">
+  {% if standalone %}<button type="button" class="btn" onclick="history.length > 1 ? history.back() : window.close()" title="{{ _('Back') }}" aria-label="{{ _('Back') }}">{{ icon('back', 18) }}</button>{% endif %}
   <span class="pdf-name" title="{{ file_name }}">{{ file_name }}</span>
-  <button type="button" class="btn" id="prev" title="{{ _('Previous page') }}">‹</button>
-  <span><input id="num" type="number" min="1" value="1" aria-label="{{ _('Page') }}"> / <span id="count">…</span></span>
-  <button type="button" class="btn" id="next" title="{{ _('Next page') }}">›</button>
-  <button type="button" class="btn" id="out" title="{{ _('Zoom out') }}">−</button>
-  <button type="button" class="btn" id="fit" title="{{ _('Fit to width') }}">↔</button>
-  <button type="button" class="btn" id="in" title="{{ _('Zoom in') }}">+</button>
-  <button type="button" class="btn" id="full" title="{{ _('Full screen') }}">⛶</button>
-  {% if standalone %}<a class="btn" href="{{ src }}" download title="{{ _('Download') }}">⤓</a>{% endif %}
+  <span class="pdf-group">
+    <button type="button" class="btn" id="prev" title="{{ _('Previous page') }} (←)" aria-label="{{ _('Previous page') }}">{{ icon('back', 18) }}</button>
+    <span class="pdf-count"><input id="num" type="number" min="1" value="1" inputmode="numeric" aria-label="{{ _('Page') }}"> / <span id="count">…</span></span>
+    <button type="button" class="btn" id="next" title="{{ _('Next page') }} (→)" aria-label="{{ _('Next page') }}">{{ icon('forward', 18) }}</button>
+  </span>
+  <span class="pdf-group">
+    <button type="button" class="btn" id="out" title="{{ _('Zoom out') }} (−)" aria-label="{{ _('Zoom out') }}">{{ icon('zoom-out', 18) }}</button>
+    <select id="zoom" aria-label="{{ _('Zoom') }}" title="{{ _('Zoom') }}">
+      <option value="width">{{ _('Fit to width') }}</option>
+      <option value="page">{{ _('Fit to page') }}</option>
+      <option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option>
+      <option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option>
+      <option value="3">300%</option><option value="4">400%</option>
+      <option value="custom" id="zoom-now" hidden></option>
+    </select>
+    <button type="button" class="btn" id="in" title="{{ _('Zoom in') }} (+)" aria-label="{{ _('Zoom in') }}">{{ icon('zoom-in', 18) }}</button>
+  </span>
+  <span class="pdf-group">
+    <button type="button" class="btn pdf-wide" id="fitw" title="{{ _('Fit to width') }} (0)" aria-label="{{ _('Fit to width') }}">{{ icon('fit-width', 18) }}</button>
+    <button type="button" class="btn pdf-wide" id="fitp" title="{{ _('Fit to page') }}" aria-label="{{ _('Fit to page') }}">{{ icon('fit-page', 18) }}</button>
+    <button type="button" class="btn" id="rot" title="{{ _('Rotate') }}" aria-label="{{ _('Rotate') }}">{{ icon('rotate', 18) }}</button>
+    <button type="button" class="btn" id="night" title="{{ _('Night mode: dark pages') }}" aria-label="{{ _('Night mode: dark pages') }}" aria-pressed="false">{{ icon('moon', 18) }}</button>
+    <button type="button" class="btn" id="full" title="{{ _('Full screen') }}" aria-label="{{ _('Full screen') }}">{{ icon('expand', 18) }}</button>
+    {% if standalone %}<a class="btn" href="{{ src }}" download title="{{ _('Download') }}" aria-label="{{ _('Download') }}">{{ icon('download', 18) }}</a>{% endif %}
+  </span>
 </div>
-<div class="pdf-pages" id="pages" tabindex="0"><p class="pdf-msg">{{ _('Opening the PDF…') }}</p></div>
+<div class="pdf-pages" id="pages" tabindex="0" aria-label="{{ file_name }}"><p class="pdf-msg">{{ _('Opening the PDF…') }}</p></div>
+<div class="pdf-toast" id="toast" aria-hidden="true"></div>
 <script type="module">
   import * as pdfjs from "/static/pdfjs/pdf.min.mjs";
   pdfjs.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.mjs";
-  const SRC = {{ src|tojson }}, KEY = {{ key|tojson }};
+  const SRC = {{ src|tojson }}, KEY = {{ key|tojson }}, STANDALONE = {{ 'true' if standalone else 'false' }};
   let startPage = {{ start }};
   // A lesson can show only part of a book (course file: "book.pdf#pages=19-35"). Page numbers stay the book's own.
   let FIRST = {{ first or 1 }}, LAST = {{ last or 0 }};
-  const box = document.getElementById("pages"), num = document.getElementById("num"), count = document.getElementById("count");
-  let pdf, scale = 0, pages = [], current = 1, lastSaved = 0;
+  const $ = (id) => document.getElementById(id);
+  const box = $("pages"), num = $("num"), count = $("count"), zoomSel = $("zoom"), zoomNow = $("zoom-now"), toast = $("toast");
+  const MIN = 0.25, MAX = 5, MAX_PIXELS = 16e6, KEEP = 14;  // keep at most KEEP drawn pages; the rest are drawn again when needed
+
+  // What you chose last time for this file (zoom and turn), and night mode for every PDF.
+  const PREF = "inpace-pdf:" + (KEY || SRC);
+  const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private window */ } };
+  const pref = load(PREF, {}) || {};
+  let mode = ["width", "page", "custom"].includes(pref.mode) ? pref.mode : "width";
+  let scale = mode === "custom" && +pref.scale ? Math.max(MIN, Math.min(MAX, +pref.scale)) : 0;
+  let rotation = [0, 90, 180, 270].includes(pref.rotation) ? pref.rotation : 0;
+  let night = !!load("inpace-pdf-night", false);
+
+  let pdf, pages = [], sizes = {}, current = 1, lastSaved = 0;
+  const visible = new Set(), drawn = [], tasks = new Map();
+
   const save = (beacon) => {
     if (!KEY || !pdf || current === lastSaved) return;
     lastSaved = current;
@@ -49,84 +98,243 @@
     body.append("key", KEY); body.append("t", String(current === FIRST ? 0 : current)); body.append("d", "0");
     beacon && navigator.sendBeacon ? navigator.sendBeacon("/media-pos", body) : fetch("/media-pos", { method: "POST", body }).catch(() => {});
   };
-  const fitScale = (vp) => Math.min(2.5, (box.clientWidth - 40) / vp.width);
-  async function layout() {
-    const first = await pdf.getPage(FIRST);
-    const base = first.getViewport({ scale: 1 });
-    if (!scale) scale = fitScale(base);
+  let toastTimer;
+  const say = (text) => { toast.textContent = text; toast.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("on"), 900); };
+
+  // Page sizes at 100%, turned. Pages of one PDF can differ, so each page keeps its own size once it's known.
+  async function sizeOf(n) {
+    if (!sizes[n]) {
+      const vp = (await pdf.getPage(n)).getViewport({ scale: 1, rotation });
+      sizes[n] = { w: vp.width, h: vp.height };
+    }
+    return sizes[n];
+  }
+  const room = () => ({ w: Math.max(80, box.clientWidth - 40), h: Math.max(80, box.clientHeight - 40) });
+  async function fitScale(kind) {
+    const s = await sizeOf(current >= FIRST ? current : FIRST), r = room();
+    const w = r.w / s.w;
+    return Math.max(MIN, Math.min(MAX, kind === "page" ? Math.min(w, r.h / s.h) : w));
+  }
+
+  function showZoom() {
+    const pct = Math.round(scale * 100) + "%";
+    const preset = [...zoomSel.options].find((o) => !["custom", "width", "page"].includes(o.value) && Math.abs(+o.value - scale) < 0.001);
+    zoomNow.hidden = true;
+    if (mode !== "custom") zoomSel.value = mode;
+    else if (preset) zoomSel.value = preset.value;
+    else { zoomNow.textContent = pct; zoomNow.hidden = false; zoomSel.value = "custom"; }
+    zoomSel.title = pct;
+    $("fitw").setAttribute("aria-pressed", mode === "width"); $("fitp").setAttribute("aria-pressed", mode === "page");
+    $("out").disabled = scale <= MIN + 0.001; $("in").disabled = scale >= MAX - 0.001;
+  }
+  function showPage() {
+    num.value = current;
+    $("prev").disabled = current <= FIRST; $("next").disabled = current >= LAST;
+  }
+
+  // Where you are, as a page and a point inside it, so zooming and turning keep it in place.
+  function anchorAt(x, y) {
+    const top = box.scrollTop + y, left = box.scrollLeft + x;
+    const div = pages.find((p) => p.offsetTop + p.offsetHeight >= top) || pages[pages.length - 1];
+    return { div, fy: (top - div.offsetTop) / div.offsetHeight, fx: (left - div.offsetLeft) / div.offsetWidth, x, y };
+  }
+  function restore(a) {
+    box.scrollTop = a.div.offsetTop + a.fy * a.div.offsetHeight - a.y;
+    box.scrollLeft = a.div.offsetLeft + a.fx * a.div.offsetWidth - a.x;
+  }
+
+  function build() {
     box.innerHTML = "";
     pages = [];
     for (let i = FIRST; i <= LAST; i++) {
       const div = document.createElement("div");
       div.className = "pdf-page";
       div.dataset.n = i;
-      div.style.width = base.width * scale + "px";
-      div.style.height = base.height * scale + "px";
       box.appendChild(div);
       pages.push(div);
-      io.observe(div);
+    }
+    resize();
+    pages.forEach((div) => io.observe(div));
+  }
+  // New sizes for every page at once. Drawn pages keep their old picture, stretched, until they're drawn again
+  // (no blank flash while you zoom).
+  function resize() {
+    const fallback = sizes[FIRST];
+    for (const div of pages) {
+      const s = sizes[+div.dataset.n] || fallback;
+      div.style.width = Math.round(s.w * scale) + "px";
+      div.style.height = Math.round(s.h * scale) + "px";
     }
   }
-  const rendering = new Set();
+  let redrawTimer;
+  const redrawSoon = (ms = 120) => { clearTimeout(redrawTimer); redrawTimer = setTimeout(() => visible.forEach(draw), ms); };
+
+  function setScale(next, how = "custom", at = null) {
+    if (!pdf || !pages.length) return;
+    const a = anchorAt(at ? at.x : box.clientWidth / 2, at ? at.y : 0);
+    mode = how;
+    scale = Math.max(MIN, Math.min(MAX, next));
+    resize();
+    restore(a);
+    showZoom();
+    redrawSoon();
+    store(PREF, { mode, scale, rotation });
+  }
+  const zoomBy = (f, at) => { setScale(scale * f, "custom", at); say(Math.round(scale * 100) + "%"); };
+  const fit = async (kind) => setScale(await fitScale(kind), kind);
+
   async function draw(div) {
     const n = +div.dataset.n;
-    if (div.dataset.scale == scale || rendering.has(n)) return;
-    rendering.add(n);
+    const want = `${scale}|${rotation}`;
+    if (div.dataset.drawn === want) return;
+    if (tasks.has(n)) { if (tasks.get(n).want === want) return; tasks.get(n).task.cancel(); tasks.delete(n); }
     const page = await pdf.getPage(n);
-    const vp = page.getViewport({ scale });
-    const ratio = window.devicePixelRatio || 1;
+    if (`${scale}|${rotation}` !== want) return;
+    const vp = page.getViewport({ scale, rotation });
+    if (!sizes[n] || Math.abs(sizes[n].w * scale - vp.width) > 1 || Math.abs(sizes[n].h * scale - vp.height) > 1) {
+      sizes[n] = { w: vp.width / scale, h: vp.height / scale };
+      div.style.width = Math.round(vp.width) + "px"; div.style.height = Math.round(vp.height) + "px";
+    }
+    // Sharp on high-density screens, but never a canvas so big that it runs out of memory.
+    const ratio = Math.min(window.devicePixelRatio || 1, Math.sqrt(MAX_PIXELS / (vp.width * vp.height)));
     const canvas = document.createElement("canvas");
     canvas.width = Math.floor(vp.width * ratio); canvas.height = Math.floor(vp.height * ratio);
-    div.style.width = vp.width + "px"; div.style.height = vp.height + "px";
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null }).promise;
-    div.replaceChildren(canvas);
-    div.dataset.scale = scale;
-    rendering.delete(n);
+    const task = page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null });
+    tasks.set(n, { task, want });
+    try { await task.promise; } catch (e) { return; } finally { if (tasks.get(n) && tasks.get(n).task === task) tasks.delete(n); }
+    if (`${scale}|${rotation}` !== want) return;  // zoomed again while drawing: the newer drawing wins
+    const label = document.createElement("span");
+    label.className = "pdf-num"; label.textContent = n;
+    div.replaceChildren(canvas, label);
+    div.dataset.drawn = want;
+    const i = drawn.indexOf(div); if (i >= 0) drawn.splice(i, 1);
+    drawn.push(div);
+    // Forget pages far from view, oldest first, so a long book at a big zoom doesn't fill the memory.
+    for (const old of drawn.slice(0, Math.max(0, drawn.length - KEEP))) {
+      if (visible.has(old)) continue;
+      old.replaceChildren(); delete old.dataset.drawn;
+      drawn.splice(drawn.indexOf(old), 1);
+    }
   }
-  const io = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting && draw(e.target)), { root: box, rootMargin: "600px 0px" });
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { visible.add(e.target); draw(e.target); } else visible.delete(e.target);
+  }), { root: box, rootMargin: "700px 300px" });
+
   const go = (n) => {
-    n = Math.max(FIRST, Math.min(LAST, n));
-    const jump = () => { box.scrollTop = pages[n - FIRST].offsetTop - 16; current = n; num.value = n; };
+    n = Math.max(FIRST, Math.min(LAST, n || FIRST));
+    const jump = () => { box.scrollTop = pages[n - FIRST].offsetTop - 16; current = n; showPage(); };
     jump(); requestAnimationFrame(jump);
   };
   box.addEventListener("scroll", () => {
     const mid = box.scrollTop + box.clientHeight / 3;
     let n = FIRST;
     for (const p of pages) { if (p.offsetTop <= mid) n = +p.dataset.n; else break; }
-    if (n !== current) { current = n; num.value = n; }
-  });
-  const rezoom = async (s) => { const keep = current; scale = s; await layout(); go(keep); };
-  document.getElementById("prev").onclick = () => go(current - 1);
-  document.getElementById("next").onclick = () => go(current + 1);
-  document.getElementById("in").onclick = () => rezoom(Math.min(4, scale * 1.2));
-  document.getElementById("out").onclick = () => rezoom(Math.max(0.3, scale / 1.2));
-  document.getElementById("fit").onclick = async () => rezoom(fitScale((await pdf.getPage(FIRST)).getViewport({ scale: 1 })));
-  document.getElementById("full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+    if (n !== current) { current = n; showPage(); }
+  }, { passive: true });
+
+  // Buttons and the zoom list.
+  $("prev").onclick = () => go(current - 1);
+  $("next").onclick = () => go(current + 1);
+  $("in").onclick = () => zoomBy(1.25);
+  $("out").onclick = () => zoomBy(1 / 1.25);
+  $("fitw").onclick = () => fit("width");
+  $("fitp").onclick = () => fit("page");
+  zoomSel.onchange = () => {
+    const v = zoomSel.value;
+    if (v === "width" || v === "page") fit(v);
+    else if (v !== "custom") setScale(+v, "custom");
+    box.focus({ preventScroll: true });
+  };
+  $("rot").onclick = async () => {
+    const keep = current;
+    rotation = (rotation + 90) % 360;
+    sizes = {};
+    tasks.forEach((t) => t.task.cancel()); tasks.clear();
+    for (const p of pages) { p.replaceChildren(); delete p.dataset.drawn; }
+    drawn.length = 0;
+    await sizeOf(FIRST);
+    if (mode !== "custom") scale = await fitScale(mode);
+    resize(); go(keep); showZoom(); redrawSoon(0);
+    store(PREF, { mode, scale, rotation });
+  };
+  const setNight = (on) => { night = on; document.body.classList.toggle("night", on); $("night").setAttribute("aria-pressed", on); store("inpace-pdf-night", on); };
+  $("night").onclick = () => setNight(!night);
+  $("full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
   num.addEventListener("change", () => go(parseInt(num.value || "1", 10)));
+  num.addEventListener("focus", () => num.select());
+  num.addEventListener("keydown", (e) => { if (e.key === "Enter") { go(parseInt(num.value || "1", 10)); box.focus({ preventScroll: true }); } });
+
+  // Keys: + and − zoom (with or without Ctrl, so the browser's own zoom doesn't take over), 0 fits the width,
+  // ← and → turn pages (unless the page is wider than the window), Home and End go to the first and last page.
   document.addEventListener("keydown", (e) => {
-    if (e.target === num) return;
-    if (e.key === "+" || e.key === "=") { e.preventDefault(); document.getElementById("in").click(); }
-    else if (e.key === "-") { e.preventDefault(); document.getElementById("out").click(); }
-    else if (e.key === "ArrowRight" || e.key === "PageDown" && e.ctrlKey) { go(current + 1); }
-    else if (e.key === "ArrowLeft") { go(current - 1); }
+    if (e.target === num || e.target === zoomSel || e.altKey) return;
+    const wide = box.scrollWidth > box.clientWidth + 2;
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.25); }
+    else if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.25); }
+    else if (e.key === "0") { e.preventDefault(); fit("width"); }
+    else if (e.ctrlKey || e.metaKey) return;
+    else if (e.key === "ArrowRight" && !wide) { e.preventDefault(); go(current + 1); }
+    else if (e.key === "ArrowLeft" && !wide) { e.preventDefault(); go(current - 1); }
+    else if (e.key === "Home") { e.preventDefault(); go(FIRST); }
+    else if (e.key === "End") { e.preventDefault(); go(LAST); }
   });
+
+  // Ctrl + mouse wheel, or a two-finger pinch on a touchpad, zooms around the pointer.
+  let wheelAt = null, wheelF = 1, wheelQueued = false;
+  box.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = box.getBoundingClientRect();
+    wheelAt = { x: e.clientX - r.left, y: e.clientY - r.top };
+    wheelF *= Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.01);
+    if (wheelQueued) return;
+    wheelQueued = true;
+    requestAnimationFrame(() => { const f = wheelF; wheelF = 1; wheelQueued = false; zoomBy(f, wheelAt); });
+  }, { passive: false });
+
+  // Two fingers on a phone or tablet: pinch to zoom. One finger still scrolls.
+  let pinch = null;
+  const spread = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1;
+  const middle = (t) => { const r = box.getBoundingClientRect(); return { x: (t[0].clientX + t[1].clientX) / 2 - r.left, y: (t[0].clientY + t[1].clientY) / 2 - r.top }; };
+  box.addEventListener("touchstart", (e) => { if (e.touches.length === 2) pinch = { d: spread(e.touches), s: scale, busy: false }; }, { passive: true });
+  box.addEventListener("touchmove", (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    if (pinch.busy) return;
+    pinch.busy = true;
+    const want = pinch.s * spread(e.touches) / pinch.d, at = middle(e.touches);
+    requestAnimationFrame(() => { setScale(want, "custom", at); if (pinch) pinch.busy = false; });
+  }, { passive: false });
+  box.addEventListener("touchend", (e) => { if (e.touches.length < 2 && pinch) { pinch = null; say(Math.round(scale * 100) + "%"); } }, { passive: true });
+
+  // A new window size: "fit" zooms fit again.
+  let sizeTimer;
+  new ResizeObserver(() => {
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(async () => { if (pdf && pages.length && mode !== "custom") setScale(await fitScale(mode), mode); }, 120);
+  }).observe(box);
+
   setInterval(() => save(false), 4000);
   addEventListener("pagehide", () => save(true));
+  setNight(night);
   try {
     pdf = await pdfjs.getDocument({ url: SRC, isEvalSupported: false }).promise;
     FIRST = Math.min(Math.max(1, FIRST), pdf.numPages);
     LAST = LAST ? Math.min(Math.max(FIRST, LAST), pdf.numPages) : pdf.numPages;
     const part = FIRST > 1 || LAST < pdf.numPages;
     count.textContent = part ? `${LAST} (${FIRST}–${LAST})` : pdf.numPages;
-    num.min = FIRST; num.max = LAST; num.value = FIRST; current = FIRST;
-    await layout();
+    num.min = FIRST; num.max = LAST; current = FIRST;
+    await sizeOf(FIRST);
+    if (!scale) scale = await fitScale(mode === "custom" ? "width" : mode);
+    build();
+    showZoom(); showPage();
     if (startPage > FIRST && startPage <= LAST) {
       // Continue on the page you stopped at (retry a few times while the pages settle, unless you scroll first).
       let touched = false;
       ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) => box.addEventListener(ev, () => (touched = true), { once: true }));
       [0, 150, 400, 900].forEach((ms) => setTimeout(() => { if (!touched && box.scrollTop < 5) go(startPage); }, ms));
     }
-    box.focus({ preventScroll: true });
+    if (STANDALONE) box.focus({ preventScroll: true });  // inside a lesson, the lesson keeps the keyboard
   } catch (err) {
     box.innerHTML = `<p class="pdf-msg">{{ _("This PDF couldn't be opened. It may be damaged or protected with a password.") }}</p>`;
   }

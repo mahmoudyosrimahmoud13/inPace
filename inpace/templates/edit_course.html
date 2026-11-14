@@ -73,7 +73,7 @@
         {% if kind in ('youtube', 'vimeo', 'video', 'audio') %}<span class="kind-chip">{{ icon('play', 14) }}</span>
         {% elif kind in ('code', 'folder') %}<span class="kind-chip">{{ icon('code', 14) }}</span>
         {% elif kind %}<span class="kind-chip">{{ icon('link', 14) }}</span>{% endif %}
-        <a href="/edit/{{ c.id }}/lesson/{{ l.id }}" dir="auto"><b>{{ l.title }}</b></a>
+        <a href="/edit/{{ c.id }}/lesson/{{ l.id }}" dir="auto"><b>{{ l.title }}</b></a>{% if l.optional %} <span class="chip muted">{% trans trimmed %}Optional{% endtrans %}</span>{% endif %}
       </span>
       <span class="row">
         {{ move('move_lesson', 'lesson', l.id, first=loop.first, last=loop.last) }}
@@ -96,6 +96,7 @@
         <label>{% trans trimmed %}Video, link or file (optional){% endtrans %}<input name="media" dir="ltr" placeholder="https://youtu.be/…  ·  /home/you/Videos/intro.mp4"></label>
         <label>{% trans trimmed %}Text (optional){% endtrans %}<textarea name="content" rows="6" dir="auto"></textarea></label>
         <label>{% trans trimmed %}Minutes (optional){% endtrans %}<input type="number" name="minutes" min="0" max="600" style="max-width:8rem"></label>
+        <label class="check"><input type="checkbox" name="optional" value="1"> {% trans trimmed %}Optional lesson: the module can be finished without it{% endtrans %}</label>
         <button class="btn primary">{% trans trimmed %}Add lesson{% endtrans %}</button></form>
     </details>
     <details class="more"><summary>{% trans trimmed %}Add many videos at once{% endtrans %}</summary>

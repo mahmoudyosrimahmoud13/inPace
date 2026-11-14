@@ -39,7 +39,8 @@ def to_page(c: Course) -> dict:
         "modules": [{"id": m["id"], "title": m["title"], "tasks": task_names(m),
                      "lessons": [{"id": les["id"], "title": les["title"], "media": les.get("media", ""),
                                   "content": _own_text(les),
-                                  "minutes": int(les.get("minutes") or 0), "kind": lesson_kind(les)}
+                                  "minutes": int(les.get("minutes") or 0), "kind": lesson_kind(les),
+                                  "optional": bool(les.get("optional"))}
                                  for les in m["lessons"]]}
                     for m in c.modules],
     }
@@ -103,6 +104,8 @@ def save(v: Vault, data: dict, upload_draft: Path | None = None) -> Course:
                 name = _nice_title(media.rstrip("/").rsplit("/", 1)[-1]) if media and not is_url(media) else f"Lesson {li}"
             text = str(rl.get("content") or "").strip()
             les = {"id": lid, "title": name, "minutes": max(0, min(100000, int(rl.get("minutes") or 0)))}
+            if rl.get("optional") is True:
+                les["optional"] = True
             if media:
                 les["media"] = media
                 les["content"] = f"# {name}\n\n{text}\n" if text else ""

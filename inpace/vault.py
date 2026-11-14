@@ -1,7 +1,7 @@
 """The vault: one folder holding everything for one person.
 
     inPace/
-      vault.db        events, milestones, approvals, people, receipts
+      vault.db        events, milestones, approvals, people, receipts, your notes
       identity.key    your private signing key (never share)
       courses/<id>/   installed courses
       evidence/       your work files, named by fingerprint
@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 import os
+import secrets
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS file_requests (
   journey TEXT, sha256 TEXT, name TEXT, checker TEXT, at TEXT, PRIMARY KEY (journey, sha256, checker));
 CREATE TABLE IF NOT EXISTS received_files (
   sha256 TEXT PRIMARY KEY, learner TEXT, name TEXT, at TEXT);
+CREATE TABLE IF NOT EXISTS notes (
+  id TEXT PRIMARY KEY, course TEXT, lesson TEXT, journey TEXT, quote TEXT, text TEXT, created_at TEXT, updated_at TEXT);
+CREATE INDEX IF NOT EXISTS notes_by_lesson ON notes (course, lesson);
 CREATE TABLE IF NOT EXISTS review_cards (
   course TEXT, qid TEXT, box INTEGER, due TEXT, PRIMARY KEY (course, qid));
 CREATE TABLE IF NOT EXISTS races (id TEXT PRIMARY KEY, data TEXT, journey TEXT, folder TEXT, joined_at TEXT);
@@ -75,6 +79,12 @@ def default_home() -> Path:
         return Path(env).expanduser()
     docs = Path.home() / "Documents"
     return (docs if docs.is_dir() else Path.home()) / "inPace"
+
+
+def lesson_ahead(lessons: list[dict]) -> dict | None:
+    """The lesson to read next: the first one not done. An optional lesson you already opened and left counts as
+    looked at, so "Continue" doesn't keep sending you back to it."""
+    return next((les for les in lessons if not les["done"] and not (les.get("optional") and les.get("opened"))), None)
 
 
 class Vault:
@@ -321,6 +331,7 @@ class Vault:
         course = self.get_course(j["course_id"]) if j else None
         evs = self.events(journey)
         done_lessons = {e["data"]["lesson"] for e in evs if e["type"] == "lesson_done"}
+        opened = {e["data"].get("lesson") for e in evs if e["type"] == "lesson_opened"}
         evidence: dict[str, list] = {}
         writeups: dict[str, dict] = {}
         quizzes: dict[str, dict] = {}
@@ -354,24 +365,28 @@ class Vault:
                 reqs.append({**r, "done": ok, "evidence": evidence.get(r["id"], []),
                              "writeup": writeups.get(r["id"]), "quiz": quizzes.get(r["id"]),
                              "exam_taken": exams_taken.get(r["id"])})
-            lessons = [{**{k: v for k, v in les.items() if k != "content"}, "done": les["id"] in done_lessons}
-                       for les in m["lessons"]]
-            ldone = sum(1 for les in lessons if les["done"])
-            total_lessons += len(lessons)
+            lessons = [{**{k: v for k, v in les.items() if k != "content"}, "done": les["id"] in done_lessons,
+                        "opened": les["id"] in opened} for les in m["lessons"]]
+            # Optional lessons and tasks can be done (and show as done), but the module doesn't wait for them,
+            # and they don't count in the lessons and percent totals.
+            need = [les for les in lessons if not les.get("optional")]
+            ldone = sum(1 for les in need if les["done"])
+            total_lessons += len(need)
             done_count += ldone
-            # Optional tasks can be done (and show as done), but the module doesn't wait for them.
-            complete = ldone == len(lessons) and all(r["done"] for r in reqs if not r.get("optional"))
+            complete = ldone == len(need) and all(r["done"] for r in reqs if not r.get("optional"))
             status = "done" if complete else ("open" if unlocked else "locked")
             if status == "open" and next_step is None:
-                nxt = next((les for les in lessons if not les["done"]), None)
+                nxt = lesson_ahead(lessons)
                 if nxt:
-                    next_step = {"kind": "lesson", "id": nxt["id"], "title": nxt["title"], "module": m["title"], "mid": m["id"]}
+                    next_step = {"kind": "lesson", "id": nxt["id"], "title": nxt["title"], "module": m["title"], "mid": m["id"],
+                                 "optional": bool(nxt.get("optional"))}
                 else:
+                    # Every required lesson is done here (lesson_ahead never passes one over), so a task is left.
                     r = next(r for r in reqs if not r["done"] and not r.get("optional"))
                     next_step = {"kind": "requirement", "id": r["id"], "title": r["prompt"], "module": m["title"],
                                  "mid": m["id"], "lesson": lessons[-1]["id"]}
             modules.append({"id": m["id"], "title": m["title"], "lessons": lessons, "requires": reqs,
-                            "status": status, "lessons_done": ldone})
+                            "status": status, "lessons_done": ldone, "lessons_needed": len(need)})
             unlocked = unlocked and complete
 
         mods_done = sum(1 for m in modules if m["status"] == "done")
@@ -390,6 +405,50 @@ class Vault:
             "minutes": active_minutes(evs),
             "current_module": next((m for m in modules if m["status"] == "open"), None),
         }
+
+    # ---- notes (v1.25) -----------------------------------------------------
+    # Your own notes on lessons, often on a sentence you selected. They're private: they stay in vault.db (so they're
+    # in your backups) and never go into milestones, progress files or shared courses.
+    NOTE_QUOTE_MAX, NOTE_TEXT_MAX = 2000, 10000
+
+    def notes(self, course_id: str, lesson: str | None = None) -> list[dict]:
+        sql, args = "SELECT * FROM notes WHERE course=?", [course_id]
+        if lesson is not None:
+            sql += " AND lesson=?"
+            args.append(lesson)
+        return [dict(r) for r in self.db.execute(sql + " ORDER BY created_at, rowid", args).fetchall()]
+
+    def note_counts(self, course_id: str) -> dict[str, int]:
+        rows = self.db.execute("SELECT lesson, COUNT(*) AS n FROM notes WHERE course=? GROUP BY lesson", (course_id,))
+        return {r["lesson"]: r["n"] for r in rows.fetchall()}
+
+    def note(self, nid: str) -> dict | None:
+        row = self.db.execute("SELECT * FROM notes WHERE id=?", (nid,)).fetchone()
+        return dict(row) if row else None
+
+    def add_note(self, course_id: str, lesson: str, journey: str, quote: str = "", text: str = "") -> dict:
+        quote = " ".join(str(quote or "").split())[:self.NOTE_QUOTE_MAX]
+        text = str(text or "").strip()[:self.NOTE_TEXT_MAX]
+        if not quote and not text:
+            raise ValueError("Write a note, or select some of the lesson first.")
+        now = now_utc()
+        n = {"id": secrets.token_hex(8), "course": course_id, "lesson": lesson, "journey": journey, "quote": quote,
+             "text": text, "created_at": now, "updated_at": now}
+        self.db.execute("INSERT INTO notes VALUES (:id, :course, :lesson, :journey, :quote, :text, :created_at, :updated_at)", n)
+        self.db.commit()
+        return n
+
+    def edit_note(self, nid: str, text: str) -> None:
+        text = str(text or "").strip()[:self.NOTE_TEXT_MAX]
+        n = self.note(nid)
+        if n and not text and not n["quote"]:
+            raise ValueError("A note needs some text.")
+        self.db.execute("UPDATE notes SET text=?, updated_at=? WHERE id=?", (text, now_utc(), nid))
+        self.db.commit()
+
+    def delete_note(self, nid: str) -> None:
+        self.db.execute("DELETE FROM notes WHERE id=?", (nid,))
+        self.db.commit()
 
     # ---- milestones --------------------------------------------------------
     def milestones(self, journey: str) -> list[dict]:

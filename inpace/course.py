@@ -403,10 +403,15 @@ def load_course(files: dict[str, str]) -> Course:
             les = {"id": lid, "title": ltitle, "content": content, "minutes": _int(rl.get("minutes"), 0)}
             if media:
                 les["media"] = media  # only present when used, so older courses keep the same fingerprint
+            if rl.get("optional") is True or str(rl.get("optional") or "").strip().lower() in ("true", "yes"):
+                # An extra the module can finish without (inPace 1.25+). Older versions just treat it as required.
+                les["optional"] = True
             lessons.append(les)
             _dup(lid, seen, problems)
         if not lessons:
             problems.append(f"Module {mi} ('{mtitle}') has no lessons.")
+        elif all(les.get("optional") for les in lessons):
+            problems.append(f"Module {mi} ('{mtitle}'): every lesson is optional. Keep at least one lesson required.")
         reqs = []
         for ri, rr in enumerate(rm.get("requires") or [], start=1):
             if not isinstance(rr, dict):
@@ -578,6 +583,8 @@ def course_to_files(course: Course, include_answers: bool = True) -> dict[str, s
                 entry["media"] = les["media"]
             if les.get("minutes"):
                 entry["minutes"] = les["minutes"]
+            if les.get("optional"):
+                entry["optional"] = True
             lessons.append(entry)
         modules.append({"id": m["id"], "title": m["title"], "lessons": lessons, "requires": m["requires"]})
     head = {

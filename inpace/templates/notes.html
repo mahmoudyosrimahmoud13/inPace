@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ T('Your notes on {name}', name=course.title) }}{% endblock %}
+{% block width %}read{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="/learn/{{ j.id }}" dir="auto">{{ course.title }}</a></p>
+  <h1>{{ _('Your notes') }}</h1>
+  <p class="muted">{% trans trimmed %}Everything you wrote on this course, in the course's order. Only you see your notes: they stay on this device and in your backups, and are never sent with milestones or shared courses.{% endtrans %}</p>
+  {% if groups %}<p><a class="btn" href="/learn/{{ j.id }}/notes.md" download>{{ icon('download', 16) }} {{ _('Download as a file (.md)') }}</a></p>{% endif %}
+</div>
+{% if not groups %}
+<div class="card empty">
+  <p>{% trans trimmed %}No notes yet. In any lesson, select a sentence and press Take a note, or write one at the end of the lesson.{% endtrans %}</p>
+  <a class="btn primary" data-up href="/learn/{{ j.id }}">{{ _('Back to the course') }}</a>
+</div>
+{% endif %}
+{% for g in groups %}
+<section class="card notes-group">
+  {% if g.module %}<p class="eyebrow" dir="auto">{{ g.module }}</p>{% endif %}
+  <h2 dir="auto">{% if g.lesson.id %}<a href="/learn/{{ j.id }}/lesson/{{ g.lesson.id }}#notes">{{ g.lesson.title }}</a>{% else %}{{ g.lesson.title }}{% endif %}</h2>
+  <ul class="note-list">
+    {% for n in g.notes %}{% with back = '/learn/' ~ j.id ~ '/notes', jump = false %}{% include "_note.html" %}{% endwith %}{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}
