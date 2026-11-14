@@ -4,18 +4,24 @@
 {% block width %}narrow{% endblock %}
 {% block main %}
 <section class="card" style="margin-block-start: 2rem; padding: 2.25rem">
+  <nav class="lang-pick" aria-label="Language · اللغة">
+    <span class="small muted">Language · اللغة</span>
+    <a class="btn small {{ 'primary' if lang == 'en' }}" href="/setup?lang=en" lang="en" dir="ltr" {{ 'aria-current=true' if lang == 'en' }}>English</a>
+    <a class="btn small {{ 'primary' if lang == 'ar' }}" href="/setup?lang=ar" lang="ar" dir="rtl" {{ 'aria-current=true' if lang == 'ar' }}>العربية</a>
+  </nav>
   <div class="center">
     {{ mascot('wave', 150) }}
     <h1 style="margin-block-start: 1rem">{% trans trimmed %}Welcome to inPace{% endtrans %}</h1>
     <p class="lead" style="margin-inline: auto">{% trans trimmed %}Learn at your own pace, and let someone you trust see that you kept it.{% endtrans %}</p>
   </div>
   <form method="post" class="stack" style="margin-block-start: 1.5rem">
-    {% if error %}<div class="note bad">{{ error }}</div>{% endif %}
+    <input type="hidden" name="lang" value="{{ lang }}">
+    {% if error %}<div class="note bad">{{ _(error) }}</div>{% endif %}
     <label>{% trans trimmed %}What should we call you?{% endtrans %}
       <input name="name" required maxlength="40" placeholder="{{ _('For example: Omar') }}" autofocus>
     </label>
     {{ turtle_maker(av, maker) }}
-    <p class="muted small">{% trans trimmed %}Everything stays on this computer. inPace makes a private key for you that proves your work is yours.{% endtrans %}</p>
+    <p class="muted small">{% trans trimmed %}You can change the language any time in Settings.{% endtrans %} {% trans trimmed %}Everything stays on this computer. inPace makes a private key for you that proves your work is yours.{% endtrans %}</p>
     <button class="btn primary big">{% trans trimmed %}Get started{% endtrans %}</button>
   </form>
 </section>

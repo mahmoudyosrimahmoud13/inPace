@@ -154,6 +154,8 @@ The lesson then uses inPace's player on `/yt/<course>/<video id>`, still playing
 
 A lesson that needs the book before it's found shows the pages it will open and a button back to the box (`/courses/<id>/go#book`).
 
+**The app's language on the first open (v1.25.2, `device_lang` in `app.py`).** Before setup, inPace speaks the language you picked with the buttons on the welcome page (saved as `lang` in `meta`), else the device's: the browser's or the phone WebView's `Accept-Language` header (Arabic or English, whichever it prefers), else the computer's locale (`LC_ALL`, `LC_MESSAGES`, `LANG`). Setup saves the choice; after that **Settings** changes it.
+
 **Arabic and English in one lesson.** When a lesson is drawn (`text_dir` in `app.py`), each paragraph, heading, list, list item, quote and table cell gets its own direction from the words it mostly has (Arabic words against Latin words; code and links don't count). Lists have room on both sides so every bullet fits, and inline code is always left to right inside a right-to-left line. This is the same in both languages of the app, because it depends on the lesson, not on the interface.
 
 ---

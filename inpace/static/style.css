@@ -1962,3 +1962,9 @@ body.iv-open-page { overflow: hidden; }
 .course-notes-link a { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; }
 @media print { .note-fab, .note-pop { display: none !important; } }
 .note-tools .small-btn { padding: .2rem .6rem; font-size: .82rem; min-height: 0; box-shadow: none; }
+
+/* v1.25.2: the language buttons on the welcome page */
+.lang-pick { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .5rem; margin: -.75rem 0 1rem; }
+.lang-pick .muted { margin-inline-end: .25rem; }
+.more-sheet.tour-open { z-index: 150; }  /* opened by the tour: under the tour's spotlight and card */
+@media (max-width: 699px) { .tour-card-pop.center { width: calc(100vw - 32px); } .tour-card-pop .tour-tempo svg { width: 64px; } .tour-card-pop.center .tour-tempo svg { width: 110px; } }

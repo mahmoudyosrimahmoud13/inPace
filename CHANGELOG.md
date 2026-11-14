@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.25.2
+
+- **The first open speaks your language.** On a phone or computer set to Arabic, inPace opens in Arabic from the very first screen, and in English otherwise. The welcome page also has **English** and **العربية** buttons at the top, so you can pick before you type your name. The choice is saved, and you can still change it in **Settings**.
+- **The welcome tour works on phones.** Before, six of its steps all pointed at the **More** button, and you couldn't see what they talked about. Now the tour opens the **More** sheet and points at each item inside it (People, Races, Open a file, light or dark, Settings, Tempo's island), then closes it again.
+  - On a phone the tour's card goes across the screen, above or below the item it talks about, so it never covers it.
+- New Arabic translations for the above.
+
 ## v1.25.1
 
 - **Roadmaps with courses you can't get.** A roadmap someone sent you as a link or a file can name a course that's only on their computer.

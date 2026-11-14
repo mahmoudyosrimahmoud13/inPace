@@ -989,9 +989,19 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   card.setAttribute("aria-modal", "true");
   card.setAttribute("aria-live", "polite");
   document.body.append(shade, spot, card);
-  const visible = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
+  const visible = (el) => el && el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
+  // On a phone, People, Races, Settings and the rest live in the "More" sheet: open it (without its own backdrop,
+  // so the tour stays on top) while a step points inside it, and close it again after.
+  const sheet = document.querySelector("[data-more-sheet]");
+  const tabbar = document.querySelector(".tabbar");
+  const sheetOpen = (on) => {
+    if (!sheet) return;
+    if (on && !sheet.open) { sheet.setAttribute("open", ""); sheet.classList.add("tour-open"); }
+    if (!on && sheet.classList.contains("tour-open")) { sheet.removeAttribute("open"); sheet.classList.remove("tour-open"); }
+  };
   const finish = () => {
     fetch("/tour/done", { method: "POST" }).catch(() => {});
+    sheetOpen(false);
     [shade, spot, card].forEach((x) => x.remove());
     document.removeEventListener("keydown", keys);
     if (location.search.includes("tour=1")) history.replaceState(null, "", location.pathname);
@@ -999,7 +1009,11 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   const place = () => {
     const s = steps[i];
     // A target can list a few places ("the sidebar link, or the phone tab"): use the first one on screen.
-    const el = s.target && s.target.split(",").map((t) => document.querySelector(t.trim())).find(visible);
+    const found = s.target ? s.target.split(",").map((t) => document.querySelector(t.trim())).filter(Boolean) : [];
+    let el = found.find((x) => visible(x) && !(sheet && sheet.contains(x)));
+    const inSheet = !el && sheet && visible(tabbar) && found.find((x) => sheet.contains(x));
+    sheetOpen(Boolean(inSheet));
+    if (inSheet) el = inSheet;
     card.classList.remove("center");
     if (visible(el)) {
       el.scrollIntoView({ block: "nearest" });
@@ -1007,12 +1021,24 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
       Object.assign(spot.style, { display: "block", top: r.top - pad + "px", left: r.left - pad + "px",
         width: r.width + pad * 2 + "px", height: r.height + pad * 2 + "px" });
       shade.classList.add("clear");
-      const cw = Math.min(380, innerWidth - 32), ch = card.offsetHeight;
-      let left = r.right + 18, top = Math.max(16, Math.min(r.top - 20, innerHeight - ch - 16));
-      if (left + cw > innerWidth - 16) left = r.left - cw - 18;              // no room on the right
-      if (left < 16) { left = Math.max(16, Math.min(r.left, innerWidth - cw - 16)); top = r.bottom + 14; } // below
-      if (top + ch > innerHeight - 16) top = Math.max(16, r.top - ch - 14);   // above
-      Object.assign(card.style, { left: left + "px", top: top + "px", width: cw + "px" });
+      const narrow = innerWidth < 700;
+      const cw = narrow ? innerWidth - 32 : Math.min(380, innerWidth - 32);
+      card.style.width = cw + "px";
+      const ch = card.offsetHeight;
+      let left, top;
+      if (narrow) {
+        // A phone: the card goes across the screen, above the spot when the spot is low (the tab bar, the More
+        // sheet), below it when it's high, so it never covers what it talks about.
+        left = 16;
+        top = r.top > innerHeight / 2 ? r.top - pad - ch - 14 : r.bottom + pad + 14;
+        top = Math.max(12, Math.min(top, innerHeight - ch - 12));
+      } else {
+        left = r.right + 18; top = Math.max(16, Math.min(r.top - 20, innerHeight - ch - 16));
+        if (left + cw > innerWidth - 16) left = r.left - cw - 18;              // no room on the right
+        if (left < 16) { left = Math.max(16, Math.min(r.left, innerWidth - cw - 16)); top = r.bottom + 14; } // below
+        if (top + ch > innerHeight - 16) top = Math.max(16, r.top - ch - 14);   // above
+      }
+      Object.assign(card.style, { left: left + "px", top: top + "px" });
     } else {
       spot.style.display = "none";
       shade.classList.remove("clear");

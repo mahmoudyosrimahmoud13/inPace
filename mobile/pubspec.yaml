@@ -1,7 +1,7 @@
 name: inpace_mobile
 description: inPace for Android. Runs the same inPace app (Python) on the phone and shows it in a full-screen web view.
 publish_to: none
-version: 1.25.1+12501
+version: 1.25.2+12502
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

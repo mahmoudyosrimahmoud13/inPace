@@ -167,6 +167,33 @@ env.globals["island_plant"] = lambda k: garden.plant_svg(k, 1.0, False, 54)
 env.globals["island_friend"] = lambda k: garden.friend_svg(k, 60)
 
 
+def device_lang(accept_language: str | None) -> str:
+    """The language inPace speaks before you choose one: Arabic if the device (browser, or the phone's WebView, which
+    sends the phone's language) prefers Arabic over English, else English. Without the header, the computer's locale."""
+    best, best_q = "", -1.0
+    for i, part in enumerate((accept_language or "").split(",")):
+        tag, _, rest = part.strip().partition(";")
+        code = tag.strip().lower()[:2]
+        if code not in ("ar", "en"):
+            continue
+        q = 1.0
+        if rest.strip().startswith("q="):
+            try:
+                q = float(rest.strip()[2:])
+            except ValueError:
+                q = 0.0
+        if q > best_q:  # equal weights: the first one listed wins
+            best, best_q = code, q
+    if best:
+        return best
+    import locale
+    for value in (os.environ.get("LC_ALL"), os.environ.get("LC_MESSAGES"), os.environ.get("LANG"),
+                  (locale.getlocale()[0] if hasattr(locale, "getlocale") else None)):
+        if value:
+            return "ar" if value.lower().startswith("ar") else "en"
+    return "en"
+
+
 def say(msg: str, values: list | tuple = ()) -> str:
     text = gettext(msg)
     try:
@@ -460,7 +487,10 @@ def create_app(vault: Vault) -> Starlette:
 
     # ---- helpers -------------------------------------------------------------
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
-        CURRENT["lang"] = (V._meta("lang", "en") or "en") if V.is_set_up else "en"
+        if V.is_set_up:
+            CURRENT["lang"] = V._meta("lang", "en") or "en"
+        else:  # first open: the language you picked on the welcome page, else the device's
+            CURRENT["lang"] = V._meta("lang", "") or device_lang(request.headers.get("accept-language"))
         base = {"request": request, "msg": tr_lines(request.query_params.get("ok")) or None,
                 "err": tr_lines(request.query_params.get("err")) or None, "lang": CURRENT["lang"],
                 "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
@@ -636,12 +666,22 @@ def create_app(vault: Vault) -> Starlette:
 
     async def setup(request: Request):
         start = mascot_mod.clean_avatar({})
+        if V.is_set_up:
+            return go("/")
+        pick = request.query_params.get("lang")
+        if pick in ("en", "ar"):  # the language buttons at the top of the welcome page
+            V._set_meta("lang", pick)
+            return go("/setup")
         if request.method == "POST":
             form = await request.form()
+            if form.get("lang") in ("en", "ar"):
+                V._set_meta("lang", str(form.get("lang")))
             name = str(form.get("name", "")).strip()
             av = _turtle_from(form)
             if not name:
                 return page("setup.html", request, maker=_maker(av), av=av, error="Please type your name.")
+            if not V._meta("lang", ""):
+                V._set_meta("lang", device_lang(request.headers.get("accept-language")))
             V.setup(name, COLORS[COLOR_FOR_SHELL[av["shell"]]])
             V.set_avatar(av, COLORS[COLOR_FOR_SHELL[av["shell"]]])
             return go("/", ok=f"Welcome, {name}! Pick a course to start.")
@@ -755,12 +795,12 @@ def create_app(vault: Vault) -> Starlette:
             ('.side a[href="/courses"], .tabbar a[href="/courses"]', "happy", "Your courses", "Everything you're learning lives here. Add a course from a file, a folder of videos you already have, a list of YouTube links, or try a sample course."),
             ('.side a[href="/add"], .tabbar a[href="/add"]', "think", "Add a course", "Add a folder of class material (inPace sorts it for you), a course file, a course from the library, or make one with simple forms or AI."),
             ('.side a[href="/milestones"], .tabbar a[href="/milestones"]', "proud", "Milestones", "When you finish part of a course, save a milestone. It's a signed snapshot of your progress that nobody can quietly change."),
-            ('.side a[href="/people"], .tabbar [data-more-open]', "cheer", "Your checker", "Learning sticks when someone has your back. Add a friend, a parent or a mentor. Send them your milestone and they approve it. Swap friend codes on Telegram or WhatsApp."),
-            ('.side a[href="/races"], .tabbar [data-more-open]', "cheer", "Races", "Race your friends to keep each other going. Only approved milestones count, so it stays fair."),
-            (".side-bottom a, .tabbar [data-more-open]", "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
-            (".top .theme-toggle, .tabbar [data-more-open]", "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
-            ('.side a[href="/settings"], .tabbar [data-more-open]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
-            ('.side a[href="/island"], .tabbar [data-more-open]', "water", "Tempo's island", "Want a reward for studying? Turn on Tempo's island: every focus trip grows a plant on my shell, and friends move in as you learn."),
+            ('.side a[href="/people"], .more-sheet a[href="/people"]', "cheer", "Your checker", "Learning sticks when someone has your back. Add a friend, a parent or a mentor. Send them your milestone and they approve it. Swap friend codes on Telegram or WhatsApp."),
+            ('.side a[href="/races"], .more-sheet a[href="/races"]', "cheer", "Races", "Race your friends to keep each other going. Only approved milestones count, so it stays fair."),
+            ('.side-bottom a, .more-sheet a[href="/open"]', "think", "Open a file", "Anything someone sends you, like a course, a friend code or your checker's reply, opens here."),
+            ('.top .theme-toggle, .more-sheet [data-theme-toggle]', "sleepy", "Light or dark", "Studying late? Switch to dark mode here."),
+            ('.side a[href="/settings"], .more-sheet a[href="/settings"]', "happy", "Settings", "Language, backups and updates live here. You can also watch this tour again from here any time."),
+            ('.side a[href="/island"], .more-sheet a[href="/island"]', "water", "Tempo's island", "Want a reward for studying? Turn on Tempo's island: every focus trip grows a plant on my shell, and friends move in as you learn."),
             (None, "proud", "You're all set!", "Start with a course and take the first step today. I'll be on your Home page, cheering you on."),
         ]
         return [{"target": tgt, "mood": mood, "title": say(title), "text": say(text)} for tgt, mood, title, text in steps]
