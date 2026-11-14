@@ -830,7 +830,9 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
 (() => {
   const back = document.querySelector("[data-nav-back]"), fwd = document.querySelector("[data-nav-fwd]");
   if (!back) return;
-  const goBack = () => (history.length > 1 ? history.back() : (location.pathname !== "/" && (location.href = "/")));
+  // Back works like in a phone app (see inpaceBack below): it closes what's open, leaves a main page for Home,
+  // and otherwise goes one page back.
+  const goBack = () => (window.inpaceBack ? window.inpaceBack() : history.back());
   const goFwd = () => history.forward();
   back.addEventListener("click", goBack);
   fwd.addEventListener("click", goFwd);
@@ -838,9 +840,10 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   const nav = window.navigation;
   const sync = () => {
     if (!nav || nav.canGoBack === undefined) return;
-    back.disabled = !nav.canGoBack && location.pathname === "/";
+    back.disabled = location.pathname === "/";
     fwd.disabled = !nav.canGoForward;
   };
+  back.disabled = location.pathname === "/";
   sync();
   if (nav) nav.addEventListener("currententrychange", sync);
   document.addEventListener("keydown", (e) => {
@@ -1473,4 +1476,150 @@ document.addEventListener("click", (ev) => {
       }
     });
   });
+})();
+
+
+// ---- Feels like an app, on every device (v1.23) ---------------------------------------------------------------
+// inPace is pages drawn by Python, but it should move like an app:
+//  * The main places (Home, My courses, Add, Milestones, the island…) are like tabs: going from one to another
+//    replaces the page instead of stacking it, and tapping the one you're on scrolls to the top.
+//  * Back closes what's open first (a sheet, a menu, full screen). On a main place it goes Home; on Home it
+//    leaves the app (on a phone). Everywhere else it goes one page back, or up to the page it belongs to.
+//  * Pages slide in going forward and slide back going back; tabs fade (the CSS reads <html data-nav>).
+//  * A thin bar shows at the top when a page takes more than a moment.
+(() => {
+  const ROOTS = ["/", "/courses", "/add", "/milestones", "/island", "/races", "/library", "/people", "/open", "/reminders", "/settings"];
+  const clean = (p) => p.replace(/\/+$/, "") || "/";
+  const isRoot = (p) => ROOTS.includes(clean(p));
+  const here = () => clean(location.pathname);
+  const hint = (kind) => { try { sessionStorage.setItem("inpace-nav", kind); } catch (e) { /* private window */ } };
+  const busy = () => { clearTimeout(busy.t); busy.t = setTimeout(() => document.documentElement.classList.add("nav-busy"), 180); };
+  const idle = () => { clearTimeout(busy.t); document.documentElement.classList.remove("nav-busy"); };
+  window.addEventListener("pageshow", idle);
+  window.addEventListener("pagehide", idle);
+
+  // Close whatever is open on top of the page. Says whether something was closed.
+  const closeTop = () => {
+    if (document.fullscreenElement) { document.exitFullscreen(); return true; }
+    const dialogs = document.querySelectorAll("dialog[open]");
+    if (dialogs.length) { const d = dialogs[dialogs.length - 1]; if (d.close) d.close(); else d.removeAttribute("open"); return true; }
+    const open = document.querySelector(".diagram-full [data-d-close], body.diagram-open [data-d-full]");
+    if (open) { open.click(); return true; }
+    const menu = document.querySelector("details.menu[open], details.course-menu[open]");
+    if (menu) { menu.open = false; return true; }
+    return false;
+  };
+
+  // The one Back for the button at the top, the phone's Back and Alt+←. Returns "handled", or "exit" on Home.
+  window.inpaceBack = () => {
+    if (closeTop()) return "handled";
+    if (here() === "/") return "exit";
+    if (isRoot(here())) { hint("back"); busy(); location.replace("/"); return "handled"; }
+    const nav = window.navigation;
+    const canBack = nav && nav.canGoBack !== undefined ? nav.canGoBack : history.length > 1;
+    if (canBack) { history.back(); return "handled"; }
+    const up = document.querySelector("a[data-up]");
+    hint("back"); busy();
+    location.replace(up ? up.href : "/");
+    return "handled";
+  };
+
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest("a[href]");
+    if (!a || a.target || a.hasAttribute("download")) return;
+    let url;
+    try { url = new URL(a.href); } catch (err) { return; }
+    if (url.origin !== location.origin) return;
+    const tab = a.closest("nav.side, nav.tabbar, .more-sheet, header.top") && isRoot(url.pathname) && !url.search;
+    if (tab && clean(url.pathname) === here() && !location.search) {  // the tab you're on: go to the top, with fresh numbers
+      e.preventDefault();
+      closeTop();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (window.inpaceRefresh) window.inpaceRefresh();
+      return;
+    }
+    if (tab && isRoot(here())) {  // tab to tab: swap, don't stack
+      e.preventDefault();
+      hint("tab"); busy();
+      location.replace(a.href);
+      return;
+    }
+    if (url.pathname !== location.pathname || url.search !== location.search) busy();
+  });
+  document.addEventListener("submit", (e) => { if (!e.defaultPrevented && !e.target.closest("form.yt-save")) busy(); });
+
+  // Nothing here is a web page to the person using it: no menu of "Open link in new tab" on a long press or right
+  // click, except where it helps (text you typed, text you selected, lesson content, pictures and links in lessons).
+  document.addEventListener("contextmenu", (e) => {
+    const t = e.target;
+    if (t.closest("input, textarea, select, [contenteditable], article, .lesson, pre, code, .player, video, audio")) return;
+    if (String(window.getSelection && window.getSelection()).trim()) return;
+    e.preventDefault();
+  });
+  // Links and pictures of the app itself don't drag out like on a web page.
+  document.addEventListener("dragstart", (e) => {
+    if (e.target.closest && e.target.closest("a, img, svg") && !e.target.closest("article, [draggable=true], .b-les, .b-mod")) e.preventDefault();
+  });
+})();
+
+// ---- Fresh without reloading (v1.23) ---------------------------------------------------------------------------
+// Like a Flutter screen that rebuilds only the widgets whose data changed: a page can mark its main part with
+// [data-live]. When you come back to the app (or tap the tab you're on), inPace asks Python for the page again
+// and changes only the parts that are different: a progress bar, a number, the next lesson. Nothing blinks, your
+// place on the page stays, and open sections stay open. If a changed part needs its script again (a player, a
+// folder picker), the page is simply loaded again.
+(() => {
+  const SCRIPTED = "[data-pick-folder], [data-busy], [data-autosubmit], [data-player], [data-embed], [data-offline], " +
+    "[data-yt-save], [data-confetti], [data-search], [data-days], [data-theme-toggle], [data-more-open], script, " +
+    "input, textarea, select, video, audio, iframe, canvas";
+  const scripted = (n) => n.nodeType === 1 && (n.matches(SCRIPTED) || n.querySelector(SCRIPTED));
+  class NeedsReload extends Error {}
+
+  const patch = (a, b) => {
+    if (a.isEqualNode(b)) return;
+    const same = a.nodeType === 1 && b.nodeType === 1 && a.tagName === b.tagName && a.childNodes.length === b.childNodes.length;
+    if (!same) {
+      if (scripted(a) || scripted(b)) throw new NeedsReload();
+      a.replaceWith(document.importNode(b, true));
+      return;
+    }
+    for (const at of [...a.attributes]) {
+      if (!b.hasAttribute(at.name) && !(a.tagName === "DETAILS" && at.name === "open")) a.removeAttribute(at.name);
+    }
+    for (const at of [...b.attributes]) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+    const mine = [...a.childNodes], theirs = [...b.childNodes];
+    for (let i = 0; i < mine.length; i++) patch(mine[i], theirs[i]);
+  };
+
+  let running = false, last = Date.now();
+  const refresh = async () => {
+    const live = [...document.querySelectorAll("[data-live][id]")];
+    if (!live.length || running || document.hidden) return;
+    if (document.querySelector("dialog[open], [data-offline-job]:not([hidden])")) return;  // don't change what's being used
+    const el = document.activeElement;
+    if (el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;  // typing
+    running = true;
+    try {
+      const r = await fetch(location.pathname + location.search, { cache: "no-store", headers: { "X-InPace-Soft": "1" } });
+      if (!r.ok || new URL(r.url).pathname !== location.pathname) return;
+      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+      const root = document.documentElement, fresh = doc.documentElement;
+      if (root.lang !== fresh.lang || root.dataset.accent !== fresh.dataset.accent) { location.reload(); return; }
+      for (const part of live) {
+        const next = doc.getElementById(part.id);
+        if (next) patch(part, next);
+      }
+      last = Date.now();
+    } catch (e) {
+      if (e instanceof NeedsReload) location.reload();  // a part that needs its script changed: load the page again
+    } finally {
+      running = false;
+    }
+  };
+  window.inpaceRefresh = refresh;
+  // Coming back to the app or the window after a while: bring the page up to date, quietly.
+  const back = () => { if (Date.now() - last > 20000) refresh(); };
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) back(); });
+  window.addEventListener("focus", back);
 })();

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.23.0
+
+- **Faster pages, most of all on phones.**
+  - The window now keeps inPace's own files (styles, script, fonts, icons) instead of asking Python for them again on every page. Before, each page change, and each Back, meant about seven requests to Python; now it's one.
+  - **My courses** opened slowly because the sample courses were read from disk on every visit. They're read once now (on a computer the page went from about 80 ms to about 5 ms; on a phone the difference is much bigger).
+- **The phone app starts faster from the second start on.** After the app is up, it quietly copies its pure-Python libraries out of the app's zip into your inPace folder and compiles them there; later starts use that copy instead of compiling every library again. Python also keeps compiled copies of inPace's own code. It's all plain Python in `main.py` (the app's packaging is unchanged from 1.22.2), and it's safe to lose: after an update a new copy is made, and if the copy ever can't be used it's thrown away and the app starts the old way. **Settings → Where your data lives → Show details** shows how long the last start took.
+- **It moves like an app, on phones and computers.**
+  - **Tabs:** going between the main places (Home, My courses, Add, Milestones, the island, Races, the library, People, Reminders, Settings) swaps the page instead of stacking it. Tapping the place you're on scrolls to the top and brings its numbers up to date.
+  - **Back** closes what's open first (the More sheet, a menu, full screen). On a main place it goes Home; on Home the phone's Back leaves the app. Everywhere else it goes one page back, or up to the page it belongs to. The phone's Back button, the button at the top left and Alt+← all work the same way.
+  - **Direction:** opening something slides it in from the side, Back slides it back the other way, and tabs and saved forms fade (mirrored in Arabic; off when your system asks for less motion).
+  - A thin bar shows at the top when a page takes more than a moment.
+  - Buttons, tabs and menus no longer act like web page text: a long press or right click doesn't select them or open a "copy link" menu, links and pictures don't drag out, and the page doesn't stretch when you scroll past its end. Lessons, code and anything you type still select and copy as before.
+- **Pages update in place.** When you come back to inPace after a while, Home and the course page ask Python for the page again and change only the parts that are different (a progress bar, the next lesson, the path), like a Flutter screen rebuilding only the widgets whose data changed. Nothing blinks, you stay where you were on the page, and open sections stay open.
+
 ## v1.22.2
 
 - **Fixed for real: the phone app starts again.** 1.21 to 1.22.1 packed the app's Python code in compiled-only form to start faster, and on phones Python couldn't start with it. The phone app is now packed exactly like 1.20, which works. It starts about a second slower than 1.21 was meant to, and it starts.

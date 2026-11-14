@@ -632,7 +632,19 @@ class _ShellState extends State<Shell> {
       return false;
     }
     final web = _web;
-    if (web != null && await web.canGoBack()) {
+    if (web == null) return true;
+    // The page decides, like an app would (inpaceBack in app.js): close what's open, go one page back, leave a
+    // main page for Home, and say "exit" only on Home. If the page can't answer, fall back to plain history.
+    if (_ready) {
+      try {
+        const js = 'window.inpaceBack ? window.inpaceBack() : "none"';
+        final Object result = await web.runJavaScriptReturningResult(js);
+        final answer = result.toString().replaceAll('"', '');
+        if (answer == 'handled') return false;
+        if (answer == 'exit') return true;
+      } catch (_) {}
+    }
+    if (await web.canGoBack()) {
       await web.goBack();
       return false;
     }

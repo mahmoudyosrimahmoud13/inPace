@@ -364,6 +364,24 @@ def _drop_title(content: str, title: str) -> str:
     return content
 
 
+_SAMPLE_CACHE: list = []
+
+
+def _sample_courses() -> list:
+    """The sample courses that come with inPace. They never change while the app runs, so they're read once
+    (reading them on every visit made "My courses" the slowest page, most of all on phones)."""
+    if not _SAMPLE_CACHE:
+        found = []
+        for p in sorted(SAMPLES.iterdir()):
+            if p.is_dir():
+                try:
+                    found.append(load_course(files_from_folder(p)))
+                except CourseError:
+                    pass
+        _SAMPLE_CACHE.extend(found or [None])
+    return [c for c in _SAMPLE_CACHE if c is not None]
+
+
 class NavMiddleware:
     """Two small rules for every response, so Back always shows the app as it is now.
 
@@ -380,6 +398,10 @@ class NavMiddleware:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         nav = False
+        static = b""
+        if scope.get("path", "").startswith("/static/"):
+            static = (b"public, max-age=31536000, immutable" if b"v=" in scope.get("query_string", b"")
+                      else b"public, max-age=86400")
         for k, val in scope.get("headers", []):
             if k == b"x-inpace-nav":
                 nav = True
@@ -401,6 +423,12 @@ class NavMiddleware:
                     return
                 if found.get(b"content-type", b"").startswith(b"text/html") and b"cache-control" not in found:
                     headers.append((b"cache-control", b"no-store"))
+                    msg = {**msg, "headers": headers}
+                elif static and msg["status"] == 200 and b"cache-control" not in found:
+                    # inPace's own files (styles, script, fonts, icons). The page names styles and script with
+                    # ?v=<number>, which changes with every release, so those can be kept for good: the window
+                    # doesn't ask for them again on every page. The others are kept for a day.
+                    headers.append((b"cache-control", static))
                     msg = {**msg, "headers": headers}
                 await send(msg)
             elif not state["swallow"]:
@@ -812,13 +840,7 @@ def create_app(vault: Vault) -> Starlette:
     async def courses(request: Request):
         installed = V.courses()
         have = {c.id for c in installed}
-        samples = []
-        for p in sorted(SAMPLES.iterdir()):
-            if p.is_dir() and p.name not in have:
-                try:
-                    samples.append(load_course(files_from_folder(p)))
-                except CourseError:
-                    pass
+        samples = [c for c in _sample_courses() if c.id not in have]
         lang = V._meta("lang", "en") or "en"
         samples.sort(key=lambda c: c.language != lang)  # courses in your language first
         rows = []

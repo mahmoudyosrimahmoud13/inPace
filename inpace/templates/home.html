@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Home') }}{% endblock %}
+{% set live_page = true %}
 {% block main %}
 <div class="hello">
   {% set t = cards[0].tempo if cards else ('wave', "Hi! I'm Tempo. Pick a course and we'll go one step at a time.", []) %}

@@ -1682,3 +1682,50 @@ article.card + .outline { margin-block-start: 1.2rem; }
 .yt-save { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: .6rem 0 0; }
 .yt-save-note { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
 .yt-save .btn svg { flex-shrink: 0; }
+
+/* ---- Feels like an app (v1.23) ---------------------------------------------------------------------------------
+   Same look, different manners: the things you press behave like buttons in an app, not like parts of a web page. */
+.live-page { display: contents; }
+html { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: none; }
+/* Buttons, menus, tabs and labels aren't text: a long press or a drag doesn't select them or pop up a web menu.
+   What you read or type (lessons, notes, fields, code) still selects as always. */
+header.top, nav.side, nav.tabbar, .more-sheet, .btn, .chip, .tile, summary, .stone, .nav-btn, .jump-links, .yay, .big-foot,
+.signpost, .continue-btn, .tab, .tabs, label.check, .eyebrow {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+a, button, summary, .btn, img, svg { -webkit-user-drag: none; -webkit-touch-callout: none; }
+article a, article img, .prose a, .prose img { -webkit-touch-callout: default; }
+a, button, summary, label, input, select, textarea, .btn { touch-action: manipulation; }
+/* Keyboard users keep the focus ring; a tap or a click doesn't leave one behind. */
+:focus:not(:focus-visible) { outline: none; }
+/* The thin bar at the top while a page takes more than a moment to come. */
+html.nav-busy::after { content: ""; position: fixed; z-index: 9999; inset-block-start: 0; inset-inline: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--sun) 30%, var(--pink, #E6007E) 70%, transparent); background-size: 50% 100%;
+  background-repeat: no-repeat; animation: inpace-busy 1s linear infinite; pointer-events: none; }
+@keyframes inpace-busy { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Which way pages move (base.html sets <html data-nav> just before the new page shows): going deeper, the new
+     page comes in from the side; going back, it comes back the other way; tabs and saved forms just fade. Short
+     distances and only opacity and transform, so it stays smooth on slow phones. Mirrored in Arabic. */
+  html[data-nav="forward"]::view-transition-old(root) { animation: 110ms cubic-bezier(.4, 0, 1, 1) both inpace-out-start; }
+  html[data-nav="forward"]::view-transition-new(root) { animation: 230ms cubic-bezier(.2, 0, 0, 1) 40ms both inpace-in-end; }
+  html[data-nav="back"]::view-transition-old(root) { animation: 110ms cubic-bezier(.4, 0, 1, 1) both inpace-out-end; }
+  html[data-nav="back"]::view-transition-new(root) { animation: 230ms cubic-bezier(.2, 0, 0, 1) 40ms both inpace-in-start; }
+  html[dir="rtl"][data-nav="forward"]::view-transition-old(root) { animation-name: inpace-out-end; }
+  html[dir="rtl"][data-nav="forward"]::view-transition-new(root) { animation-name: inpace-in-start; }
+  html[dir="rtl"][data-nav="back"]::view-transition-old(root) { animation-name: inpace-out-start; }
+  html[dir="rtl"][data-nav="back"]::view-transition-new(root) { animation-name: inpace-in-end; }
+  html[data-nav="fade"]::view-transition-old(root) { animation: 80ms linear both inpace-fade-out; }
+  html[data-nav="fade"]::view-transition-new(root) { animation: 160ms linear 30ms both inpace-fade-in; }
+  /* Pressing anything pressable answers at once. */
+  .tabbar > a:active, .tabbar > button:active, nav.side a:active, .more-sheet a:active { transform: scale(.96); }
+  .tabbar > a, .tabbar > button, nav.side a, .more-sheet a { transition: transform 90ms cubic-bezier(.2, 0, 0, 1); }
+}
+@keyframes inpace-out-start { to { opacity: 0; transform: translateX(-18px); } }
+@keyframes inpace-out-end { to { opacity: 0; transform: translateX(18px); } }
+@keyframes inpace-in-end { from { opacity: 0; transform: translateX(26px); } }
+@keyframes inpace-in-start { from { opacity: 0; transform: translateX(-26px); } }
+@keyframes inpace-fade-out { to { opacity: 0; } }
+@keyframes inpace-fade-in { from { opacity: 0; } }
