@@ -238,8 +238,13 @@ def status(v, rm: dict, index: dict | None = None) -> dict:
     """Each step with its course and your progress, and the roadmap as a whole.
 
     A step's state: done (course finished), active (started), start (added, not started), add (in the library,
-    not added yet), missing (neither on this device nor in the library)."""
+    not added yet), unknown (not on this device, and we have no library list to look in: offline, or the library
+    was never opened), missing (neither on this device nor in the library).
+
+    A missing course can't be added, so it's never the "current" step: the roadmap points at the next course you
+    can take, and "blocked" lists the required courses that keep the roadmap from finishing."""
     index = index or {}
+    known = bool(index.get("courses"))
     lib = {str(e.get("id")): e for e in index.get("courses") or [] if isinstance(e, dict)}
     steps = []
     for i, s in enumerate(rm["steps"]):
@@ -254,7 +259,8 @@ def status(v, rm: dict, index: dict | None = None) -> dict:
                 prog = None
         percent = int((prog or {}).get("percent") or 0)
         finished = bool(prog and prog.get("finished"))
-        state = "done" if finished else "active" if jid else "start" if c else "add" if e else "missing"
+        state = ("done" if finished else "active" if jid else "start" if c else "add" if e
+                 else "missing" if known else "unknown")
         minutes = 0
         if c:
             minutes = sum(int(les.get("minutes") or 0) for m in c.modules for les in m["lessons"])
@@ -268,13 +274,23 @@ def status(v, rm: dict, index: dict | None = None) -> dict:
                       "cover": (e or {}).get("cover"), "next_up": nxt, "optional": bool(s.get("optional"))})
     need = [s for s in steps if not s["optional"]]
     done = [s for s in need if s["state"] == "done"]
-    current = next((s for s in steps if s["state"] != "done" and not s["optional"]), None) or \
-        next((s for s in steps if s["state"] != "done"), None)
+    open_ = [s for s in steps if s["state"] not in ("done", "missing")]
+    current = next((s for s in open_ if not s["optional"]), None) or next(iter(open_), None)
     percent = round(sum(s["percent"] for s in need) / len(need)) if need else 0
     return {"steps": steps, "done": len(done), "total": len(need), "percent": percent,
             "finished": bool(need) and len(done) == len(need), "current": current,
             "minutes": sum(s["minutes"] for s in steps), "missing": [s for s in steps if s["state"] == "missing"],
-            "to_add": [s for s in steps if s["state"] == "add"]}
+            "to_add": [s for s in steps if s["state"] == "add"],
+            "unknown": [s for s in steps if s["state"] == "unknown"],
+            "blocked": [s for s in need if s["state"] == "missing"],
+            "add_bytes": sum(int((s["entry"] or {}).get("size") or 0) for s in steps if s["state"] == "add")}
+
+
+def without(rm: dict, course_ids: set[str]) -> dict:
+    """A copy of the roadmap without some courses (the ones you can't get), as your own version. Raises
+    RoadmapError if nothing required would be left."""
+    steps = [s for s in rm["steps"] if s["course"] not in course_ids]
+    return parse({**rm, "steps": steps, "source": "mine"}, "mine")
 
 
 def on_roadmaps(home: Path, course_id: str) -> list[tuple[dict, int]]:

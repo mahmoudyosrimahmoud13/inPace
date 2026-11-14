@@ -1071,6 +1071,12 @@ def create_app(vault: Vault) -> Starlette:
     async def roadmap_page(request: Request):
         rid = request.path_params["rid"]
         index = await _library_now()
+        if request.query_params.get("fresh") == "1":  # "Check the library again": don't wait for the hour to pass
+            from starlette.concurrency import run_in_threadpool
+            try:
+                index = await run_in_threadpool(library.load_index, V.home, True)
+            except library.LibraryProblem:
+                pass
         rm, where = _roadmap_where(rid, index)
         if not rm:
             if request.query_params.get("refresh") != "1" and not index.get("offline"):
@@ -1135,10 +1141,16 @@ def create_app(vault: Vault) -> Starlette:
                else "You stopped following the roadmap. Its courses and your progress in them stay.")
         return go("/roadmaps", ok=msg)
 
+    def _roadmap_has(rid: str, cid: str, index: dict) -> bool:
+        rm = roadmaps.get(V.home, rid) or roadmaps.library_find(index, rid)
+        return bool(rm and any(s["course"] == cid for s in rm["steps"]))
+
     async def roadmap_add_course(request: Request):
         """Add one course of a roadmap from the library, then come back to the roadmap."""
         from starlette.concurrency import run_in_threadpool
         rid, cid = request.path_params["rid"], request.path_params["cid"]
+        if not _roadmap_has(rid, cid, library.cached_index(V.home)):
+            return go(f"/roadmaps/{quote(rid)}", err="That course isn't on this roadmap.")
         try:
             index = await run_in_threadpool(library.load_index, V.home)
             entry = library.find(index, cid)
@@ -1149,6 +1161,71 @@ def create_app(vault: Vault) -> Starlette:
             return go(f"/roadmaps/{rid}", err=str(e))
         import io as _io
         return _install_pack(request, _io.BytesIO(data), f"{cid}.zip", then=f"/roadmaps/{rid}")
+
+    async def roadmap_add_all(request: Request):
+        """Add every course of a roadmap that's in the library and not on this device yet, one after another. For
+        people who want the whole path ready, say before they go offline. Courses you already have stay as they are."""
+        import io as _io
+        import zipfile
+        from starlette.concurrency import run_in_threadpool
+        rid = request.path_params["rid"]
+        rm = roadmaps.get(V.home, rid)
+        if not rm:
+            return go("/roadmaps", err="Follow the roadmap first.")
+        try:
+            index = await run_in_threadpool(library.load_index, V.home)
+        except library.LibraryProblem as e:
+            return go(f"/roadmaps/{quote(rid)}", err=str(e))
+        added, failed = [], []
+        for s in roadmaps.status(V, rm, index)["to_add"]:
+            if V.get_course(s["course"]):
+                continue
+            try:
+                data = await run_in_threadpool(library.download, s["entry"])
+                zf = zipfile.ZipFile(_io.BytesIO(data))
+                c = V.install_course(load_course(files_from_zip(_io.BytesIO(data))))
+                _unpack_media(c, zf, media_in_zip(zf))
+                added.append(c.title)
+            except library.LibraryProblem as e:
+                failed.append(str(e))
+                if "internet" in str(e):
+                    break  # offline: the next ones would fail the same way
+            except (zipfile.BadZipFile, CourseError):
+                failed.append(f"The library's file for “{s['title']}” couldn't be read.")
+        msg = {}
+        if added:
+            msg["ok"] = f"Added {len(added)} courses. Start each one when you get to it." if len(added) > 1 \
+                else f"Added the course “{added[0]}”."
+        if failed:
+            msg["err"] = "Some courses weren't added:\n" + "\n".join(failed)
+        return go(f"/roadmaps/{quote(rid)}", **(msg or {"ok": "All its courses are already on this device."}))
+
+    async def roadmap_drop_missing(request: Request):
+        """Take the courses you can't get (not on this device, not in the library) off a roadmap someone sent you,
+        so you can still finish it. It becomes your own version. Only with a fresh library list: a course that only
+        looked missing because you were offline is never taken off."""
+        from starlette.concurrency import run_in_threadpool
+        rid = request.path_params["rid"]
+        rm = roadmaps.get(V.home, rid)
+        if not rm:
+            return go("/roadmaps", err="That roadmap isn't on this device.")
+        if rm.get("source") == "library":
+            return go(f"/roadmaps/{quote(rid)}?fresh=1", err="Library roadmaps only use library courses. Check for a newer version.")
+        try:
+            index = await run_in_threadpool(library.load_index, V.home, True)
+        except library.LibraryProblem:
+            return go(f"/roadmaps/{quote(rid)}", err="Connect to the internet first, so inPace can check the library.")
+        gone = {s["course"] for s in roadmaps.status(V, rm, index)["missing"]}
+        if not gone:
+            return go(f"/roadmaps/{quote(rid)}", ok="Every course on this roadmap can be added now.")
+        try:
+            mine_now = roadmaps.without(rm, gone)
+        except roadmaps.RoadmapError:
+            return go(f"/roadmaps/{quote(rid)}", err="None of its required courses can be added, so nothing would be left. "
+                                                      "Ask for the course files, or stop following it.")
+        mine_now["made_at"] = rm.get("made_at") or now_utc()
+        roadmaps.save(V.home, mine_now)
+        return go(f"/roadmaps/{quote(rid)}", ok=f"Took {len(gone)} courses off. This is now your own version of the roadmap.")
 
     async def roadmap_start(request: Request):
         rid, cid = request.path_params["rid"], request.path_params["cid"]
@@ -1230,7 +1307,7 @@ def create_app(vault: Vault) -> Starlette:
         in_library = bool(lib_copy and roadmaps.fingerprint(lib_copy) == roadmaps.fingerprint(rm))
         share = exchange.share_links(say("A learning roadmap for you on inPace 🐢 Tap the link to see it:"),
                                      roadmaps.share_data(rm, in_library), say("A roadmap for you on inPace"))
-        not_in_lib = [s for s in rm["steps"] if not library.find(index, s["course"])]
+        not_in_lib = [s for s in rm["steps"] if not library.find(index, s["course"])] if index.get("courses") else []
         text = roadmaps.to_yaml({**rm, "author": rm.get("author") or (V.me["name"] if V.me else "")})
         form_url = (f"{library.SUBMIT_URL}?template=submit-roadmap.yml&title={quote('Roadmap: ' + rm['title'])}"
                     f"&roadmap_title={quote(rm['title'])}&roadmap={quote(text)}")
@@ -3069,6 +3146,22 @@ def create_app(vault: Vault) -> Starlette:
         return go("/people", ok="Saved.")
 
     # ---- one place to open any file ------------------------------------------
+    def _unpack_media(c, zf, inside) -> None:
+        """Copy a course file's videos and other files into the course's media folder (never outside it)."""
+        import shutil
+        if not inside:
+            return
+        dest = V.media_dir(c.id).resolve()
+        for info, rel in inside:
+            target = (dest / rel).resolve()
+            try:
+                target.relative_to(dest)
+            except ValueError:
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out, 1024 * 1024)
+
     def _install_pack(request: Request, fileobj, fname: str, then: str | None = None):
         import shutil
         import zipfile
@@ -3084,17 +3177,7 @@ def create_app(vault: Vault) -> Starlette:
         if existing and existing.hash != c.hash:
             return _hold_update(c, (zf, inside) if inside else None)
         c = V.install_course(c)
-        if inside:
-            dest = V.media_dir(c.id).resolve()
-            for info, rel in inside:
-                target = (dest / rel).resolve()
-                try:
-                    target.relative_to(dest)
-                except ValueError:
-                    continue
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with zf.open(info) as src, open(target, "wb") as out:
-                    shutil.copyfileobj(src, out, 1024 * 1024)
+        _unpack_media(c, zf, inside)
         lines = [f"Added the course “{c.title}”."]
         if c.questions and not c.has_answers:
             lines.append("It came without answers, so practice quizzes are off.")
@@ -4005,6 +4088,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/roadmaps/{rid}/share", needs_setup(roadmap_share)),
         Route("/roadmaps/{rid}/file", needs_setup(roadmap_file)),
         Route("/roadmaps/{rid}/add/{cid}", needs_setup(roadmap_add_course), methods=["POST"]),
+        Route("/roadmaps/{rid}/add-all", needs_setup(roadmap_add_all), methods=["POST"]),
+        Route("/roadmaps/{rid}/drop-missing", needs_setup(roadmap_drop_missing), methods=["POST"]),
         Route("/roadmaps/{rid}/start/{cid}", needs_setup(roadmap_start), methods=["POST"]),
         Route("/island/voyages", needs_setup(island_voyages)),
         Route("/library", needs_setup(library_page)),

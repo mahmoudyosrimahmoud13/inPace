@@ -178,7 +178,8 @@ def test_tool_is_checked_and_updated(tmp_path):
     assert offline.version(tmp_path) == "2026.02.02"
 
 
-def test_settings_page_and_choices(tmp_path):
+def test_settings_page_and_choices(tmp_path, monkeypatch):
+    monkeypatch.setattr(offline, "version", lambda home: "")  # as on a computer without yt-dlp installed in Python
     v, c = app(tmp_path)
     page = html.unescape(c.get("/settings").text)
     assert "Video downloads" in page and "Get yt-dlp now" in page

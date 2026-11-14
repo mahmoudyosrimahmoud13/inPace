@@ -25,7 +25,11 @@
     <form method="post" action="/roadmaps/{{ rm.id }}/start/{{ here.course }}"><button class="btn primary big continue-btn"><span><span class="small">{{ T('Start course {n}', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('arrow', 18) }}</button></form>
     {% elif here.state == 'add' %}
     <form method="post" action="/roadmaps/{{ rm.id }}/add/{{ here.course }}"><button class="btn primary big continue-btn" data-busy="{{ _('Adding…') }}"><span><span class="small">{{ T('Add course {n} from the library', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('download', 18) }}</button></form>
+    {% elif here.state == 'unknown' %}
+    <p class="note warn small">{{ T('Course {n}, “{name}”, comes from the course library. Connect to the internet, then check again.', n=here.n, name=here.title) }}
+      <a class="btn small" href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check again{% endtrans %}</a></p>
     {% endif %}
+  {% elif st.blocked %}<p class="small"><b>{% trans trimmed %}You've done every course you can get on this roadmap. The ones left aren't in the library.{% endtrans %}</b></p>
   {% elif st.finished %}<p><span class="chip good">{% trans trimmed %}Roadmap finished. Tempo reached the harbour!{% endtrans %}</span></p>{% endif %}
   {% elif where == 'library' %}
   <form method="post" action="/roadmaps/{{ rm.id }}/follow" class="rm-follow"><button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
@@ -34,6 +38,9 @@
   <form method="post" action="/roadmaps/shared" class="rm-follow"><input type="hidden" name="data" value="{{ shared_json }}">
     <button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
     <span class="small muted">{% trans trimmed %}Someone sent you this roadmap. Its courses come from the course library.{% endtrans %}</span></form>
+  {% if st.missing %}<p class="note warn small">{{ T('{n} of its courses aren’t in the library, so you can’t add them from here:', n=st.missing|length) }}
+    {% for s in st.missing %}<b dir="auto">{{ s.title or s.course }}</b>{{ ', ' if not loop.last }}{% endfor %}.
+    {% trans trimmed %}You can still follow it: ask the person who sent it for those course files.{% endtrans %}</p>{% endif %}
   {% endif %}
 
   <div class="row wrap rm-actions">
@@ -59,8 +66,33 @@
   <button class="btn small">{% trans trimmed %}Update{% endtrans %}</button>
 </form>
 {% endif %}
+{% if where == 'mine' and st.missing %}
+<section class="note warn stack rm-missing">
+  <p class="small"><b>{{ T('{n} of its courses aren’t on this device or in the library:', n=st.missing|length) }}</b>
+    {% for s in st.missing %}<span dir="auto">{{ s.title or s.course }}</span>{{ ', ' if not loop.last }}{% endfor %}.</p>
+  {% if rm.source == 'library' %}
+  <p class="small">{% trans trimmed %}The library may have changed since you followed it. Check again: if there's a newer version of the roadmap, you can update to it.{% endtrans %}</p>
+  <div class="row wrap"><a class="btn small" href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check the library again{% endtrans %}</a></div>
+  {% else %}
+  <p class="small">{% if rm.source == 'mine' %}{% trans trimmed %}They're on this roadmap, but people you share it with can't get them.{% endtrans %}
+    {% else %}{% trans trimmed %}If the person who sent it has these courses, ask them for the course files and open them here. Or take them off, so you can still finish the roadmap.{% endtrans %}{% endif %}</p>
+  <div class="row wrap">
+    <a class="btn small" href="/open">{{ icon('upload', 16) }}{% trans trimmed %}Open a course file{% endtrans %}</a>
+    <a class="btn small" href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check the library again{% endtrans %}</a>
+    {% if st.blocked or rm.source != 'mine' %}<form method="post" action="/roadmaps/{{ rm.id }}/drop-missing"><button class="btn small">{% trans trimmed %}Take them off the roadmap{% endtrans %}</button></form>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% if where == 'mine' and st.unknown and not st.missing and not (here and here.state == 'unknown') %}
+<p class="note small">{% trans trimmed %}inPace couldn't look in the course library (you may be offline), so some courses show as not found yet.{% endtrans %}
+  <a href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check again{% endtrans %}</a></p>
+{% endif %}
 {% if where == 'mine' and st.to_add|length > 1 %}
-<p class="muted small">{{ T("{n} of its courses aren't on this device yet. Add each one when you get to it.", n=st.to_add|length) }}</p>
+<form method="post" action="/roadmaps/{{ rm.id }}/add-all" class="row wrap rm-add-all">
+  <p class="muted small grow">{{ T("{n} of its courses aren't on this device yet. Add each one when you get to it, or add them all now, for example before you go offline.", n=st.to_add|length) }}</p>
+  <button class="btn small" data-busy="{{ _('Adding…') }}">{{ icon('download', 16) }}{{ T('Add all {n}', n=st.to_add|length) }}{% if st.add_bytes %} · {{ (st.add_bytes / 1048576)|round(1) }} MB{% endif %}</button>
+</form>
 {% endif %}
 
 <figure class="card voyage-card">
@@ -88,6 +120,7 @@
       {% elif s.state == 'active' %}<a class="btn small {{ 'primary' if here and s.n == here.n }}" href="/learn/{{ s.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
       {% elif s.state == 'start' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/start/{{ s.course }}"><button class="btn small">{% trans trimmed %}Start{% endtrans %}</button></form>{% endif %}
       {% elif s.state == 'add' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/add/{{ s.course }}"><button class="btn small" data-busy="{{ _('Adding…') }}">{{ icon('download', 16) }}{% trans trimmed %}Add{% endtrans %}</button></form>{% else %}<a class="btn small" href="/library/{{ s.course }}">{% trans trimmed %}See it{% endtrans %}</a>{% endif %}
+      {% elif s.state == 'unknown' %}<span class="small muted">{% trans trimmed %}Needs the internet{% endtrans %}</span>
       {% else %}<span class="small muted">{% trans trimmed %}Not in the library{% endtrans %}</span>{% endif %}
     </div>
   </div>
@@ -101,7 +134,4 @@
   </div>
 </li>
 </ol>
-{% if st.missing and where == 'mine' and rm.source == 'mine' %}
-<p class="note warn small">{% trans trimmed %}Some courses on this roadmap aren't in the library. That's fine for you, but people you share it with can't get them.{% endtrans %}</p>
-{% endif %}
 {% endblock %}

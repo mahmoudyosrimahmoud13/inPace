@@ -36,7 +36,7 @@
 <a class="rm-strip" href="/roadmaps/{{ rm.id }}">
   <span class="rm-strip-icon">{{ icon('route', 22) }}</span>
   <span class="grow"><span class="small muted">{% trans trimmed %}Your roadmap{% endtrans %}</span><b dir="auto">{{ rm.title }}</b>
-    {% if st.current %}<span class="small" dir="auto">{{ T('Course {a} of {b}: {name}', a=st.current.n, b=st.steps|length, name=st.current.title) }}</span>{% elif st.finished %}<span class="small">{% trans trimmed %}Finished. You reached the harbour!{% endtrans %}</span>{% endif %}</span>
+    {% if st.current %}<span class="small" dir="auto">{{ T('Course {a} of {b}: {name}', a=st.current.n, b=st.steps|length, name=st.current.title) }}</span>{% elif st.finished %}<span class="small">{% trans trimmed %}Finished. You reached the harbour!{% endtrans %}</span>{% elif st.blocked %}<span class="small">{% trans trimmed %}The courses left aren't in the library. Open the roadmap to see what to do.{% endtrans %}</span>{% endif %}</span>
   {{ dots(st) }}
 </a>
 {% endmacro %}

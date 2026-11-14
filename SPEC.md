@@ -307,3 +307,8 @@ same library, and each course entry lists the roadmaps it's on in `roadmaps`. Ol
 **Roadmap links** (§11). `{inpace: "library-roadmap", id, title, author}` opens that roadmap from the library.
 `{inpace: "roadmap", id, title, description, language, author, tags, steps}` carries the whole roadmap; the app shows
 it, and the learner follows it and adds each course from the library.
+
+**Courses that can't be had.** A shared roadmap may name a course that's neither on the device nor in the library.
+Apps must still accept and show such a roadmap, never treat that course as the next step, and let the learner take
+it off (making the roadmap their own). With no library list at all (offline, never opened), apps must not call a
+course missing. Following a roadmap never downloads courses by itself.

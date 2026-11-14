@@ -340,8 +340,22 @@ analyst"), each with an optional note ("why here") and an optional flag. It hold
   folder, with `source` saying where it came from: `mine` (you made it), `library` or `link`.
 - **Your place on it** is worked out from your progress every time (`roadmaps.status`), never stored. Each step is
   `done` (100%), `active` (started), `start` (installed, not started), `add` (in the library, not on this device)
-  or `missing`. The roadmap's percent is the mean of the steps that aren't optional, and the current step is the
-  first one that isn't finished.
+  `missing` (not on this device and not in the library) or `unknown` (not on this device, and there's no library
+  list to look in yet, so it isn't called missing). The roadmap's percent is the mean of the steps that aren't
+  optional. The current step is the first one that isn't finished and can be had: a missing course is never the
+  current step, so the roadmap goes on to the next course. `blocked` lists the required courses that are missing.
+- **Courses you can't get (v1.25.1).** A roadmap from a link or a file can name a course that's only on the
+  sender's device. Its page lists those courses and offers **Open a course file** (ask the sender for it),
+  **Check the library again** (`?fresh=1` reloads the library list now) and **Take them off the roadmap**
+  (`/roadmaps/{id}/drop-missing`), which saves a copy without them as your own version. It only takes courses off
+  after reloading the library list, so a course that only looked missing because you were offline is never lost,
+  and it refuses when no required course would be left. Library roadmaps can't have missing courses (the library
+  checks every one), so for them the page only offers to check again and update.
+- **Adding courses.** Following a roadmap downloads nothing. You add each course when you get to it, or press
+  **Add all** (`/roadmaps/{id}/add-all`) to add every course that's in the library and not on this device, one
+  after another, for example before going offline. The button shows the total size. Courses you already have are
+  never replaced, and if the internet drops it stops and says which courses weren't added. Adding one course
+  only works for a course that's on that roadmap.
 - **Making one:** **Roadmaps → Make a roadmap**. Type a goal and **Suggest courses** picks matching courses from
   your courses and the library (`roadmaps.suggest`: words in the title count most, then tags, id and
   description), keeps one language when a course comes in both, keeps a series together, and puts basics first

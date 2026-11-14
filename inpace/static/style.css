@@ -1811,6 +1811,11 @@ html.nav-busy::after { content: ""; position: fixed; z-index: 9999; inset-block-
 .rm-step-card { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 0; padding: .9rem 1rem; }
 .rm-step.here .rm-step-card { border-color: var(--black); box-shadow: 5px 5px 0 var(--sun), 5px 5px 0 2.5px var(--black); }
 .rm-step.missing .rm-step-card { opacity: .7; }
+.rm-step.unknown .rm-step-card { opacity: .85; }
+.rm-missing { margin-block: 1rem; gap: .5rem; }
+.rm-missing p { margin: 0; }
+.rm-add-all { align-items: center; gap: .6rem; margin-block: .8rem; }
+.rm-add-all p { margin: 0; flex: 1 1 260px; }
 .rm-cover .cover { width: 92px; }
 .rm-cover .cover.blank { font-size: 1.6rem; background: hsl(var(--hue) 75% 75%); }
 .rm-step-body { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 14rem; min-width: 0; }

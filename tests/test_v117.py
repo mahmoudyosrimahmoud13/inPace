@@ -217,7 +217,9 @@ def test_windows_and_linux_get_tempos_face(monkeypatch):
     from inpace import notifier
     xml = notifier.windows_toast_xml("t", "b", "inpace://go/", image=notifier._icon_png("tempo_cheer"))
     assert 'placement="appLogoOverride"' in xml and "tempo_cheer.png" in xml
-    assert notifier._icon_png("../../etc/passwd").endswith("icon-256.png")
+    # a bad name never leaves the notify folder: it falls back to the app icon (the installed one on Linux, if
+    # inPace is installed on this computer, else the one inside the app)
+    assert notifier._icon_png("../../etc/passwd").endswith(("icon-256.png", "/apps/inpace.png"))
 
 
 # ---- your own turtle -----------------------------------------------------------------------------------

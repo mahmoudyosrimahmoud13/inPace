@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.25.1
+
+- **Roadmaps with courses you can't get.** A roadmap someone sent you as a link or a file can name a course that's only on their computer.
+  - Before, the roadmap stopped at that course: no button, and it could never be finished. Now it moves on to the next course you can take.
+  - Its page lists those courses and gives three ways out: **Open a course file** (ask the sender for it), **Check the library again**, or **Take them off the roadmap**, which keeps a copy without them as your own version.
+  - inPace only takes courses off after checking the library online, so a course never gets taken off because you were offline.
+  - Before you follow a shared roadmap, its page already says which courses can't be added.
+- **Offline is not "missing".** When inPace has no library list yet (offline, or the library was never opened), courses on a roadmap say **Needs the internet** and **Check again**, instead of **Not in the library**. The share page no longer warns that every course is missing in that case.
+- **Add all.** Following a roadmap still downloads nothing, and you add each course when you get to it. Now there's also **Add all**, with the total size, to get every course at once, for example before a trip. Courses you already have stay as they are.
+- **Safer adding.** A roadmap's **Add** button only adds courses that are on that roadmap.
+- New Arabic translations for everything above.
+
 ## v1.25.0
 
 - **Optional lessons.** A course can now mark a lesson as an extra (further reading, a long video, a bonus exercise) that the module doesn't wait for.
