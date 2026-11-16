@@ -29,7 +29,10 @@ REQ_TYPES = ("practical", "explain", "quiz")
 # Media: videos, audio, web pages, pictures and online videos inside lessons
 # ---------------------------------------------------------------------------
 
-VIDEO_EXT = (".mp4", ".webm", ".m4v", ".mov", ".ogv", ".mkv")
+VIDEO_EXT = (".mp4", ".webm", ".m4v", ".mov", ".ogv", ".mkv", ".avi", ".wmv", ".flv", ".mpg", ".mpeg", ".3gp")
+# Formats every player can show. Other videos may not play in some app windows (inPace then offers your own player).
+PLAYS_EVERYWHERE = (".mp4", ".m4v", ".webm")
+SUB_EXT = (".srt", ".vtt")  # subtitles next to a video: "Lecture 1.srt" or "Lecture 1.ar.srt"
 AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wav", ".flac", ".weba")
 HTML_EXT = (".html", ".htm")
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
@@ -97,6 +100,33 @@ def clock_seconds(text: str) -> int | None:
     if m:
         return int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
     return None
+
+
+def youtube_parts(course) -> dict[str, list[tuple[int, int | None, str]]]:
+    """Long YouTube videos cut into lessons: video id -> its pieces in order, as (start, end, lesson id).
+    Only videos the course plays a piece of are listed."""
+    parts: dict[str, list] = {}
+    for m in course.modules:
+        for les in m["lessons"]:
+            ref = les.get("media") or ""
+            if media_kind(ref) != "youtube":
+                continue
+            vid = embed_id(ref)
+            start, end = youtube_segment(ref)
+            if vid and (start or end):
+                parts.setdefault(vid, []).append((start, end, les["id"]))
+    for vid in parts:
+        parts[vid].sort(key=lambda x: x[0])
+    return parts
+
+
+def lesson_parts(course) -> dict[str, tuple[int, int]]:
+    """lesson id -> (its part number, how many parts) for lessons that play a piece of a long video."""
+    out = {}
+    for pieces in youtube_parts(course).values():
+        for i, (_, _, lid) in enumerate(pieces, 1):
+            out[lid] = (i, len(pieces))
+    return out
 
 
 def youtube_segment(ref: str) -> tuple[int, int | None]:

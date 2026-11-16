@@ -1,0 +1,29 @@
+name: discord
+
+# Posts to the inPace Discord by itself: a new release, every push to main (the dev log), and new feedback.
+# Needs the secret DISCORD_WEBHOOKS (made by community/discord_setup.py). Without it, it posts nothing.
+on:
+  push:
+    branches: [main]
+  issues:
+    types: [opened]
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: community
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOKS: ${{ secrets.DISCORD_WEBHOOKS }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 community/discord_post.py

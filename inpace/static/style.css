@@ -1992,3 +1992,39 @@ body.iv-open-page { overflow: hidden; }
 .form-pair { gap: .8rem; align-items: flex-end; }
 .publish-form-step { align-items: flex-start; }
 .howto li.publish-form-step { grid-template-columns: 30px minmax(0, 1fr); align-items: start; }
+
+/* v1.27: a lesson that plays part of a long video, the YouTube piece bar, subtitles, and "can't play" help */
+.video-part { display: flex; gap: .55rem; align-items: flex-start; margin: 0 0 .7rem; padding: .55rem .8rem; background: var(--cream, #F2EDE2);
+  border-inline-start: 5px solid var(--sun); font-size: .95rem; line-height: 1.45; }
+.video-part .vp-icon { font-size: 1.1rem; line-height: 1.3; }
+.part-mark { font-weight: 700; white-space: nowrap; }
+.yt-bar { background: #111; color: #fff; padding: .35rem .7rem .45rem; direction: ltr; border: 3px solid var(--line); border-top: 0; }
+.yt-bar .pl-seek { margin: 0 0 .15rem; }
+.yt-bar .pl-seek::-webkit-slider-runnable-track { background: linear-gradient(90deg, var(--sun) var(--p), rgba(255,255,255,.3) var(--p)); }
+.yb-label { font-size: .78rem; font-weight: 700; color: var(--sun); margin-inline-end: .3rem; white-space: nowrap; }
+.yt-note { margin: .5rem 0 0; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.yt-note.warn { padding: .55rem .8rem; border: 2px solid var(--pink); background: var(--surface); }
+.pl-cc { font-size: .78rem; letter-spacing: .02em; }
+.pl-cc.on { background: var(--sun); color: #111; }
+.pl-menu { position: absolute; inset-inline-end: .7rem; bottom: 4.2rem; z-index: 3; display: grid; min-width: 12rem; max-width: 80%;
+  background: #111; border: 2px solid var(--sun); direction: ltr; }
+.pl-menu button { text-align: start; background: none; color: #fff; border: 0; padding: .55rem .8rem; font: 600 .9rem var(--sans, sans-serif); cursor: pointer; }
+.pl-menu button:hover, .pl-menu button:focus-visible { background: rgba(255,255,255,.12); outline: none; }
+.pl-menu button.on { color: var(--sun); }
+.pl-menu button.on::before { content: "✓ "; }
+.pl-menu [data-add] { border-top: 1px solid rgba(255,255,255,.25); }
+.player video::cue { font-size: 1.05em; background: rgba(0,0,0,.72); }
+.player.failed .pl-bar, .player.failed .pl-big { display: none; }
+.player.failed video { min-height: 240px; }
+.pl-fail { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: .5rem; padding: 1.2rem 1.4rem;
+  background: rgba(17,17,17,.94); color: #fff; overflow: auto; }
+.pl-fail p { margin: 0; max-width: 46rem; }
+.pl-fail .btn { color: #111; }
+.pl-fail .btn.primary { background: var(--sun); border-color: var(--sun); }
+.pl-cmd { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.pl-cmd code { background: #000; color: var(--sun); padding: .35rem .55rem; border: 1px solid rgba(255,255,255,.3); font-size: .85rem; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .yb-label, .yt-bar .yb-back, .yt-bar .yb-fwd { display: none; } }
+/* Subtitles move up while the controls show, so the bar never covers them */
+.player video::-webkit-media-text-track-container { transition: transform .25s; }
+.player:not(.playing) video::-webkit-media-text-track-container,
+.player.awake video::-webkit-media-text-track-container { transform: translateY(-72px); }

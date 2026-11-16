@@ -607,7 +607,7 @@ document.querySelectorAll(".embed-box").forEach((box) => {
     wrap.className = el.tagName === "IFRAME" ? "frame-wrap video-ratio" : "";
     wrap.appendChild(el);
     box.replaceWith(wrap);
-    if (box.dataset.ytKey) youtubeRemember(el, box);
+    if (box.dataset.ytKey) { youtubeRemember(el, box); youtubeExtras(el, box, wrap); }
   });
   const restart = box.querySelector("[data-yt-restart]");
   if (restart) restart.addEventListener("click", () => { box.dataset.resume = "0"; restart.parentElement.hidden = true; btn.click(); });
@@ -653,6 +653,102 @@ function youtubeRemember(frame, box) {
   frame.addEventListener("load", () => { hello(); setTimeout(hello, 1000); setTimeout(hello, 3000); });
   document.addEventListener("visibilitychange", () => { if (document.hidden) send(true); });
   window.addEventListener("pagehide", () => send(true));
+}
+
+// YouTube lessons: a bar of inPace's own under the video for a piece of a long video (it goes from 0:00 to the
+// piece's length), and a clear way out when YouTube won't play inside the app.
+const YT_ICON = {
+  play: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z" fill="currentColor"/></svg>',
+  back: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><text x="12" y="15.5" font-size="7.5" text-anchor="middle" fill="currentColor" stroke="none" font-weight="800">10</text></svg>',
+  fwd: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><text x="12" y="15.5" font-size="7.5" text-anchor="middle" fill="currentColor" stroke="none" font-weight="800">10</text></svg>',
+};
+function clockText(s) {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`;
+}
+function youtubeExtras(frame, box, wrap) {
+  const L = box.dataset, lo = +L.start || 0, end = +L.end || 0;
+  const cmd = (func, args) => { try { frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*"); } catch (e) {} };
+  let now = lo, length = 0, playing = false, rate = 1, heard = false, failed = false;
+  const watch = L.watch || "";
+  const note = (html, cls) => {
+    let n = wrap.parentElement.querySelector(".yt-note");
+    if (!n) { n = document.createElement("p"); wrap.insertAdjacentElement("afterend", n); }
+    n.className = "yt-note " + (cls || ""); n.innerHTML = html;
+  };
+  const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const link = `<a class="btn small" href="${esc(watch)}" target="_blank" rel="noopener">${esc(L.lOpen)}</a>`;
+  frame.addEventListener("load", () => {
+    const hi = () => { cmd("addEventListener", ["onError"]); cmd("addEventListener", ["onStateChange"]); };
+    hi(); setTimeout(hi, 1200);
+  });
+  setTimeout(() => { if (!heard && !failed && watch) note(`${esc(L.lSlow)} ${link}`, "soft"); }, 15000);
+
+  let bar = null, seek, time, play, spd, dragging = false;
+  if (lo || end) {
+    bar = document.createElement("div");
+    bar.className = "yt-bar";
+    bar.innerHTML = `<input type="range" class="pl-seek" min="0" max="1000" value="0" step="1" aria-label="${esc(L.lPiece)}">
+      <div class="pl-row"><button type="button" class="pl-btn yb-play" title="${esc(L.lPlay)}">${YT_ICON.play}</button>
+      <button type="button" class="pl-btn yb-back" title="${esc(L.lBack)}">${YT_ICON.back}</button>
+      <button type="button" class="pl-btn yb-fwd" title="${esc(L.lFwd)}">${YT_ICON.fwd}</button>
+      <span class="pl-time" dir="ltr">0:00 / 0:00</span><span class="pl-grow"></span>
+      <span class="yb-label">${esc(L.lPiece)}</span>
+      <button type="button" class="pl-btn yb-speed" title="${esc(L.lSpeed)}">1×</button></div>`;
+    wrap.insertAdjacentElement("afterend", bar);
+    seek = bar.querySelector(".pl-seek"); time = bar.querySelector(".pl-time"); play = bar.querySelector(".yb-play"); spd = bar.querySelector(".yb-speed");
+  }
+  const hiT = () => end || length || 0;
+  const span = () => Math.max(0, hiT() - lo);
+  const draw = () => {
+    if (!bar) return;
+    const d = span(), cur = Math.min(Math.max(0, now - lo), d || Infinity);
+    if (!dragging) seek.value = d ? Math.round((cur / d) * 1000) : 0;
+    seek.style.setProperty("--p", (seek.value / 10) + "%");
+    time.textContent = `${clockText(dragging ? (seek.value / 1000) * d : cur)} / ${d ? clockText(d) : "…"}`;
+    play.innerHTML = playing ? YT_ICON.pause : YT_ICON.play;
+    play.title = playing ? L.lPause : L.lPlay;
+    spd.textContent = rate + "×";
+  };
+  const go = (t) => { now = Math.min(Math.max(lo, t), hiT() || t); cmd("seekTo", [now, true]); draw(); };
+  if (bar) {
+    play.addEventListener("click", () => {
+      if (playing) cmd("pauseVideo");
+      else { if (end && now >= end - 0.6) go(lo); cmd("playVideo"); }
+    });
+    bar.querySelector(".yb-back").addEventListener("click", () => go(now - 10));
+    bar.querySelector(".yb-fwd").addEventListener("click", () => go(now + 10));
+    seek.addEventListener("input", () => { dragging = true; draw(); });
+    seek.addEventListener("change", () => { dragging = false; go(lo + (seek.value / 1000) * span()); });
+    spd.addEventListener("click", () => {
+      const S = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      rate = S[(S.indexOf(rate) + 1) % S.length] || 1; cmd("setPlaybackRate", [rate]); draw();
+    });
+    draw();
+  }
+  window.addEventListener("message", (ev) => {
+    if (ev.source !== frame.contentWindow) return;
+    let d = ev.data;
+    try { if (typeof d === "string") d = JSON.parse(d); } catch (e) { return; }
+    if (!d || typeof d !== "object") return;
+    if (d.event === "onError") {
+      failed = true;
+      note(`<b>${esc(L.lErr)}</b> <span class="small muted">(YouTube ${esc(d.info)})</span> ${link}`, "warn");
+      return;
+    }
+    const info = d.info;
+    if (!info || typeof info !== "object") return;
+    heard = true;
+    const soft = wrap.parentElement.querySelector(".yt-note.soft");
+    if (soft && info.playerState === 1) soft.remove();
+    if (typeof info.duration === "number" && info.duration > 0) length = info.duration;
+    if (typeof info.currentTime === "number") now = info.currentTime;
+    if (typeof info.playbackRate === "number") rate = info.playbackRate;
+    if (typeof info.playerState === "number") playing = info.playerState === 1;
+    draw();
+  });
 }
 
 // Web pages in lessons can go full screen.
@@ -802,6 +898,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
           <input type="range" class="pl-vol" min="0" max="1" step="0.05" value="1" aria-label="${L.lMute}">
           <span class="pl-time" dir="ltr">0:00 / 0:00</span>
           <span class="pl-grow"></span>
+          ${v.textTracks.length || L.subAction ? `<button type="button" class="pl-btn pl-cc" title="${L.lCc} (C)" aria-haspopup="true">CC</button>` : ""}
           <button type="button" class="pl-btn pl-speed" title="${L.lSpeed}">${speed}×</button>
           ${document.pictureInPictureEnabled ? `<button type="button" class="pl-btn pl-pip" title="${L.lPip}">${ICON.pip}</button>` : ""}
           <button type="button" class="pl-btn pl-full" title="${L.lFull} (F)">${ICON.full}</button>
@@ -888,6 +985,106 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     });
     const restart = box.parentElement.querySelector("[data-restart]");
     restart && restart.addEventListener("click", () => { v.currentTime = lo; v.play(); restart.closest(".resume-hint").remove(); });
+
+    // Subtitles: files next to the video, or ones you add. The last one you chose is remembered.
+    const cc = $(".pl-cc");
+    if (cc) {
+      const tracks = () => [].slice.call(v.textTracks);
+      const pick = (i) => {
+        tracks().forEach((t, j) => (t.mode = j === i ? "showing" : "disabled"));
+        cc.classList.toggle("on", i >= 0);
+        try { localStorage.setItem("inpace-cc", i >= 0 ? (tracks()[i].label || "on") : "off"); } catch (e) {}
+      };
+      let pref = null;
+      try { pref = localStorage.getItem("inpace-cc"); } catch (e) {}
+      const list = tracks();
+      if (list.length && pref !== "off") {
+        let i = list.findIndex((t) => t.label === pref);
+        if (i < 0) i = list.findIndex((t) => t.language && t.language === document.documentElement.lang);
+        pick(i < 0 ? 0 : i);
+      } else pick(-1);
+      const menu = document.createElement("div");
+      menu.className = "pl-menu"; menu.hidden = true;
+      const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const fill = () => {
+        const cur = tracks().findIndex((t) => t.mode === "showing");
+        menu.innerHTML = tracks().map((t, i) => `<button type="button" data-i="${i}" class="${i === cur ? "on" : ""}" dir="auto">${esc(t.label)}</button>`).join("")
+          + `<button type="button" data-i="-1" class="${cur < 0 ? "on" : ""}">${esc(L.lCcoff)}</button>`
+          + (L.subAction ? `<button type="button" data-add>${esc(L.lCcadd)}</button>` : "");
+      };
+      const file = document.createElement("input");
+      file.type = "file"; file.accept = ".srt,.vtt"; file.hidden = true;
+      box.appendChild(menu); box.appendChild(file);
+      cc.addEventListener("click", (e) => { e.stopPropagation(); fill(); menu.hidden = !menu.hidden; });
+      menu.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const b = e.target.closest("button");
+        if (!b) return;
+        if (b.hasAttribute("data-add")) { file.click(); return; }
+        pick(+b.dataset.i); menu.hidden = true; say(b.textContent);
+      });
+      document.addEventListener("click", () => (menu.hidden = true));
+      file.addEventListener("change", () => {
+        const f = file.files[0];
+        if (!f) return;
+        if (!/\.(srt|vtt)$/i.test(f.name)) { say(L.lCcbad); return; }
+        const body = new FormData();
+        body.append("media", L.media); body.append("file", f);
+        fetch(L.subAction, { method: "POST", body, headers: { "X-Inpace-Fetch": "1" } })
+          .then((r) => r.ok ? r.json() : { ok: false })
+          .then((j) => {
+            if (!j.ok) { say(L.lCcbad); return; }
+            try { localStorage.setItem("inpace-cc", f.name.replace(/\.[^.]+$/, "")); } catch (e) {}
+            tick(true); say(L.lCcsaved); setTimeout(() => location.reload(), 500);
+          }).catch(() => say(L.lCcbad));
+      });
+      box.addEventListener("keydown", (e) => { if (e.key.toLowerCase() === "c" && e.target.tagName !== "INPUT") { cc.click(); } });
+    }
+
+    // A video the window can't play: say why, and give a way out instead of a black box.
+    let failedShown = false;
+    const fail = (why) => {
+      if (failedShown) return;
+      failedShown = true;
+      const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const ua = navigator.userAgent, webkitGtk = L.system === "linux" && /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+      const plain = ["mp4", "m4v", "webm", ""].indexOf(L.ext || "") >= 0;
+      let text, extra = "";
+      if (L.system === "android") text = L.lFailphone;
+      else if (webkitGtk && plain && why !== "nopic") {
+        const command = "sudo apt install gstreamer1.0-libav gstreamer1.0-plugins-bad";
+        text = L.lFaillinux;
+        extra = `<div class="pl-cmd"><code dir="ltr">${command}</code><button type="button" class="btn small" data-copy-cmd>${esc(L.lFailcopy)}</button></div>`;
+      } else if (why === "nopic") text = L.lFailnopic;
+      else text = L.lFailformat;
+      const panel = document.createElement("div");
+      panel.className = "pl-fail";
+      panel.innerHTML = `<b>${esc(L.lFailtitle)}</b><p>${esc(text)}</p>${extra}<div class="row wrap">`
+        + (L.openAction ? `<button type="button" class="btn primary small" data-open-player>${esc(L.lFailopen)}</button>` : "")
+        + `<button type="button" class="btn small" data-again>${esc(L.lFailagain)}</button></div>`;
+      box.classList.add("failed");
+      box.appendChild(panel);
+      panel.addEventListener("click", (e) => e.stopPropagation());
+      const copyBtn = panel.querySelector("[data-copy-cmd]");
+      copyBtn && copyBtn.addEventListener("click", () => {
+        const t = panel.querySelector(".pl-cmd code").textContent;
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => (copyBtn.textContent = L.lFailcopied)).catch(() => {});
+      });
+      const op = panel.querySelector("[data-open-player]");
+      op && op.addEventListener("click", () => {
+        const body = new FormData(); body.append("media", L.media);
+        fetch(L.openAction, { method: "POST", body, headers: { "X-Inpace-Fetch": "1" } }).catch(() => {});
+      });
+      panel.querySelector("[data-again]").addEventListener("click", () => {
+        panel.remove(); box.classList.remove("failed"); failedShown = false; v.load();
+      });
+    };
+    v.addEventListener("error", () => fail("error"));
+    const src = v.querySelector("source");
+    src && src.addEventListener("error", () => fail("error"));
+    const picCheck = () => setTimeout(() => { if (!v.error && v.readyState >= 2 && !v.videoWidth && !v.videoHeight) fail("nopic"); }, 1500);
+    v.addEventListener("loadeddata", picCheck, { once: true });
+    if (v.error) fail("error");
     state(); draw(); volState(); wake();
   });
 })();

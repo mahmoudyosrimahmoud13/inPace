@@ -38,7 +38,9 @@ class CourseFiles:
     def __init__(self, find: Callable, resume: Callable[[str], float] = lambda key: 0.0, speed: float = 1.0,
                  yt_local: Callable[[str], str | None] = lambda vid: None,
                  yt_list: Callable[[str], list] = lambda plist: [], book: str = "", book_link: str = "",
-                 yt_save: Callable[[str, str], dict | None] = lambda vid, plist: None):
+                 yt_save: Callable[[str, str], dict | None] = lambda vid, plist: None,
+                 parts: dict | None = None, subs: Callable[[str], list] = lambda media: [], sub_action: str = "",
+                 open_action: str = "", system: str = ""):
         self.find = find
         self.resume = resume
         self.speed = speed
@@ -47,6 +49,11 @@ class CourseFiles:
         self.book = book            # the course's book, which each learner gets themselves (not shared with it)
         self.book_link = book_link  # where to show inPace your copy
         self.yt_save = yt_save      # (video id, playlist id) -> what the "Download this video" button needs, or None
+        self.parts = parts or {}    # video id -> [(start, end, lesson id)]: a long YouTube video cut into lessons
+        self.subs = subs            # a video (path in the course, or "yt:ID") -> [{"label", "src", "lang"}] subtitles
+        self.sub_action = sub_action    # where "Add a subtitle file" sends it
+        self.open_action = open_action  # where "Open in your video player" asks (empty on phones)
+        self.system = system            # "linux", "windows", "mac", "android": for the "can't play" help
 
     def __call__(self, rel: str) -> bool:
         return self.find(rel) is not None
@@ -136,7 +143,54 @@ def _clock(sec: float) -> str:
     return f"{sec // 3600}:{sec % 3600 // 60:02d}:{sec % 60:02d}" if sec >= 3600 else f"{sec // 60}:{sec % 60:02d}"
 
 
-def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: int = 0, end: int | None = None) -> str:
+def srt_to_vtt(data: bytes) -> str:
+    """A subtitle file as WebVTT, the kind players read. SRT just needs a header and dots in its times.
+    Old Arabic files are often in Windows-1256, not UTF-8: both work."""
+    for enc in ("utf-8-sig", "utf-16", "cp1256", "latin-1"):
+        try:
+            text = data.decode(enc)
+            if enc == "utf-16" and not data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+                continue
+            break
+        except UnicodeDecodeError:
+            continue
+    text = text.replace("\r\n", "\n").replace("\r", "\n").lstrip("\ufeff")
+    if text.lstrip().startswith("WEBVTT"):
+        return text
+    text = re.sub(r"(\d{1,2}:\d{2}:\d{2}),(\d{1,3})", r"\1.\2", text)
+    return "WEBVTT\n\n" + text.strip() + "\n"
+
+
+SUB_LANGS = {"ar": "العربية", "ara": "العربية", "arabic": "العربية", "en": "English", "eng": "English",
+             "english": "English", "fr": "Français", "de": "Deutsch", "es": "Español", "tr": "Türkçe"}
+
+
+def sibling_subs(video) -> list[tuple[str, str, Path]]:
+    """Subtitle files next to a video: "Lesson 1.srt", "Lesson 1.ar.srt", "Lesson 1.English.vtt".
+    -> [(label, language code, path)]"""
+    from .course import SUB_EXT
+    out = []
+    try:
+        items = sorted(video.parent.iterdir())
+    except OSError:
+        return []
+    stem = video.stem.lower()
+    for f in items:
+        name = f.name.lower()
+        if f.suffix.lower() not in SUB_EXT or not f.is_file() or not name.startswith(stem):
+            continue
+        rest = f.name[len(video.stem):-len(f.suffix)].strip(" ._-")
+        if rest and not name.startswith(stem + ".") and not name.startswith(stem + "_"):
+            continue
+        lang = rest.lower() if rest.lower() in SUB_LANGS else ""
+        out.append((SUB_LANGS.get(rest.lower(), rest) or "Subtitles", lang[:2], f))
+        if len(out) >= 10:
+            break
+    return out
+
+
+def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: int = 0, end: int | None = None,
+                 tracks: list | None = None, media: str = "", files: "CourseFiles | None" = None, name: str = "") -> str:
     """Our own video player: big play button, speed, +-10 s, full screen, keyboard keys, and it remembers
     the second you stopped at. Without JavaScript it's a normal video with the browser's controls.
     start and end make it play only one piece of the file (a lesson cut from a long video)."""
@@ -144,7 +198,15 @@ def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: 
     labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
               "mute": t("Mute"), "unmute": t("Sound on"), "speed": t("Speed"), "full": t("Full screen"),
               "pip": t("Picture in picture"), "restart": t("Start over"),
-              "ended": t("Finished! Mark the lesson as done below.")}
+              "ended": t("Finished! Mark the lesson as done below."),
+              "cc": t("Subtitles"), "ccoff": t("Off"), "ccadd": t("Add a subtitle file (.srt or .vtt)…"),
+              "ccsaved": t("Subtitles added."), "ccbad": t("That isn't a subtitle file. Choose a .srt or .vtt file."),
+              "failtitle": t("This video can't play here."), "failopen": t("Open in your video player"),
+              "failagain": t("Try again"), "failcopy": t("Copy"), "failcopied": t("Copied"),
+              "failformat": t("Its format ({ext}) doesn't play in this window. MP4 videos play everywhere: convert it with a free tool like HandBrake, or open it in your own player.").format(ext=(name.rsplit(".", 1)[-1].upper() if "." in name else "?")),
+              "faillinux": t("Your computer is missing the video support the app window needs. Install it once, then restart inPace:"),
+              "failnopic": t("Only the sound plays: the video inside uses a format (like H.265) this window can't show."),
+              "failphone": t("Your phone can't play this format. MP4 videos play everywhere: convert it with a free tool like HandBrake.")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
     if resume and (resume < start or (end and resume >= end - 5)):
         resume = 0.0
@@ -153,9 +215,21 @@ def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: 
         hint = (f'<p class="resume-hint small muted">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-restart>{e(t("Start over"))}</button></p>')
     frag = f"#t={start}" + (f",{end}" if end else "") if (start or end) else ""
+    extra = ""
+    if files is not None:
+        if files.sub_action and media:
+            extra += f' data-sub-action="{e(files.sub_action)}" data-media="{e(media)}"'
+        if files.open_action and media and not media.startswith("yt:"):
+            extra += f' data-open-action="{e(files.open_action)}"'
+        if files.system:
+            extra += f' data-system="{e(files.system)}"'
+    if name:
+        extra += f' data-ext="{e(name.rsplit(".", 1)[-1].lower() if "." in name else "")}"'
+    tags = "".join(f'<track kind="subtitles" src="{e(tr["src"])}" label="{e(tr["label"])}"'
+                   + (f' srclang="{e(tr["lang"])}"' if tr.get("lang") else "") + ">" for tr in (tracks or []))
     return (f'<div class="player" tabindex="0" data-player data-key="{e(key)}" data-resume="{resume:.1f}" data-speed="{speed:g}" '
-            f'data-start="{start}" data-end="{end or 0}" {data}>'
-            f'<video controls preload="metadata" playsinline src="{url}{frag}"></video></div>{hint}')
+            f'data-start="{start}" data-end="{end or 0}" {data}{extra}>'
+            f'<video controls preload="metadata" playsinline src="{url}{frag}">{tags}</video></div>{hint}')
 
 
 def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], bool], t: Tr) -> str:
@@ -175,23 +249,25 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
         key = f"{course_id}|ytlist:{plist}"
     resume = files.resume(key) if files else 0.0
     if files and vid and files.yt_local(vid):
-        return _offline_youtube(files.yt_local(vid), key, resume, files.speed, start, end, watch, cap, t)
+        return _offline_youtube(files.yt_local(vid), key, resume, files.speed, start, end, watch, cap, t, vid, files)
     save = save_button(files.yt_save(vid, "" if vid else plist), vid, "" if vid else plist, t) if files else ""
     if files and plist and files.yt_list(plist):
         return _offline_playlist(course_id, files, files.yt_list(plist), watch, cap, t, save)
     if resume and (resume < start or (end and resume >= end - 5)):
         resume = 0.0
-    piece = ""
-    if vid and (start or end):
-        piece = (f'<span class="small yt-piece">{e(t("This lesson is the part from {a} to {b}.").format(a=_clock(start), b=_clock(end)))}</span>'
-                 if end else f'<span class="small yt-piece">{e(t("This lesson starts at {a}.").format(a=_clock(start)))}</span>')
+    part = part_label(vid, start, end, files, t) if vid else ""
     hint = ""
     if resume > start + 5:
         hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
-    return (f'<figure class="media embed"><div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
-            f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}">'
-            f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{piece}{hint}'
+    labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
+              "speed": t("Speed"), "piece": t("This part"),
+              "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
+              "slow": t("Not playing? Watch it on YouTube instead.")}
+    data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+    return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
+            f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}" data-watch="{e(watch)}" {data}>'
+            f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{hint}'
             f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
             f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
             f'</div>{save}{cap}</figure>')
@@ -200,6 +276,24 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
 _DOWNLOAD_ICON = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
                   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/>'
                   '<path d="m7 11 5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>')
+
+
+def part_label(vid: str, start: int, end: int | None, files, t: Tr) -> str:
+    """The line above a lesson that plays only part of a long video: which part, and which minutes."""
+    if not (start or end):
+        return ""
+    e = html.escape
+    pieces = (files.parts.get(vid) if files is not None else None) or []
+    n = next((i for i, (a, b, _) in enumerate(pieces, 1) if a == start and b == end), 0)
+    if end:
+        span = t("Plays {a} to {b} ({n} min) of the full video.").format(a=_clock(start), b=_clock(end),
+                                                                         n=max(1, round((end - start) / 60)))
+    else:
+        span = t("Plays from {a} to the end of the full video.").format(a=_clock(start))
+    head = t("Part {n} of {total}").format(n=n, total=len(pieces)) if n and len(pieces) > 1 else t("Part of a longer video")
+    full = f"https://www.youtube.com/watch?v={vid}"
+    return (f'<p class="video-part"><span class="vp-icon" aria-hidden="true">✂</span><span><b>{e(head)}</b> · {e(span)} '
+            f'<a href="{e(full)}" target="_blank" rel="noopener">{e(t("Watch the full video"))}</a></span></p>')
 
 
 def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
@@ -245,16 +339,14 @@ def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
 
 
 def _offline_youtube(url: str, key: str, resume: float, speed: float, start: int, end: int | None, watch: str,
-                     cap: str, t: Tr) -> str:
+                     cap: str, t: Tr, vid: str = "", files=None) -> str:
     """A YouTube lesson playing the copy on this computer: no internet needed, same piece, same saved place."""
     e = html.escape
-    piece = ""
-    if start or end:
-        piece = (t("This lesson is the part from {a} to {b}.").format(a=_clock(start), b=_clock(end)) if end
-                 else t("This lesson starts at {a}.").format(a=_clock(start)))
-        piece = f'{e(piece)} '
-    return (f'<figure class="media video offline-yt">{video_player(url, key, resume, speed, t, start, end)}'
-            f'<p class="small muted">{piece}{e(t("Playing the copy on this computer."))} '
+    media = f"yt:{vid}" if vid else ""
+    tracks = files.subs(media) if files is not None and media else []
+    return (f'<figure class="media video offline-yt">{part_label(vid, start, end, files, t)}'
+            f'{video_player(url, key, resume, speed, t, start, end, tracks, media, files, "video.mp4")}'
+            f'<p class="small muted">{e(t("Playing the copy on this computer."))} '
             f'<a href="{e(watch)}" target="_blank" rel="noopener">{e(t("Watch on YouTube instead"))}</a></p>{cap}</figure>')
 
 
@@ -325,7 +417,8 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
     files = exists if isinstance(exists, CourseFiles) else None
     key = f"{course_id}|{rel}"
     if kind == "video":
-        body = video_player(url, key, files.resume(key) if files else 0.0, files.speed if files else 1.0, t)
+        body = video_player(url, key, files.resume(key) if files else 0.0, files.speed if files else 1.0, t,
+                            tracks=files.subs(rel) if files else [], media=rel, files=files, name=rel.rsplit("/", 1)[-1])
     elif kind == "audio":
         resume = files.resume(key) if files else 0.0
         body = f'<audio controls preload="metadata" src="{url}" data-remember data-key="{e(key)}" data-resume="{resume:.1f}"></audio>'

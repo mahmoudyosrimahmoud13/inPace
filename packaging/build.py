@@ -130,6 +130,8 @@ def build_deb() -> Path:
         f"Package: inpace\nVersion: {__version__}\nSection: education\nPriority: optional\n"
         f"Architecture: amd64\nInstalled-Size: {size_kb}\n"
         "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n"
+        # The app window plays videos through GStreamer: without these, MP4 videos (H.264) and YouTube stay black.
+        "Recommends: gstreamer1.0-libav, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-gl\n"
         "Maintainer: Mahmoud Saad Mahmoud Yosri <noreply@github.com>\n"
         "Homepage: https://github.com/mahmoudyosrimahmoud13/inpace\n"
         "Description: Learn at your pace. Prove you kept it.\n"

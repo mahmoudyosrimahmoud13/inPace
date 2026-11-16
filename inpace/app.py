@@ -6,6 +6,8 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
+import sys
 import threading
 import time as _time
 from datetime import datetime
@@ -26,7 +28,8 @@ from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
 from .course import (HTML_EXT, MAX_MEDIA_PACK_BYTES, Course, CourseError, course_from_folder, course_to_pack,
-                     files_from_folder, files_from_zip, load_course, media_in_zip, strip_fences, write_pack_with_media)
+                     files_from_folder, files_from_zip, lesson_parts, load_course, media_in_zip, strip_fences,
+                     write_pack_with_media, youtube_parts)
 from . import media as media_mod
 from .exam import NoAnswers, build_exam, grade, new_seed
 from .vault import COLORS, Vault, display_name, lesson_ahead
@@ -308,6 +311,7 @@ _ICONS = {
     "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     "open": '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
     "chat": '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+    "discord": '<path fill="currentColor" stroke="none" d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>',
     "upload": '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 17v3h16v-3"/>',
     "download": '<path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
     "pen": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
@@ -356,6 +360,7 @@ def icon(name: str, size: int = 20) -> Markup:
 
 
 env.globals["icon"] = icon
+DISCORD_URL = "https://mahmoudyosrimahmoud13.github.io/inPace/discord.html"  # opens the server's invite
 
 
 def cover(c, big: bool = False, sample: bool = False) -> Markup:
@@ -1393,6 +1398,7 @@ def create_app(vault: Vault) -> Starlette:
                     same=bool(entry and entry.get("hash") == c.hash))
 
     FEEDBACK_URL = "https://github.com/mahmoudyosrimahmoud13/inpace/issues/new"
+    env.globals["DISCORD_URL"] = DISCORD_URL
     FEEDBACK_KINDS = [("Problem", "Something doesn't work"), ("Idea or suggestion", "An idea or a suggestion"),
                       ("Question", "A question"), ("Something else", "Something else")]
 
@@ -1553,8 +1559,90 @@ def create_app(vault: Vault) -> Starlette:
                 st["why"] = gettext(st["why"])
             return {"action": f"/courses/{quote(cid)}/offline/video", "status": f"/courses/{quote(cid)}/offline/status?{ask}",
                     "size": offline.nice_size(size) if size else "", **st}
+        def subs(media: str) -> list:
+            return _subtitles(cid, media)
+        kind = updater.install_kind()
         return media_mod.CourseFiles(lambda r: V.find_media(cid, r), resume, speed, yt_local, yt_list,
-                                     book=book, book_link=f"/courses/{quote(cid)}/go#book", yt_save=yt_save)
+                                     book=book, book_link=f"/courses/{quote(cid)}/go#book", yt_save=yt_save,
+                                     parts=youtube_parts(c) if c else {}, subs=subs,
+                                     sub_action=f"/courses/{quote(cid)}/subs/add",
+                                     open_action="" if kind == "android" else f"/courses/{quote(cid)}/open-media",
+                                     system=_system_name())
+
+    # ---- Subtitles: files next to a video, or ones you add (kept apart, never inside the course) -------------
+    def _system_name() -> str:
+        if updater.install_kind() == "android":
+            return "android"
+        return {"win32": "windows", "darwin": "mac"}.get(sys.platform, "linux")
+
+    def _subs_dir(cid: str, media: str) -> Path:
+        import hashlib
+        return V.home / "subtitles" / re.sub(r"[^\w.-]", "_", cid) / hashlib.sha1(media.encode()).hexdigest()[:16]
+
+    def _subtitles(cid: str, media: str) -> list:
+        tracks = []
+        base = f"/courses/{quote(cid)}/subs?media={quote(media, safe='')}"
+        if media and not media.startswith("yt:"):
+            p = V.find_media(cid, media)
+            if p:
+                for label, lang, f in media_mod.sibling_subs(p):
+                    tracks.append({"label": label, "lang": lang, "src": f"{base}&f={quote(f.name, safe='')}"})
+        d = _subs_dir(cid, media)
+        if d.is_dir():
+            for f in sorted(d.glob("*.vtt"))[:10]:
+                tracks.append({"label": f.stem, "lang": "", "src": f"{base}&f={quote(f.name, safe='')}&u=1"})
+        return tracks
+
+    async def subtitle_file(request: Request):
+        cid, media = request.path_params["cid"], request.query_params.get("media", "")
+        name = request.query_params.get("f", "")
+        if not name or "/" in name or "\\" in name or name.startswith("."):
+            return Response("Not found", status_code=404)
+        if request.query_params.get("u"):
+            f = _subs_dir(cid, media) / name
+        else:
+            p = V.find_media(cid, media) if media and not media.startswith("yt:") else None
+            f = next((x for _, _, x in media_mod.sibling_subs(p) if x.name == name), None) if p else None
+        if not f or not f.is_file() or f.stat().st_size > 5_000_000:
+            return Response("Not found", status_code=404)
+        return Response(media_mod.srt_to_vtt(f.read_bytes()), media_type="text/vtt; charset=utf-8",
+                        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"})
+
+    async def subtitle_add(request: Request):
+        """"Add a subtitle file" in the player: kept in inPace's own folder, next to nothing of the course."""
+        cid = request.path_params["cid"]
+        form = await request.form()
+        media, up = str(form.get("media", "")), form.get("file")
+        fetch = request.headers.get("x-inpace-fetch")
+        ok_media = media.startswith("yt:") or bool(V.find_media(cid, media))
+        name = getattr(up, "filename", "") or ""
+        if not V.get_course(cid) or not ok_media or not name.lower().endswith((".srt", ".vtt")):
+            return JSONResponse({"ok": False}, status_code=400) if fetch else go(_back(request), err="Choose a .srt or .vtt file.")
+        data = await up.read()
+        if not data or len(data) > 5_000_000 or b"-->" not in data[:200_000]:
+            return JSONResponse({"ok": False}, status_code=400) if fetch else go(_back(request), err="Choose a .srt or .vtt file.")
+        d = _subs_dir(cid, media)
+        d.mkdir(parents=True, exist_ok=True)
+        stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name.rsplit(".", 1)[0]).strip(" .")[:60] or "Subtitles"
+        (d / f"{stem}.vtt").write_text(media_mod.srt_to_vtt(data), encoding="utf-8")
+        return JSONResponse({"ok": True}) if fetch else go(_back(request), ok="Subtitles added.")
+
+    async def open_media(request: Request):
+        """"Open in your video player": for videos the app window can't play (MKV, AVI, H.265…)."""
+        form = await request.form()
+        p = V.find_media(request.path_params["cid"], str(form.get("media", "")))
+        if not p or updater.install_kind() == "android":
+            return JSONResponse({"ok": False}, status_code=404)
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(p))  # type: ignore[attr-defined]
+            else:
+                from .window import _clean_env
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(p)], env=_clean_env(),
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            return JSONResponse({"ok": False}, status_code=500)
+        return JSONResponse({"ok": True})
 
     # ---- YouTube videos on this computer (downloaded with yt-dlp, or your own files) ----------------------------
     async def yt_file(request: Request):
@@ -2516,6 +2604,7 @@ def create_app(vault: Vault) -> Starlette:
             missing = [m for m in missing if m != book["name"]]
         on_rm = roadmaps.on_roadmaps(V.home, course.id) if course else []
         return page("course.html", request, j=j, prog=V.progress(j["id"]), book=book, on_rm=on_rm,
+                    parts=lesson_parts(V.get_course(j["course_id"])) if V.get_course(j["course_id"]) else {},
                     note_count=len(V.notes(j["course_id"])),
                     missing=missing,
                     media_root=V.media_root(j["course_id"]) if course else None,
@@ -4219,6 +4308,9 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/publish/file", needs_setup(publish_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/yt/{cid}/{vid}", needs_setup(yt_file)),
+        Route("/courses/{cid}/subs", needs_setup(subtitle_file)),
+        Route("/courses/{cid}/subs/add", needs_setup(subtitle_add), methods=["POST"]),
+        Route("/courses/{cid}/open-media", needs_setup(open_media), methods=["POST"]),
         Route("/courses/{cid}/offline/download", needs_setup(offline_download), methods=["POST"]),
         Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
         Route("/courses/{cid}/offline/video", needs_setup(offline_video), methods=["POST"]),

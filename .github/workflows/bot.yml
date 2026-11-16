@@ -1,0 +1,43 @@
+name: bot
+
+# Tempo, the inPace Discord bot (community/bot.py). It has no server of its own: GitHub runs it.
+#   every 20 minutes: answers known problems in #help and #مساعدة, turns 🐞 into GitHub issues,
+#                     tells people when their problem is fixed, and answers !report / !fix in #team-chat
+#   every morning at 08:17 Cairo time: the full report in #team-chat
+# Needs the secret DISCORD_BOT_TOKEN. Optional: ANTHROPIC_API_KEY for Claude's short advice in the report.
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "report = the full report now, watch = the 20-minute check"
+        default: report
+        type: choice
+        options: [report, watch]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: discord-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: community
+      - name: Run Tempo
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          BOT_SCHEDULE: ${{ github.event.schedule }}
+          BOT_MODE: ${{ inputs.mode }}
+        run: python3 community/bot.py

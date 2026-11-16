@@ -132,7 +132,7 @@
       <a class="stone {{ 'done' if l.done }} {{ 'here' if is_here }} {{ 'opt' if l.optional }} {{ 'locked' if m.status == 'locked' }} {{ 'left' if x > 50 else 'right' }}"
          style="inset-inline-start: {{ x }}%; top: {{ y }}px" {% if m.status != 'locked' %}href="/learn/{{ j.id }}/lesson/{{ l.id }}"{% endif %}>
         <span class="rock">{% if l.done %}{{ icon('check', 22) }}{% else %}{{ loop.index }}{% endif %}</span>
-        <span class="label" dir="auto">{{ l.title }}{% if l.minutes or l.optional %}<small>{% if l.optional %}{{ _('Optional') }}{% if l.minutes %} · {% endif %}{% endif %}{% if l.minutes %}{{ T('{n} min', n=l.minutes) }}{% endif %}</small>{% endif %}</span>
+        <span class="label" dir="auto">{{ l.title }}{% set pt = (parts or {}).get(l.id) %}{% if l.minutes or l.optional or pt %}<small>{% if pt %}<span class="part-mark" title="{{ _('Plays only part of a long video') }}">✂ {{ T('part {n}/{total}', n=pt[0], total=pt[1]) }}</span>{% if l.minutes or l.optional %} · {% endif %}{% endif %}{% if l.optional %}{{ _('Optional') }}{% if l.minutes %} · {% endif %}{% endif %}{% if l.minutes %}{{ T('{n} min', n=l.minutes) }}{% endif %}</small>{% endif %}</span>
         {% if is_here %}<span class="walker">{{ mascot('wave', 64) }}</span>{% endif %}
       </a>
     {% endfor %}

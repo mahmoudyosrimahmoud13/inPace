@@ -27,5 +27,9 @@
     <span class="small muted">{% trans trimmed %}GitHub opens with your message filled in. Press Create, and you’ll get a reply there. It needs a free GitHub account.{% endtrans %}</span>
   </div>
 </section>
+<section class="card row wrap" style="max-width:720px">
+  <span class="grow">{{ _('Questions, help and course requests: talk with us and other learners on Discord.') }}</span>
+  <a class="btn" href="{{ DISCORD_URL }}" target="_blank" rel="noopener">{{ icon('discord', 18) }}{{ _('Join the Discord') }}</a>
+</section>
 <p class="small muted" style="max-width:720px">{% trans trimmed %}Your message is public on GitHub, so don’t write passwords or private details. Nothing else is sent: inPace never shares your courses or progress.{% endtrans %}</p>
 {% endblock %}

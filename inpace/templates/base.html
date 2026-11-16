@@ -86,6 +86,7 @@
     <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
+    <a href="{{ DISCORD_URL }}" target="_blank" rel="noopener">{{ icon('discord', 22) }}{{ _("Discord community") }}</a>
     <div class="side-bottom">
       <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </div>
@@ -175,6 +176,7 @@
     <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
+    <a href="{{ DISCORD_URL }}" target="_blank" rel="noopener">{{ icon('discord', 22) }}{{ _("Discord community") }}</a>
     <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon', 22) }}</span><span class="when-dark">{{ icon('sun', 22) }}</span>{{ _('Switch light or dark mode') }}</button>
   </dialog>
   {% endif %}

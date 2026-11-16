@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.27.0
+
+- **The inPace Discord.** A place to ask for help, request courses and talk with other learners, in English and Arabic. Open it from **Discord community** in the menu, from the Feedback page, or from the Discord button on both websites.
+  - New releases, new library courses, every change we make, and new feedback are posted there by themselves.
+  - **Tempo, the inPace bot,** answers common problems in #help and #مساعدة right away, in your language (black videos, MKV files, YouTube errors, subtitles, installing). When the team marks a message with 🐞, it becomes a GitHub issue, and Tempo tells you when it's fixed.
+- **New in the library: English irregular verbs**, in English and in Arabic. Over 100 verbs learned in a dozen patterns, with the common mistakes and the full list to review. Asked for on Reddit.
+- **Lessons cut from a long video say so.** A line above the video says which part it is ("Part 2 of 3") and which minutes it plays, with a link to the full video. The course outline marks these lessons too ("✂ part 2/3").
+- **A bar for just your part.** Under a YouTube video that's cut into lessons, inPace adds its own controls. The bar goes from 0:00 to the end of your part, with play, back and forward 10 seconds, and speed. YouTube's own controls still work too.
+- **Your own subtitles.** Put a subtitle file next to a video with the same name ("Lesson 1.srt", or "Lesson 1.ar.srt" for Arabic) and it shows up by itself. Or press **CC** on the player, then **Add a subtitle file**. Both .srt and .vtt work, and so do old Arabic files that aren't UTF-8. inPace remembers the subtitles you picked.
+- **When a video can't play, you know why.** Instead of a black box, the player says what's wrong and what to do:
+  - A format the app window can't show (MKV, AVI, H.265…): **Open in your video player**, or convert it to MP4.
+  - Linux: if your computer is missing video support, it shows the one command to install it. The .deb now installs it by itself.
+  - YouTube refusing to play a video inside apps: a button to watch it on YouTube.
+- **More video files count as lessons:** AVI, WMV, FLV, MPG and 3GP.
+- New Arabic translations for everything above.
+
 ## v1.26.0
 
 - **A pop-up when a new version is out.** inPace checks GitHub at most twice a day. When there's a newer version, a window shows what's new and one button to get it:

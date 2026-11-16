@@ -101,7 +101,7 @@ def test_youtube_piece_plays_and_continues(tmp_path):
     lesson = c.get(f"/learn/{jid}/lesson/m1-l2").text
     key = re.search(r'data-yt-key="([^"]+)"', lesson).group(1)
     assert 'data-start="1189"' in lesson and 'data-end="3014"' in lesson
-    assert "This lesson is the part from 19:49 to 50:14." in html.unescape(lesson)
+    assert "Part 2 of 3" in html.unescape(lesson) and "Plays 19:49 to 50:14 (30 min) of the full video." in html.unescape(lesson)
     assert "enablejsapi=1" in lesson
     # The player reports where you are; next time it continues from there.
     c.post("/media-pos", data={"key": html.unescape(key), "t": "1500", "d": "3014"})
