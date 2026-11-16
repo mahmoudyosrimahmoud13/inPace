@@ -16,15 +16,29 @@
     });
   }
   var ENGLISH = null;
+  function setAr(show) {
+    // Show or hide Arabic elements explicitly so a cached old stylesheet can't bleed through.
+    var arEls = [].slice.call(document.querySelectorAll("span.ar, img.ar"));
+    var enImgs = [].slice.call(document.querySelectorAll("img.en"));
+    arEls.forEach(function (el) { el.style.display = show ? "" : "none"; });
+    enImgs.forEach(function (el) { el.style.display = show ? "none" : ""; });
+  }
   function translate(code) {
     var spans = [].slice.call(document.querySelectorAll("span.en"));
     if (!ENGLISH) ENGLISH = spans.map(function (s) { return s.innerHTML; });
     var note = document.querySelector("[data-not-translated]");
     if (note) note.hidden = true;
-    if (code === "en" || code === "ar") {
+    if (code === "en") {
       spans.forEach(function (s, i) { s.innerHTML = ENGLISH[i]; });
+      setAr(false);
       return;
     }
+    if (code === "ar") {
+      spans.forEach(function (s, i) { s.innerHTML = ENGLISH[i]; });
+      setAr(true);
+      return;
+    }
+    setAr(false);
     fetch("i18n/" + code + ".json").then(function (r) { return r.ok ? r.json() : null; }).then(function (t) {
       if (!t) { if (note) note.hidden = false; return; }
       var missed = 0;
