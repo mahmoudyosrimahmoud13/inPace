@@ -166,11 +166,11 @@ def test_site_page_and_secret_file(tmp_path, monkeypatch):
     monkeypatch.setattr(ds, "ROOT", tmp_path)
     (tmp_path / "site").mkdir()
     page = ds.write_site_page("https://discord.gg/abc")
-    assert 'url=https://discord.gg/abc' in page.read_text()
+    assert 'url=https://discord.gg/abc' in page.read_text(encoding="utf-8")
     monkeypatch.setattr(ds.shutil, "which", lambda *_: None)
     monkeypatch.setattr(ds, "SECRETS_FILE", tmp_path / "hooks.txt")
     assert ds.save_secrets({"releases": "u"}) == "file"
-    assert json.loads((tmp_path / "hooks.txt").read_text()) == {"releases": "u"}
+    assert json.loads((tmp_path / "hooks.txt").read_text(encoding="utf-8")) == {"releases": "u"}
 
 
 def test_poster_messages(monkeypatch, tmp_path):
