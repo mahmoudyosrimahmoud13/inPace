@@ -85,6 +85,7 @@
     <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}</a>
     <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
+    <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
     <div class="side-bottom">
       <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </div>
@@ -155,7 +156,7 @@
   {% if me %}
   {% set p = active_path %}
   {% set waiting = checking|sum(attribute='waiting') if checking else 0 %}
-  {% set more_on = p.startswith('/roadmaps') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') %}
+  {% set more_on = p.startswith('/roadmaps') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') or p.startswith('/feedback') or p.startswith('/share') %}
   <nav class="tabbar" aria-label="{{ _('Main') }}">
     <a href="/" class="{{ 'on' if p == '/' }}" {{ 'aria-current=page' if p == '/' }}>{{ icon('home', 22) }}<span>{{ _("Home") }}</span></a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}<span>{{ _("Courses") }}</span></a>
@@ -173,9 +174,30 @@
     <a href="/open" class="{{ 'on' if p.startswith('/open') }}">{{ icon('open', 22) }}{{ _("Open a file") }}</a>
     <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
+    <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
     <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon', 22) }}</span><span class="when-dark">{{ icon('sun', 22) }}</span>{{ _('Switch light or dark mode') }}</button>
   </dialog>
   {% endif %}
+{% if update_news and not tour %}
+<dialog class="news-dialog" data-news-dialog aria-labelledby="news-title">
+  <div class="news-head">{{ mascot('cheer', 92) }}<div><p class="eyebrow">{{ T('You have {v}', v=update_news.current) }}</p>
+    <h2 id="news-title">{{ T('inPace {v} is out!', v=update_news.version) }}</h2></div></div>
+  {% if update_news.notes_html %}<div class="prose news-notes" dir="auto">{{ update_news.notes_html }}</div>{% endif %}
+  <p class="small muted">{% trans trimmed %}Your courses, progress and milestones stay as they are.{% endtrans %}</p>
+  <div class="row wrap news-actions">
+    {% if update_news.kind == 'android' %}
+    <a class="btn primary" href="{{ update_news.apk }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Download the update{% endtrans %}</a>
+    {% elif update_news.kind == 'source' %}
+    <p class="small"><b>{% trans trimmed %}This copy runs from its code folder. To update, run this in the inPace folder:{% endtrans %}</b> <code>git pull</code></p>
+    {% else %}
+    <form method="post" action="/updates/check"><button class="btn primary" data-busy="{{ _('Updating…') }}">{{ icon('download', 18) }}{% trans trimmed %}Update now{% endtrans %}</button></form>
+    {% endif %}
+    {% if update_news.page %}<a class="btn" href="{{ update_news.page }}" target="_blank" rel="noopener">{% trans trimmed %}What's new{% endtrans %}</a>{% endif %}
+    <form method="post" action="/updates/later" data-news-later><button class="btn ghost">{% trans trimmed %}Later{% endtrans %}</button></form>
+  </div>
+  {% if update_news.kind == 'android' %}<p class="small muted">{% trans trimmed %}Open the downloaded file to install it over this one. If Android asks, allow installing from your browser or files app.{% endtrans %}</p>{% endif %}
+</dialog>
+{% endif %}
 {% if tour %}
 <script type="application/json" id="tour-data">{{ {"steps": tour, "next": _("Next"), "back": _("Back"), "skip": _("Skip the tour"), "done": _("Let's go!")}|tojson }}</script>
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}

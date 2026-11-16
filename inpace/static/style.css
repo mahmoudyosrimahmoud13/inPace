@@ -1958,7 +1958,7 @@ body.iv-open-page { overflow: hidden; }
 .note-edit form { margin-block-start: .5rem; }
 .note-add { margin-block-start: .8rem; }
 .notes-group h2 { margin-block: .2rem .7rem; font-size: 1.15rem; }
-.course-notes-link { margin: .6rem 0 0; }
+.course-notes-link { margin: 1rem 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.2rem; }
 .course-notes-link a { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; }
 @media print { .note-fab, .note-pop { display: none !important; } }
 .note-tools .small-btn { padding: .2rem .6rem; font-size: .82rem; min-height: 0; box-shadow: none; }
@@ -1968,3 +1968,27 @@ body.iv-open-page { overflow: hidden; }
 .lang-pick .muted { margin-inline-end: .25rem; }
 .more-sheet.tour-open { z-index: 150; }  /* opened by the tour: under the tour's spotlight and card */
 @media (max-width: 699px) { .tour-card-pop.center { width: calc(100vw - 32px); } .tour-card-pop .tour-tempo svg { width: 64px; } .tour-card-pop.center .tour-tempo svg { width: 110px; } }
+
+/* v1.26: the new-version pop-up */
+.news-dialog { border: 4px solid var(--ink); box-shadow: 10px 10px 0 var(--sun); background: var(--surface); color: var(--ink); padding: 1.4rem 1.5rem 1.2rem; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+[dir=rtl] .news-dialog { box-shadow: -10px 10px 0 var(--sun); }
+.news-dialog::backdrop { background: rgb(0 0 0 / .5); }
+.news-head { display: flex; gap: 1rem; align-items: center; }
+.news-head svg { flex: none; width: 82px; height: auto; }
+.news-head h2 { margin: .1rem 0 0; font-size: 1.5rem; }
+.news-notes { max-height: 38vh; overflow: auto; margin: 1rem 0 .6rem; padding: .6rem .9rem; background: var(--cream, #F2EDE2); border: 2px solid var(--line); font-size: .95rem; }
+.news-notes > :first-child { margin-top: 0; }
+.news-actions { gap: .6rem; margin-top: .6rem; }
+.news-actions form { margin: 0; }
+
+/* v1.26: feedback and publishing forms */
+.kind-pick { gap: .5rem; }
+.chip-radio { display: inline-flex; align-items: center; gap: .4rem; border: 2px solid var(--ink); padding: .35rem .8rem; cursor: pointer; background: var(--surface); font-weight: 600; font-size: .92rem; }
+.chip-radio input { accent-color: var(--ink); margin: 0; }
+.chip-radio:has(input:checked) { background: var(--sun); color: #111; }
+.issue-form label { display: flex; flex-direction: column; gap: .3rem; font-weight: 600; }
+.issue-form label.check { flex-direction: row; align-items: flex-start; font-weight: 400; }
+.issue-form textarea, .issue-form input:not([type=radio]):not([type=checkbox]), .issue-form select { font: inherit; font-weight: 400; }
+.form-pair { gap: .8rem; align-items: flex-end; }
+.publish-form-step { align-items: flex-start; }
+.howto li.publish-form-step { grid-template-columns: 30px minmax(0, 1fr); align-items: start; }

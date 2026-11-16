@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Feedback and ideas') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Feedback and ideas{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}Something broke, something is confusing, or you have an idea? Tell us. Every message is read, and many features came from people's ideas.{% endtrans %}</p>
+</div>
+<section class="card stack issue-form" data-issue-form data-base="{{ base }}" data-template="feedback.yml" style="max-width:720px">
+  <fieldset class="stack" style="border:0;padding:0;margin:0">
+    <legend><b>{% trans trimmed %}What is it about?{% endtrans %}</b></legend>
+    <div class="row wrap kind-pick">
+      {% for k, label in kinds %}<label class="chip-radio"><input type="radio" name="kind" value="{{ k }}" data-param="kind" {{ 'checked' if k == kind }}><span>{{ _(label) }}</span></label>{% endfor %}
+    </div>
+  </fieldset>
+  <label>{% trans trimmed %}In one line{% endtrans %}
+    <input name="title" data-param="title" maxlength="120" required placeholder="{{ _('For example: The video doesn’t resume where I stopped') }}"></label>
+  <label>{% trans trimmed %}Tell us more{% endtrans %}
+    <textarea name="details" data-param="details" rows="6" maxlength="3000" placeholder="{{ _('What happened, what you expected, or how your idea would help you.') }}"></textarea></label>
+  <label data-only-kind="Problem">{% trans trimmed %}How can we see the problem? (optional){% endtrans %}
+    <textarea name="steps" data-param="steps" rows="3" maxlength="1500" placeholder="{{ _('1. Open a course  2. Press …  3. …') }}"></textarea></label>
+  <label class="check"><input type="checkbox" data-include-system checked>
+    <span>{{ T('Add my inPace version and system ({v}, {s}) so it’s easier to fix', v=version, s=system) }}</span></label>
+  <input type="hidden" data-param="version" data-system value="{{ version }}">
+  <input type="hidden" data-param="system" data-system value="{{ system }}{% if page_from %} · {{ page_from }}{% endif %}">
+  <div class="row wrap">
+    <a class="btn primary" data-issue-link href="{{ base }}?template=feedback.yml" target="_blank" rel="noopener">{{ icon('send', 18) }}{% trans trimmed %}Continue on GitHub{% endtrans %}</a>
+    <span class="small muted">{% trans trimmed %}GitHub opens with your message filled in. Press Create, and you’ll get a reply there. It needs a free GitHub account.{% endtrans %}</span>
+  </div>
+</section>
+<p class="small muted" style="max-width:720px">{% trans trimmed %}Your message is public on GitHub, so don’t write passwords or private details. Nothing else is sent: inPace never shares your courses or progress.{% endtrans %}</p>
+{% endblock %}

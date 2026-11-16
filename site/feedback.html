@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feedback and ideas · inPace</title>
+<meta name="description" content="Tell the inPace team about a problem, an idea or a question. Every message is read.">
+<meta property="og:title" content="Feedback and ideas · inPace">
+<meta property="og:description" content="Tell the inPace team about a problem, an idea or a question.">
+<link rel="canonical" href="https://mahmoudyosrimahmoud13.github.io/inPace/feedback.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="inPace">
+<meta property="og:url" content="https://mahmoudyosrimahmoud13.github.io/inPace/feedback.html">
+<meta property="og:image" content="https://mahmoudyosrimahmoud13.github.io/inPace/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Feedback and ideas · inPace">
+<meta name="twitter:description" content="Tell the inPace team about a problem, an idea or a question.">
+<meta name="twitter:image" content="https://mahmoudyosrimahmoud13.github.io/inPace/assets/og.jpg">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=6">
+<script>
+  (function () {
+    var lang = null;
+    try { lang = localStorage.getItem("inpace-site-lang"); } catch (e) {}
+    if (!lang) lang = (navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en";
+    if (location.hash === "#ar") lang = "ar";
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  })();
+</script>
+<script>
+  // Light or dark: the visitor's choice, or else their computer's setting.
+  (function () { var t = null; try { t = localStorage.getItem("inpace-site-theme"); } catch (e) {}
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); })();
+</script>
+<style>
+.fb { max-width: 760px; margin: 0 auto; padding: clamp(32px, 6vw, 72px) clamp(16px, 4vw, 40px); }
+.fb form { display: grid; gap: 1.1rem; margin-top: 1.5rem; padding: 1.5rem; background: var(--surface); border: 3px solid var(--line); box-shadow: 6px 6px 0 var(--line); }
+[dir=rtl] .fb form { box-shadow: -6px 6px 0 var(--line); }
+.fb label.f { display: grid; gap: .35rem; font-weight: 700; }
+.fb small { font-weight: 400; color: var(--muted); }
+.fb input[type=text], .fb textarea { font: inherit; padding: .65rem .75rem; border: 2px solid var(--line); background: var(--paper); color: var(--ink); width: 100%; box-sizing: border-box; }
+.fb textarea { min-height: 7rem; resize: vertical; }
+.fb fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+.fb legend { font-weight: 700; margin-bottom: .5rem; }
+.fb .chip { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .8rem; border: 2px solid var(--line); cursor: pointer; background: var(--paper); }
+.fb .chip:has(input:checked) { background: var(--sun); color: #111; }
+.fb .chip input { accent-color: #111; }
+.fb .check { display: flex; gap: .5rem; align-items: start; font-weight: 400; }
+</style>
+</head>
+<body class="guide">
+
+<header class="top">
+  <a class="brand" href="./">
+    <img src="assets/icon.svg" alt="" width="36" height="36">
+    <span><span class="in">in</span><b>Pace</b></span>
+  </a>
+  <nav class="links" aria-label="Page">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a>
+    <a href="./#download"><span class="en">Download</span><span class="ar">التحميل</span></a>
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a>
+  </nav>
+  <button class="theme" type="button" id="theme" aria-label="Light or dark mode" title="Light or dark mode"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
+  <button class="lang" type="button" id="lang"><span class="en">عربي</span><span class="ar">English</span></button>
+</header>
+
+<main class="fb">
+  <h1><span class="en">Feedback and ideas</span><span class="ar">الملاحظات والأفكار</span></h1>
+  <p class="lead"><span class="en">Found a problem? Have an idea that would make learning easier? Tell us. We read every message.</span><span class="ar">وجدت مشكلة؟ عندك فكرة تجعل التعلّم أسهل؟ أخبرنا. نقرأ كل رسالة.</span></p>
+  <form id="fb">
+    <fieldset><legend><span class="en">What is it about?</span><span class="ar">عن ماذا؟</span></legend>
+      <label class="chip"><input type="radio" name="kind" value="Problem"><span class="en">A problem</span><span class="ar">مشكلة</span></label>
+      <label class="chip"><input type="radio" name="kind" value="Idea or suggestion" checked><span class="en">An idea</span><span class="ar">فكرة أو اقتراح</span></label>
+      <label class="chip"><input type="radio" name="kind" value="Question"><span class="en">A question</span><span class="ar">سؤال</span></label>
+      <label class="chip"><input type="radio" name="kind" value="Something else"><span class="en">Something else</span><span class="ar">شيء آخر</span></label>
+    </fieldset>
+    <label class="f"><span><span class="en">Short title</span><span class="ar">عنوان قصير</span></span><input type="text" name="title" maxlength="120" required></label>
+    <label class="f"><span><span class="en">Tell us more</span><span class="ar">أخبرنا بالتفاصيل</span></span><textarea name="details" maxlength="3000" required></textarea></label>
+    <label class="f" data-problem hidden><span><span class="en">What did you do before it happened?</span><span class="ar">ماذا فعلت قبل أن تحدث؟</span> <small><span class="en">Optional</span><span class="ar">اختياري</span></small></span><textarea name="steps" maxlength="3000"></textarea></label>
+    <label class="f"><span><span class="en">Your system and inPace version</span><span class="ar">نظامك ونسخة inPace</span> <small><span class="en">Optional, like: Windows 11, inPace 1.26</span><span class="ar">اختياري، مثل: Windows 11، inPace 1.26</span></small></span><input type="text" name="system" maxlength="200"></label>
+    <p><button class="btn primary" type="submit"><span class="en">Continue on GitHub</span><span class="ar">أكمل على GitHub</span></button></p>
+    <p><small><span class="en">Your message will be public on GitHub, so please don't write private details. You need a free GitHub account to send it. Inside the app you can also open <b>Feedback and ideas</b> from the menu: it fills in your version for you.</span><span class="ar">ستكون رسالتك علنية على GitHub، فلا تكتب أي تفاصيل خاصة. تحتاج حسابًا مجانيًا على GitHub لإرسالها. ويمكنك أيضًا فتح <b>الملاحظات والأفكار</b> من قائمة التطبيق: يملأ نسختك لك.</span></small></p>
+  </form>
+</main>
+
+<footer class="foot">
+  <div class="foot-top">
+    <img src="assets/tempo-cheer.svg" width="300" height="216" alt="">
+    <p><span class="en">Slow and steady wins the race.</span><span class="ar">ببطء وثبات تفوز بالسباق.</span></p>
+  </div>
+  <p class="word"><span class="in">in</span>Pace</p>
+  <p class="small">
+    <a href="./"><span class="en">Home</span><span class="ar">الرئيسية</span></a> ·
+    <a href="https://github.com/mahmoudyosrimahmoud13/inpace">GitHub</a> ·
+    <a href="feedback.html"><span class="en">Feedback and ideas</span><span class="ar">الملاحظات والأفكار</span></a> ·
+    <a href="https://mahmoudyosrimahmoud13.github.io/inpace-library/share.html"><span class="en">Share a course</span><span class="ar">شارك دورة</span></a>
+  </p>
+</footer>
+<script>
+  document.getElementById("lang").addEventListener("click", function () {
+    var next = document.documentElement.lang === "ar" ? "en" : "ar";
+    document.documentElement.lang = next;
+    document.documentElement.dir = next === "ar" ? "rtl" : "ltr";
+    try { localStorage.setItem("inpace-site-lang", next); } catch (e) {}
+  });
+</script>
+<script data-goatcounter="https://inpace.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+  (function () {
+    var b = document.getElementById("theme"), html = document.documentElement;
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var now = html.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = now === "dark" ? "light" : "dark";
+      html.setAttribute("data-theme", next);
+      try { localStorage.setItem("inpace-site-theme", next); } catch (e) {}
+    });
+  })();
+</script>
+<script>
+  (function () {
+    var f = document.getElementById("fb"), prob = f.querySelector("[data-problem]");
+    function sync() { prob.hidden = f.kind.value !== "Problem"; }
+    [].forEach.call(f.kind, function (r) { r.addEventListener("change", sync); }); sync();
+    f.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var kind = f.kind.value, p = ["template=feedback.yml", "title=" + encodeURIComponent(kind + ": " + f.title.value.trim()), "kind=" + encodeURIComponent(kind)];
+      ["details", "steps", "system"].forEach(function (k) {
+        if (k === "steps" && kind !== "Problem") return;
+        var v = f[k].value.trim().slice(0, 3000);
+        if (v) p.push(k + "=" + encodeURIComponent(v));
+      });
+      window.open("https://github.com/mahmoudyosrimahmoud13/inpace/issues/new?" + p.join("&"), "_blank", "noopener");
+    });
+  })();
+</script>
+</body>
+</html>

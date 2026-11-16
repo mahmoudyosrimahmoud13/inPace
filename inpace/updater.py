@@ -207,6 +207,52 @@ def restart() -> None:
     os._exit(0)
 
 
+# ---------- "a new version is out": for every copy, phones and code folders too -------------------------
+
+NEWS_EVERY = 12 * 3600
+ANDROID_APK = "inPace-android-arm64-v8a.apk"
+
+
+def latest() -> dict:
+    """The newest published release, newer or not: {version, page, notes, assets}."""
+    with _get(API) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    tag = str(data.get("tag_name") or "")
+    if not tag or data.get("draft") or data.get("prerelease"):
+        return {}
+    return {"version": tag.lstrip("v"), "page": str(data.get("html_url") or ""),
+            "notes": str(data.get("body") or "")[:4000],
+            "assets": {a["name"]: a["browser_download_url"] for a in data.get("assets", [])
+                       if isinstance(a, dict) and a.get("name") and a.get("browser_download_url")}}
+
+
+def check_news(vault, force: bool = False) -> dict:
+    """Look on GitHub for the newest release at most twice a day, and remember it (update_news). Any problem
+    (offline, GitHub busy) is quiet: the app just doesn't show the news until the next look."""
+    last = int(vault._meta("update_news_checked", "0") or 0)
+    if not force and time.time() - last < NEWS_EVERY:
+        return news(vault, any_version=True)
+    vault._set_meta("update_news_checked", str(int(time.time())))
+    try:
+        rel = latest()
+    except Exception:
+        return news(vault, any_version=True)
+    if rel:
+        vault._set_meta("update_news", json.dumps(rel))
+    return rel
+
+
+def news(vault, any_version: bool = False) -> dict:
+    """The newest release we know of, if it's newer than this copy (or always, with any_version)."""
+    try:
+        rel = json.loads(vault._meta("update_news", "{}") or "{}")
+    except ValueError:
+        return {}
+    if not isinstance(rel, dict) or not rel.get("version"):
+        return {}
+    return rel if any_version or newer(rel["version"]) else {}
+
+
 # ---------- the whole thing, as one step for the app ------------------------
 
 def run(vault, force: bool = False) -> dict:

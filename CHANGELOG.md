@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.26.0
+
+- **A pop-up when a new version is out.** inPace checks GitHub at most twice a day. When there's a newer version, a window shows what's new and one button to get it:
+  - On Windows, Mac and Linux: **Update now**. If you turned on automatic updates, there is no pop-up, it just updates.
+  - On Android: **Download the new version**, which gets the new app file.
+  - If you run inPace from its source code: the `git pull` command to run.
+  - **Later** hides it for 3 days. A newer version shows it again. Offline, nothing happens.
+- **Feedback and ideas.** A new page in the menu (and in **More** on a phone) to tell us about a problem, an idea or a question. Fill it in, press **Continue on GitHub**, and GitHub opens with everything filled in, including your inPace version and system if you want.
+- **Share this course.** Every course page now has a **Share this course** button under **Continue**. It sends a short link when the course is in the library, or the course file, or helps you publish it.
+- **Share a course, from inside the app.** The library page has **Share a course**: it lists your courses, and each one has a **Publish** button. The publish page is now a short form (description, language, tags, license, notes) that fills in the library's GitHub form for you. You only drag the course file in.
+- **The websites are easier to find on Google.** Both websites now have a sitemap, real page addresses, link previews with a picture, and the details search engines read (free app, free courses, languages, lesson hours).
+- **New pages on the websites:** a **Share your course** form in the library and a **Feedback and ideas** form on the inPace website.
+- New Arabic translations for everything above.
+
 ## v1.25.2
 
 - **The first open speaks your language.** On a phone or computer set to Arabic, inPace opens in Arabic from the very first screen, and in English otherwise. The welcome page also has **English** and **العربية** buttons at the top, so you can pick before you type your name. The choice is saved, and you can still change it in **Settings**.

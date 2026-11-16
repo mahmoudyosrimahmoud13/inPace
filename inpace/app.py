@@ -307,6 +307,7 @@ _ICONS = {
     "spark": '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
     "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     "open": '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
+    "chat": '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     "upload": '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 17v3h16v-3"/>',
     "download": '<path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 17v3h16v-3"/>',
     "pen": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
@@ -496,6 +497,7 @@ def create_app(vault: Vault) -> Starlette:
                 "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
                 "accent": (V._meta("accent", "") or "") if V.is_set_up else "",
                 "update": _update_info() if V.is_set_up else None,
+                "update_news": _update_news() if V.is_set_up else None,
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
@@ -1390,6 +1392,32 @@ def create_app(vault: Vault) -> Starlette:
         return page("share_course.html", request, c=c, entry=entry, share=share,
                     same=bool(entry and entry.get("hash") == c.hash))
 
+    FEEDBACK_URL = "https://github.com/mahmoudyosrimahmoud13/inpace/issues/new"
+    FEEDBACK_KINDS = [("Problem", "Something doesn't work"), ("Idea or suggestion", "An idea or a suggestion"),
+                      ("Question", "A question"), ("Something else", "Something else")]
+
+    def _system_line() -> str:
+        import platform
+        kind = updater.install_kind()
+        where = {"android": "Android app", "windows": "Windows app", "mac": "Mac app", "deb": "Linux (.deb)",
+                 "folder": "Linux (folder)", "source": "from the code"}.get(kind, kind)
+        osname = "Android" if kind == "android" else f"{platform.system()} {platform.release()}".strip()
+        return f"{where} · {osname}"
+
+    async def feedback_page(request: Request):
+        """Send feedback or a suggestion: a short form here, sent as a GitHub issue that's already filled in."""
+        kind = request.query_params.get("kind", "")
+        return page("feedback.html", request, base=FEEDBACK_URL, kinds=FEEDBACK_KINDS,
+                    kind=kind if kind in {k for k, _ in FEEDBACK_KINDS} else "Problem",
+                    version=updater.__version__, system=_system_line(), page_from=request.query_params.get("from", "")[:200])
+
+    async def share_pick(request: Request):
+        """Share a course: pick one of yours, then publish it to the library."""
+        index = library.cached_index(V.home)
+        in_lib = {str(e.get("id")) for e in index.get("courses") or [] if isinstance(e, dict)}
+        mine = [c for c in V.courses()]
+        return page("share_pick.html", request, mine=mine, in_lib=in_lib)
+
     async def publish_course(request: Request):
         cid = request.path_params["cid"]
         c = V.get_course(cid)
@@ -1399,7 +1427,7 @@ def create_app(vault: Vault) -> Starlette:
         size = sum(p.stat().st_size for p in files.values())
         img = c.extra.get("image")
         big = {k: p for k, p in files.items() if k != img}
-        return page("publish.html", request, c=c, submit_url=library.submit_url(c),
+        return page("publish.html", request, c=c, submit_url=library.submit_url(c), submit_base=library.SUBMIT_URL,
                     too_big=size > library.MAX_COURSE_BYTES and not c.extra.get("downloads"),
                     needs_downloads=bool(big) and not c.extra.get("downloads"),
                     big_size=sum(p.stat().st_size for p in big.values()),
@@ -4008,6 +4036,55 @@ def create_app(vault: Vault) -> Starlette:
         from . import __version__
         return JSONResponse({"app": "inpace", "version": __version__, "home": str(V.home.resolve())})
 
+    _news_lock = threading.Lock()
+
+    def _look_for_news() -> None:
+        """Twice a day, look on GitHub for a new version, in the background (never slows a page)."""
+        if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("INPACE_TEST_NEWS"):
+            return
+        if _time.time() - int(V._meta("update_news_checked", "0") or 0) < updater.NEWS_EVERY:
+            return
+        if not _news_lock.acquire(blocking=False):
+            return
+
+        def run():
+            try:
+                updater.check_news(V)
+            finally:
+                _news_lock.release()
+        threading.Thread(target=run, daemon=True).start()
+
+    def _update_news() -> dict | None:
+        """A new version is out: what the pop-up says and offers, or None when there's nothing to say. Copies that
+        update themselves (Settings: automatic updates) don't need it: their own bar says when it's installed."""
+        _look_for_news()
+        rel = updater.news(V)
+        if not rel:
+            return None
+        kind = updater.install_kind()
+        if kind not in ("source", "android") and (V._meta("updates", "") or "") == "auto":
+            return None
+        try:
+            later = json.loads(V._meta("update_news_later", "{}") or "{}")
+        except ValueError:
+            later = {}
+        if later.get("version") == rel["version"] and _time.time() - float(later.get("at") or 0) < 3 * 86400:
+            return None
+        notes = re.split(r"(?m)^#{1,3} ", rel.get("notes") or "")[0].strip() or (rel.get("notes") or "")
+        notes = notes[:1800]
+        apk = (rel.get("assets") or {}).get(updater.ANDROID_APK) or rel.get("page") or ""
+        return {"version": rel["version"], "current": updater.__version__, "kind": kind, "page": rel.get("page", ""),
+                "apk": apk, "notes_html": Markup(md.render(notes)) if notes else ""}
+
+    async def update_later(request: Request):
+        """"Later" on the new-version pop-up: ask again in three days (or when a newer one comes out)."""
+        rel = updater.news(V)
+        if rel:
+            V._set_meta("update_news_later", json.dumps({"version": rel["version"], "at": _time.time()}))
+        if request.headers.get("x-inpace-fetch"):
+            return Response(status_code=204)
+        return go(_back(request))
+
     def _update_info() -> dict:
         kind = updater.install_kind()
         try:
@@ -4136,6 +4213,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
         Route("/library/{cid}", needs_setup(library_course)),
         Route("/courses/{cid}/publish", needs_setup(publish_course)),
+        Route("/feedback", needs_setup(feedback_page)),
+        Route("/share", needs_setup(share_pick)),
         Route("/courses/{cid}/share", needs_setup(share_course)),
         Route("/courses/{cid}/publish/file", needs_setup(publish_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
@@ -4240,6 +4319,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/startup-time", startup_time, methods=["POST"]),
         Route("/updates/setting", needs_setup(update_setting), methods=["POST"]),
         Route("/updates/check", needs_setup(update_check), methods=["POST"]),
+        Route("/updates/later", needs_setup(update_later), methods=["POST"]),
         Route("/updates/install", needs_setup(update_install), methods=["POST"]),
         Route("/updates/restart", needs_setup(update_restart), methods=["POST"]),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),

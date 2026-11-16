@@ -24,9 +24,31 @@
       <div><b>{% trans trimmed %}Download the course file{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}It's signed with your inPace key, so the library knows it's yours. Only you can publish updates to it later.{% endtrans %}</span></div>
       <a class="btn primary" href="/courses/{{ c.id }}/publish/file">{{ icon('send', 18) }}{{ _('Download') }}</a>
     </li>
-    <li>
-      <div><b>{% trans trimmed %}Open the submission form{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}It opens on GitHub with your course details filled in. You need a free GitHub account.{% endtrans %}</span></div>
-      <a class="btn" href="{{ submit_url }}" target="_blank" rel="noopener">{% trans trimmed %}Open the form{% endtrans %}</a>
+    <li class="publish-form-step">
+      <div class="grow stack issue-form" data-issue-form data-base="{{ submit_base }}" data-template="submit-course.yml">
+        <b>{% trans trimmed %}Tell people about your course{% endtrans %}</b>
+        <input type="hidden" data-param="title" value="Course: {{ c.title }}">
+        <input type="hidden" data-param="course_title" value="{{ c.title }}">
+        <input type="hidden" data-param="course_id" value="{{ c.id }}">
+        <label>{% trans trimmed %}What will people learn?{% endtrans %}
+          <textarea data-param="description" rows="3" maxlength="600" dir="auto">{{ c.description }}</textarea></label>
+        <div class="row wrap form-pair">
+          <label>{% trans trimmed %}Language{% endtrans %}
+            <select data-param="language"><option value="English" {{ 'selected' if c.language != 'ar' }}>English</option><option value="Arabic" {{ 'selected' if c.language == 'ar' }}>العربية</option><option value="Other">{{ _('Other') }}</option></select></label>
+          <label class="grow">{% trans trimmed %}Tags{% endtrans %}
+            <input data-param="tags" maxlength="120" placeholder="python, web, beginner"></label>
+        </div>
+        <label>{% trans trimmed %}What may others do with it?{% endtrans %}
+          <select data-param="license">
+            <option value="CC-BY-4.0 (anyone can use and share it, and must credit you)">{% trans trimmed %}Use and share it, and credit me (CC BY 4.0, recommended){% endtrans %}</option>
+            <option value="CC-BY-SA-4.0 (like CC BY, and changed copies use the same license)">{% trans trimmed %}Like CC BY, and changed copies must stay open (CC BY-SA 4.0){% endtrans %}</option>
+            <option value="CC0-1.0 (no rights reserved)">{% trans trimmed %}Anything, no credit needed (CC0){% endtrans %}</option>
+          </select></label>
+        <label>{% trans trimmed %}A note for the reviewers (optional){% endtrans %}
+          <textarea data-param="notes" rows="2" maxlength="600" dir="auto"></textarea></label>
+        <div class="row wrap"><a class="btn primary" data-issue-link href="{{ submit_url }}" target="_blank" rel="noopener">{{ icon('send', 18) }}{% trans trimmed %}Open the form on GitHub{% endtrans %}</a>
+          <span class="muted small">{% trans trimmed %}It opens with everything above filled in. You need a free GitHub account.{% endtrans %}</span></div>
+      </div>
     </li>
     <li>
       <div><b>{% trans trimmed %}Drop the file into the form and submit{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}A bot checks it within a few minutes and replies in the form. When it passes, the library team adds it.{% endtrans %}</span></div>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /open.html
+Sitemap: https://mahmoudyosrimahmoud13.github.io/inPace/sitemap.xml

@@ -1,0 +1,43 @@
+name: Feedback, a problem or an idea
+description: Something broke, something is confusing, or you have an idea for inPace.
+title: "Feedback: "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make inPace better! The quickest way to send this is from the app: **Feedback and ideas** in the menu fills it in for you.
+        شكرًا لمساعدتك! أسهل طريقة من داخل التطبيق: **الملاحظات والأفكار** في القائمة تملأ هذا النموذج لك. ويمكنك الكتابة بالعربية.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is it about?
+      options:
+        - Problem
+        - Idea or suggestion
+        - Question
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Tell us more
+      description: What happened and what you expected, or how your idea would help you.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we see the problem? (for problems)
+      placeholder: "1. Open a course  2. Press ...  3. ..."
+  - type: input
+    id: version
+    attributes:
+      label: inPace version
+      placeholder: "1.26.0"
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: "Windows app · Windows 11"

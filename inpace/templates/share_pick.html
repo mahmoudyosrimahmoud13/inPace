@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Share a course') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a href="/library">{{ _('Course library') }}</a></p>
+  <h1>{% trans trimmed %}Share a course{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}Publish a course you made to the library, so anyone can add it to their inPace for free. Pick the course:{% endtrans %}</p>
+</div>
+{% if mine %}
+<div class="stack" style="max-width:760px">
+{% for c in mine %}
+  <article class="card row between wrap">
+    <span><b dir="auto">{{ c.title }}</b><br><span class="small muted">{{ T('{n} lessons', n=c.lesson_count) }}</span></span>
+    {% if c.id in in_lib %}<span class="chip plain">{{ icon('library', 14) }}{% trans trimmed %}In the library{% endtrans %}</span>
+    {% else %}<a class="btn" href="/courses/{{ c.id }}/publish">{{ icon('send', 16) }}{% trans trimmed %}Publish{% endtrans %}</a>{% endif %}
+  </article>
+{% endfor %}
+</div>
+<p class="small muted">{% trans trimmed %}A course from the library that you changed? Publish it as your own version only if the license allows it, and say what you changed.{% endtrans %}</p>
+{% else %}
+<p class="note">{% trans trimmed %}You don't have a course to share yet. Make one first: from a folder of videos, with simple forms, or with AI.{% endtrans %} <a href="/add">{% trans trimmed %}Add a course{% endtrans %}</a></p>
+{% endif %}
+{% endblock %}

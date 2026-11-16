@@ -2055,3 +2055,40 @@ document.querySelectorAll(".voyage-scroll").forEach((box) => {
   const want = b.left - r.left + box.scrollLeft - box.clientWidth / 3;
   box.scrollLeft = rtl ? -(box.scrollWidth - box.clientWidth - want) : Math.max(0, want);
 });
+
+// "A new version is out": shown once, until you press Later (then again in three days, or for a newer one).
+(() => {
+  const d = document.querySelector("[data-news-dialog]");
+  if (!d || !d.showModal) return;
+  const later = () => fetch("/updates/later", { method: "POST", headers: { "X-Inpace-Fetch": "1" } }).catch(() => {});
+  const form = d.querySelector("[data-news-later]");
+  form && form.addEventListener("submit", (e) => { e.preventDefault(); later(); d.close(); });
+  d.addEventListener("cancel", later);          // Escape counts as Later
+  setTimeout(() => { try { d.showModal(); } catch (_) {} }, 600);
+})();
+
+// Forms that end on GitHub (feedback, publishing a course): the button's link carries what you typed, so GitHub
+// opens with the form already filled in. Nothing is sent from inPace itself.
+document.querySelectorAll("[data-issue-form]").forEach((box) => {
+  const link = box.querySelector("[data-issue-link]");
+  if (!link) return;
+  const sys = box.querySelector("[data-include-system]");
+  const build = () => {
+    const kind = (box.querySelector('input[name="kind"]:checked') || {}).value || "";
+    box.querySelectorAll("[data-only-kind]").forEach((el) => { el.hidden = el.dataset.onlyKind !== kind; });
+    const q = new URLSearchParams({ template: box.dataset.template });
+    box.querySelectorAll("[data-param]").forEach((el) => {
+      if (el.type === "radio" && !el.checked) return;
+      if (el.closest("[hidden]")) return;
+      if (el.hasAttribute("data-system") && sys && !sys.checked) return;
+      let v = (el.value || "").trim();
+      if (!v) return;
+      if (el.dataset.param === "title" && box.dataset.template === "feedback.yml") v = (kind ? kind + ": " : "") + v;
+      q.set(el.dataset.param, v.slice(0, 3000));
+    });
+    link.href = box.dataset.base + "?" + q.toString().replace(/\+/g, "%20");
+  };
+  box.addEventListener("input", build);
+  box.addEventListener("change", build);
+  build();
+});

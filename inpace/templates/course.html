@@ -19,7 +19,8 @@
   <a class="btn primary big continue-btn" href="/learn/{{ j.id }}/{{ 'lesson/' ~ nx.id if nx.kind == 'lesson' else 'module/' ~ nx.mid }}">
     <span><span class="small">{% trans trimmed %}Continue{% endtrans %}</span><b dir="auto">{{ nx.title if nx.kind == 'lesson' else T('{name} tasks', name=nx.module) }}</b></span>{{ icon('arrow', 18) }}</a>
   {% elif prog.finished %}<p><span class="chip good">{% trans trimmed %}Course finished{% endtrans %}</span></p>{% endif %}
-  {% if note_count %}<p class="course-notes-link"><a href="/learn/{{ j.id }}/notes">{{ icon('pen', 16) }} {{ _('Your notes') }} <span class="chip plain">{{ note_count }}</span></a></p>{% endif %}
+  <p class="course-notes-link">{% if note_count %}<a href="/learn/{{ j.id }}/notes">{{ icon('pen', 16) }} {{ _('Your notes') }} <span class="chip plain">{{ note_count }}</span></a>{% endif %}
+    <a class="btn small course-share" href="/courses/{{ j.course_id }}/share" data-course-share>{{ icon('send', 16) }}{% trans trimmed %}Share this course{% endtrans %}</a></p>
   {% if offline %}{% set qjob = offline.job %}
   <div class="offline-quick">
     {% if qjob and qjob.state == 'running' %}

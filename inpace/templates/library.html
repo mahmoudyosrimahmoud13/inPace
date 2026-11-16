@@ -84,8 +84,8 @@
 
 {% if tab != 'roadmaps' %}
 <section class="card soft row between" style="margin-top:2rem">
-  <span><b>{% trans trimmed %}Share your own course{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}In My courses, open More on your course and choose Publish to the library.{% endtrans %}</span></span>
-  <a class="btn" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
+  <span><b>{% trans trimmed %}Share your own course{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Made a course? Publish it here so anyone can take it for free. A bot checks it in a few minutes.{% endtrans %}</span></span>
+  <a class="btn" href="/share">{{ icon('send', 16) }}{% trans trimmed %}Share a course{% endtrans %}</a>
 </section>
 {% endif %}
 {% endblock %}
