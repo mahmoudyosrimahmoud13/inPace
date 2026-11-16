@@ -5,9 +5,9 @@
 {% block main %}
 <section class="card" style="margin-block-start: 2rem; padding: 2.25rem">
   <nav class="lang-pick" aria-label="Language · اللغة">
-    <span class="small muted">Language · اللغة</span>
-    <a class="btn small {{ 'primary' if lang == 'en' }}" href="/setup?lang=en" lang="en" dir="ltr" {{ 'aria-current=true' if lang == 'en' }}>English</a>
-    <a class="btn small {{ 'primary' if lang == 'ar' }}" href="/setup?lang=ar" lang="ar" dir="rtl" {{ 'aria-current=true' if lang == 'ar' }}>العربية</a>
+    {% for code, info in LANGS.items() %}
+    <a class="btn small {{ 'primary' if lang == code }}" href="/setup?lang={{ code }}" lang="{{ code }}" dir="{{ lang_dir(code) }}" {{ 'aria-current=true' if lang == code }}>{{ info[1] }}</a>
+    {% endfor %}
   </nav>
   <div class="center">
     {{ mascot('wave', 150) }}

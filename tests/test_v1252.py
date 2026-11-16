@@ -11,16 +11,21 @@ from inpace.vault import Vault
 def test_device_lang_reads_the_accept_language_header():
     assert device_lang("ar-EG,ar;q=0.9,en-US;q=0.8,en;q=0.7") == "ar"
     assert device_lang("en-US,en;q=0.9,ar;q=0.8") == "en"
-    assert device_lang("fr-FR,fr;q=0.9,ar;q=0.5,en;q=0.4") == "ar"   # the best one inPace speaks
+    assert device_lang("fr-FR,fr;q=0.9,ar;q=0.5,en;q=0.4") == "fr"   # v1.28: inPace speaks French too
     assert device_lang("ar;q=0.3, en;q=0.9") == "en"
     assert device_lang("ar,en") == "ar"
+    # A language inPace doesn't speak yet: the best one it does speak.
+    assert device_lang("sw-KE,sw;q=0.9,ar;q=0.5") == "ar"
+    assert device_lang("sw-KE,sw;q=0.9") == "en"
 
 
 def test_device_lang_falls_back_to_the_computer(monkeypatch):
     monkeypatch.setenv("LC_ALL", "ar_EG.UTF-8")
-    assert device_lang("") == "ar" and device_lang("fr-FR") == "ar"
+    assert device_lang("") == "ar" and device_lang("sw-KE") == "ar"
     monkeypatch.setenv("LC_ALL", "de_DE.UTF-8")
-    assert device_lang(None) == "en"
+    assert device_lang(None) == "de"          # v1.28: German is one of ours now
+    monkeypatch.setenv("LC_ALL", "sw_KE.UTF-8")
+    assert device_lang(None) == "en"          # one inPace doesn't speak
 
 
 def test_first_open_speaks_the_device_language_and_lets_you_pick(tmp_path):

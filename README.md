@@ -142,6 +142,12 @@ answers.yaml     which answers are right (left out when sharing with learners)
 
 A course can also point to files that stay where they are on your computer (a folder of videos, PDFs or code), so big courses are never copied. See [SPEC.md](SPEC.md) for the full format. Sample courses are built in: **A tour of inPace**, a short course with one of every kind of lesson (video, audio, pictures, code, an interactive page, part of a book, slides, a Word file, a spreadsheet, tasks and a quiz), *Python Basics* in English and Arabic, and **FastAPI: from first API to production**, a 12-module course that goes from your first endpoint to databases, logins, async, testing, WebSockets, Docker and monitoring, and ends with a portfolio project. More free courses are in the **[course library](https://mahmoudyosrimahmoud13.github.io/inpace-library/)**, and you can share yours there too.
 
+## Languages
+
+inPace speaks English, العربية, Español, Français, Deutsch, Português, Bahasa Indonesia, Türkçe, Tiếng Việt, Русский, हिन्दी, ไทย, 日本語 and 简体中文. It picks your device's language the first time you open it, and you can change it in **Settings → Interface language**.
+
+Anything not yet translated falls back to English, so nothing ever breaks. To fix a word or add your own language, it's one file per language: see [community/TRANSLATING.md](community/TRANSLATING.md).
+
 ## Community
 
 Questions, help, course requests, or just want to show what you finished? Join the [inPace Discord](https://mahmoudyosrimahmoud13.github.io/inPace/discord.html), in English and Arabic. New releases and new library courses are posted there too. Found a bug or have an idea? [Tell us on GitHub](https://github.com/mahmoudyosrimahmoud13/inpace/issues/new?template=feedback.yml), or use **Feedback and ideas** inside the app.

@@ -15,7 +15,9 @@
 </nav>
 <form method="post" class="card stack" style="max-width:620px" data-nav-form>
   <label>{% trans trimmed %}Your name{% endtrans %}<input name="name" value="{{ me.name }}" maxlength="40"></label>
-  <label>{{ _('Interface language') }}<select name="lang"><option value="en" {{ 'selected' if lang != 'ar' }}>English</option><option value="ar" {{ 'selected' if lang == 'ar' }}>العربية</option></select></label>
+  <label>{{ _('Interface language') }}<select name="lang">
+    {% for code, info in LANGS.items() %}<option value="{{ code }}" {{ 'selected' if lang == code }}>{{ info[1] }}{% if code != 'en' %} · {{ info[0] }}{% endif %}</option>
+    {% endfor %}</select></label>
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
 <section class="card stack" style="max-width:620px" id="turtle">

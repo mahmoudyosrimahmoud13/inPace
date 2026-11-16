@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.28.0
+
+- **inPace speaks 14 languages.** English, العربية, Español, Français, Deutsch, Português, Bahasa Indonesia, Türkçe, Tiếng Việt, Русский, हिन्दी, ไทย, 日本語 and 简体中文.
+  - **It picks yours by itself** the first time you open it, from your phone's or computer's own language. You can also pick from the list on the welcome page, or change it any time in **Settings → Interface language**.
+  - Every screen is translated: the menu, your courses, lessons, quizzes, milestones, the library, roadmaps, settings, and Tempo's welcome tour.
+  - Letters that inPace's own font doesn't have (Japanese, Chinese, Thai, Hindi, Russian, Vietnamese, Turkish) come from the fonts already on your device. Nothing extra is downloaded, and inPace still works with no internet.
+  - Dates are written the way each language writes them.
+- **The website speaks them too**, and opens in your language the first time you visit.
+- **Anything not yet translated shows in English** instead of breaking, so a language is useful from its first line.
+- **Want to fix a word, or add your language?** It's one file per language. See `community/TRANSLATING.md`, or tell us on Discord.
+
 ## v1.27.0
 
 - **The inPace Discord.** A place to ask for help, request courses and talk with other learners, in English and Arabic. Open it from **Discord community** in the menu, from the Feedback page, or from the Discord button on both websites.

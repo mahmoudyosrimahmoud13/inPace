@@ -33,7 +33,7 @@ a { color: inherit; }
 :focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
 
 /* Language: show only the chosen one */
-html[lang=ar] .en, html[lang=en] .ar { display: none !important; }
+html[lang=ar] .en, html:not([lang=ar]) .ar { display: none !important; }
 
 /* Header */
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 1.2rem; padding: .7rem clamp(16px, 4vw, 40px);
@@ -313,3 +313,11 @@ button.btn { font: inherit; font-weight: 700; cursor: pointer; }
 @media (max-width: 760px) { .theme.discord { margin-inline-start: auto; } .theme.discord ~ .lang { margin-inline-start: 0; } }
 :root[data-theme=dark] .theme.discord { color: #8C95FF; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .theme.discord { color: #8C95FF; } }
+
+select.lang { font: inherit; font-weight: 700; padding: .55rem .6rem; background: var(--surface); color: var(--ink);
+  border: 3px solid var(--line); box-shadow: var(--hard-sm) var(--line); cursor: pointer; max-width: 11rem; }
+[dir=rtl] select.lang { box-shadow: -4px 4px 0 var(--line); }
+
+.guide-note { max-width: 1240px; margin: 1.2rem auto 0; padding: .7rem 1rem; background: var(--surface);
+  border: 3px solid var(--line); box-shadow: var(--hard-sm) var(--line); font-size: .95rem; }
+[dir=rtl] .guide-note { box-shadow: -4px 4px 0 var(--line); }

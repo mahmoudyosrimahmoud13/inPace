@@ -23,7 +23,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -114,7 +114,8 @@ def _bidi(state) -> None:
 
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
                   extensions=["jinja2.ext.i18n"])
-LOCALES = {"ar": json.loads((HERE / "locales" / "ar.json").read_text(encoding="utf-8"))}
+LOCALES = {p.stem: json.loads(p.read_text(encoding="utf-8"))
+           for p in sorted((HERE / "locales").glob("*.json")) if langs.known(p.stem)}
 CURRENT = {"lang": "en"}
 
 
@@ -171,13 +172,14 @@ env.globals["island_friend"] = lambda k: garden.friend_svg(k, 60)
 
 
 def device_lang(accept_language: str | None) -> str:
-    """The language inPace speaks before you choose one: Arabic if the device (browser, or the phone's WebView, which
-    sends the phone's language) prefers Arabic over English, else English. Without the header, the computer's locale."""
+    """The language inPace speaks before you choose one: whichever of its languages the device asks for first
+    (the browser, or the phone's WebView, which sends the phone's language). Without the header, the computer's
+    own locale. English when it asks for a language inPace doesn't have yet."""
     best, best_q = "", -1.0
-    for i, part in enumerate((accept_language or "").split(",")):
+    for part in (accept_language or "").split(","):
         tag, _, rest = part.strip().partition(";")
-        code = tag.strip().lower()[:2]
-        if code not in ("ar", "en"):
+        code = langs.pick(tag.strip(), "")
+        if not code:
             continue
         q = 1.0
         if rest.strip().startswith("q="):
@@ -192,8 +194,8 @@ def device_lang(accept_language: str | None) -> str:
     import locale
     for value in (os.environ.get("LC_ALL"), os.environ.get("LC_MESSAGES"), os.environ.get("LANG"),
                   (locale.getlocale()[0] if hasattr(locale, "getlocale") else None)):
-        if value:
-            return "ar" if value.lower().startswith("ar") else "en"
+        if value and value not in ("C", "POSIX"):
+            return langs.pick(value.split(".")[0], "en")
     return "en"
 
 
@@ -218,9 +220,7 @@ ACCENTS = {
     "mono": ("Ink", "#D4D4D4", "#111111"),
 }
 
-MONTHS = {"en": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-          "ar": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر",
-                 "نوفمبر", "ديسمبر"]}
+MONTHS = langs.MONTHS
 
 
 def nice_date(s: str | None) -> str:
@@ -229,9 +229,9 @@ def nice_date(s: str | None) -> str:
     if not m:
         return (s or "")[:10]
     y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-    if CURRENT["lang"] == "ar":
-        return f"{d} {MONTHS['ar'][mo - 1]} {y}"
-    return f"{MONTHS['en'][mo - 1]} {d}, {y}"
+    lang = CURRENT["lang"]
+    name = MONTHS.get(lang, MONTHS["en"])[mo - 1]
+    return langs.DATE_ORDER.get(lang, langs.DATE_ORDER["en"]).format(d=d, m=name, y=y)
 
 
 def tr_lines(text: str | None) -> str:
@@ -360,6 +360,8 @@ def icon(name: str, size: int = 20) -> Markup:
 
 
 env.globals["icon"] = icon
+env.globals["LANGS"] = langs.LANGS
+env.globals["lang_dir"] = langs.direction
 DISCORD_URL = "https://mahmoudyosrimahmoud13.github.io/inPace/discord.html"  # opens the server's invite
 
 
@@ -676,12 +678,12 @@ def create_app(vault: Vault) -> Starlette:
         if V.is_set_up:
             return go("/")
         pick = request.query_params.get("lang")
-        if pick in ("en", "ar"):  # the language buttons at the top of the welcome page
+        if langs.known(pick):  # the language buttons at the top of the welcome page
             V._set_meta("lang", pick)
             return go("/setup")
         if request.method == "POST":
             form = await request.form()
-            if form.get("lang") in ("en", "ar"):
+            if langs.known(str(form.get("lang", ""))):
                 V._set_meta("lang", str(form.get("lang")))
             name = str(form.get("name", "")).strip()
             av = _turtle_from(form)
@@ -3689,7 +3691,7 @@ def create_app(vault: Vault) -> Starlette:
         if request.method == "POST":
             form = await request.form()
             V.rename(str(form.get("name", "")).strip() or V.me["name"], V.me["color"])
-            V._set_meta("lang", "ar" if form.get("lang") == "ar" else "en")
+            V._set_meta("lang", langs.pick(str(form.get("lang", "")), CURRENT["lang"]))
             return go("/settings", ok="Saved.")
         av = mascot_mod.clean_avatar(V.me.get("avatar") or {})
         videos = {"version": offline.version(V.home), "updates": V._meta("ytdlp_updates", "auto") or "auto",

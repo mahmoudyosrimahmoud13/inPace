@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang or 'en' }}" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
+<html lang="{{ lang or 'en' }}" dir="{{ lang_dir(lang or 'en') }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -48,7 +48,7 @@
   </span>
   <a class="brand" href="/">
     <img src="/static/icon.svg" alt="" width="30" height="30">
-    <span class="brand-word"><span class="in">{% trans trimmed %}in{% endtrans %}</span><b>{% trans trimmed %}Pace{% endtrans %}</b></span>
+    <span class="brand-word"><span class="in">in</span><b>Pace</b></span>
   </a>
   {% if me %}<span class="top-title" dir="auto">{{ self.title() }}</span>{% endif %}
   <span class="pill" title="{{ _('Nothing leaves this computer unless you send a file yourself') }}"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>

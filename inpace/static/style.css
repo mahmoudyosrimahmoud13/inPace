@@ -1964,7 +1964,7 @@ body.iv-open-page { overflow: hidden; }
 .note-tools .small-btn { padding: .2rem .6rem; font-size: .82rem; min-height: 0; box-shadow: none; }
 
 /* v1.25.2: the language buttons on the welcome page */
-.lang-pick { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .5rem; margin: -.75rem 0 1rem; }
+.lang-pick { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .4rem; margin: -.75rem 0 1.25rem; max-width: 46rem; margin-inline: auto; }
 .lang-pick .muted { margin-inline-end: .25rem; }
 .more-sheet.tour-open { z-index: 150; }  /* opened by the tour: under the tour's spotlight and card */
 @media (max-width: 699px) { .tour-card-pop.center { width: calc(100vw - 32px); } .tour-card-pop .tour-tempo svg { width: 64px; } .tour-card-pop.center .tour-tempo svg { width: 110px; } }
@@ -2028,3 +2028,13 @@ body.iv-open-page { overflow: hidden; }
 .player video::-webkit-media-text-track-container { transition: transform .25s; }
 .player:not(.playing) video::-webkit-media-text-track-container,
 .player.awake video::-webkit-media-text-track-container { transform: translateY(-72px); }
+
+/* v1.28: letters the bundled font doesn't have (Vietnamese, Turkish, Cyrillic, Thai, Devanagari, CJK)
+   come from the fonts already on the computer, so nothing is downloaded and inPace still works offline. */
+html[lang="tr"] { --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; --serif: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; }
+html[lang="vi"] { --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; --serif: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; }
+html[lang="ru"] { --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; --serif: "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif; }
+html[lang="hi"] { --sans: "Nirmala UI", "Noto Sans Devanagari", "Kohinoor Devanagari", "Mangal", system-ui, sans-serif; --serif: "Nirmala UI", "Noto Sans Devanagari", "Kohinoor Devanagari", "Mangal", system-ui, sans-serif; }
+html[lang="th"] { --sans: "Leelawadee UI", "Noto Sans Thai", "Thonburi", "Sarabun", system-ui, sans-serif; --serif: "Leelawadee UI", "Noto Sans Thai", "Thonburi", "Sarabun", system-ui, sans-serif; }
+html[lang="ja"] { --sans: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif; --serif: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", Meiryo, system-ui, sans-serif; }
+html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Source Han Sans SC", system-ui, sans-serif; --serif: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Source Han Sans SC", system-ui, sans-serif; }
