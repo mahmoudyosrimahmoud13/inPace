@@ -4422,4 +4422,21 @@ def create_app(vault: Vault) -> Starlette:
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     from starlette.middleware import Middleware
-    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware)])
+
+    class LangMiddleware:
+        """Set the language before any route runs. Some pages build text (like the tour) before they
+        render, so without this the first page after the app starts could come out in English."""
+
+        def __init__(self, app):
+            self.app = app
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "http" and not scope.get("path", "").startswith("/static/"):
+                try:
+                    if V.is_set_up:
+                        CURRENT["lang"] = V._meta("lang", "en") or "en"
+                except Exception:
+                    pass
+            return await self.app(scope, receive, send)
+
+    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware), Middleware(LangMiddleware)])

@@ -129,3 +129,20 @@ def test_fonts_are_set_for_every_script_the_bundled_font_lacks():
             assert f'html[lang="{code}"]' in css, code
     style = open("inpace/static/style.css", encoding="utf-8").read()
     assert 'html[lang="ja"]' in style and 'html[lang="th"]' in style, "font rules are not in the stylesheet"
+
+
+def test_the_tour_speaks_your_language_on_the_first_page(tmp_path):
+    """Home builds the tour before it renders. Right after the app starts, the language must already be
+    yours, or a Japanese learner's very first screen greets them in English."""
+    from inpace.app import CURRENT
+    if "ja" not in LOCALES:
+        pytest.skip("no Japanese file")
+    v, c = client(tmp_path, "Yui")
+    v._set_meta("lang", "ja")
+    v._set_meta("tour_done", "")
+    CURRENT["lang"] = "en"            # what a freshly started app holds
+    page = c.get("/").text
+    tour = json.loads(page.split('id="tour-data"')[1].split(">", 1)[1].split("</script>")[0])
+    words = json.dumps(tour, ensure_ascii=False)
+    assert LOCALES["ja"]["Hi, I'm Tempo!"] in words
+    assert "Hi, I'm Tempo!" not in words
