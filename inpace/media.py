@@ -13,6 +13,7 @@ A YouTube or Vimeo link alone on a line also becomes a player. A lesson can also
 from __future__ import annotations
 
 import html
+import json
 import re
 from typing import Callable
 from urllib.parse import quote, unquote
@@ -271,11 +272,16 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     if resume > start + 5:
         hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
-    labels = {**player_labels(t), "piece": t("This part"),
+    labels = {**player_labels(t), "piece": t("This part"), "quality": t("Quality"), "auto": t("Auto"), "ad": t("Ad: the lesson starts after it"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead.")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
     speed = f' data-speed="{files.speed:g}"' if files and getattr(files, "speed", None) else ""
+    from . import ytrules
+    rules = ytrules.current()
+    speed += f' data-yt-rules="{e(json.dumps(rules))}"'
+    if not rules["own_controls"]:  # switched off from the website: YouTube's own player and buttons
+        src = src.replace("&controls=0", "").replace("&fs=0", "").replace("&disablekb=1", "")
     return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
             f'data-yt-id="{e(vid or "")}"{speed} '
             f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}" data-watch="{e(watch)}" {data}>'

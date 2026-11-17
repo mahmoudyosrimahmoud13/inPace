@@ -505,6 +505,8 @@ class NavMiddleware:
 
 def create_app(vault: Vault) -> Starlette:
     V = vault
+    from . import ytrules
+    ytrules.use_home(V.home, pref=lambda: (V._meta("yt_ad_guard", "on") or "on") == "on")
     # Pages are drawn from templates, and turning a template into Python takes time the first time (a lot of it
     # on a phone). Keep the compiled templates in the data folder, so the next start reuses them. Jinja checks
     # each template's source, so an updated inPace never uses an old copy.
@@ -528,6 +530,7 @@ def create_app(vault: Vault) -> Starlette:
                 "update": _update_info() if V.is_set_up else None,
                 "update_news": _update_news() if V.is_set_up else None,
                 "lib_new": (_look_for_courses() or len(_library_new())) if V.is_set_up else 0,
+                "_yt": _yt_rules_later(),
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
@@ -3712,6 +3715,11 @@ def create_app(vault: Vault) -> Starlette:
         V.__init__(V.home)
         return go("/", ok="Backup restored.")
 
+    async def youtube_setting(request: Request):
+        form = await request.form()
+        V._set_meta("yt_ad_guard", "on" if form.get("guard") else "off")
+        return go("/settings#youtube", ok="Saved.")
+
     async def delete_everything(request: Request):
         """Settings → Delete all my data: empties inPace's folder (courses, progress, notes, people, keys,
         backups inside it) and starts fresh, like the first day. Asks you to type a word first."""
@@ -3768,7 +3776,7 @@ def create_app(vault: Vault) -> Starlette:
             startup = json.loads(V._meta("startup_last", "") or "null")
         except ValueError:
             startup = None
-        return page("settings.html", request, colors=COLORS, home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
+        return page("settings.html", request, colors=COLORS, yt_guard=(V._meta("yt_ad_guard", "on") or "on") == "on", home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup)
 
@@ -4268,6 +4276,11 @@ def create_app(vault: Vault) -> Starlette:
                 _courses_lock.release()
         threading.Thread(target=run, daemon=True).start()
 
+    def _yt_rules_later() -> None:
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            from . import ytrules
+            ytrules.refresh_later()
+
     def _update_news() -> dict | None:
         """A new version is out: what the pop-up says and offers, or None when there's nothing to say. Copies that
         update themselves (Settings: automatic updates) don't need it: their own bar says when it's installed."""
@@ -4551,6 +4564,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),
+        Route("/settings/youtube", needs_setup(youtube_setting), methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     from starlette.middleware import Middleware

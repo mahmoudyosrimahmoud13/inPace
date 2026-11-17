@@ -92,6 +92,15 @@
   <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code>
     {% if startup %}<br>{{ _('Last start: ready in %s s, first page in %s s.')|format('%.1f'|format((startup.python or 0) / 1000), '%.1f'|format((startup.page or startup.python or 0) / 1000)) }}{% endif %}</details>
 </section>
+<section class="card stack" style="max-width:620px" id="youtube">
+  <h2 style="margin:0">{% trans trimmed %}YouTube videos{% endtrans %}</h2>
+  <form method="post" action="/settings/youtube" class="stack" data-nav-form>
+    <label class="check"><input type="checkbox" name="guard" value="1" {{ 'checked' if yt_guard }} data-autosubmit>
+      <span>{% trans trimmed %}Ad guard (recommended){% endtrans %}</span></label>
+    <p class="small muted" style="margin:0">{% trans trimmed %}When YouTube plays an ad, inPace steps aside so you can watch it or press Skip ad, and doesn't save the ad's time as your place in the lesson. Ads still play: nothing is blocked.{% endtrans %}</p>
+    <button class="btn">{% trans trimmed %}Save{% endtrans %}</button>
+  </form>
+</section>
 <section class="card" style="max-width:620px" id="videos">
   <h2>{% trans trimmed %}Video downloads{% endtrans %}</h2>
   <p class="muted">{% trans trimmed %}For watching YouTube lessons offline. inPace uses yt-dlp, a free open-source downloader, kept in your inPace folder.{% endtrans %}</p>

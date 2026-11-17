@@ -1,0 +1,10 @@
+{
+  "about": "How the inPace app drives YouTube videos. The app reads this once a day. Numbers and switches only.",
+  "own_controls": true,
+  "fallback_ms": 9000,
+  "cover_after_ms": 2500,
+  "confirm_after_s": 3,
+  "long_video_s": 60,
+  "ad_shorter_by_s": 2,
+  "quality_menu": true
+}

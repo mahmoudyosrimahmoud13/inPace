@@ -588,7 +588,7 @@ document.querySelectorAll(".embed-box").forEach((box) => {
   const btn = box.querySelector(".play");
   if (!btn) return;
   btn.addEventListener("click", () => {
-    if (box.dataset.ytId && window.inpacePlayer) { youtubeAsPlayer(box); return; }
+    if (box.dataset.ytId && window.inpacePlayer && ytRules(box).own_controls !== false) { youtubeAsPlayer(box); return; }
     let el;
     if (box.dataset.embed) {
       el = document.createElement("iframe");
@@ -617,10 +617,19 @@ document.querySelectorAll(".embed-box").forEach((box) => {
 // YouTube in inPace's own player. The video plays in YouTube's frame, but YouTube's buttons are hidden
 // (controls=0), a cover stops its title, logo and "More videos" from showing, and inPace's player drives it
 // through YouTube's messages. To the player it looks like a <video>.
+// The rules come from the inPace website once a day (Settings never needed): numbers and switches only.
+function ytRules(box) {
+  const R = { own_controls: true, fallback_ms: 9000, cover_after_ms: 2500, confirm_after_s: 3, long_video_s: 60,
+              ad_shorter_by_s: 2, quality_menu: true, ad_guard: true };
+  try { Object.assign(R, JSON.parse(box.dataset.ytRules || "{}")); } catch (e) {}
+  return R;
+}
+
 class YouTubeMedia extends EventTarget {
-  constructor(frame, cover) {
+  constructor(frame, cover, id, from, R) {
     super();
-    this.frame = frame; this.clickTarget = cover;
+    this.frame = frame; this.clickTarget = cover; this.id = id || ""; this.from = from || 0; this.R = R || ytRules({ dataset: {} });
+    this._confirmed = this.R.ad_guard === false; this._inAd = false; this._vidOk = null;  // no ad guard: take every report as the lesson
     this.paused = true; this.ended = false; this.duration = 0; this.readyState = 0; this.error = null;
     this._t = 0; this._vol = 1; this._muted = false; this._rate = 1; this._started = false;
     this.buffered = { length: 0, end: () => 0 }; this.videoWidth = 16; this.videoHeight = 9; this.ccQuiet = true;
@@ -645,26 +654,43 @@ class YouTubeMedia extends EventTarget {
     const i = d.info;
     if (!i || typeof i !== "object") return;
     this._fire("ythello");
-    if (typeof i.duration === "number" && i.duration > 0 && !this.duration) {
-      this.duration = i.duration; this.readyState = 1; this._fire("loadedmetadata");
-      if (this._vol !== 1) this._cmd("setVolume", [Math.round(this._vol * 100)]);
-      if (this._rate !== 1) this._cmd("setPlaybackRate", [this._rate]);
+    // Ads: while YouTube plays an ad it reports the ad's time and length. Until we're sure the lesson's video
+    // is playing (it reached the second we asked for, or it's the right video, or it's longer than an ad),
+    // and whenever a shorter "video" appears in the middle, nothing is saved and the bar doesn't move.
+    const vd = i.videoData;
+    if (vd && typeof vd === "object" && vd.video_id) this._vidOk = vd.video_id === this.id;
+    const dur = typeof i.duration === "number" && i.duration > 0 ? i.duration : 0;
+    const t = typeof i.currentTime === "number" ? i.currentTime : null;
+    const R = this.R;
+    let ad = R.ad_guard !== false && (this._vidOk === false || (this._confirmed && dur && this.duration && dur < this.duration - R.ad_shorter_by_s));
+    if (!this._confirmed && !ad && (this._vidOk === true || (this.from > 5 && t !== null && t >= this.from - 3)
+        || (this.from <= 5 && (dur > R.long_video_s || (t !== null && t >= R.confirm_after_s))))) this._confirmed = true;
+    // A longer video after the one we took for the lesson: that one was an ad, this is the lesson.
+    if (this._confirmed && !ad && dur && this.duration && dur > this.duration + 2) { this.duration = dur; this._fire("loadedmetadata"); }
+    const inAd = ad || !this._confirmed;
+    if (inAd !== this._inAd) { this._inAd = inAd; this._fire(inAd ? "ytad" : "ytmain"); }
+    if (!inAd) {
+      if (dur && !this.duration) {
+        this.duration = dur; this.readyState = 1; this._fire("loadedmetadata");
+        if (this._vol !== 1) this._cmd("setVolume", [Math.round(this._vol * 100)]);
+        if (this._rate !== 1) this._cmd("setPlaybackRate", [this._rate]);
+      }
+      if (t !== null) { this._t = t; this._fire("timeupdate"); }
     }
     if (typeof i.muted === "boolean") this._muted = i.muted;
     if (typeof i.volume === "number") this._vol = i.volume / 100;
-    if (typeof i.currentTime === "number") { this._t = i.currentTime; this._fire("timeupdate"); }
-    if (typeof i.videoLoadedFraction === "number" && this.duration) {
+    if (typeof i.videoLoadedFraction === "number" && this.duration && !inAd) {
       const f = i.videoLoadedFraction; this.buffered = { length: 1, end: () => f * this.duration }; this._fire("progress");
     }
     if (typeof i.playerState === "number") {
       const st = i.playerState;
       if (st === 1 && this.paused) { this.paused = false; this.ended = false; this._fire("play"); }
       else if (st === 2 && !this.paused) { this.paused = true; this._fire("pause"); }
-      else if (st === 0) { this.paused = true; this.ended = true; this._fire("pause"); this._fire("ended"); }
+      else if (st === 0 && !inAd) { this.paused = true; this.ended = true; this._fire("pause"); this._fire("ended"); }
     }
   }
   get currentTime() { return this._t; }
-  set currentTime(t) { this._t = Math.max(0, t); this._cmd("seekTo", [this._t, true]); this._fire("timeupdate"); }
+  set currentTime(t) { if (this._inAd) return; this._t = Math.max(0, t); this._cmd("seekTo", [this._t, true]); this._fire("timeupdate"); }
   get volume() { return this._vol; }
   set volume(x) { this._vol = Math.min(1, Math.max(0, x)); this._cmd("setVolume", [Math.round(this._vol * 100)]); }
   get muted() { return this._muted; }
@@ -676,6 +702,46 @@ class YouTubeMedia extends EventTarget {
   pause() { this._cmd("pauseVideo"); }
   load() { this.frame.src = this.frame.src; }
   querySelector() { return null; }
+}
+
+// Quality for YouTube: YouTube ignores "play in 1080p" requests from embedded players, but it does pick the
+// quality from the size of its player. So 1080p draws YouTube's player at 1920×1080 and scales it down to fit;
+// Auto leaves it the real size. YouTube still lowers it if the internet is too slow for that.
+function youtubeQuality(player, frame) {
+  const L = player.dataset, sizes = { 1080: 1920, 720: 1280, 480: 854, 360: 640 };
+  const row = player.querySelector(".pl-row"), spd = player.querySelector(".pl-speed");
+  if (!row || !spd) return;
+  let q = "auto";
+  try { q = localStorage.getItem("inpace-ytq") || "auto"; } catch (e) {}
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "pl-btn pl-q"; btn.title = L.lQuality || "Quality"; btn.setAttribute("aria-haspopup", "true");
+  spd.insertAdjacentElement("beforebegin", btn);
+  const menu = document.createElement("div");
+  menu.className = "pl-menu pl-qmenu"; menu.hidden = true;
+  player.appendChild(menu);
+  const fit = () => {
+    if (q === "auto" || !sizes[q]) {
+      Object.assign(frame.style, { width: "", height: "", transform: "", left: "", top: "" });
+      return;
+    }
+    const W = sizes[q], H = +q, bw = player.clientWidth, bh = player.clientHeight;
+    const k = Math.min(bw / W, bh / H) || 1;
+    Object.assign(frame.style, { width: W + "px", height: H + "px", transformOrigin: "0 0", transform: `scale(${k})`,
+      left: Math.max(0, (bw - W * k) / 2) + "px", top: Math.max(0, (bh - H * k) / 2) + "px" });
+  };
+  const draw = () => { btn.textContent = q === "auto" ? (L.lAuto || "Auto") : q + "p"; };
+  const pick = (x) => { q = x; try { localStorage.setItem("inpace-ytq", x); } catch (e) {} draw(); fit(); };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.innerHTML = ["auto", "1080", "720", "480", "360"].map((x) =>
+      `<button type="button" data-q="${x}" class="${x === q ? "on" : ""}">${x === "auto" ? (L.lAuto || "Auto") : x + "p"}</button>`).join("");
+    menu.hidden = !menu.hidden;
+  });
+  menu.addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("button"); if (b) { pick(b.dataset.q); menu.hidden = true; } });
+  document.addEventListener("click", () => (menu.hidden = true));
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(player);
+  document.addEventListener("fullscreenchange", () => setTimeout(fit, 50));
+  draw(); fit();
 }
 
 function youtubeAsPlayer(box) {
@@ -698,13 +764,22 @@ function youtubeAsPlayer(box) {
   cover.style.backgroundImage = `url("https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg")`;
   player.append(frame, cover);
   box.replaceWith(player);
-  const v = new YouTubeMedia(frame, cover);
+  const st = +L.start || 0, en = +L.end || 0, rs = +L.resume || 0;
+  const from = rs > st + 5 && (!en || rs < en - 5) ? rs : st;   // the second youtubeSrc asks YouTube to start at
+  const R = ytRules(box);
+  const v = new YouTubeMedia(frame, cover, id, from, R);
+  const adTag = document.createElement("div");
+  adTag.className = "yt-adtag"; adTag.textContent = L.lAd || "Ad: the lesson starts after it";
+  player.appendChild(adTag);
+  v.addEventListener("ytad", () => player.classList.add("yt-ad"));
+  v.addEventListener("ytmain", () => player.classList.remove("yt-ad"));
   const show = () => player.classList.toggle("yt-showing", !v.paused);
   // YouTube shows its title for a moment when a video starts: the still picture stays a little longer.
-  v.addEventListener("play", () => setTimeout(show, 2500));
+  v.addEventListener("play", () => setTimeout(show, R.cover_after_ms));
   v.addEventListener("pause", show);
   const ctl = window.inpacePlayer(player, v);
   player.focus({ preventScroll: true });
+  if (R.quality_menu !== false) youtubeQuality(player, frame);
   const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const link = `<a class="btn small" href="${esc(L.watch)}" target="_blank" rel="noopener">${esc(L.lOpen)}</a>`;
   const note = (html, cls) => {
@@ -714,6 +789,19 @@ function youtubeAsPlayer(box) {
   };
   let heard = false;
   v.addEventListener("ythello", () => { heard = true; const s = player.parentElement.querySelector(".yt-note.soft"); s && s.remove(); });
+  // YouTube didn't answer inPace's player (it may have changed how it talks to apps): switch to YouTube's own
+  // player and buttons, from the same second, so the lesson always plays.
+  setTimeout(() => {
+    if (heard || !player.isConnected) return;
+    const plain = document.createElement("iframe");
+    plain.src = frame.src.replace("&controls=0", "").replace("&fs=0", "").replace("&disablekb=1", "");
+    plain.allow = frame.allow; plain.allowFullscreen = true; plain.referrerPolicy = frame.referrerPolicy; plain.title = "YouTube";
+    const wrap = document.createElement("div");
+    wrap.className = "frame-wrap video-ratio";
+    wrap.appendChild(plain);
+    player.replaceWith(wrap);
+    youtubeRemember(plain, box);
+  }, R.fallback_ms);
   v.addEventListener("yterror", () => { player.classList.add("failed"); note(`<b>${esc(L.lErr)}</b> <span class="small muted">(YouTube ${esc(v.error.code)})</span> ${link}`, "warn"); });
   setTimeout(() => { if (!heard && L.watch) note(`${esc(L.lSlow)} ${link}`, "soft"); }, 15000);
   return ctl;

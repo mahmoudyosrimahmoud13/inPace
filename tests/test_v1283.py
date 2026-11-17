@@ -61,3 +61,24 @@ def test_delete_all_my_data(tmp_path):
     r = c.post("/settings/delete-everything", data={"confirm": "DELETE"})
     assert not (v.home / "notes.txt").exists() and not (v.home / "courses" / "mine").exists()
     assert not v.is_set_up and "Welcome to inPace" in html.unescape(r.text)
+
+
+def test_youtube_has_quality_and_ad_labels():
+    out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
+    assert 'data-l-quality="Quality"' in out and 'data-l-auto="Auto"' in out and "data-l-ad=" in out
+
+
+def test_youtube_rules_are_data_only_and_checked():
+    from inpace import ytrules
+    r = ytrules.clean({"own_controls": "yes", "fallback_ms": 10**9, "cover_after_ms": 1000, "evil": "<script>"})
+    assert r["own_controls"] is True and r["fallback_ms"] == 9000 and r["cover_after_ms"] == 1000 and "evil" not in r
+
+
+def test_ad_guard_is_on_by_default_and_can_be_turned_off(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    assert "Ad guard" in html.unescape(c.get("/settings").text)
+    out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
+    assert "&quot;ad_guard&quot;: true" in out and "controls=0" in out
+    c.post("/settings/youtube", data={})                       # unticked
+    out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
+    assert "&quot;ad_guard&quot;: false" in out and "controls=0" in out   # still inPace's player

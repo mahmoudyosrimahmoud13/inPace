@@ -2094,3 +2094,16 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 .danger-zone { border-color: #d64545; }
 .danger-zone summary.btn { display: inline-flex; list-style: none; cursor: pointer; }
 .danger-zone summary::-webkit-details-marker { display: none; }
+
+/* YouTube quality: the button and its menu */
+.pl-q { font-weight: 800; font-size: .8rem; min-width: 46px; }
+.pl-qmenu { inset-inline-end: 3.2rem; }
+.yt-player iframe[style*="scale"] { inset: auto; }
+
+/* YouTube ads: inPace steps aside so the ad and its "Skip ad" button work, and comes back after */
+.yt-adtag { display: none; position: absolute; top: .6rem; inset-inline-start: .6rem; z-index: 3; background: var(--sun); color: #111;
+  font-weight: 800; font-size: .8rem; padding: .2rem .55rem; pointer-events: none; }
+.yt-player.yt-ad .yt-adtag { display: block; }
+.yt-player.yt-ad .yt-cover { pointer-events: none; background-image: none !important; background-color: transparent; }
+.yt-player.yt-ad iframe { pointer-events: auto; }
+.yt-player.yt-ad .pl-bar, .yt-player.yt-ad .pl-big, .yt-player.yt-ad .pl-menu { display: none; }

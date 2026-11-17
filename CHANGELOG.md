@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.28.8
+
+- **Choose the YouTube quality:** a new button in the video bar: **Auto**, 1080p, 720p, 480p or 360p, remembered for next time. (YouTube ignores direct quality requests from apps, but it picks the quality from the size of its player, so inPace sizes it for the quality you chose. On a slow connection YouTube may still go lower.)
+- **YouTube ads don't get in the way:** while an ad plays, inPace steps aside so you can see it and press **Skip ad**, shows "Ad: the lesson starts after it", and doesn't save the ad's time as your place in the lesson. Your player comes back when the lesson starts.
+- **The ad guard is your choice:** Settings → **YouTube videos** → **Ad guard** (on by default).
+- **It keeps working when YouTube changes:** if YouTube doesn't answer inPace's player, the lesson switches to YouTube's own player by itself, from the same second. And the few numbers that guide the player (and the ad guard) come from the inPace website once a day, like yt-dlp's updates, so they can be fixed without a new version. They're numbers and switches only, never code.
+
 ## v1.28.7
 
 - **Updates now really show up.** The app window kept its old copy of inPace's script and styles after an update, so new things (like the new YouTube player) didn't appear. Their links now change whenever the files change, so every update loads the new ones.
