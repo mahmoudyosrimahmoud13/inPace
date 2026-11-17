@@ -85,9 +85,29 @@ def issue_message(event: dict) -> dict | None:
         "footer": {"text": issue.get("user", {}).get("login", "")}}], "allowed_mentions": {"parse": []}}
 
 
+def telegram(msg: dict, opener=urllib.request.urlopen) -> bool:
+    """The same release post in the inPace Telegram channel (secrets TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT)."""
+    import html
+    token, chat = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(), os.environ.get("TELEGRAM_CHAT", "").strip()
+    if not (token and chat):
+        return False
+    em = (msg.get("embeds") or [{}])[0]
+    text = html.escape(msg.get("content", "")).replace("**", "") + "\n\n" + \
+        (f'<b><a href="{html.escape(em["url"])}">{html.escape(em.get("title", ""))}</a></b>\n\n' if em.get("url") else "") + \
+        html.escape(em.get("description", ""))
+    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", method="POST",
+                                 data=json.dumps({"chat_id": chat, "text": cut(text, 4000), "parse_mode": "HTML",
+                                                  "link_preview_options": {"is_disabled": True}}).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with opener(req) as r:
+        r.read()
+    return True
+
+
 def main() -> None:
     h = hooks()
-    if not h:
+    tg = bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT"))
+    if not h and not tg:
         print("No DISCORD_WEBHOOKS secret: nothing to post.")
         return
     name = os.environ.get("GITHUB_EVENT_NAME", "")
@@ -104,11 +124,13 @@ def main() -> None:
         msg, where = push_message(event), "devlog"
     elif name == "issues":
         msg, where = issue_message(event), "feedback"
+    if msg and where == "releases" and telegram(msg):  # Telegram gets new versions only, not the dev log
+        print("Posted the release to Telegram.")
     if msg and h.get(where):
         send(h[where], msg)
         print(f"Posted to #{where}.")
     else:
-        print("Nothing to post.")
+        print("Nothing to post on Discord.")
 
 
 if __name__ == "__main__":
