@@ -276,30 +276,35 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead."),
               "finding": t("Getting the video without ads…"),
-              "noads": t("No ads: playing through yt-dlp."), "hd": t("Better picture on YouTube (with ads)")}
+              "noads": t("No ads."), "hd": t("Sharper on YouTube")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
     speed = f' data-speed="{files.speed:g}"' if files and getattr(files, "speed", None) else ""
     from . import ytrules
     rules = ytrules.current()
     speed += f' data-yt-rules="{e(json.dumps(rules))}"'
-    noads = ""
-    if vid and rules["ad_block"]:
-        noads = (f'<div class="yt-noads-row"><button type="button" class="btn small" data-yt-noads="/yt-stream/{e(vid)}" '
-                 f'data-l-busy="{e(t("Getting the video without ads…"))}" data-l-fail="{e(t("It couldn't play without ads:"))}" '
-                 f'data-l-hint="{e(t("Press Play to watch it on YouTube instead."))}">{_NOADS_ICON}<span>{e(t("Play without ads"))}</span></button>'
-                 f'<span class="small muted" data-yt-noads-note dir="auto">{e(t("Through yt-dlp. The picture can be lower than on YouTube."))}</span></div>')
+    play = f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>'
+    if vid and rules["ad_block"]:  # two choices in the video's place: YouTube's player, or inPace's own with no ads
+        play = (f'<div class="yt-choices">'
+                f'<button type="button" class="yt-choice play"><span class="yt-choice-icon">{_PLAY_ICON}</span>'
+                f'<b>{e(t("Play on YouTube"))}</b><small>{e(t("Faster, more qualities"))}</small></button>'
+                f'<button type="button" class="yt-choice" data-yt-noads="/yt-stream/{e(vid)}" '
+                f'data-l-busy="{e(t("Getting it without ads…"))}" data-l-fail="{e(t("No ad-free copy right now."))}">'
+                f'<span class="yt-choice-icon">{_NOADS_ICON}</span>'
+                f'<b>{e(t("Play without ads"))}</b><small>{e(t("Can take a little longer"))}</small></button></div>'
+                f'<p class="small yt-choice-note" data-yt-noads-note hidden></p>')
     if not rules["own_controls"]:  # switched off from the website: YouTube's own player and buttons
         src = src.replace("&controls=0", "").replace("&fs=0", "").replace("&disablekb=1", "")
     return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
             f'data-yt-id="{e(vid or "")}"{speed} '
             f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}" data-watch="{e(watch)}" {data}>'
-            f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{hint}'
-            f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
-            f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
-            f'</div>{noads}{save}{cap}</figure>')
+            f'{play}{hint}'
+            + ('' if 'yt-choices' in play else f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>')
+            + f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
+            f'</div>{save}{cap}</figure>')
 
 
-_NOADS_ICON = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
+_PLAY_ICON = '<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>'
+_NOADS_ICON = ('<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
                'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/>'
                '<path d="m5.6 5.6 12.8 12.8"/><path d="M10 9v6l5-3z" fill="currentColor" stroke="none"/></svg>')
 
@@ -322,8 +327,10 @@ def part_label(vid: str, start: int, end: int | None, files, t: Tr) -> str:
         span = t("Plays from {a} to the end of the full video.").format(a=_clock(start))
     head = t("Part {n} of {total}").format(n=n, total=len(pieces)) if n and len(pieces) > 1 else t("Part of a longer video")
     full = f"https://www.youtube.com/watch?v={vid}"
-    return (f'<p class="video-part"><span class="vp-icon" aria-hidden="true">✂</span><span><b>{e(head)}</b> · {e(span)} '
-            f'<a href="{e(full)}" target="_blank" rel="noopener">{e(t("Watch the full video"))}</a></span></p>')
+    when = f"{_clock(start)}–{_clock(end)}" if end else f"{_clock(start)}–"
+    return (f'<p class="video-part" title="{e(span)}"><span class="vp-icon" aria-hidden="true">✂</span><b>{e(head)}</b>'
+            f'<span class="vp-when" dir="ltr">{e(when)}</span><span class="sr-only">{e(span)}</span>'
+            f'<a href="{e(full)}" target="_blank" rel="noopener" title="{e(t("Watch the full video"))}">{e(t("Full video"))}</a></p>')
 
 
 def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
@@ -352,8 +359,11 @@ def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
     elif state == "failed":
         note = f'{labels["failed"]} {info.get("why", "")}'.strip()
     else:
-        note = (t("About {size}. Then it plays without internet.").format(size=info["size"]) if info.get("size")
-                else t("Then it plays without internet."))
+        note = ""  # the size is on the button; the rest is its tooltip
+    tip = (t("About {size}. Then it plays without internet.").format(size=info["size"]) if info.get("size")
+           else t("Then it plays without internet."))
+    if state not in ("failed",) and info.get("size"):
+        label = t("{label} · {size}").format(label=t("Download") if vid else label, size=info["size"])
     spin = '<span class="spin" aria-hidden="true"></span>' if busy else ""
     count = ""
     if plist and info.get("total"):
@@ -361,7 +371,7 @@ def save_button(info: dict | None, vid: str, plist: str, t: Tr) -> str:
     return (f'<form method="post" action="{e(info["action"])}" class="yt-save" data-yt-save="{e(info["status"])}" '
             f'data-state="{e(state)}" {data}>'
             f'<input type="hidden" name="vid" value="{e(vid)}"><input type="hidden" name="list" value="{e(plist)}">'
-            f'<button class="btn small"{" hidden" if busy else ""}>{_DOWNLOAD_ICON}'
+            f'<button class="btn small" title="{e(tip)}"{" hidden" if busy else ""}>{_DOWNLOAD_ICON}'
             f'<span>{e(t("Try again") if state == "failed" else label)}</span></button>{count}'
             f'<span class="small {"muted" if not busy else ""} yt-save-note" data-yt-save-note dir="auto">'
             f'{spin}{e(note)}</span>'

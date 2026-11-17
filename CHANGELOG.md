@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.28.15
+
+- **"Play without ads" works for far more videos.** YouTube now gives most videos only as separate picture and sound files, which inPace used to skip. Now it tries one file first, then plays the picture and sound files together (kept in step), then the phone stream where the device plays it, and if YouTube says no, it asks again as other YouTube apps (TV, iPhone and more).
+- **Two choices in the video's place:** "Play on YouTube" (faster, more qualities) and "Play without ads" (can take a little longer). The extra row under the video is gone, and a failed try just says "No ad-free copy right now." (the details are in its tooltip).
+- **A sharp still picture when you pause a YouTube video:** the 1280×720 one when YouTube has it, instead of the small 480×360 one. Videos played without ads stop on their real last frame.
+- **A calmer lesson page around videos:** the part line is one short line ("Part 1 of 33 · 0:30–19:49 · Full video"), and Download is one small button with the size on it.
+
 ## v1.28.14
 
 - **No more jumping ahead on phones.** While a video plays, its control bar hides, but it could still be touched: a tap or a scroll low on the video moved it forward. Now the hidden bar can't be touched, and the first tap on a playing video just shows the controls (like phone video apps); the next tap plays or pauses. Same for YouTube lessons and your own video files.

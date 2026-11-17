@@ -2167,3 +2167,37 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
   .pl-btn svg { width: 18px; height: 18px; }
   .pl-q, .pl-cc, .pl-speed { font-size: .64rem; }
 }
+
+/* A YouTube lesson before it plays: two choices side by side (YouTube's player, or inPace's own with no ads). */
+.yt-choices { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(.6rem, 4cqi, 2.5rem); width: min(100%, 30rem); padding: 0 .6rem; }
+.embed-box { container-type: inline-size; }
+.yt-choice { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: .3rem; background: none; border: 0;
+  color: #fff; font: inherit; text-align: center; cursor: pointer; }
+.yt-choice-icon { display: grid; place-items: center; width: clamp(48px, 15cqi, 80px); aspect-ratio: 1; border: 2px solid #fff; color: #fff;
+  transition: background .15s, color .15s, border-color .15s; }
+.yt-choice-icon svg { width: 50%; height: 50%; }
+.yt-choice b { font-size: clamp(.8rem, 3.4cqi, 1rem); line-height: 1.2; }
+.yt-choice small { font-size: clamp(.68rem, 2.8cqi, .82rem); color: #cfc8b8; line-height: 1.25; }
+.yt-choice:hover .yt-choice-icon, .yt-choice:focus-visible .yt-choice-icon { background: var(--sun); color: #111; border-color: var(--sun); }
+.yt-choice:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+.yt-choice:disabled { cursor: progress; }
+.yt-choice:disabled .yt-choice-icon { border-style: dashed; animation: yt-wait 1.2s ease-in-out infinite; }
+@keyframes yt-wait { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .yt-choice:disabled .yt-choice-icon { animation: none; } }
+.yt-choice-note { margin: 0; color: #FFD43B; text-align: center; }
+@container (max-width: 380px) { .embed-box > .small, .embed-box > a.small { display: none; } }
+
+/* Around a YouTube lesson: one short line for the part, one quiet button for downloading. */
+.video-part { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .55rem; margin: 0 0 .5rem; padding: .3rem .65rem;
+  font-size: .86rem; line-height: 1.35; }
+.video-part .vp-icon { font-size: .95rem; line-height: 1; }
+.video-part .vp-when { font-variant-numeric: tabular-nums; color: var(--muted); }
+.video-part a { margin-inline-start: auto; font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.yt-save { margin-top: .5rem; gap: .3rem .7rem; }
+.yt-save .btn.small { box-shadow: none; border-width: 2px; padding: .3rem .7rem; font-size: .84rem; gap: .35rem; }
+.yt-save .btn.small svg { width: 16px; height: 16px; }
+.yt-save .btn.small:hover { box-shadow: 3px 3px 0 var(--line); }
+.yt-save-note:empty { display: none; }
+.yt-noads { margin: .4rem 0 0; }
+.yt-noads .link { display: inline; width: auto; margin: 0 0 0 .2rem; padding: 0; min-height: 0; border: 0; background: none; box-shadow: none; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }

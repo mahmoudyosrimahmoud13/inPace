@@ -3772,7 +3772,9 @@ def create_app(vault: Vault) -> Starlette:
         from . import ytrules as _yr
         if not _yr.current()["ad_block"]:
             return JSONResponse({"why": gettext("It's turned off in Settings.")})
-        found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"])
+        q = V._meta("ytdlp_quality", "720") or "720"
+        found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"], None,
+                                        request.query_params.get("hls") == "1", "720" if q == "best" else q)
         if found.get("why"):
             found["why"] = gettext(found["why"])
         return JSONResponse(found, headers={"Cache-Control": "no-store"})

@@ -525,17 +525,45 @@ def _format(quality: str) -> tuple[str, bool]:
 # The ad blocker: yt-dlp finds the plain video file, and inPace's own player plays it. YouTube's ads never load.
 # ---------------------------------------------------------------------------------------------------------------
 VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
-STREAM_FORMAT = "b[vcodec!=none][acodec!=none][protocol^=http][ext=mp4]/b[vcodec!=none][acodec!=none][protocol^=http]"
+# Ways to play a video without YouTube's player, best first. YouTube now gives most videos only as separate picture
+# and sound files, so the second way (inPace plays the two together) is the one that usually works.
+ONE_FILE = "18/b[ext=mp4][vcodec!=none][acodec!=none][protocol^=http]/b[vcodec!=none][acodec!=none][protocol^=http]"
+TWO_FILES = ("bv*[ext=mp4][vcodec^=avc1][height<={q}][protocol^=http]+ba[ext=m4a][protocol^=http]"
+             "/bv*[height<={q}][protocol^=http]+ba[protocol^=http]")
+PHONE_STREAM = "b[protocol*=m3u8][vcodec!=none][acodec!=none]"
+# If YouTube gives the usual app nothing usable, ask again as other YouTube apps (TV, iPhone, the phone website...).
+OTHER_CLIENTS = (None, ["tv", "web_safari", "ios", "mweb", "android_vr"])
 _STREAMS: dict[str, tuple[float, dict]] = {}
 _FETCHING = threading.Lock()
 
 
-def stream(home: Path, vid: str, load_fn=None) -> dict:
-    """{url, height} of one video's plain file, or {why} in plain words if yt-dlp can't get one.
-    YouTube's links last about 6 hours, so each is kept for 4. The first time, yt-dlp itself is fetched first."""
+def _pick(info: dict) -> dict:
+    """What the player needs from yt-dlp's answer: one file, two files (picture + sound), or a phone stream."""
+    pair = info.get("requested_formats") or []
+    if len(pair) == 2:
+        vid = next((f for f in pair if f.get("vcodec") not in (None, "none")), None)
+        aud = next((f for f in pair if f is not vid and f.get("acodec") not in (None, "none")), None)
+        if vid and aud and str(vid.get("url", "")).startswith("https://") and str(aud.get("url", "")).startswith("https://"):
+            return {"video": vid["url"], "audio": aud["url"], "height": int(vid.get("height") or 0)}
+        return {}
+    url = str(info.get("url") or "")
+    if not url.startswith("https://"):
+        return {}
+    out = {"url": url, "height": int(info.get("height") or 0)}
+    if "m3u8" in str(info.get("protocol") or ""):
+        out["hls"] = True
+    return out
+
+
+def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str = "720") -> dict:
+    """How to play one video without ads: {url} (one file), {video, audio} (two files played together),
+    {url, hls} (a phone stream), or {why} in plain words. Each answer is kept 4 hours (YouTube's links last
+    about 6). The first time, yt-dlp itself is fetched first."""
     if not VIDEO_ID.fullmatch(vid or ""):
         return {"why": "This isn't a YouTube video."}
-    hit = _STREAMS.get(vid)
+    q = quality if quality in ("360", "480", "720", "1080") else "720"
+    key = f"{vid}:{q}:{int(hls)}"
+    hit = _STREAMS.get(key)
     if hit and time.time() - hit[0] < 4 * 3600:
         return hit[1]
     loader = load_fn or load
@@ -549,24 +577,24 @@ def stream(home: Path, vid: str, load_fn=None) -> dict:
         yt_dlp = loader(home)
     if yt_dlp is None:
         return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
-    formats = [STREAM_FORMAT]
-    if on_android():
-        formats.append("b[protocol*=m3u8][vcodec!=none][acodec!=none]/b")  # phones play YouTube's HLS streams too
+    spec = ONE_FILE + "/" + TWO_FILES.format(q=q) + (("/" + PHONE_STREAM) if hls else "")
     why = ""
-    for fmt in formats:
+    for clients in OTHER_CLIENTS:
         opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
-                "format": fmt, "socket_timeout": 15, "js_runtimes": _js_runtimes()}
+                "format": spec, "socket_timeout": 15, "js_runtimes": _js_runtimes()}
+        if clients:
+            opts["extractor_args"] = {"youtube": {"player_client": clients}}
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False)
         except Exception as e:
             why = _short(e)
             continue
-        url = (info or {}).get("url") or ""
-        if url.startswith("https://"):
-            out = {"url": url, "height": int(info.get("height") or 0)}
-            _STREAMS[vid] = (time.time(), out)
+        out = _pick(info or {})
+        if out:
+            _STREAMS[key] = (time.time(), out)
             return out
+        why = why or "YouTube didn't give a file that plays here."
     return {"why": why or "YouTube didn't give a file that plays here."}
 
 

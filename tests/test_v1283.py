@@ -192,3 +192,32 @@ def test_hidden_player_bar_cannot_be_touched():
     import pathlib
     css = (pathlib.Path(__file__).parent.parent / "inpace" / "static" / "style.css").read_text()
     assert ".player.playing:not(.awake) .pl-bar { opacity: 0; pointer-events: none; }" in css
+
+
+def test_stream_two_files_and_other_clients(tmp_path):
+    from inpace import offline
+    seen = []
+
+    class DL:
+        def __init__(self, o): self.o = o
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def extract_info(self, *a, **k):
+            seen.append(self.o.get("extractor_args"))
+            if not self.o.get("extractor_args"):
+                raise RuntimeError("Requested format is not available")
+            return {"requested_formats": [
+                {"url": "https://v.googlevideo.com/v", "vcodec": "avc1", "acodec": "none", "height": 720},
+                {"url": "https://v.googlevideo.com/a", "vcodec": "none", "acodec": "mp4a"}]}
+
+    offline._STREAMS.clear()
+    got = offline.stream(tmp_path, "CCCCCCCCCCC", load_fn=lambda h: type("M", (), {"YoutubeDL": DL}))
+    assert got == {"video": "https://v.googlevideo.com/v", "audio": "https://v.googlevideo.com/a", "height": 720}
+    assert seen[0] is None and "tv" in seen[1]["youtube"]["player_client"]
+
+
+def test_youtube_box_offers_two_choices(tmp_path):
+    from inpace import media, ytrules
+    ytrules.use_home(tmp_path)
+    out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
+    assert 'class="yt-choice play"' in out and 'class="yt-choice" data-yt-noads' in out and "Play on YouTube" in out and "yt-noads-row" not in out

@@ -744,26 +744,48 @@ function youtubeQuality(player, frame) {
   draw(); fit();
 }
 
-// "Play without ads" under a YouTube lesson: yt-dlp finds the video's plain file and inPace's own player plays it,
-// so YouTube's ads never load. If it can't, it says why, and Play still plays it on YouTube.
+// "Play without ads", the second choice in a YouTube lesson's box: yt-dlp finds the video and inPace's own player
+// plays it, so YouTube's ads never load. YouTube mostly gives the picture and the sound as two files: then a hidden
+// audio element plays the sound, kept in step with the picture. If nothing works, a short note says so and
+// "Play on YouTube" is still there.
+function pairSound(v, url) {
+  const a = new Audio(); a.preload = "auto"; a.src = url;
+  const near = () => { if (Math.abs(a.currentTime - v.currentTime) > 0.25) a.currentTime = v.currentTime; };
+  v.addEventListener("play", () => { near(); a.play().catch(() => {}); });
+  v.addEventListener("playing", () => { near(); a.play().catch(() => {}); });
+  v.addEventListener("pause", () => a.pause());
+  v.addEventListener("waiting", () => a.pause());
+  v.addEventListener("seeking", () => { a.currentTime = v.currentTime; });
+  v.addEventListener("ratechange", () => { a.playbackRate = v.playbackRate; });
+  v.addEventListener("volumechange", () => { a.volume = v.volume; a.muted = v.muted; });
+  v.addEventListener("ended", () => a.pause());
+  v.addEventListener("timeupdate", () => { if (!v.paused && Math.abs(a.currentTime - v.currentTime) > 0.35) a.currentTime = v.currentTime; });
+  return a;
+}
 document.querySelectorAll("[data-yt-noads]").forEach((nb) => {
-  const fig = nb.closest("figure"), row = nb.closest(".yt-noads-row"), box = fig && fig.querySelector(".embed-box");
-  if (!fig || !box) { row && row.remove(); return; }
-  const note = row.querySelector("[data-yt-noads-note]"), label = nb.querySelector("span").textContent, firstNote = note.textContent;
-  const L = box.dataset;
-  const back = () => {  // put the lesson back the way it was, ready for Play
+  const box = nb.closest(".embed-box"), fig = box && box.closest("figure");
+  if (!box || !fig) return;
+  const note = box.querySelector("[data-yt-noads-note]"), L = box.dataset;
+  const title = nb.querySelector("b"), label = title.textContent;
+  const back = () => {  // put the box back, ready for either choice
     fig.querySelectorAll(".yt-player, .player, .frame-wrap, .yt-holder, .yt-note, .yt-noads").forEach((x) => x.remove());
-    if (!box.isConnected) row.before(box);
+    if (!box.isConnected) { const at = fig.querySelector(".yt-save, figcaption"); at ? at.before(box) : fig.appendChild(box); }
   };
-  nb.addEventListener("click", () => {
-    if (!window.inpacePlayer) return;
-    back();
-    nb.disabled = true; nb.querySelector("span").textContent = nb.dataset.lBusy; note.textContent = "";
-    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 90000);
-    fetch(nb.dataset.ytNoads, { signal: ctl.signal }).then((r) => r.json()).catch(() => ({})).then((d) => {
+  const fail = (why) => {
+    back(); nb.disabled = false; title.textContent = label;
+    note.textContent = nb.dataset.lFail; note.title = why || ""; note.hidden = false;
+  };
+  nb.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (!window.inpacePlayer || nb.disabled) return;
+    nb.disabled = true; title.textContent = nb.dataset.lBusy; note.hidden = true;
+    const test = document.createElement("video");
+    const hls = test.canPlayType("application/vnd.apple.mpegurl") ? "1" : "0";
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 120000);
+    fetch(nb.dataset.ytNoads + "?hls=" + hls, { signal: ctl.signal }).then((r) => r.json()).catch(() => ({})).then((d) => {
       clearTimeout(timer);
-      nb.disabled = false; nb.querySelector("span").textContent = label;
-      if (!d || !d.url) { note.textContent = `${nb.dataset.lFail} ${(d && d.why) || ""} ${nb.dataset.lHint}`.replace(/\s+/g, " ").trim(); return; }
+      if (!d || !(d.url || (d.video && d.audio))) return fail(d && d.why);
+      nb.disabled = false; title.textContent = label;
       const player = document.createElement("div");
       player.className = "player"; player.tabIndex = 0; player.dataset.player = "";
       for (const k in L) if (/^l[A-Z]/.test(k) || ["speed", "start", "end", "resume"].includes(k)) player.dataset[k] = L[k];
@@ -771,28 +793,41 @@ document.querySelectorAll("[data-yt-noads]").forEach((nb) => {
       const v = document.createElement("video");
       v.preload = "metadata"; v.playsInline = true;
       const st = +L.start || 0, en = +L.end || 0;
-      v.src = d.url + (st || en ? `#t=${st}` + (en ? `,${en}` : "") : "");
+      v.src = (d.url || d.video) + (st || en ? `#t=${st}` + (en ? `,${en}` : "") : "");
       player.appendChild(v);
       box.replaceWith(player);
-      row.hidden = true;
+      if (d.audio) player._sound = pairSound(v, d.audio);
       const info = document.createElement("p");
       info.className = "small muted yt-noads";
-      info.textContent = (L.lNoads || "No ads.") + (d.height ? ` ${d.height}p. ` : " ");
+      info.textContent = (L.lNoads || "No ads.") + (d.height ? ` ${d.height}p · ` : " · ");
       const hd = document.createElement("button");
       hd.type = "button"; hd.className = "link"; hd.textContent = L.lHd || "YouTube";
-      hd.addEventListener("click", () => { v.pause(); back(); row.hidden = false; note.textContent = firstNote; const p = box.querySelector(".play"); p && p.click(); });
+      hd.addEventListener("click", () => { v.pause(); player._sound && player._sound.pause(); back(); const p = box.querySelector(".play"); p && p.click(); });
       info.appendChild(hd);
       player.insertAdjacentElement("afterend", info);
-      v.addEventListener("error", () => {
-        if (v.currentTime > 1) return;
-        back(); row.hidden = false; note.textContent = `${nb.dataset.lFail} ${nb.dataset.lHint}`;
-      });
+      v.addEventListener("error", () => { if (v.currentTime < 1) { player._sound && player._sound.pause(); fail("video error"); } });
       window.inpacePlayer(player, v);
       player.focus({ preventScroll: true });
       v.play().catch(() => {});
     });
   });
 });
+
+// The still picture over a paused YouTube video: the sharpest one YouTube has (1280×720), else 640×480, else 480×360.
+// YouTube answers a missing size with a tiny 120×90 grey picture, so anything that small means "try the next one".
+function ytStill(el, id) {
+  const sizes = ["maxresdefault", "sddefault", "hqdefault"];
+  const at = (i) => {
+    const url = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/${sizes[i]}.jpg`;
+    if (i === sizes.length - 1) { el.style.backgroundImage = `url("${url}")`; return; }
+    const img = new Image();
+    img.onload = () => (img.naturalWidth > 120 ? (el.style.backgroundImage = `url("${url}")`) : at(i + 1));
+    img.onerror = () => at(i + 1);
+    img.src = url;
+  };
+  el.style.backgroundImage = `url("https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg")`;  // right away, then sharper
+  at(0);
+}
 
 function youtubeAsPlayer(box) {
   const L = box.dataset, id = L.ytId;
@@ -811,7 +846,7 @@ function youtubeAsPlayer(box) {
   // and while the video isn't playing it shows the video's still picture instead of YouTube's pause screen.
   const cover = document.createElement("div");
   cover.className = "yt-cover";
-  cover.style.backgroundImage = `url("https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg")`;
+  ytStill(cover, id);
   player.append(frame, cover);
   box.replaceWith(player);
   const st = +L.start || 0, en = +L.end || 0, rs = +L.resume || 0;
