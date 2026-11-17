@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.12
+
+- **Course outlines show a lesson's videos.** A lesson with YouTube videos in its text now says "video" or "4 videos" next to "slides" in the library, so you can see the videos are there before you add the course.
+
 ## v1.28.11
 
 - **Ad blocker for YouTube lessons (on by default, you can turn it off in Settings → YouTube videos).** When you press play, yt-dlp finds the video's plain file and inPace's own player plays it, so YouTube's ads never load. yt-dlp updates itself once a day, and the blocker's settings update from the inPace website, so it keeps working when YouTube changes. The picture can be lower than on YouTube; a link under each video opens YouTube's player for a better picture. If a video can't play this way, YouTube's player opens by itself, with the ad guard.

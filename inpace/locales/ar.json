@@ -2309,5 +2309,6 @@
  "YouTube lessons play in inPace's own player through yt-dlp, so no ads load. yt-dlp updates itself once a day (see Videos on this computer below), and the blocker's settings update from the inPace website, so it keeps working when YouTube changes. The picture may be lower than on YouTube; each video has a link to YouTube's player for a better picture. If a video can't play this way, YouTube's player opens instead.": "تعمل دروس YouTube في مشغّل inPace نفسه عبر yt-dlp، فلا يُحمَّل أي إعلان. يتحدّث yt-dlp تلقائيًا مرة يوميًا (انظر «الفيديوهات على هذا الجهاز» بالأسفل)، وتتحدّث إعدادات المانع من موقع inPace، فيظل يعمل حين يغيّر YouTube طريقته. قد تكون الصورة أقل جودة من YouTube، وبجانب كل فيديو رابط لمشغّل YouTube لصورة أوضح. وإن تعذّر تشغيل فيديو بهذه الطريقة، يُفتح مشغّل YouTube بدلًا منه.",
  "Getting the video without ads…": "جارٍ جلب الفيديو بدون إعلانات…",
  "No ads: playing through yt-dlp.": "بدون إعلانات: يعمل عبر yt-dlp.",
- "Better picture on YouTube (with ads)": "صورة أوضح على YouTube (مع إعلانات)"
+ "Better picture on YouTube (with ads)": "صورة أوضح على YouTube (مع إعلانات)",
+ "{n} videos": "{n} فيديو"
 }
