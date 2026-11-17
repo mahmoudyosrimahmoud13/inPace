@@ -27,6 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Give style.css and lang.js a new ?v= on every publish, so browsers drop their old copy and the change shows.
+      - name: Fresh links to the style and script files
+        run: sed -i -E "s/(style\.css|lang\.js)\?v=[0-9A-Za-z]+/\1?v=${GITHUB_SHA::10}/g" site/*.html
       # A new name for each attempt, so "Re-run jobs" doesn't trip over the copy from the last attempt.
       - uses: actions/upload-pages-artifact@v3
         with:
