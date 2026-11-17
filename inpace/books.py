@@ -36,6 +36,9 @@ def clean_info(raw) -> dict:
     url = str(raw.get("url") or "").strip()
     if re.match(r"^https://[^\s<>\"']+$", url):
         out["url"] = url[:300]
+    pdf = str(raw.get("download") or "").strip()  # a direct link to a free PDF, when the authors offer one
+    if re.match(r"^https://[^\s<>\"']+$", pdf):
+        out["download"] = pdf[:300]
     try:
         pages = int(raw.get("pages") or 0)
         if 0 < pages < 100_000:

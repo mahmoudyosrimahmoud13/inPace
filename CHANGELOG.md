@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.9
+
+- **Calmer on laptop screens.** On screens up to 1600 pixels wide, text and buttons are a little smaller, the side menu and top bar are slimmer, course pages put the picture beside a shorter title, and My courses fits four courses in a row. Nothing looks zoomed in anymore.
+- **Course files in subfolders are found.** If you choose a folder that keeps the files one or more folders down (like "DLS Slides/DLS_C1/C1_W1.pdf"), inPace now finds them by name.
+- **Download links for official sources.** Courses can list where to get their files; the course page shows them as "Official sources", and as buttons when files are missing. Book courses can link straight to a free PDF (**Download the book (PDF)**).
+
 ## v1.28.8
 
 - **Choose the YouTube quality:** a new button in the video bar: **Auto**, 1080p, 720p, 480p or 360p, remembered for next time. (YouTube ignores direct quality requests from apps, but it picks the quality from the size of its player, so inPace sizes it for the quality you chose. On a slow connection YouTube may still go lower.)

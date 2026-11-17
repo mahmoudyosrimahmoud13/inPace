@@ -170,6 +170,7 @@ book: mml-book.pdf
 book_info:                      # optional (v1.20): helps each learner find their own copy
   title: Mathematics for Machine Learning   # matched against the title saved inside the PDF
   url: https://mml-book.com                 # where to get it (https only)
+  download: https://mml-book.github.io/book/mml-book.pdf   # optional (v1.28.9): a direct link to a free PDF
   pages: 412                                # the edition the page ranges were written for
 ```
 

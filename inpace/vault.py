@@ -87,6 +87,38 @@ def lesson_ahead(lessons: list[dict]) -> dict | None:
     return next((les for les in lessons if not les["done"] and not (les.get("optional") and les.get("opened"))), None)
 
 
+_NAME_INDEX: dict = {}
+
+
+def _names_in(root: Path, depth: int = 5, limit: int = 20000) -> dict:
+    """File name (lower case) -> path, for every file up to `depth` folders inside `root`. Remembered until the
+    folder changes, so looking up many lessons stays fast. The first file found wins; hidden folders are skipped."""
+    root = root.resolve()
+    try:
+        stamp = root.stat().st_mtime
+    except OSError:
+        return {}
+    got = _NAME_INDEX.get(root)
+    if got and got[0] == stamp:
+        return got[1]
+    names: dict = {}
+    count = 0
+    start = len(root.parts)
+    for here, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if not d.startswith((".", "__MACOSX")))
+        if len(Path(here).parts) - start >= depth:
+            dirs[:] = []
+        for f in sorted(files):
+            if f.startswith("."):
+                continue
+            names.setdefault(f.lower(), Path(here) / f)
+            count += 1
+        if count > limit:
+            break
+    _NAME_INDEX[root] = (stamp, names)
+    return names
+
+
 class Vault:
     def __init__(self, home: Path | None = None):
         self.home = Path(home or default_home())
@@ -264,6 +296,13 @@ class Vault:
                     continue
                 if ok(p):
                     return p
+        # The chosen folder may keep the files one or more folders down ("DLS Slides/DLS_C1/C1_W1.pdf"):
+        # look for the file by its name inside it.
+        root = self.media_root(course_id)
+        if root and root.is_dir() and parts and not want_dir:
+            hit = _names_in(root).get(parts[-1].lower())
+            if hit and hit.is_file():
+                return hit
         return None
 
     def missing_media(self, course) -> list[str]:

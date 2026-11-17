@@ -45,7 +45,10 @@
 <section class="card note-card warn-card" id="book">
   <h2>{% trans trimmed %}This course reads a book you get yourself{% endtrans %}</h2>
   <p dir="auto">{% if bi.title %}<b>{{ bi.title }}</b>. {% endif %}{% trans trimmed %}The book isn't inside the course: its lessons open the right pages of your own copy. Show inPace where it is on this device, once.{% endtrans %}</p>
-  {% if bi.url %}<p><a class="btn" href="{{ bi.url }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Get the book{% endtrans %}</a> <span class="small muted" dir="ltr">{{ bi.url }}</span></p>{% endif %}
+  {% if bi.download or bi.url %}<p class="row wrap">
+    {% if bi.download %}<a class="btn primary" href="{{ bi.download }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Download the book (PDF){% endtrans %}</a>{% endif %}
+    {% if bi.url %}<a class="btn" href="{{ bi.url }}" target="_blank" rel="noopener">{{ icon('link', 18) }}{% trans trimmed %}The book's website{% endtrans %}</a>{% endif %}
+    <span class="small muted">{% trans trimmed %}After it downloads, press Find it for me.{% endtrans %}</span></p>{% endif %}
   <form method="post" action="/courses/{{ j.course_id }}/book" style="margin-block:.6rem">
     <button class="btn primary" name="search" value="1" data-busy="{{ _('Looking…') }}">{% trans trimmed %}Find it for me{% endtrans %}</button>
     <span class="small muted">{% trans trimmed %}Looks in Downloads, Documents and Desktop (on a phone, the Download folder).{% endtrans %}</span>
@@ -73,8 +76,8 @@
 <section class="card note-card warn-card">
   {% set dls = prog.course.extra.downloads %}
   {% if dls and not media_root %}
-  <h2>{% trans trimmed %}Get this course's videos{% endtrans %}</h2>
-  <p>{% trans trimmed %}The videos and files aren't inside the course, so they don't take space until you want them. Download them, unzip them if needed, then choose the folder below.{% endtrans %}</p>
+  <h2>{% trans trimmed %}Get this course's files{% endtrans %}</h2>
+  <p>{% trans trimmed %}Some of this course's slides, videos or files aren't inside the course. Download them, unzip them if needed, then choose the folder below.{% endtrans %}</p>
   <div class="row wrap" style="margin-block-end:1rem">
     {% for d in dls %}<a class="btn primary" href="{{ d.url }}" target="_blank" rel="noopener">{{ icon('upload', 18) }}{{ d.title }}{% if d.size %} · {{ d.size }}{% endif %}</a>{% endfor %}
   </div>
@@ -92,6 +95,7 @@
     <ul class="small" dir="ltr">{% for f in missing[:12] %}<li><code>{{ f }}</code></li>{% endfor %}{% if missing|length > 12 %}<li>…</li>{% endif %}</ul></details>
 </section>
 {% elif media_root %}
+{% if prog.course.extra.downloads %}<p class="small muted">{{ icon('link', 16) }} {% trans trimmed %}Official sources:{% endtrans %} {% for d in prog.course.extra.downloads %}<a href="{{ d.url }}" target="_blank" rel="noopener">{{ d.title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 <p class="small muted">{% trans trimmed %}Course files:{% endtrans %} <code dir="ltr">{{ media_root }}</code>
   <details class="inline-more"><summary>{% trans trimmed %}Change{% endtrans %}</summary>
   <form method="post" action="/courses/{{ j.course_id }}/media-folder" class="row pick-row">
@@ -100,6 +104,7 @@
     <button class="btn primary">{% trans trimmed %}Use this folder{% endtrans %}</button>
   </form></details></p>
 {% endif %}
+{% if not missing and not media_root and prog.course.extra.downloads %}<p class="small muted">{{ icon('link', 16) }} {% trans trimmed %}Official sources:{% endtrans %} {% for d in prog.course.extra.downloads %}<a href="{{ d.url }}" target="_blank" rel="noopener">{{ d.title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 
 
 

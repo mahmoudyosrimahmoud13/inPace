@@ -82,3 +82,14 @@ def test_ad_guard_is_on_by_default_and_can_be_turned_off(tmp_path):
     c.post("/settings/youtube", data={})                       # unticked
     out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
     assert "&quot;ad_guard&quot;: false" in out and "controls=0" in out   # still inPace's player
+
+
+def test_files_one_folder_down_in_the_chosen_folder_are_found(tmp_path):
+    """Slides kept as "DLS Slides/DLS_C1/C1_W1.pdf": choosing "DLS Slides" is enough."""
+    v, c = client(tmp_path, "Omar")
+    nested = tmp_path / "DLS Slides" / "DLS_C1"
+    nested.mkdir(parents=True)
+    (nested / "C1_W1.pdf").write_bytes(b"%PDF-1.4")
+    v.set_media_root("slides", str(tmp_path / "DLS Slides"))
+    assert v.find_media("slides", "C1_W1.pdf#pages=2-4") == nested / "C1_W1.pdf"
+    assert v.find_media("slides", "C9_W9.pdf") is None
