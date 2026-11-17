@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.28.11
+
+- **Ad blocker for YouTube lessons (on by default, you can turn it off in Settings → YouTube videos).** When you press play, yt-dlp finds the video's plain file and inPace's own player plays it, so YouTube's ads never load. yt-dlp updates itself once a day, and the blocker's settings update from the inPace website, so it keeps working when YouTube changes. The picture can be lower than on YouTube; a link under each video opens YouTube's player for a better picture. If a video can't play this way, YouTube's player opens by itself, with the ad guard.
+- **The website shows inPace's GitHub stars**, live, in the top menu and with the other numbers.
+
 ## v1.28.10
 
 - **Getting a course's files is three clear steps.** When slides, videos or files aren't on your device yet, the course page says: **1. Download them** (the official links are right there), **2. Find them for me**, **3. Saved them somewhere else?** choose that folder or the .zip.

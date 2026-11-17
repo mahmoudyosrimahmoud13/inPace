@@ -588,6 +588,7 @@ document.querySelectorAll(".embed-box").forEach((box) => {
   const btn = box.querySelector(".play");
   if (!btn) return;
   btn.addEventListener("click", () => {
+    if (box.dataset.ytStream && window.inpacePlayer && !box.dataset.noStream) { youtubeNoAds(box, btn); return; }
     if (box.dataset.ytId && window.inpacePlayer && ytRules(box).own_controls !== false) { youtubeAsPlayer(box); return; }
     let el;
     if (box.dataset.embed) {
@@ -742,6 +743,52 @@ function youtubeQuality(player, frame) {
   if (window.ResizeObserver) new ResizeObserver(fit).observe(player);
   document.addEventListener("fullscreenchange", () => setTimeout(fit, 50));
   draw(); fit();
+}
+
+// The ad blocker: yt-dlp (on this computer) finds the video's plain file and inPace's own player plays it,
+// so YouTube's ads never load. No answer in time, or the file won't play: YouTube's player, with the ad guard.
+function youtubeNoAds(box, btn) {
+  const L = box.dataset, R = ytRules(box);
+  const fallback = () => {
+    box.dataset.noStream = "1";
+    if (player && player.isConnected) player.replaceWith(box);
+    if (note && note.isConnected) note.remove();
+    btn.disabled = false; btn.textContent = label;
+    btn.click();
+  };
+  let player = null, note = null;
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = L.lFinding || "…";
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), R.ad_block_wait_ms || 12000);
+  fetch(L.ytStream, { signal: ctl.signal }).then((r) => r.json()).then((d) => {
+    clearTimeout(timer);
+    if (!d || !d.url || !box.isConnected) return fallback();
+    player = document.createElement("div");
+    player.className = "player"; player.tabIndex = 0; player.dataset.player = "";
+    for (const k in L) if (/^l[A-Z]/.test(k) || ["speed", "start", "end", "resume"].includes(k)) player.dataset[k] = L[k];
+    player.dataset.key = L.ytKey;
+    const v = document.createElement("video");
+    v.controls = true; v.preload = "metadata"; v.playsInline = true;
+    const st = +L.start || 0, en = +L.end || 0;
+    v.src = d.url + (st || en ? `#t=${st}` + (en ? `,${en}` : "") : "");
+    player.appendChild(v);
+    box.replaceWith(player);
+    note = document.createElement("p");
+    note.className = "small muted yt-noads";
+    note.textContent = (L.lNoads || "No ads.") + (d.height ? ` ${d.height}p. ` : " ");
+    const hd = document.createElement("button");
+    hd.type = "button"; hd.className = "link"; hd.textContent = L.lHd || "YouTube";
+    hd.addEventListener("click", () => { v.pause(); fallback(); });
+    note.appendChild(hd);
+    player.insertAdjacentElement("afterend", note);
+    let started = false;
+    v.addEventListener("playing", () => { started = true; }, { once: true });
+    v.addEventListener("error", () => { if (!started) fallback(); });
+    window.inpacePlayer(player, v);
+    player.focus({ preventScroll: true });
+    v.play().catch(() => {});
+  }).catch(() => { clearTimeout(timer); fallback(); });
 }
 
 function youtubeAsPlayer(box) {

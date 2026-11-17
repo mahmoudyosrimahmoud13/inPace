@@ -507,7 +507,8 @@ class NavMiddleware:
 def create_app(vault: Vault) -> Starlette:
     V = vault
     from . import ytrules
-    ytrules.use_home(V.home, pref=lambda: (V._meta("yt_ad_guard", "on") or "on") == "on")
+    ytrules.use_home(V.home, pref=lambda: (V._meta("yt_ad_guard", "on") or "on") == "on",
+                     block_pref=lambda: (V._meta("yt_ad_block", "on") or "on") == "on")
     # Pages are drawn from templates, and turning a template into Python takes time the first time (a lot of it
     # on a phone). Keep the compiled templates in the data folder, so the next start reuses them. Jinja checks
     # each template's source, so an updated inPace never uses an old copy.
@@ -3761,7 +3762,18 @@ def create_app(vault: Vault) -> Starlette:
     async def youtube_setting(request: Request):
         form = await request.form()
         V._set_meta("yt_ad_guard", "on" if form.get("guard") else "off")
+        V._set_meta("yt_ad_block", "on" if form.get("block") else "off")
         return go("/settings#youtube", ok="Saved.")
+
+    async def yt_stream(request: Request):
+        """The ad blocker: yt-dlp finds the video's plain file, so inPace's own player plays it with no ads.
+        Empty answer: play it in YouTube's player instead (with the ad guard)."""
+        from starlette.concurrency import run_in_threadpool
+        from . import ytrules as _yr
+        if not _yr.current()["ad_block"]:
+            return JSONResponse({})
+        found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"])
+        return JSONResponse(found, headers={"Cache-Control": "no-store"})
 
     async def delete_everything(request: Request):
         """Settings → Delete all my data: empties inPace's folder (courses, progress, notes, people, keys,
@@ -3819,7 +3831,7 @@ def create_app(vault: Vault) -> Starlette:
             startup = json.loads(V._meta("startup_last", "") or "null")
         except ValueError:
             startup = None
-        return page("settings.html", request, colors=COLORS, yt_guard=(V._meta("yt_ad_guard", "on") or "on") == "on", home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
+        return page("settings.html", request, colors=COLORS, yt_guard=(V._meta("yt_ad_guard", "on") or "on") == "on", yt_block=(V._meta("yt_ad_block", "on") or "on") == "on", home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup)
 
@@ -4498,6 +4510,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/publish/file", needs_setup(publish_file)),
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/yt/{cid}/{vid}", needs_setup(yt_file)),
+        Route("/yt-stream/{vid}", needs_setup(yt_stream)),
         Route("/courses/{cid}/subs", needs_setup(subtitle_file)),
         Route("/courses/{cid}/subs/add", needs_setup(subtitle_add), methods=["POST"]),
         Route("/courses/{cid}/open-media", needs_setup(open_media), methods=["POST"]),

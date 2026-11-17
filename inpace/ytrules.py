@@ -24,10 +24,13 @@ RULES = {
     "ad_shorter_by_s": (2, 1, 30),            # a "video" this much shorter than the lesson, mid-way, is an ad
     "quality_menu": (True, None, None),       # show the Quality button
     "ad_guard": (True, None, None),           # step aside during ads and don't save their time as your place
+    "ad_block": (True, None, None),           # play through yt-dlp in inPace's own player: no ads load at all
+    "ad_block_wait_ms": (12000, 3000, 60000), # yt-dlp has this long to find the video, else YouTube's player
 }
 
 _home: Path | None = None
 _pref = None  # Settings → "Ad guard" (on unless you turn it off)
+_block_pref = None  # Settings → "Ad blocker" (on unless you turn it off)
 _lock = threading.Lock()
 
 
@@ -46,10 +49,11 @@ def clean(raw) -> dict:
     return out
 
 
-def use_home(home: Path, pref=None) -> None:
-    global _home, _pref
+def use_home(home: Path, pref=None, block_pref=None) -> None:
+    global _home, _pref, _block_pref
     _home = Path(home)
     _pref = pref
+    _block_pref = block_pref
 
 
 def current() -> dict:
@@ -62,6 +66,8 @@ def current() -> dict:
             pass
     if _pref is not None and not _pref():
         rules["ad_guard"] = False  # you turned the ad guard off in Settings
+    if _block_pref is not None and not _block_pref():
+        rules["ad_block"] = False  # you turned the ad blocker off in Settings
     return rules
 
 

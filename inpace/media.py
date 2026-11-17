@@ -274,12 +274,16 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
     labels = {**player_labels(t), "piece": t("This part"), "quality": t("Quality"), "auto": t("Auto"), "ad": t("Ad: the lesson starts after it"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
-              "slow": t("Not playing? Watch it on YouTube instead.")}
+              "slow": t("Not playing? Watch it on YouTube instead."),
+              "finding": t("Getting the video without ads…"),
+              "noads": t("No ads: playing through yt-dlp."), "hd": t("Better picture on YouTube (with ads)")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
     speed = f' data-speed="{files.speed:g}"' if files and getattr(files, "speed", None) else ""
     from . import ytrules
     rules = ytrules.current()
     speed += f' data-yt-rules="{e(json.dumps(rules))}"'
+    if vid and rules["ad_block"]:
+        speed += f' data-yt-stream="/yt-stream/{e(vid)}"'
     if not rules["own_controls"]:  # switched off from the website: YouTube's own player and buttons
         src = src.replace("&controls=0", "").replace("&fs=0", "").replace("&disablekb=1", "")
     return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '

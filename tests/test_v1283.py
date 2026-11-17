@@ -110,3 +110,64 @@ def test_find_course_files_in_a_folder_or_a_zip(tmp_path, monkeypatch):
     out = coursefiles.unzip(dl / "slides.zip", tmp_path / "inpace" / "course-files" / "c2")
     assert (out / "Slides" / "C2" / "C2_W1.pdf").is_file()
     assert not (tmp_path / "inpace" / "course-files" / "evil.txt").exists() and not (out / "__MACOSX").exists()
+
+
+# ---- 1.28.11: the ad blocker (yt-dlp finds the plain file; inPace's own player plays it) ----
+def test_stream_uses_ytdlp_and_caches(tmp_path):
+    from inpace import offline
+    calls = []
+
+    class FakeDL:
+        def __init__(self, opts): self.opts = opts
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def extract_info(self, url, download=False):
+            calls.append((url, download, self.opts["format"]))
+            return {"url": "https://rr1.googlevideo.com/videoplayback?x=1", "height": 360}
+
+    fake = type("M", (), {"YoutubeDL": FakeDL})
+    offline._STREAMS.clear()
+    got = offline.stream(tmp_path, "CS4cs9xVecg", load_fn=lambda h: fake)
+    assert got == {"url": "https://rr1.googlevideo.com/videoplayback?x=1", "height": 360}
+    assert calls[0][1] is False and "acodec!=none" in calls[0][2]
+    offline.stream(tmp_path, "CS4cs9xVecg", load_fn=lambda h: fake)
+    assert len(calls) == 1  # kept, not asked again
+
+
+def test_stream_refuses_bad_ids_and_bad_urls(tmp_path):
+    from inpace import offline
+
+    class Bad:
+        def __init__(self, o): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def extract_info(self, *a, **k): return {"url": "file:///etc/passwd"}
+
+    offline._STREAMS.clear()
+    assert offline.stream(tmp_path, "../../etc", load_fn=lambda h: None) == {}
+    assert offline.stream(tmp_path, "AAAAAAAAAAA", load_fn=lambda h: type("M", (), {"YoutubeDL": Bad})) == {}
+
+
+def test_ad_block_rule_and_setting(tmp_path):
+    from inpace import ytrules
+    assert ytrules.clean({})["ad_block"] is True
+    assert ytrules.clean({"ad_block": "yes"})["ad_block"] is True
+    assert ytrules.clean({"ad_block_wait_ms": 1})["ad_block_wait_ms"] == 12000
+    ytrules.use_home(tmp_path, pref=lambda: True, block_pref=lambda: False)
+    try:
+        assert ytrules.current()["ad_block"] is False
+    finally:
+        ytrules.use_home(tmp_path)
+
+
+def test_player_asks_for_the_ad_free_file(tmp_path):
+    from inpace import media, ytrules
+    ytrules.use_home(tmp_path)
+    out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
+    assert 'data-yt-stream="/yt-stream/CS4cs9xVecg"' in out
+    ytrules.use_home(tmp_path, block_pref=lambda: False)
+    try:
+        out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
+        assert "data-yt-stream" not in out
+    finally:
+        ytrules.use_home(tmp_path)

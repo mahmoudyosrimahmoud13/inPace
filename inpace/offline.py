@@ -522,6 +522,51 @@ def _format(quality: str) -> tuple[str, bool]:
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# The ad blocker: yt-dlp finds the plain video file, and inPace's own player plays it. YouTube's ads never load.
+# ---------------------------------------------------------------------------------------------------------------
+VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}")
+STREAM_FORMAT = "b[vcodec!=none][acodec!=none][protocol^=http][ext=mp4]/b[vcodec!=none][acodec!=none][protocol^=http]"
+_STREAMS: dict[str, tuple[float, dict]] = {}
+_FETCHING = threading.Lock()
+
+
+def stream(home: Path, vid: str, load_fn=None) -> dict:
+    """{url, height} of one video's plain file (sound and picture in one), or {} if yt-dlp can't find one.
+    YouTube's links last about 6 hours, so each is kept for 4. yt-dlp missing: it's fetched in the background,
+    and this time the lesson plays in YouTube's player instead."""
+    if not VIDEO_ID.fullmatch(vid or ""):
+        return {}
+    hit = _STREAMS.get(vid)
+    if hit and time.time() - hit[0] < 4 * 3600:
+        return hit[1]
+    yt_dlp = (load_fn or load)(home)
+    if yt_dlp is None:
+        if _FETCHING.acquire(blocking=False):
+            def get():
+                try:
+                    update_tool(home)
+                except Exception:
+                    pass
+                finally:
+                    _FETCHING.release()
+            threading.Thread(target=get, daemon=True).start()
+        return {}
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
+            "format": STREAM_FORMAT, "socket_timeout": 10, "js_runtimes": _js_runtimes()}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False)
+    except Exception:
+        return {}
+    url = (info or {}).get("url") or ""
+    if not url.startswith("https://"):
+        return {}
+    out = {"url": url, "height": int(info.get("height") or 0)}
+    _STREAMS[vid] = (time.time(), out)
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Downloading a course's videos (in the background)
 # ---------------------------------------------------------------------------------------------------------------
 class Stopped(Exception):
