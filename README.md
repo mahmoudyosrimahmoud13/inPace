@@ -150,7 +150,7 @@ Anything not yet translated falls back to English, so nothing ever breaks. To fi
 
 ## Community
 
-Questions, help, course requests, or just want to show what you finished? Join the [inPace Discord](https://mahmoudyosrimahmoud13.github.io/inPace/discord.html), in English and Arabic. New releases and new library courses are posted there too. Found a bug or have an idea? [Tell us on GitHub](https://github.com/mahmoudyosrimahmoud13/inpace/issues/new?template=feedback.yml), or use **Feedback and ideas** inside the app.
+Questions, help, course requests, or just want to show what you finished? Join the [inPace Discord](https://mahmoudyosrimahmoud13.github.io/inPace/discord.html), in English and Arabic. New releases and new library courses are posted there too. Prefer Telegram? Follow the [inPace channel](https://t.me/inPace_app) for new versions, courses and roadmaps, in English and Arabic. Found a bug or have an idea? [Tell us on GitHub](https://github.com/mahmoudyosrimahmoud13/inpace/issues/new?template=feedback.yml), or use **Feedback and ideas** inside the app.
 
 ## For developers
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.18
+
+- **inPace is on Telegram:** follow [t.me/inPace_app](https://t.me/inPace_app) for new versions, new courses and roadmaps, in English and Arabic. The link is in the side menu (next to Discord), on the Feedback page, on the website and in the library.
+- New versions, new and updated courses and roadmaps are now posted to the Telegram channel by themselves, like on Discord, with the course covers.
+- Discord posts are now in English and Arabic.
+
 ## v1.28.17
 
 - **Roadmaps have pictures now.** Every roadmap, from the library or made by you, gets a bold picture made from the covers of its first three courses, with the path and the number of courses on it. It shows in the library's Roadmaps tab, on your Roadmaps page and at the top of each roadmap. Nobody has to draw one: it updates itself when the courses change, and works offline with your own courses' covers.

@@ -198,3 +198,21 @@ def test_poster_messages(monkeypatch, tmp_path):
     monkeypatch.setenv("GITHUB_EVENT_PATH", str(ev))
     dp.main()
     assert sent and sent[0][0] == "https://hook"
+
+
+def test_release_goes_to_telegram_too(monkeypatch):
+    dp = _load("discord_post")
+    msg = dp.release_message({"tag_name": "v9.9.9", "name": "inPace v9.9.9", "html_url": "https://r", "body": "- New <b>"})
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    assert dp.telegram(msg) is False
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT", "@inpace")
+    sent = []
+
+    class R:
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+        def read(self): return b"{}"
+    assert dp.telegram(msg, opener=lambda req: sent.append(req) or R())
+    body = json.loads(sent[0].data)
+    assert body["chat_id"] == "@inpace" and "v9.9.9" in body["text"] and "&lt;b&gt;" in body["text"]

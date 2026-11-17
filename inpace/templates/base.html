@@ -87,6 +87,7 @@
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
     <a href="{{ DISCORD_URL }}" target="_blank" rel="noopener">{{ icon('discord', 22) }}{{ _("Discord community") }}</a>
+    <a href="{{ TELEGRAM_URL }}" target="_blank" rel="noopener">{{ icon('telegram', 22) }}{{ _("Telegram channel") }}</a>
     <div class="side-bottom">
       <a class="btn primary wide" href="/open">{{ icon('open', 18) }}{{ _("Open a file") }}</a>
     </div>
@@ -177,6 +178,7 @@
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>
     <a href="/feedback" class="{{ 'on' if p.startswith('/feedback') }}">{{ icon('chat', 22) }}{{ _("Feedback and ideas") }}</a>
     <a href="{{ DISCORD_URL }}" target="_blank" rel="noopener">{{ icon('discord', 22) }}{{ _("Discord community") }}</a>
+    <a href="{{ TELEGRAM_URL }}" target="_blank" rel="noopener">{{ icon('telegram', 22) }}{{ _("Telegram channel") }}</a>
     <button type="button" data-theme-toggle><span class="when-light">{{ icon('moon', 22) }}</span><span class="when-dark">{{ icon('sun', 22) }}</span>{{ _('Switch light or dark mode') }}</button>
   </dialog>
   {% endif %}

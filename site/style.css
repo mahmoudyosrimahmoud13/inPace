@@ -42,6 +42,8 @@ html[lang=ar] .en, html:not([lang=ar]) .ar { display: none !important; }
 .brand .in { font-weight: 300; }
 .links { display: flex; gap: 1.3rem; margin-inline-start: auto; font-weight: 600; }
 .links a { text-decoration: none; }
+@media (min-width: 761px) and (max-width: 1360px) { .top { gap: .7rem; } .links { gap: .85rem; } }
+@media (min-width: 761px) and (max-width: 1240px) { .theme.telegram { display: none; } }  /* no room next to the menu: it stays in the footer */
 .links a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--pink); }
 .lang { font: inherit; font-weight: 700; cursor: pointer; background: var(--surface); color: var(--ink); border: 3px solid var(--line);
   box-shadow: var(--hard-sm) var(--line); padding: .3rem .9rem; }
@@ -310,6 +312,9 @@ button.btn { font: inherit; font-weight: 700; cursor: pointer; }
 .feature .small-note { margin-top: .8rem; font-size: .95rem; }
 
 .theme.discord { color: #5865F2; text-decoration: none; }
+.theme.telegram { color: #229ED9; text-decoration: none; }
+:root[data-theme=dark] .theme.telegram { color: #4FB7EA; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .theme.telegram { color: #4FB7EA; } }
 @media (max-width: 760px) { .theme.discord { margin-inline-start: auto; } .theme.discord ~ .lang { margin-inline-start: 0; } }
 :root[data-theme=dark] .theme.discord { color: #8C95FF; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .theme.discord { color: #8C95FF; } }
