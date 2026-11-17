@@ -14,7 +14,7 @@ import math
 
 from markupsafe import Markup
 
-MOODS = ("happy", "cheer", "sleepy", "think", "proud", "oops", "wave", "read", "water", "sad", "love")
+MOODS = ("happy", "cheer", "sleepy", "think", "proud", "oops", "wave", "read", "water", "sad", "love", "librarian")
 
 INK = "#111111"
 SHELL = "#25A06C"
@@ -230,7 +230,18 @@ def _can() -> str:
             f'<path d="M196 84 q2 6 0 8 q-2 -2 0 -8 z M200 90 q2 6 0 8 q-2 -2 0 -8 z M194 96 q2 5 0 7 q-2 -2 0 -7 z" fill="#8EC5FF" stroke="{INK}" stroke-width="1.4"/>')
 
 
+def _book_stack() -> str:
+    """A small pile of books beside Tempo the librarian (the library pages)."""
+    return (f'<rect x="-2" y="114" width="44" height="13" rx="2" fill="{SCARF}" {O2}/>'
+            f'<rect x="2" y="101" width="38" height="13" rx="2" fill="{SKY}" {O2}/>'
+            f'<rect x="-4" y="88" width="42" height="13" rx="2" fill="{SHELL}" {O2}/>'
+            f'<rect x="4" y="74" width="32" height="13" rx="2" fill="#fff" transform="rotate(-6 20 80)" {O2}/>'
+            f'<path d="M8 114 v13 M33 101 v13 M5 88 v13" stroke="{INK}" stroke-width="2"/>')
+
+
 def _extras(mood: str) -> str:
+    if mood == "librarian":
+        return _book_stack()
     if mood == "sleepy":
         z = 'font-family="system-ui,sans-serif" font-weight="900" fill="#fff" paint-order="stroke"'
         return (f'<text x="186" y="20" font-size="16" {z} {O2}>z</text>'
@@ -257,11 +268,11 @@ def mascot(mood: str = "happy", size: int = 96, label: str = "Tempo the turtle")
         mood = "happy"
     uid = f"{mood}{next(_ids)}"
     arm = mood in ("wave", "cheer")
-    holds = mood in ("read", "water")
+    holds = mood in ("read", "water", "librarian")
     front = ""
     if arm:
         front = _arm_up(mood == "wave")
-    elif mood == "read":
+    elif mood in ("read", "librarian"):
         front = _book()
     elif mood == "water":
         front = _can()
@@ -272,7 +283,8 @@ def mascot(mood: str = "happy", size: int = 96, label: str = "Tempo the turtle")
 {_rim()}{_shell(uid, sprout=mood == "water")}
 {_leg(44)}{_leg(118)}
 {scarf()}
-{head(mood)}
+{head("read" if mood == "librarian" else mood)}
+{_accessory("glasses") if mood == "librarian" else ""}
 {front}
 {_extras(mood)}
 </svg>'''

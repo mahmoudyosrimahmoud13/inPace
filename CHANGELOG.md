@@ -3,6 +3,7 @@
 ## v1.28.17
 
 - **Roadmaps have pictures now.** Every roadmap, from the library or made by you, gets a bold picture made from the covers of its first three courses, with the path and the number of courses on it. It shows in the library's Roadmaps tab, on your Roadmaps page and at the top of each roadmap. Nobody has to draw one: it updates itself when the courses change, and works offline with your own courses' covers.
+- **Tempo the librarian** now welcomes you to the course library, glasses on, reading next to a pile of books.
 
 ## v1.28.16
 

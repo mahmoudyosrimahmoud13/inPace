@@ -285,3 +285,9 @@ def test_roadmap_pages_show_thumbnails(tmp_path):
     c.post("/roadmaps/sql/follow")
     assert 'class="rt"' in c.get("/roadmaps").text
     assert 'class="rt big"' in c.get("/roadmaps/sql").text
+
+
+def test_tempo_the_librarian():
+    from inpace.mascot import mascot
+    svg = str(mascot("librarian", 120))
+    assert "tempo-librarian" in svg and 'r="10.6"' in svg  # the glasses

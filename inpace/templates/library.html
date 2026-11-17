@@ -3,9 +3,12 @@
 {% block title %}{{ _('Course library') }}{% endblock %}
 {% block main %}
 <div class="lib-hero">
-  <div>
+  <div class="lib-hero-main">
+    <span class="lib-tempo" title="{{ _('Tempo the librarian') }}">{{ mascot('librarian', 130, _('Tempo the librarian')) }}</span>
+    <div>
     <h1>{% trans trimmed %}Course library{% endtrans %}.</h1>
     <p class="lead">{% trans trimmed %}Free courses made and shared by other learners. Look inside any course first, then add it with a click: it's checked on the way, and your progress stays on this computer.{% endtrans %}</p>
+  </div>
   </div>
   {% if not problem and entries %}
   <div class="lib-stats">
@@ -35,7 +38,7 @@
 <p class="muted" data-course-none hidden>{% trans trimmed %}No roadmap matches that. Try another word.{% endtrans %}</p>
 <div class="lib-grid">{% for r in lib_roadmaps %}{{ R.lib_card(r, titles, r.id in followed) }}{% endfor %}</div>
 {% else %}
-<section class="card empty">{{ mascot('think', 100) }}<p>{% trans trimmed %}No roadmaps in the library yet. Make the first one!{% endtrans %}</p></section>
+<section class="card empty">{{ mascot('librarian', 100, _('Tempo the librarian')) }}<p>{% trans trimmed %}No roadmaps in the library yet. Make the first one!{% endtrans %}</p></section>
 {% endif %}
 <section class="card soft row between" style="margin-top:2rem">
   <span><b>{% trans trimmed %}Make your own roadmap{% endtrans %}</b><br><span class="muted small">{% trans trimmed %}Pick a goal and inPace suggests the courses. Then share it, or publish it here.{% endtrans %}</span></span>
