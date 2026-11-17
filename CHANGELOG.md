@@ -1,8 +1,12 @@
 # Changelog
 
-## v1.28.1
+## v1.28.3
 
-- **About inPace** in Settings: your version, a link to the code on GitHub (stars welcome), Discord and the website. The footer has an **About** link too.
+- **"A new version is out" now only shows when there really is one.** Versions 1.28.1 and 1.28.2 were published with the old number (1.28.0) inside, so they kept saying an update was waiting. From now on each release takes its number from its tag, so this can't happen again.
+- **New courses in the library:** inPace looks for new library courses twice a day. When there are some, you get one notification, a number on **Course library** in the menu, a note at the top of the library, and a **New** tag on each new course (they're listed first).
+- **A real Refresh button** in the library, with when the list was last checked.
+- **Tables in lessons look right on phones:** whole words (no more "Featur e"), tighter rows, and you swipe sideways when a table is wide.
+- **About inPace** in Settings: your version, the code on GitHub (stars welcome), Discord and the website. The footer has an **About** link too.
 - **Website fix on phones:** the top bar no longer squeezes the inPace logo under the Discord button.
 
 ## v1.28.0

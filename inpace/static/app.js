@@ -661,6 +661,9 @@ const YT_ICON = {
   play: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>',
   pause: '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z" fill="currentColor"/></svg>',
   back: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><text x="12" y="15.5" font-size="7.5" text-anchor="middle" fill="currentColor" stroke="none" font-weight="800">10</text></svg>',
+  vol: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>',
+  mute: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+  full: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
   fwd: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><text x="12" y="15.5" font-size="7.5" text-anchor="middle" fill="currentColor" stroke="none" font-weight="800">10</text></svg>',
 };
 function clockText(s) {
@@ -686,8 +689,9 @@ function youtubeExtras(frame, box, wrap) {
   });
   setTimeout(() => { if (!heard && !failed && watch) note(`${esc(L.lSlow)} ${link}`, "soft"); }, 15000);
 
-  let bar = null, seek, time, play, spd, dragging = false;
-  if (lo || end) {
+  let bar = null, seek, time, play, spd, vol, muted = false, dragging = false;
+  const single = (L.ytKey || "").includes("|yt:");  // one video (a playlist keeps YouTube's own buttons)
+  if (single) {
     bar = document.createElement("div");
     bar.className = "yt-bar";
     bar.innerHTML = `<input type="range" class="pl-seek" min="0" max="1000" value="0" step="1" aria-label="${esc(L.lPiece)}">
@@ -695,9 +699,14 @@ function youtubeExtras(frame, box, wrap) {
       <button type="button" class="pl-btn yb-back" title="${esc(L.lBack)}">${YT_ICON.back}</button>
       <button type="button" class="pl-btn yb-fwd" title="${esc(L.lFwd)}">${YT_ICON.fwd}</button>
       <span class="pl-time" dir="ltr">0:00 / 0:00</span><span class="pl-grow"></span>
-      <span class="yb-label">${esc(L.lPiece)}</span>
-      <button type="button" class="pl-btn yb-speed" title="${esc(L.lSpeed)}">1×</button></div>`;
-    wrap.insertAdjacentElement("afterend", bar);
+      ${lo || end ? `<span class="yb-label">${esc(L.lPiece)}</span>` : ""}
+      <button type="button" class="pl-btn yb-vol" title="${esc(L.lMute || "Sound")}">${YT_ICON.vol}</button>
+      <button type="button" class="pl-btn yb-speed" title="${esc(L.lSpeed)}">1×</button>
+      <button type="button" class="pl-btn yb-full" title="${esc(L.lFull || "Full screen")}">${YT_ICON.full}</button></div>`;
+    const holder = document.createElement("div");
+    holder.className = "yt-holder";
+    wrap.replaceWith(holder); holder.appendChild(wrap); holder.appendChild(bar);
+    vol = bar.querySelector(".yb-vol");
     seek = bar.querySelector(".pl-seek"); time = bar.querySelector(".pl-time"); play = bar.querySelector(".yb-play"); spd = bar.querySelector(".yb-speed");
   }
   const hiT = () => end || length || 0;
@@ -711,6 +720,7 @@ function youtubeExtras(frame, box, wrap) {
     play.innerHTML = playing ? YT_ICON.pause : YT_ICON.play;
     play.title = playing ? L.lPause : L.lPlay;
     spd.textContent = rate + "×";
+    vol.innerHTML = muted ? YT_ICON.mute : YT_ICON.vol;
   };
   const go = (t) => { now = Math.min(Math.max(lo, t), hiT() || t); cmd("seekTo", [now, true]); draw(); };
   if (bar) {
@@ -722,6 +732,12 @@ function youtubeExtras(frame, box, wrap) {
     bar.querySelector(".yb-fwd").addEventListener("click", () => go(now + 10));
     seek.addEventListener("input", () => { dragging = true; draw(); });
     seek.addEventListener("change", () => { dragging = false; go(lo + (seek.value / 1000) * span()); });
+    vol.addEventListener("click", () => { muted = !muted; cmd(muted ? "mute" : "unMute"); draw(); });
+    bar.querySelector(".yb-full").addEventListener("click", () => {
+      const h = bar.parentElement;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else if (h.requestFullscreen) h.requestFullscreen().catch(() => {});
+    });
     spd.addEventListener("click", () => {
       const S = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
       rate = S[(S.indexOf(rate) + 1) % S.length] || 1; cmd("setPlaybackRate", [rate]); draw();
@@ -747,6 +763,7 @@ function youtubeExtras(frame, box, wrap) {
     if (typeof info.currentTime === "number") now = info.currentTime;
     if (typeof info.playbackRate === "number") rate = info.playbackRate;
     if (typeof info.playerState === "number") playing = info.playerState === 1;
+    if (typeof info.muted === "boolean") muted = info.muted;
     draw();
   });
 }

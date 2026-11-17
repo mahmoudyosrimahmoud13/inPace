@@ -240,7 +240,8 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     start, end = youtube_segment(ref)
     files = exists if isinstance(exists, CourseFiles) else None
     if vid:
-        src = f"https://www.youtube-nocookie.com/embed/{vid}?autoplay=1&rel=0&enablejsapi=1"
+        src = (f"https://www.youtube-nocookie.com/embed/{vid}?autoplay=1&rel=0&enablejsapi=1"
+               "&controls=0&playsinline=1&modestbranding=1&iv_load_policy=3&fs=0&disablekb=1")  # inPace's own bar
         watch = f"https://www.youtube.com/watch?v={vid}" + (f"&t={start}s" if start else "")
         key = f"{course_id}|yt:{vid}:{start}-{end or ''}"
     else:
@@ -261,7 +262,7 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
         hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
     labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
-              "speed": t("Speed"), "piece": t("This part"),
+              "speed": t("Speed"), "piece": t("This part"), "mute": t("Mute"), "full": t("Full screen"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead.")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())

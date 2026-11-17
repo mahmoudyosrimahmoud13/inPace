@@ -52,8 +52,10 @@
     {% for tp in topics %}<button type="button" class="lib-topic" data-lib-topic="{{ tp }}" aria-pressed="false">{{ tp }}</button>{% endfor %}
   </div>
   {% endif %}
-  <a class="lib-refresh muted small" href="/library?refresh=1">{% trans trimmed %}Refresh{% endtrans %}</a>
+  <a class="btn lib-refresh" href="/library?refresh=1" title="{{ _('Look for new courses') }}">{{ icon('undo', 18) }} {% trans trimmed %}Refresh{% endtrans %}</a>
+  {% if checked_min is not none %}<span class="lib-checked muted small">{% if checked_min < 1 %}{% trans trimmed %}Checked just now{% endtrans %}{% elif checked_min < 120 %}{{ T('Checked {n} min ago', n=checked_min) }}{% else %}{{ T('Checked {n} h ago', n=checked_min // 60) }}{% endif %}</span>{% endif %}
 </div>
+{% if new_count %}<p class="note lib-new-note">{{ icon('spark', 18) }} {{ T('{n} new course(s) since you last looked. They are first in the list.', n=new_count) }}</p>{% endif %}
 <p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
 <div class="lib-grid">
 {% for e in entries %}
@@ -62,6 +64,7 @@
     {% if e.cover %}<img src="{{ e.cover }}" alt="" loading="lazy">{% else %}<span class="blank" style="--hue:{{ (e.id|length * 47) % 360 }}">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
   </a>
   <div class="lib-body">
+    {% if e.new %}<span class="lib-new-tag">{% trans trimmed %}New{% endtrans %}</span>{% endif %}
     <h3 dir="auto"><a href="/library/{{ e.id }}">{{ e.title }}</a></h3>
     <ul class="lib-facts">
       {% if e.minutes and e.minutes < 90 %}<li>{{ icon('clock', 15) }}{{ T('{n} min of lessons', n=e.minutes) }}</li>{% elif e.hours %}<li>{{ icon('clock', 15) }}{{ T('about {n} h of lessons', n=e.hours) }}</li>{% endif %}

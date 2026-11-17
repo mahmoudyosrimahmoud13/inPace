@@ -68,9 +68,15 @@ class _LazyMarkdown:
         if _LazyMarkdown._real is None:
             from markdown_it import MarkdownIt
             real = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight}).enable("table")
+            from . import mdfix
+            mdfix.install(real)
             real.core.ruler.push("bidi", _bidi)
             _LazyMarkdown._real = real
         return _LazyMarkdown._real
+
+    def render(self, src: str, env=None) -> str:
+        from . import mdfix
+        return self._get().render(src, env) if env is not None else mdfix.render(self._get(), src)
 
     def __getattr__(self, name):
         return getattr(self._get(), name)
@@ -505,6 +511,7 @@ def create_app(vault: Vault) -> Starlette:
                 "accent": (V._meta("accent", "") or "") if V.is_set_up else "",
                 "update": _update_info() if V.is_set_up else None,
                 "update_news": _update_news() if V.is_set_up else None,
+                "lib_new": (_look_for_courses() or len(_library_new())) if V.is_set_up else 0,
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
             base["me"] = V.me
@@ -996,13 +1003,15 @@ def create_app(vault: Vault) -> Starlette:
         except library.LibraryProblem as e:
             return page("library.html", request, problem=str(e), entries=[], index={}, tab="courses", lib_roadmaps=[],
                         followed=set(), titles={})
+        _note_library(index)
+        new_ids = _library_new()
         entries = []
         for e in index.get("courses", []):
             local = V.get_course(str(e.get("id", "")))
             state = "add" if not local else ("have" if local.hash == e.get("hash") else "update")
             words = " ".join(str(x) for x in [e.get("id"), e.get("title"), e.get("description"), e.get("author", {}).get("name"),
                                                 " ".join(e.get("tags") or [])] if x).lower()
-            entries.append({**e, "state": state, "search": words,
+            entries.append({**e, "state": state, "search": words, "new": str(e.get("id", "")) in new_ids,
                             "hours": round(int(e.get("minutes") or 0) / 60) if e.get("minutes") else 0})
         # Topic buttons above the list: the tags several courses share, most common first.
         counts: dict[str, int] = {}
@@ -1016,7 +1025,13 @@ def create_app(vault: Vault) -> Starlette:
         lang = V._meta("lang", "en") or "en"
         lib_roadmaps.sort(key=lambda r: (r["id"] in followed, r.get("language") != lang))
         titles = {str(e.get("id")): e.get("title", "") for e in entries}
-        extra = {"tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles}
+        entries.sort(key=lambda e: not e["new"])  # new courses first
+        checked = (V.home / "library.json").stat().st_mtime if (V.home / "library.json").exists() else 0
+        extra = {"tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles,
+                 "new_count": sum(1 for e in entries if e["new"]),
+                 "checked_min": int((_time.time() - checked) // 60) if checked else None}
+        if new_ids and tab == "courses":
+            V._set_meta("library_new", "[]")  # seen: the badge goes away, the "New" tags show this one time
         show = str(request.query_params.get("show", ""))
         if show and not any(e.get("id") == show for e in entries):
             # A friend's link to a course we don't have in our list yet: look again.
@@ -4143,6 +4158,65 @@ def create_app(vault: Vault) -> Starlette:
                 updater.check_news(V)
             finally:
                 _news_lock.release()
+        threading.Thread(target=run, daemon=True).start()
+
+    # ---- new courses in the library: a badge on "Course library" and one notification -------------------
+    _courses_lock = threading.Lock()
+
+    def _note_library(index: dict, tell: bool = False) -> list[str]:
+        """Remember which library courses we've seen. Courses that appear later are "new" (library_new) until you
+        open the library page. The very first look only remembers, so nothing old is called new."""
+        ids = [str(e.get("id")) for e in index.get("courses", []) if e.get("id")]
+        if not ids or index.get("offline"):
+            return []
+        raw = V._meta("library_known", "")
+        if not raw:
+            V._set_meta("library_known", json.dumps(ids))
+            return []
+        try:
+            known = set(json.loads(raw))
+            pending = list(json.loads(V._meta("library_new", "[]") or "[]"))
+        except ValueError:
+            known, pending = set(ids), []
+        fresh = [i for i in ids if i not in known]
+        if not fresh:
+            return []
+        V._set_meta("library_known", json.dumps(sorted(known | set(fresh))))
+        V._set_meta("library_new", json.dumps(pending + [i for i in fresh if i not in pending]))
+        if tell and not os.environ.get("PYTEST_CURRENT_TEST"):
+            titles = [str(e.get("title", "")) for e in index.get("courses", []) if str(e.get("id")) in fresh]
+            CURRENT["lang"] = V._meta("lang", "en") or "en"
+            title = say("New courses in the library") if len(fresh) > 1 else say("A new course in the library")
+            body = ", ".join(titles[:3]) + (" …" if len(titles) > 3 else "")
+            try:
+                notifier.notify(title, body, "/library", V.home, picture="tempo_cheer")
+            except Exception:
+                pass
+        return fresh
+
+    def _library_new() -> set[str]:
+        try:
+            return set(json.loads(V._meta("library_new", "[]") or "[]"))
+        except ValueError:
+            return set()
+
+    def _look_for_courses() -> None:
+        """Twice a day, look at the library in the background for courses that weren't there before."""
+        if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("INPACE_TEST_NEWS"):
+            return
+        if _time.time() - int(V._meta("library_checked", "0") or 0) < updater.NEWS_EVERY:
+            return
+        if not _courses_lock.acquire(blocking=False):
+            return
+
+        def run():
+            try:
+                V._set_meta("library_checked", str(int(_time.time())))
+                _note_library(library.load_index(V.home, True), tell=True)
+            except Exception:
+                pass  # offline or the library is busy: try again next time
+            finally:
+                _courses_lock.release()
         threading.Thread(target=run, daemon=True).start()
 
     def _update_news() -> dict | None:

@@ -36,6 +36,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Use the tag as the version number
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          python3 - "${GITHUB_REF_NAME#v}" <<'PY'
+          import pathlib, re, sys
+          v = sys.argv[1]
+          for f, pat, rep in (("inpace/__init__.py", r'__version__ = "[^"]*"', f'__version__ = "{v}"'),
+                              ("pyproject.toml", r'(?m)^version = "[^"]*"', f'version = "{v}"')):
+              p = pathlib.Path(f)
+              p.write_text(re.sub(pat, rep, p.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+          print("Building inPace", v)
+          PY
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
