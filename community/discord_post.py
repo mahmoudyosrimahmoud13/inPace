@@ -43,9 +43,10 @@ def github(path: str) -> dict:
 def release_message(rel: dict) -> dict:
     tag = rel.get("tag_name", "")
     notes = cut(rel.get("body") or "", 3500)
-    return {"username": "inPace", "content": f"🐢 **inPace {tag} is out!**", "embeds": [{
+    return {"username": "inPace", "content": f"🐢 **inPace {tag} is out!** · **صدر inPace {tag}!**", "embeds": [{
         "title": rel.get("name") or f"inPace {tag}", "url": rel.get("html_url"), "color": YELLOW,
-        "description": notes + f"\n\n**Download:** {SITE}#download\nThe app also tells you about it and updates itself."}],
+        "description": notes + f"\n\n**Download · التحميل:** {SITE}#download\nThe app also tells you about it and updates itself.\n"
+                       "والتطبيق نفسه يخبرك بالتحديث ويحدّث نفسه."}],
         "allowed_mentions": {"parse": []}}
 
 
@@ -61,7 +62,7 @@ def push_message(event: dict) -> dict | None:
     more = f"\n…and {len(commits) - 10} more" if len(commits) > 10 else ""
     who = (event.get("head_commit") or {}).get("author", {}).get("name") or event.get("pusher", {}).get("name", "")
     return {"username": "inPace dev log", "embeds": [{
-        "title": f"{len(commits)} new change{'s' if len(commits) != 1 else ''} in {repo}", "url": event.get("compare"),
+        "title": f"{len(commits)} new change{'s' if len(commits) != 1 else ''} in {repo} · {len(commits)} تغيير جديد", "url": event.get("compare"),
         "description": "\n".join(lines) + more, "color": GREEN, "footer": {"text": who}}],
         "allowed_mentions": {"parse": []}}
 
@@ -80,7 +81,7 @@ def issue_message(event: dict) -> dict | None:
             title = title[len(prefix):].strip()
     return {"username": "inPace feedback", "embeds": [{
         "title": cut(f"{kind}: {title}", 250), "url": issue.get("html_url"), "color": PINK,
-        "description": cut(issue.get("body") or "", 600) + "\n\nReply on GitHub, or talk about it in #ideas.",
+        "description": cut(issue.get("body") or "", 600) + "\n\nReply on GitHub, or talk about it in #ideas.\nرُدّ على GitHub، أو ناقشها في #ideas.",
         "footer": {"text": issue.get("user", {}).get("login", "")}}], "allowed_mentions": {"parse": []}}
 
 
