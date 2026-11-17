@@ -536,8 +536,64 @@ def _library_groups(index: dict, entries: list[dict], lang: str) -> tuple[list[d
     return [{"id": "", "label": "", "entries": sorted(entries, key=lambda e: not e.get("new"))}], [{"id": t, "label": t} for t in tags]
 
 
+# Roadmap thumbnails (v1.28.17): a neobrutalist card built from the covers of the roadmap's first courses, so every
+# roadmap (library or your own) gets a picture without anyone drawing one. Pure HTML and CSS, works offline.
+RM_THUMB_COLORS = ("#FFD43B", "#9ED8F0", "#FF8FC2", "#9EE6B8", "#C9B6FF", "#FFB86B")
+
+
+def roadmap_thumb(rm: dict, pics: dict, big: bool = False) -> Markup:
+    """pics: course id -> ("img", url) or ("blank", letter, hue). Up to three covers, fanned, plus the path."""
+    steps = [s for s in (rm.get("steps") or []) if isinstance(s, dict) and s.get("course")]
+    seed = sum(ord(ch) for ch in str(rm.get("id") or rm.get("title") or "rm"))
+    color = RM_THUMB_COLORS[seed % len(RM_THUMB_COLORS)]
+    cards = []
+    for i, s in enumerate(steps[:3]):
+        p = pics.get(s["course"])
+        if p and p[0] == "img":
+            inner = Markup('<img src="{}" alt="" loading="lazy">').format(p[1])
+        else:
+            letter = (p[1] if p else (str(s.get("title") or s["course"])[:1] or "?")).upper()
+            hue = p[2] if p else sum(ord(ch) for ch in s["course"]) % 360
+            inner = Markup('<b class="rt-blank" style="--hue:{}">{}</b>').format(hue, letter)
+        cards.append(Markup('<span class="rt-c rt-c{}">{}</span>').format(i, inner))
+    dots = Markup("").join(Markup("<i>{}</i>").format(n) for n in range(1, min(len(steps), 3) + 1))
+    more = Markup('<i class="rt-more">+{}</i>').format(len(steps) - 3) if len(steps) > 3 else Markup("")
+    n = len(steps)
+    label = gettext("{n} courses").replace("{n}", str(n)) if n != 1 else gettext("1 course")
+    return Markup('<span class="rt{}" style="--rt-bg:{}" aria-hidden="true"><span class="rt-dots"></span>'
+                  '<span class="rt-stack rt-n{}">{}</span><span class="rt-path">{}{}<i class="rt-port">⚓</i></span>'
+                  '<span class="rt-count">{}</span></span>').format(
+        " big" if big else "", color, len(cards), Markup("").join(cards), dots, more, label)
+
+
 def create_app(vault: Vault) -> Starlette:
     V = vault
+
+    def _rm_pics(rm: dict, index: dict | None = None) -> dict:
+        lib = {str(e.get("id")): e for e in (index or {}).get("courses") or [] if isinstance(e, dict)}
+        pics = {}
+        for s in (rm.get("steps") or [])[:3]:
+            cid = s.get("course") if isinstance(s, dict) else None
+            if not cid:
+                continue
+            c = V.get_course(cid)
+            img = (c.extra or {}).get("image") if c else None
+            if img:
+                pics[cid] = ("img", f"/m/{quote(c.id)}/{quote(img)}")
+            elif (lib.get(cid) or {}).get("cover"):
+                pics[cid] = ("img", str(lib[cid]["cover"]))
+            else:
+                title = (c.title if c else (lib.get(cid) or {}).get("title")) or s.get("title") or cid
+                pics[cid] = ("blank", (title.strip()[:1] or "?"), sum(ord(ch) for ch in cid) % 360)
+        return pics
+
+    def rm_thumb(rm: dict, index: dict | None = None, big: bool = False) -> Markup:
+        try:
+            return roadmap_thumb(rm, _rm_pics(rm, index), big)
+        except Exception:  # a picture must never break the page
+            return Markup("")
+
+    env.globals["rm_thumb"] = rm_thumb
     from . import ytrules
     ytrules.use_home(V.home, pref=lambda: (V._meta("yt_ad_guard", "on") or "on") == "on",
                      block_pref=lambda: (V._meta("yt_ad_block", "on") or "on") == "on")
@@ -1187,7 +1243,7 @@ def create_app(vault: Vault) -> Starlette:
         lib.sort(key=lambda r: r.get("language") != lang)
         titles = {str(e.get("id")): e.get("title", "") for e in index.get("courses") or [] if isinstance(e, dict)}
         return page("roadmaps.html", request, cards=cards, lib=lib[:6], lib_count=len(roadmaps.library_list(index)),
-                    titles=titles, has_index=bool(index.get("courses")))
+                    titles=titles, has_index=bool(index.get("courses")), index=index)
 
     async def roadmap_page(request: Request):
         rid = request.path_params["rid"]
@@ -1217,7 +1273,7 @@ def create_app(vault: Vault) -> Starlette:
                      and lib_copy["hash"] != rm.get("library_hash") and roadmaps.fingerprint(lib_copy) != roadmaps.fingerprint(rm))
         chart = garden.voyage_chart(st, labels=_voyage_labels(), compact=True)
         return page("roadmap.html", request, rm=rm, st=st, where=where, lib_copy=lib_copy, newer=newer,
-                    chart=chart, shared_json=shared_json, island_on=garden.is_on(V),
+                    chart=chart, shared_json=shared_json, island_on=garden.is_on(V), index=index,
                     in_library=bool(lib_copy and roadmaps.fingerprint(lib_copy) == roadmaps.fingerprint(rm)))
 
     async def roadmap_follow(request: Request):

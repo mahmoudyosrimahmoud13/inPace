@@ -9,10 +9,7 @@
 {# A library roadmap you could follow. titles: course id → title, from the library's list. #}
 {% macro lib_card(r, titles, followed=False) %}
 <article class="lib-card rm-lib-card" id="rm-{{ r.id }}" data-course-search="{{ (r.title ~ ' ' ~ r.description ~ ' ' ~ r.tags|join(' ') ~ ' ' ~ r.author)|lower }}" data-tags="{{ r.tags|join('|') }}">
-  <a class="rm-lib-top" href="/roadmaps/{{ r.id }}" tabindex="-1" aria-hidden="true">
-    <span class="rm-lib-icon">{{ icon('route', 30) }}</span>
-    <span class="rm-lib-count">{{ T('{n} courses', n=r.steps|length) }}</span>
-  </a>
+  <a class="rm-lib-top rt-link" href="/roadmaps/{{ r.id }}" tabindex="-1" aria-hidden="true">{{ rm_thumb(r, index) }}</a>
   <div class="lib-body">
     <h3 dir="auto"><a href="/roadmaps/{{ r.id }}">{{ r.title }}</a></h3>
     <ul class="lib-facts">

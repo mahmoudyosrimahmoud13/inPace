@@ -2215,3 +2215,42 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 .lib-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
 .lib-filters select { font: inherit; font-size: .88rem; padding: .3rem .5rem; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
 .lib-filters select { flex: 1 1 9rem; min-width: 0; }
+/* Roadmap thumbnails (v1.28.17): neobrutalist cards made from the first courses' covers. Fixed colours: they
+   sit on their own bright background, so they read the same in light and dark mode. */
+.rt { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: var(--rt-bg, #FFD43B);
+  color: #111; isolation: isolate; container-type: inline-size; }
+.rt-dots { position: absolute; inset: 0; background-image: radial-gradient(#111 1.4px, transparent 1.5px); background-size: 18px 18px; opacity: .16; }
+.rt-stack { position: absolute; inset: 9% 7% 26% 7%; }
+.rt-c { position: absolute; top: 0; width: 52%; aspect-ratio: 16 / 10; background: #fff; border: 3px solid #111; box-shadow: 6px 6px 0 #111; overflow: hidden; }
+.rt-c img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rt-blank { display: grid; place-items: center; width: 100%; height: 100%; font-size: 2.6rem; font-weight: 800; color: #111;
+  background: hsl(var(--hue, 40) 75% 78%); }
+.rt-c0 { inset-inline-start: 0; transform: rotate(-6deg); z-index: 1; }
+.rt-c1 { inset-inline-start: 24%; top: -4%; transform: rotate(2deg); z-index: 2; }
+.rt-c2 { inset-inline-start: 48%; top: 6%; transform: rotate(7deg); z-index: 3; }
+.rt-n1 .rt-c0 { inset-inline-start: 22%; width: 56%; transform: rotate(-3deg); }
+.rt-n2 .rt-c0 { inset-inline-start: 6%; } .rt-n2 .rt-c1 { inset-inline-start: 40%; top: 4%; transform: rotate(5deg); }
+.rt-path { position: absolute; inset-inline-start: 7%; bottom: 8%; display: flex; align-items: center; gap: 10px; z-index: 4; }
+.rt-path::before { content: ""; position: absolute; inset-inline: 12px; top: 50%; border-top: 3px dashed #111; z-index: -1; }
+.rt-path i { display: grid; place-items: center; min-width: 26px; height: 26px; padding-inline: 4px; font-style: normal; font-weight: 800; font-size: 13px;
+  background: #fff; border: 2.5px solid #111; box-shadow: 2px 2px 0 #111; }
+.rt-path i:first-child { background: #111; color: #fff; }
+.rt-path .rt-more { background: #FFF6D6; }
+.rt-path .rt-port { background: #fff; font-size: 14px; }
+.rt-count { position: absolute; inset-inline-end: 5%; bottom: 8%; z-index: 4; font-weight: 800; font-size: 14px; padding: 4px 10px;
+  background: #fff; border: 2.5px solid #111; box-shadow: 3px 3px 0 #111; transform: rotate(-3deg); white-space: nowrap; }
+[dir="rtl"] .rt-c0 { transform: rotate(6deg); } [dir="rtl"] .rt-c1 { transform: rotate(-2deg); } [dir="rtl"] .rt-c2 { transform: rotate(-7deg); }
+[dir="rtl"] .rt-count { transform: rotate(3deg); }
+@container (max-width: 300px) { .rt-path i { min-width: 22px; height: 22px; font-size: 11px; } .rt-path i:nth-child(3):not(.rt-port):not(.rt-more) { display: none; }
+  .rt-count { font-size: 12px; padding: 3px 7px; } .rt-c { box-shadow: 4px 4px 0 #111; border-width: 2.5px; } }
+.rt.big { border: 3px solid var(--black); box-shadow: 8px 8px 0 var(--black); }
+[dir="rtl"] .rt.big { box-shadow: -8px 8px 0 var(--black); }
+@container (min-width: 520px) { .rt-path i { min-width: 34px; height: 34px; font-size: 16px; } .rt-count { font-size: 18px; padding: 6px 14px; } }
+/* where the thumbnails sit in the app */
+.rm-lib-top.rt-link { display: block; padding: 0; background: none; border-bottom: 2.5px solid var(--black); }
+.rm-card.has-thumb { padding: 0 0 1.15rem; overflow: hidden; }
+.rm-card.has-thumb > .rt { border-bottom: 2.5px solid var(--black); }
+.rm-card.has-thumb > :not(.rt) { margin-inline: 1.15rem; }
+.rm-head-thumb { max-width: 520px; margin-block: .4rem 1.1rem; }
+@media (min-width: 900px) { .rm-head { display: grid; grid-template-columns: 1fr minmax(280px, 420px); column-gap: 2rem; }
+  .rm-head > * { grid-column: 1; } .rm-head > .rm-head-thumb { grid-column: 2; grid-row: 1 / span 6; margin: 0; align-self: start; } }

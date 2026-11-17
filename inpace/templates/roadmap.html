@@ -5,6 +5,7 @@
 {% set here = st.current %}
 <div class="page-head rm-head">
   <p class="eyebrow"><a data-up href="/roadmaps">{% trans trimmed %}Roadmaps{% endtrans %}</a></p>
+  <div class="rm-head-thumb">{{ rm_thumb(rm, index, big=True) }}</div>
   <h1 dir="auto">{{ rm.title }}.</h1>
   {% if rm.description %}<p class="lead rm-desc" dir="auto">{{ rm.description }}</p>{% endif %}
   <ul class="lib-facts rm-facts">

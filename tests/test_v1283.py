@@ -260,3 +260,28 @@ def test_library_page_has_sections_and_filters(tmp_path):
     page = c.get("/library").text
     assert "Data and Databases" in page and 'data-section="data-databases"' in page
     assert 'data-level="beginner"' in page and "data-lib-level" in page and "install and meet psql" in page
+
+
+def test_roadmap_thumbnail_uses_covers_and_path():
+    from inpace.app import roadmap_thumb
+    rm = {"id": "x", "steps": [{"course": f"c{i}"} for i in range(6)]}
+    pics = {"c0": ("img", "https://ex.com/a.jpg"), "c1": ("blank", "P", 120)}
+    html = str(roadmap_thumb(rm, pics))
+    assert 'src="https://ex.com/a.jpg"' in html and "rt-blank" in html and ">P<" in html
+    assert html.count('class="rt-c ') == 3 and "+3" in html and "⚓" in html and "6 courses" in html
+
+
+def test_roadmap_pages_show_thumbnails(tmp_path):
+    import json
+    from tests.test_app import client
+    v, c = client(tmp_path, "Sara")
+    (v.home / "library.json").write_text(json.dumps({"inpace": "library", "v": 1, "courses": [
+        {"id": "pg", "title": "PostgreSQL", "description": "SQL", "language": "en", "hash": "x", "modules": 1, "lessons": 1,
+         "minutes": 30, "cover": "https://ex.com/pg.jpg"}],
+        "roadmaps": [{"id": "sql", "title": "SQL path", "description": "", "language": "en", "tags": [], "hash": "h",
+                      "author": {"name": "inPace", "verified": True}, "steps": [{"course": "pg"}], "needs": 1}]}))
+    lib = c.get("/library?tab=roadmaps").text
+    assert 'class="rt"' in lib and "https://ex.com/pg.jpg" in lib
+    c.post("/roadmaps/sql/follow")
+    assert 'class="rt"' in c.get("/roadmaps").text
+    assert 'class="rt big"' in c.get("/roadmaps/sql").text

@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.17
+
+- **Roadmaps have pictures now.** Every roadmap, from the library or made by you, gets a bold picture made from the covers of its first three courses, with the path and the number of courses on it. It shows in the library's Roadmaps tab, on your Roadmaps page and at the top of each roadmap. Nobody has to draw one: it updates itself when the courses change, and works offline with your own courses' covers.
+
 ## v1.28.16
 
 - **The library is in sections:** Linux, Cloud and DevOps; Programming and Web; Data and Databases; AI and Machine Learning; Maths; Careers and Interviews; Business and Accounting; Languages; Build inPace. The buttons above the list jump to a section, and inside each one courses go from beginner to advanced. Works the same on phones (the section buttons scroll sideways).
