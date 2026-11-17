@@ -2305,10 +2305,18 @@
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ للاختيار · Enter للفتح · Esc للإغلاق",
  "✓ This record checks out": "✓ هذا السجل سليم",
  "For videos playing in YouTube's player: when an ad plays, inPace steps aside so you can watch it or press Skip ad, and doesn't save the ad's time as your place in the lesson.": "للفيديوهات التي تعمل في مشغّل YouTube: عند ظهور إعلان، يتنحّى inPace لتشاهده أو تضغط «تخطي الإعلان»، ولا يحفظ وقت الإعلان كمكانك في الدرس.",
- "Ad blocker (recommended)": "مانع الإعلانات (موصى به)",
- "YouTube lessons play in inPace's own player through yt-dlp, so no ads load. yt-dlp updates itself once a day (see Videos on this computer below), and the blocker's settings update from the inPace website, so it keeps working when YouTube changes. The picture may be lower than on YouTube; each video has a link to YouTube's player for a better picture. If a video can't play this way, YouTube's player opens instead.": "تعمل دروس YouTube في مشغّل inPace نفسه عبر yt-dlp، فلا يُحمَّل أي إعلان. يتحدّث yt-dlp تلقائيًا مرة يوميًا (انظر «الفيديوهات على هذا الجهاز» بالأسفل)، وتتحدّث إعدادات المانع من موقع inPace، فيظل يعمل حين يغيّر YouTube طريقته. قد تكون الصورة أقل جودة من YouTube، وبجانب كل فيديو رابط لمشغّل YouTube لصورة أوضح. وإن تعذّر تشغيل فيديو بهذه الطريقة، يُفتح مشغّل YouTube بدلًا منه.",
- "Getting the video without ads…": "جارٍ جلب الفيديو بدون إعلانات…",
  "No ads: playing through yt-dlp.": "بدون إعلانات: يعمل عبر yt-dlp.",
  "Better picture on YouTube (with ads)": "صورة أوضح على YouTube (مع إعلانات)",
- "{n} videos": "{n} فيديو"
+ "{n} videos": "{n} فيديو",
+ "\"Play without ads\" button under YouTube videos (recommended)": "زر «شغّل بدون إعلانات» تحت فيديوهات YouTube (موصى به)",
+ "Press it and the video plays in inPace's own player through yt-dlp, so no ads load. yt-dlp updates itself once a day (see Videos on this computer below), so it keeps working when YouTube changes. The picture can be lower than on YouTube. If a video can't play this way, inPace tells you why, and Play still plays it on YouTube.": "اضغطه فيعمل الفيديو في مشغّل inPace نفسه عبر yt-dlp، فلا يُحمَّل أي إعلان. يتحدّث yt-dlp تلقائيًا مرة يوميًا (انظر «الفيديوهات على هذا الجهاز» بالأسفل)، فيظل يعمل حين يغيّر YouTube طريقته. قد تكون الصورة أقل جودة من YouTube. وإن تعذّر تشغيل فيديو بهذه الطريقة، يخبرك inPace بالسبب، ويظل زر التشغيل يعرضه على YouTube.",
+ "Play without ads": "شغّل بدون إعلانات",
+ "Getting the video without ads…": "جارٍ جلب الفيديو بدون إعلانات…",
+ "It couldn't play without ads:": "تعذّر التشغيل بدون إعلانات:",
+ "Press Play to watch it on YouTube instead.": "اضغط تشغيل لتشاهده على YouTube بدلًا من ذلك.",
+ "Through yt-dlp. The picture can be lower than on YouTube.": "عبر yt-dlp. قد تكون الصورة أقل جودة من YouTube.",
+ "This isn't a YouTube video.": "هذا ليس فيديو YouTube.",
+ "inPace couldn't get yt-dlp. Check your internet and try again.": "تعذّر على inPace جلب yt-dlp. تحقّق من الإنترنت وحاول مجددًا.",
+ "YouTube didn't give a file that plays here.": "لم يعطِ YouTube ملفًا يعمل هنا.",
+ "It's turned off in Settings.": "إنه مُطفأ في الإعدادات."
 }

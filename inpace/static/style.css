@@ -788,7 +788,7 @@ main > .page { flex: 1 0 auto; width: 100%; }
 .pl-big:hover { transform: translate(calc(-50% - 2px), calc(-50% - 2px)); box-shadow: 8px 8px 0 #111; }
 .pl-bar { position: absolute; inset-inline: 0; bottom: 0; padding: 1.6rem .7rem .55rem; color: #fff; direction: ltr;
   background: linear-gradient(transparent, rgba(0,0,0,.82)); transition: opacity .25s; }
-.player.playing:not(.awake) .pl-bar { opacity: 0; }
+.player.playing:not(.awake) .pl-bar { opacity: 0; pointer-events: none; }  /* hidden means untouchable: no stray seeks */
 .player.playing:not(.awake) { cursor: none; }
 .pl-row { display: flex; align-items: center; gap: .25rem; }
 .pl-grow { flex: 1; }
@@ -1680,6 +1680,9 @@ article.card + .outline { margin-block-start: 1.2rem; }
   border: 2.5px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; animation: inpace-spin .8s linear infinite; }
 @keyframes inpace-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.yt-noads-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: .6rem 0 0; }
+.yt-noads-row .btn svg { flex-shrink: 0; }
+.pl-seek { touch-action: pan-y; }
 .yt-save { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: .6rem 0 0; }
 .yt-save-note { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
 .yt-save .btn svg { flex-shrink: 0; }

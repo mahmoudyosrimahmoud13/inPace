@@ -3771,8 +3771,10 @@ def create_app(vault: Vault) -> Starlette:
         from starlette.concurrency import run_in_threadpool
         from . import ytrules as _yr
         if not _yr.current()["ad_block"]:
-            return JSONResponse({})
+            return JSONResponse({"why": gettext("It's turned off in Settings.")})
         found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"])
+        if found.get("why"):
+            found["why"] = gettext(found["why"])
         return JSONResponse(found, headers={"Cache-Control": "no-store"})
 
     async def delete_everything(request: Request):

@@ -282,8 +282,12 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     from . import ytrules
     rules = ytrules.current()
     speed += f' data-yt-rules="{e(json.dumps(rules))}"'
+    noads = ""
     if vid and rules["ad_block"]:
-        speed += f' data-yt-stream="/yt-stream/{e(vid)}"'
+        noads = (f'<div class="yt-noads-row"><button type="button" class="btn small" data-yt-noads="/yt-stream/{e(vid)}" '
+                 f'data-l-busy="{e(t("Getting the video without ads…"))}" data-l-fail="{e(t("It couldn't play without ads:"))}" '
+                 f'data-l-hint="{e(t("Press Play to watch it on YouTube instead."))}">{_NOADS_ICON}<span>{e(t("Play without ads"))}</span></button>'
+                 f'<span class="small muted" data-yt-noads-note dir="auto">{e(t("Through yt-dlp. The picture can be lower than on YouTube."))}</span></div>')
     if not rules["own_controls"]:  # switched off from the website: YouTube's own player and buttons
         src = src.replace("&controls=0", "").replace("&fs=0", "").replace("&disablekb=1", "")
     return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
@@ -292,8 +296,12 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
             f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{hint}'
             f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'
             f'<a class="small" href="{e(watch)}" target="_blank" rel="noopener">{e(t("Open on {site}").format(site="YouTube"))}</a>'
-            f'</div>{save}{cap}</figure>')
+            f'</div>{noads}{save}{cap}</figure>')
 
+
+_NOADS_ICON = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
+               'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/>'
+               '<path d="m5.6 5.6 12.8 12.8"/><path d="M10 9v6l5-3z" fill="currentColor" stroke="none"/></svg>')
 
 _DOWNLOAD_ICON = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" '
                   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/>'

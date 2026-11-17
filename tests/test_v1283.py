@@ -144,8 +144,9 @@ def test_stream_refuses_bad_ids_and_bad_urls(tmp_path):
         def extract_info(self, *a, **k): return {"url": "file:///etc/passwd"}
 
     offline._STREAMS.clear()
-    assert offline.stream(tmp_path, "../../etc", load_fn=lambda h: None) == {}
-    assert offline.stream(tmp_path, "AAAAAAAAAAA", load_fn=lambda h: type("M", (), {"YoutubeDL": Bad})) == {}
+    assert "url" not in offline.stream(tmp_path, "../../etc", load_fn=lambda h: None)
+    got = offline.stream(tmp_path, "AAAAAAAAAAA", load_fn=lambda h: type("M", (), {"YoutubeDL": Bad}))
+    assert "url" not in got and got["why"]
 
 
 def test_ad_block_rule_and_setting(tmp_path):
@@ -164,10 +165,30 @@ def test_player_asks_for_the_ad_free_file(tmp_path):
     from inpace import media, ytrules
     ytrules.use_home(tmp_path)
     out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
-    assert 'data-yt-stream="/yt-stream/CS4cs9xVecg"' in out
+    assert 'data-yt-noads="/yt-stream/CS4cs9xVecg"' in out and "Play without ads" in out
     ytrules.use_home(tmp_path, block_pref=lambda: False)
     try:
         out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
-        assert "data-yt-stream" not in out
+        assert "data-yt-noads" not in out
     finally:
         ytrules.use_home(tmp_path)
+
+
+def test_stream_says_why_when_ytdlp_fails(tmp_path):
+    from inpace import offline
+
+    class Boom:
+        def __init__(self, o): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def extract_info(self, *a, **k): raise RuntimeError("Sign in to confirm you're not a bot")
+
+    offline._STREAMS.clear()
+    got = offline.stream(tmp_path, "BBBBBBBBBBB", load_fn=lambda h: type("M", (), {"YoutubeDL": Boom}))
+    assert "url" not in got and "bot" in got["why"]
+
+
+def test_hidden_player_bar_cannot_be_touched():
+    import pathlib
+    css = (pathlib.Path(__file__).parent.parent / "inpace" / "static" / "style.css").read_text()
+    assert ".player.playing:not(.awake) .pl-bar { opacity: 0; pointer-events: none; }" in css

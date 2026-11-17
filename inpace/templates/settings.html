@@ -96,8 +96,8 @@
   <h2 style="margin:0">{% trans trimmed %}YouTube videos{% endtrans %}</h2>
   <form method="post" action="/settings/youtube" class="stack" data-nav-form>
     <label class="check"><input type="checkbox" name="block" value="1" {{ 'checked' if yt_block }} data-autosubmit>
-      <span>{% trans trimmed %}Ad blocker (recommended){% endtrans %}</span></label>
-    <p class="small muted" style="margin:0">{% trans trimmed %}YouTube lessons play in inPace's own player through yt-dlp, so no ads load. yt-dlp updates itself once a day (see Videos on this computer below), and the blocker's settings update from the inPace website, so it keeps working when YouTube changes. The picture may be lower than on YouTube; each video has a link to YouTube's player for a better picture. If a video can't play this way, YouTube's player opens instead.{% endtrans %}</p>
+      <span>{% trans trimmed %}"Play without ads" button under YouTube videos (recommended){% endtrans %}</span></label>
+    <p class="small muted" style="margin:0">{% trans trimmed %}Press it and the video plays in inPace's own player through yt-dlp, so no ads load. yt-dlp updates itself once a day (see Videos on this computer below), so it keeps working when YouTube changes. The picture can be lower than on YouTube. If a video can't play this way, inPace tells you why, and Play still plays it on YouTube.{% endtrans %}</p>
     <label class="check"><input type="checkbox" name="guard" value="1" {{ 'checked' if yt_guard }} data-autosubmit>
       <span>{% trans trimmed %}Ad guard (recommended){% endtrans %}</span></label>
     <p class="small muted" style="margin:0">{% trans trimmed %}For videos playing in YouTube's player: when an ad plays, inPace steps aside so you can watch it or press Skip ad, and doesn't save the ad's time as your place in the lesson.{% endtrans %}</p>

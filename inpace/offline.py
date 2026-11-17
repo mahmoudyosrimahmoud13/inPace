@@ -531,39 +531,43 @@ _FETCHING = threading.Lock()
 
 
 def stream(home: Path, vid: str, load_fn=None) -> dict:
-    """{url, height} of one video's plain file (sound and picture in one), or {} if yt-dlp can't find one.
-    YouTube's links last about 6 hours, so each is kept for 4. yt-dlp missing: it's fetched in the background,
-    and this time the lesson plays in YouTube's player instead."""
+    """{url, height} of one video's plain file, or {why} in plain words if yt-dlp can't get one.
+    YouTube's links last about 6 hours, so each is kept for 4. The first time, yt-dlp itself is fetched first."""
     if not VIDEO_ID.fullmatch(vid or ""):
-        return {}
+        return {"why": "This isn't a YouTube video."}
     hit = _STREAMS.get(vid)
     if hit and time.time() - hit[0] < 4 * 3600:
         return hit[1]
-    yt_dlp = (load_fn or load)(home)
+    loader = load_fn or load
+    yt_dlp = loader(home)
+    if yt_dlp is None and load_fn is None:
+        with _FETCHING:
+            try:
+                update_tool(home)
+            except Exception as e:
+                return {"why": str(e) or "inPace couldn't get yt-dlp. Check your internet and try again."}
+        yt_dlp = loader(home)
     if yt_dlp is None:
-        if _FETCHING.acquire(blocking=False):
-            def get():
-                try:
-                    update_tool(home)
-                except Exception:
-                    pass
-                finally:
-                    _FETCHING.release()
-            threading.Thread(target=get, daemon=True).start()
-        return {}
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
-            "format": STREAM_FORMAT, "socket_timeout": 10, "js_runtimes": _js_runtimes()}
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False)
-    except Exception:
-        return {}
-    url = (info or {}).get("url") or ""
-    if not url.startswith("https://"):
-        return {}
-    out = {"url": url, "height": int(info.get("height") or 0)}
-    _STREAMS[vid] = (time.time(), out)
-    return out
+        return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
+    formats = [STREAM_FORMAT]
+    if on_android():
+        formats.append("b[protocol*=m3u8][vcodec!=none][acodec!=none]/b")  # phones play YouTube's HLS streams too
+    why = ""
+    for fmt in formats:
+        opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
+                "format": fmt, "socket_timeout": 15, "js_runtimes": _js_runtimes()}
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False)
+        except Exception as e:
+            why = _short(e)
+            continue
+        url = (info or {}).get("url") or ""
+        if url.startswith("https://"):
+            out = {"url": url, "height": int(info.get("height") or 0)}
+            _STREAMS[vid] = (time.time(), out)
+            return out
+    return {"why": why or "YouTube didn't give a file that plays here."}
 
 
 # ---------------------------------------------------------------------------------------------------------------

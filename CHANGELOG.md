@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.14
+
+- **No more jumping ahead on phones.** While a video plays, its control bar hides, but it could still be touched: a tap or a scroll low on the video moved it forward. Now the hidden bar can't be touched, and the first tap on a playing video just shows the controls (like phone video apps); the next tap plays or pauses. Same for YouTube lessons and your own video files.
+- **"Play without ads" is a button under each YouTube video,** next to "Download this video". Press it and the video plays in inPace's own player through yt-dlp, with no ads. Play still plays it on YouTube. If it can't play without ads, it says why instead of failing quietly.
+- **It works more often:** the first time, inPace gets yt-dlp right away and waits for it, and on Android it also accepts YouTube's phone streams.
+
 ## v1.28.13
 
 - **The video player fits on phones.** On a narrow screen the control bar no longer spills over: the time stays whole, Quality says "Auto" on one line, and speed and full screen are always there. To make room, volume (your phone has its own buttons) and the 10-second back and forward buttons are hidden on narrow screens, and the big play button no longer covers the progress bar. This is the same for YouTube lessons and your own video files, and for narrow windows on a computer.
