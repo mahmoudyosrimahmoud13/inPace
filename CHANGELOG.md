@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.10
+
+- **Getting a course's files is three clear steps.** When slides, videos or files aren't on your device yet, the course page says: **1. Download them** (the official links are right there), **2. Find them for me**, **3. Saved them somewhere else?** choose that folder or the .zip.
+- **"Find them for me"** looks in Downloads, Documents and Desktop (on a phone, Download), inside folders too, and remembers the folder it found. If the files are in a **.zip**, inPace unzips it into its own folder first (safely: nothing lands outside it, and Mac leftovers are skipped).
+- **You can choose a .zip** instead of a folder, and inPace unzips it.
+
 ## v1.28.9
 
 - **Calmer on laptop screens.** On screens up to 1600 pixels wide, text and buttons are a little smaller, the side menu and top bar are slimmer, course pages put the picture beside a shorter title, and My courses fits four courses in a row. Nothing looks zoomed in anymore.

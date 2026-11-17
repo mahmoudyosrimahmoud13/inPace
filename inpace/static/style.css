@@ -2132,3 +2132,7 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
   .top { gap: .7rem; }
   .top .search-btn { max-width: 230px; }
 }
+
+/* "Get this course's files": three clear steps */
+.files-steps .steps { margin: .4rem 0 .6rem; padding-inline-start: 1.3rem; display: grid; gap: .9rem; }
+.files-steps .steps li > b { display: block; }

@@ -55,7 +55,7 @@ def test_folder_course_plays_moves_and_is_found_again(tmp_path):
     shutil.move(str(folder), str(moved))
     r = c.get(f"/learn/{jid}/lesson/m1-l1")
     assert "can not find this file" in html.unescape(r.text) and "data-pick-folder" in r.text
-    assert "Where are this course" in html.unescape(c.get(f"/learn/{jid}").text)
+    assert "Get this course" in html.unescape(c.get(f"/learn/{jid}").text)
     r = c.post(f"/courses/{course.id}/media-folder", data={"folder": str(moved)},
                headers={"referer": f"http://testserver/learn/{jid}"})
     assert "Found all the course files" in html.unescape(r.text)

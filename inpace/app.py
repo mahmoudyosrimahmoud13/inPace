@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import zipfile
 from . import __version__
 from html import escape as html_escape
 import mimetypes
@@ -2058,6 +2059,13 @@ def create_app(vault: Vault) -> Starlette:
         if not c:
             return go("/courses", err="That course isn't installed.")
         folder = str(form.get("folder", "")).strip().strip('"')
+        if folder.lower().endswith(".zip") and Path(folder).expanduser().is_file():
+            from . import coursefiles  # a zip: unzip it into inPace's folder, then use that
+            from starlette.concurrency import run_in_threadpool
+            try:
+                folder = str(await run_in_threadpool(coursefiles.unzip, Path(folder).expanduser(), V.home / "course-files" / cid))
+            except (ValueError, OSError, zipfile.BadZipFile):
+                return RedirectResponse(_with_msg(back, err="That zip couldn't be opened. Download it again, or unzip it yourself and choose the folder."), 303)
         if not folder or not Path(folder).expanduser().is_dir():
             return RedirectResponse(_with_msg(back, err="That folder wasn't found. Copy its full path and paste it here."), 303)
         V.set_media_root(cid, folder)
@@ -2065,6 +2073,41 @@ def create_app(vault: Vault) -> Starlette:
         if left:
             return RedirectResponse(_with_msg(back, err=f"Found the folder, but {len(left)} file(s) are still missing."), 303)
         return RedirectResponse(_with_msg(back, ok="Found all the course files."), 303)
+
+    async def find_course_files(request: Request):
+        """"Find them for me": look in Downloads, Documents and Desktop for the course's missing files, in a folder
+        (even a few folders down) or in a .zip (unzipped into inPace's folder). The folder found is remembered."""
+        from . import coursefiles
+        from starlette.concurrency import run_in_threadpool
+        cid = request.path_params["cid"]
+        c = V.get_course(cid)
+        back = request.headers.get("referer") or "/courses"
+        if not back.startswith(("http://127.0.0.1", "http://localhost", "/")):
+            back = "/courses"
+        if not c:
+            return go("/courses", err="That course isn't installed.")
+        missing = V.missing_media(c)
+        if not missing:
+            return RedirectResponse(_with_msg(back, ok="Found all the course files."), 303)
+        names = {Path(m).name for m in missing}
+        found = await run_in_threadpool(coursefiles.find_folder, names)
+        if found:
+            V.set_media_root(cid, str(found))
+            missing = V.missing_media(c)
+        if missing:
+            z = await run_in_threadpool(coursefiles.find_zip, {Path(m).name for m in missing})
+            if z:
+                try:
+                    out = await run_in_threadpool(coursefiles.unzip, z, V.home / "course-files" / cid)
+                    V.set_media_root(cid, str(out))
+                    missing = V.missing_media(c)
+                except (ValueError, OSError, zipfile.BadZipFile):
+                    pass
+        if not missing:
+            return RedirectResponse(_with_msg(back, ok="Found all the course files."), 303)
+        if found or V.media_root(cid):
+            return RedirectResponse(_with_msg(back, err=f"Found some of the files, but {len(missing)} are still missing. If the download hasn't finished, wait and try again."), 303)
+        return RedirectResponse(_with_msg(back, err="Didn't find them in Downloads, Documents or Desktop. If you saved them somewhere else, choose that folder or zip below."), 303)
 
     def _with_msg(url: str, ok: str = "", err: str = "") -> str:
         from urllib.parse import urlsplit
@@ -4427,6 +4470,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/sample/{cid}", needs_setup(add_sample), methods=["POST"]),
         Route("/courses/from-folder", needs_setup(course_from_folder_route), methods=["POST"]),
         Route("/courses/{cid}/media-folder", needs_setup(set_media_folder), methods=["POST"]),
+        Route("/courses/{cid}/find-files", needs_setup(find_course_files), methods=["POST"]),
         Route("/pick-folder", needs_setup(pick_folder_route), methods=["POST"]),
         Route("/m/{cid}/{path:path}", needs_setup(media_file)),
         Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),

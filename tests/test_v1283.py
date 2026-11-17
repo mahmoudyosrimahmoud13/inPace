@@ -93,3 +93,20 @@ def test_files_one_folder_down_in_the_chosen_folder_are_found(tmp_path):
     v.set_media_root("slides", str(tmp_path / "DLS Slides"))
     assert v.find_media("slides", "C1_W1.pdf#pages=2-4") == nested / "C1_W1.pdf"
     assert v.find_media("slides", "C9_W9.pdf") is None
+
+
+def test_find_course_files_in_a_folder_or_a_zip(tmp_path, monkeypatch):
+    import zipfile as zf_mod
+    from inpace import coursefiles
+    dl = tmp_path / "Downloads"
+    (dl / "DLS Slides" / "DLS_C1").mkdir(parents=True)
+    (dl / "DLS Slides" / "DLS_C1" / "C1_W1.pdf").write_bytes(b"%PDF")
+    assert coursefiles.find_folder({"C1_W1.pdf"}, [dl]) == dl / "DLS Slides"
+    with zf_mod.ZipFile(dl / "slides.zip", "w") as z:
+        z.writestr("Slides/C2/C2_W1.pdf", b"%PDF")
+        z.writestr("__MACOSX/Slides/._C2_W1.pdf", b"x")
+        z.writestr("../evil.txt", b"x")
+    assert coursefiles.find_zip({"C2_W1.pdf"}, [dl]) == dl / "slides.zip"
+    out = coursefiles.unzip(dl / "slides.zip", tmp_path / "inpace" / "course-files" / "c2")
+    assert (out / "Slides" / "C2" / "C2_W1.pdf").is_file()
+    assert not (tmp_path / "inpace" / "course-files" / "evil.txt").exists() and not (out / "__MACOSX").exists()
