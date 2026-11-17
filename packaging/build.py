@@ -3,7 +3,7 @@
     python packaging/build.py
 
 Output in dist/:
-  Windows  inPace-windows.zip   (inPace.exe inside)
+  Windows  inPace-setup.exe     (a normal installer; also inPace-windows.zip for copies that update from an old version)
   macOS    inPace-mac.dmg       (drag inPace.app to Applications)
   Linux    inPace-linux.tar.gz  (run ./inPace)
 """
@@ -55,7 +55,10 @@ def main() -> None:
     if system == "Darwin":
         cmd += ["--hidden-import", "WebKit", "--hidden-import", "AppKit", "--hidden-import", "Foundation"]
     if system == "Windows":
-        cmd += ["--onefile", "--windowed", "--icon", str(ROOT / "packaging" / "icon.ico")]
+        # A normal program folder, not one self-unpacking .exe (that's what virus scanners distrust),
+        # with the name, maker and version Windows shows in the file's properties.
+        cmd += ["--windowed", "--noupx", "--icon", str(ROOT / "packaging" / "icon.ico"),
+                "--version-file", str(windows_version_file())]
     elif system == "Darwin":
         cmd += ["--windowed", "--icon", str(ROOT / "packaging" / "icon.icns"),
                 "--osx-bundle-identifier", "org.inpace.app"]
@@ -65,9 +68,15 @@ def main() -> None:
     run(cmd)
 
     if system == "Windows":
-        out = DIST / "inPace-windows.zip"
-        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(DIST / "inPace.exe", "inPace.exe")
+        out = build_windows_installer()
+        # Copies of inPace 1.28.5 and older update themselves from inPace-windows.zip (one inPace.exe inside).
+        # Keep making it for a while, so they reach this version; from here on, updates use the installer.
+        legacy = cmd[:-1] + ["--onefile", "--distpath", str(DIST / "legacy"), "--workpath", str(ROOT / "build" / "legacy"),
+                             cmd[-1]]
+        legacy = [x for x in legacy if x != "--noupx"] + ["--noupx"]
+        run(legacy)
+        with zipfile.ZipFile(DIST / "inPace-windows.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(DIST / "legacy" / "inPace.exe", "inPace.exe")
     elif system == "Darwin":
         import plistlib
         plist_path = DIST / "inPace.app" / "Contents" / "Info.plist"
@@ -95,6 +104,54 @@ def main() -> None:
         if shutil.which("dpkg-deb"):
             print(f"\nBuilt {build_deb()}")
     print(f"\nBuilt {out}")
+
+
+def _version() -> str:
+    import re as _re
+    return _re.search(r'__version__ = "([^"]+)"', (PKG / "__init__.py").read_text(encoding="utf-8")).group(1)
+
+
+def windows_version_file() -> Path:
+    """The details Windows shows for inPace.exe (Properties > Details): name, maker, version."""
+    v = _version()
+    nums = tuple((list(int(x) for x in v.split(".")[:3]) + [0, 0, 0])[:3]) + (0,)
+    text = f"""VSVersionInfo(
+  ffi=FixedFileInfo(filevers={nums}, prodvers={nums}, mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040904B0', [
+      StringStruct('CompanyName', 'Mahmoud Yosri'),
+      StringStruct('FileDescription', 'inPace'),
+      StringStruct('FileVersion', '{v}'),
+      StringStruct('InternalName', 'inPace'),
+      StringStruct('LegalCopyright', 'Copyright (c) 2026 Mahmoud Yosri. MIT license.'),
+      StringStruct('OriginalFilename', 'inPace.exe'),
+      StringStruct('ProductName', 'inPace'),
+      StringStruct('ProductVersion', '{v}')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+"""
+    out = ROOT / "build" / "windows-version.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    return out
+
+
+def build_windows_installer() -> Path:
+    """inPace-setup.exe from the program folder (Inno Setup 6, free)."""
+    import os
+    iscc = shutil.which("iscc") or shutil.which("ISCC")
+    for base in (os.environ.get("ProgramFiles(x86)", ""), os.environ.get("ProgramFiles", ""),
+                 os.environ.get("LOCALAPPDATA", "") + "\\Programs"):
+        p = Path(base) / "Inno Setup 6" / "ISCC.exe"
+        if not iscc and base and p.exists():
+            iscc = str(p)
+    if not iscc:
+        raise SystemExit("Inno Setup 6 is needed to make the Windows installer: https://jrsoftware.org/isdl.php")
+    env = dict(os.environ, INPACE_VERSION=_version())
+    print("+ ISCC packaging/inpace.iss", flush=True)
+    subprocess.run([iscc, "/Q", str(ROOT / "packaging" / "inpace.iss")], check=True, cwd=ROOT, env=env)
+    return DIST / "inPace-setup.exe"
 
 
 def build_deb() -> Path:

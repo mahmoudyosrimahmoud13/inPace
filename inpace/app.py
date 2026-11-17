@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from html import escape as html_escape
 import mimetypes
 import os
 import re
@@ -4291,6 +4292,14 @@ def create_app(vault: Vault) -> Starlette:
         status = json.loads(V._meta("update_status", "{}") or "{}")
         if status.get("state") != "ready" or not status.get("file"):
             return go(_back(request), err="There's no update waiting to be installed.")
+        if updater.install_kind() == "windows":
+            import threading
+            threading.Timer(0.6, updater.run_windows_installer, args=(Path(status["file"]),)).start()
+            V._set_meta("update_status", json.dumps({"state": "installed", "version": status.get("version", "")}))
+            return HTMLResponse('<!doctype html><meta charset="utf-8"><title>inPace</title>'
+                                '<body style="font-family:system-ui;padding:3rem;background:#F7F3EA;color:#111">'
+                                f'<h1>{html_escape(say("Updating inPace…"))}</h1>'
+                                f'<p>{html_escape(say("It closes, installs the new version, and opens again in a moment."))}</p>')
         try:
             await anyio.to_thread.run_sync(lambda: updater.install("deb", Path(status["file"])))
         except Exception as e:

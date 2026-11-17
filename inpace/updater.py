@@ -31,7 +31,7 @@ from . import __version__
 REPO = "mahmoudyosrimahmoud13/inpace"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 CHECK_EVERY = 20 * 3600
-ASSETS = {"deb": "inPace-linux.deb", "folder": "inPace-linux.tar.gz", "windows": "inPace-windows.zip",
+ASSETS = {"deb": "inPace-linux.deb", "folder": "inPace-linux.tar.gz", "windows": "inPace-setup.exe",
           "mac": "inPace-mac.dmg"}
 
 
@@ -137,9 +137,7 @@ def install(kind: str, file: Path) -> str:
     work = Path(tempfile.mkdtemp(prefix="inpace-update-"))
     try:
         if kind == "windows":
-            with zipfile.ZipFile(file) as zf:
-                zf.extract("inPace.exe", work)
-            _swap_file(work / "inPace.exe", exe)
+            raise RuntimeError("On Windows the installer does the update: use run_windows_installer.")
         elif kind == "folder":
             with tarfile.open(file) as tf:
                 member = tf.getmember("inPace/inPace")
@@ -177,6 +175,17 @@ def install(kind: str, file: Path) -> str:
         return "installed"
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def run_windows_installer(file: Path) -> None:
+    """Start inPace-setup.exe silently (it closes this copy, installs, and opens inPace again), then leave."""
+    flags = 0x00000008 | 0x00000200  # detached, new process group: it keeps running after inPace closes
+    subprocess.Popen([str(file), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/RELAUNCH=1"],
+                     creationflags=flags, close_fds=True)
+    time.sleep(0.3)
+    from .window import close_children
+    close_children()
+    os._exit(0)
 
 
 def clean_old_copies() -> None:
@@ -271,7 +280,7 @@ def run(vault, force: bool = False) -> dict:
             status = {"state": "current", "checked": int(time.time())}
         else:
             file = download(rel, kind, vault.home / "updates")
-            if kind == "deb":
+            if kind in ("deb", "windows"):  # installed by its installer, when you press "Install and restart"
                 status = {"state": "ready", "version": rel["version"], "file": str(file)}
             else:
                 install(kind, file)

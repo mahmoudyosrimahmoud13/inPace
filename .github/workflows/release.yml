@@ -21,7 +21,9 @@ jobs:
         include:
           - os: windows-latest
             label: Windows
-            file: dist/inPace-windows.zip
+            file: |
+              dist/inPace-setup.exe
+              dist/inPace-windows.zip
             extra: pywebview
           - os: macos-latest
             label: Mac
@@ -56,12 +58,17 @@ jobs:
         run: python -m pip install . pyinstaller ${{ matrix.extra }} pytest httpx
       - name: Test
         run: python -m pytest -q
+      - name: Get Inno Setup (makes the Windows installer)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
       - name: Build the app
         run: python packaging/build.py
       - name: Check the app starts
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then APP=dist/inPace.exe;
+          if [ "$RUNNER_OS" = "Windows" ]; then APP=dist/inPace/inPace.exe;
           elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace;
           else APP=dist/inPace; fi
           INPACE_HOME="$RUNNER_TEMP/vault" "$APP" --no-browser --port 8799 &
@@ -79,11 +86,22 @@ jobs:
             sudo apt-get install -y -q --fix-missing python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1 > /dev/null
             APP=dist/inPace; WANT=gtk
           elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace; WANT=pywebview
-          else APP=dist/inPace.exe; WANT=pywebview; fi
+          else APP=dist/inPace/inPace.exe; WANT=pywebview; fi
           "$APP" --which-window "$RUNNER_TEMP/window.txt"
           GOT=$(cat "$RUNNER_TEMP/window.txt")
           echo "Window type: $GOT"
           [ "$GOT" = "$WANT" ]
+      - name: Check the Windows installer installs and uninstalls
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process dist\inPace-setup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CURRENTUSER" -Wait
+          $app = "$env:LOCALAPPDATA\Programs\inPace\inPace.exe"
+          if (-not (Test-Path $app)) { throw "inPace.exe wasn't installed" }
+          (Get-Item $app).VersionInfo | Format-List CompanyName, ProductName, FileVersion
+          Start-Process "$env:LOCALAPPDATA\Programs\inPace\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES" -Wait
+          Start-Sleep -Seconds 3
+          if (Test-Path $app) { throw "the uninstaller left inPace.exe behind" }
       - uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.label }}
@@ -101,7 +119,7 @@ jobs:
           path: downloads
           merge-multiple: true
       - name: Write the checksums (the app's auto-update checks every download against these)
-        run: cd downloads && sha256sum inPace-windows.zip inPace-mac.dmg inPace-linux.tar.gz inPace-linux.deb > SHA256SUMS && cat SHA256SUMS
+        run: cd downloads && sha256sum inPace-setup.exe inPace-windows.zip inPace-mac.dmg inPace-linux.tar.gz inPace-linux.deb > SHA256SUMS && cat SHA256SUMS
       - name: Write the release notes
         run: python packaging/release_notes.py "${GITHUB_REF_NAME}" "${GITHUB_REPOSITORY}" > notes.md
       - uses: softprops/action-gh-release@v2
@@ -109,6 +127,7 @@ jobs:
           name: inPace ${{ github.ref_name }}
           body_path: notes.md
           files: |
+            downloads/inPace-setup.exe
             downloads/inPace-windows.zip
             downloads/inPace-mac.dmg
             downloads/inPace-linux.tar.gz

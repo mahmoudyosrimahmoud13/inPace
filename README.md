@@ -89,7 +89,7 @@ inPace is a small website that only lives on your computer. When you open it, it
 
 Go to the [Releases page](https://github.com/mahmoudyosrimahmoud13/inpace/releases/latest) and download the file for your computer:
 
-- **Windows:** `inPace-windows.zip`. Unzip it, then double-click `inPace.exe`.
+- **Windows:** `inPace-setup.exe`. Run it and click through. It installs for you only (no admin password), adds inPace to the Start menu, and can be removed from *Settings → Apps*. Your courses stay in `Documents\inPace`.
 - **Mac:** `inPace-mac.dmg`. Open it and drag inPace into Applications.
 - **Ubuntu / Debian:** `inPace-linux.deb`. Double-click it to install (or run `sudo apt install ./inPace-linux.deb`), then open inPace from your apps.
 - **Other Linux:** `inPace-linux.tar.gz`. Unpack it and run `inPace`.

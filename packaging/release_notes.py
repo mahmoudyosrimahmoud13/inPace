@@ -27,7 +27,7 @@ def main() -> None:
 
 | Your device | Download | How to open |
 |---|---|---|
-| **Windows** 10 or 11 | [inPace-windows.zip]({base}/inPace-windows.zip) | Unzip, then double-click **inPace.exe** |
+| **Windows** 10 or 11 | [inPace-setup.exe]({base}/inPace-setup.exe) | Run it and click through. It adds inPace to the Start menu (no admin password needed) |
 | **Mac** (Apple Silicon: M1 or newer) | [inPace-mac.dmg]({base}/inPace-mac.dmg) | Open it, drag **inPace** into Applications |
 | **Ubuntu / Debian** | [inPace-linux.deb]({base}/inPace-linux.deb) | Double-click to install, then find **inPace** in your apps |
 | **Other Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |

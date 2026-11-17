@@ -108,7 +108,7 @@
         </form>
         {% elif update.status.state == 'ready' %}
         <form class="update-bar" method="post" action="/updates/install">
-          <span>{{ T('inPace {v} is ready. Your computer will ask for your password to install it.', v=update.status.version) }}</span>
+          <span>{% if update.kind == 'windows' %}{{ T('inPace {v} is ready. Installing takes a moment, then inPace opens again.', v=update.status.version) }}{% else %}{{ T('inPace {v} is ready. Your computer will ask for your password to install it.', v=update.status.version) }}{% endif %}</span>
           <button class="btn primary">{% trans trimmed %}Install and restart{% endtrans %}</button>
         </form>
         {% endif %}

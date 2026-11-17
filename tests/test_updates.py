@@ -55,22 +55,28 @@ def test_folder_update_swaps_the_program(tmp_path, monkeypatch):
 
 
 def test_bad_checksum_installs_nothing(tmp_path, monkeypatch):
-    fake_release(tmp_path, monkeypatch, {"inPace-windows.zip": b"PK..."}, sums_override="00" * 32 + "  inPace-windows.zip\n")
+    fake_release(tmp_path, monkeypatch, {"inPace-setup.exe": b"MZ..."}, sums_override="00" * 32 + "  inPace-setup.exe\n")
     with pytest.raises(RuntimeError, match="didn't match"):
         updater.download(updater.check(), "windows", tmp_path / "dl")
-    assert not (tmp_path / "dl" / "inPace-windows.zip").exists()
+    assert not (tmp_path / "dl" / "inPace-setup.exe").exists()
 
 
-def test_windows_zip_swap(tmp_path, monkeypatch):
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w") as zf:
-        zf.writestr("inPace.exe", b"MZnew")
-    fake_release(tmp_path, monkeypatch, {"inPace-windows.zip": zbuf.getvalue()})
-    exe = tmp_path / "inPace.exe"; exe.write_bytes(b"MZold")
-    monkeypatch.setattr(sys, "executable", str(exe))
-    f = updater.download(updater.check(), "windows", tmp_path / "dl")
-    assert updater.install("windows", f) == "installed"
-    assert exe.read_bytes() == b"MZnew" and (tmp_path / "inPace.old.exe").read_bytes() == b"MZold"
+def test_windows_updates_with_the_installer(tmp_path, monkeypatch):
+    """Windows downloads inPace-setup.exe, waits for "Install and restart", then runs it silently."""
+    fake_release(tmp_path, monkeypatch, {"inPace-setup.exe": b"MZsetup"})
+    monkeypatch.setattr(updater, "install_kind", lambda: "windows")
+    v, c = client(tmp_path, "Omar")
+    v._set_meta("updates", "auto")
+    status = updater.run(v, force=True)
+    assert status["state"] == "ready" and status["file"].endswith("inPace-setup.exe")
+    page = html.unescape(c.get("/").text)
+    assert "Install and restart" in page and "opens again" in page
+    ran = []
+    monkeypatch.setattr(updater, "run_windows_installer", lambda f: ran.append(f))
+    import threading
+    monkeypatch.setattr(threading, "Timer", lambda t, fn, args=(): type("T", (), {"start": lambda self: fn(*args)})())
+    r = c.post("/updates/install")
+    assert "Updating inPace" in html.unescape(r.text) and ran and str(ran[0]).endswith("inPace-setup.exe")
 
 
 def test_deb_waits_for_password(tmp_path, monkeypatch):

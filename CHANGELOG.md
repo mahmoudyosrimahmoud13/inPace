@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.28.6
+
+- **A real Windows installer: `inPace-setup.exe`.** Run it and click through: it installs inPace for you (no admin password), adds it to the Start menu (and the desktop if you like), shows up in *Settings → Apps* with an uninstaller, and opens inpace:// links. Your courses and progress stay in `Documents\inPace`, so installing, updating or removing inPace never touches them.
+- **Windows trusts it more:** inPace is now a normal program folder instead of one self-unpacking .exe (the thing virus scanners distrust most), and its files say who made them and which version they are.
+- **Updates on Windows use the installer too:** when a new version is ready, "Install and restart" runs it quietly, and inPace opens again by itself.
+- Copies of inPace you unzipped before still update themselves: first to this version, then to the installed version with the update after.
+
 ## v1.28.5
 
 - **YouTube videos use inPace's own player now**, the same one as video files: the big play button, ±10 seconds, volume slider, speed, subtitles (CC), full screen, and the same keyboard keys (K or space, J, L, arrows, F, M, C).
