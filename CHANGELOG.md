@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.4
+
+- **The Android app is back in the release.** The 1.28.3 Android build stopped at its first step, so 1.28.3 shipped for computers only. 1.28.4 has everything from 1.28.3, for phones too.
+
 ## v1.28.3
 
 - **"A new version is out" now only shows when there really is one.** Versions 1.28.1 and 1.28.2 were published with the old number (1.28.0) inside, so they kept saying an update was waiting. From now on each release takes its number from its tag, so this can't happen again.

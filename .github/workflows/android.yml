@@ -27,6 +27,7 @@ jobs:
       - name: Use the tag as the version number
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
+        working-directory: ${{ github.workspace }}  # the other steps run in mobile/
         run: |
           python3 - "${GITHUB_REF_NAME#v}" <<'PY'
           import pathlib, re, sys
