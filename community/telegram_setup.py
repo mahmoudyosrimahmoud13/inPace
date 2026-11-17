@@ -87,15 +87,24 @@ def call(token: str, method: str, fields: dict, photo: Path | None = None) -> di
         ctype = f"multipart/form-data; boundary={b}"
     else:
         body, ctype = json.dumps(fields).encode(), "application/json"
-    req = urllib.request.Request(url, data=body, method="POST", headers={"Content-Type": ctype})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.load(r)
-    except urllib.error.HTTPError as e:
+    import time
+    for _ in range(8):
+        req = urllib.request.Request(url, data=body, method="POST", headers={"Content-Type": ctype})
         try:
-            return json.loads(e.read() or b"{}")
-        except ValueError:
-            return {"ok": False, "description": str(e)}
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            try:
+                out = json.loads(e.read() or b"{}")
+            except ValueError:
+                return {"ok": False, "description": str(e)}
+            wait = (out.get("parameters") or {}).get("retry_after")
+            if e.code == 429 and wait:  # "Too Many Requests": Telegram says how long to wait
+                print(f"  … Telegram asks to wait {wait} seconds")
+                time.sleep(int(wait) + 1)
+                continue
+            return out
+    return {"ok": False, "description": "Telegram kept saying 'too many requests'. Run this again in a few minutes."}
 
 
 def main() -> int:
@@ -136,8 +145,12 @@ def main() -> int:
             topics.pop(key)  # deleted in Telegram: make it again
         r = call(token, "createForumTopic", {"chat_id": chat, "name": name, "icon_color": color})
         if not r.get("ok"):
-            print(f"  ! {name}: {r.get('description')} (give the bot 'Manage topics')"); return 1
+            print(f"  ! {name}: {r.get('description')}")
+            if "rights" in str(r.get("description")):
+                print("    Give the bot 'Manage topics' in the group's Administrators, then run this again.")
+            return 1
         topics[key] = r["result"]["message_thread_id"]
+        SAVED.write_text(json.dumps({"chat": chat, "topics": topics}), encoding="utf-8")  # saved at once: no duplicates later
         if closed:
             call(token, "closeForumTopic", {"chat_id": chat, "message_thread_id": topics[key]})
         print("  +", name)
