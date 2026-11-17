@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.13
+
+- **The video player fits on phones.** On a narrow screen the control bar no longer spills over: the time stays whole, Quality says "Auto" on one line, and speed and full screen are always there. To make room, volume (your phone has its own buttons) and the 10-second back and forward buttons are hidden on narrow screens, and the big play button no longer covers the progress bar. This is the same for YouTube lessons and your own video files, and for narrow windows on a computer.
+
 ## v1.28.12
 
 - **Course outlines show a lesson's videos.** A lesson with YouTube videos in its text now says "video" or "4 videos" next to "slides" in the library, so you can see the videos are there before you add the course.
