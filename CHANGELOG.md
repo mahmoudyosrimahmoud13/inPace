@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.28.5
+
+- **YouTube videos use inPace's own player now**, the same one as video files: the big play button, ±10 seconds, volume slider, speed, subtitles (CC), full screen, and the same keyboard keys (K or space, J, L, arrows, F, M, C).
+- **No more YouTube clutter:** its title bar, logo, buttons and "More videos" panel are hidden. When a video is paused you see its picture and inPace's play button instead of YouTube's pause screen.
+- A lesson that plays one part of a long video counts from 0:00 to the part's length, the same as video files.
+
 ## v1.28.4
 
 - **The Android app is back in the release.** The 1.28.3 Android build stopped at its first step, so 1.28.3 shipped for computers only. 1.28.4 has everything from 1.28.3, for phones too.

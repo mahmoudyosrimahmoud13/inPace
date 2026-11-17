@@ -41,3 +41,4 @@ def test_youtube_hides_its_own_controls():
         pass
     out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
     assert "controls=0" in out and 'data-l-full="Full screen"' in out
+    assert 'data-yt-id="dQw4w9WgXcQ"' in out and 'data-l-pip=' in out   # the same player labels as video files

@@ -195,7 +195,14 @@ def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: 
     the second you stopped at. Without JavaScript it's a normal video with the browser's controls.
     start and end make it play only one piece of the file (a lesson cut from a long video)."""
     e = html.escape
-    labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
+    labels = player_labels(t, name)
+    data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+    return _video_player_html(url, key, resume, speed, t, start, end, tracks, media, files, name, data)
+
+
+def player_labels(t: Tr, name: str = "") -> dict:
+    """Every word inPace's video player shows, for files and YouTube alike."""
+    return {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
               "mute": t("Mute"), "unmute": t("Sound on"), "speed": t("Speed"), "full": t("Full screen"),
               "pip": t("Picture in picture"), "restart": t("Start over"),
               "ended": t("Finished! Mark the lesson as done below."),
@@ -207,7 +214,10 @@ def video_player(url: str, key: str, resume: float, speed: float, t: Tr, start: 
               "faillinux": t("Your computer is missing the video support the app window needs. Install it once, then restart inPace:"),
               "failnopic": t("Only the sound plays: the video inside uses a format (like H.265) this window can't show."),
               "failphone": t("Your phone can't play this format. MP4 videos play everywhere: convert it with a free tool like HandBrake.")}
-    data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+
+
+def _video_player_html(url, key, resume, speed, t, start, end, tracks, media, files, name, data) -> str:
+    e = html.escape
     if resume and (resume < start or (end and resume >= end - 5)):
         resume = 0.0
     hint = ""
@@ -261,12 +271,13 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     if resume > start + 5:
         hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
-    labels = {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
-              "speed": t("Speed"), "piece": t("This part"), "mute": t("Mute"), "full": t("Full screen"),
+    labels = {**player_labels(t), "piece": t("This part"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead.")}
     data = " ".join(f'data-l-{k}="{e(v)}"' for k, v in labels.items())
+    speed = f' data-speed="{files.speed:g}"' if files and getattr(files, "speed", None) else ""
     return (f'<figure class="media embed">{part}<div class="embed-box" data-embed="{e(src)}" data-yt-key="{e(key)}" '
+            f'data-yt-id="{e(vid or "")}"{speed} '
             f'data-start="{start}" data-end="{end or 0}" data-resume="{resume:.1f}" data-watch="{e(watch)}" {data}>'
             f'<button type="button" class="btn primary play">▶ {e(t("Play video"))}</button>{hint}'
             f'<span class="small">{e(t("From {site}. It loads from the internet when you press play.").format(site="YouTube"))}</span>'

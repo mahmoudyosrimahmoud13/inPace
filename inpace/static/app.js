@@ -588,6 +588,7 @@ document.querySelectorAll(".embed-box").forEach((box) => {
   const btn = box.querySelector(".play");
   if (!btn) return;
   btn.addEventListener("click", () => {
+    if (box.dataset.ytId && window.inpacePlayer) { youtubeAsPlayer(box); return; }
     let el;
     if (box.dataset.embed) {
       el = document.createElement("iframe");
@@ -612,6 +613,111 @@ document.querySelectorAll(".embed-box").forEach((box) => {
   const restart = box.querySelector("[data-yt-restart]");
   if (restart) restart.addEventListener("click", () => { box.dataset.resume = "0"; restart.parentElement.hidden = true; btn.click(); });
 });
+
+// YouTube in inPace's own player. The video plays in YouTube's frame, but YouTube's buttons are hidden
+// (controls=0), a cover stops its title, logo and "More videos" from showing, and inPace's player drives it
+// through YouTube's messages. To the player it looks like a <video>.
+class YouTubeMedia extends EventTarget {
+  constructor(frame, cover) {
+    super();
+    this.frame = frame; this.clickTarget = cover;
+    this.paused = true; this.ended = false; this.duration = 0; this.readyState = 0; this.error = null;
+    this._t = 0; this._vol = 1; this._muted = false; this._rate = 1; this._started = false;
+    this.buffered = { length: 0, end: () => 0 }; this.videoWidth = 16; this.videoHeight = 9; this.ccQuiet = true;
+    const self = this;
+    const track = { label: "YouTube", language: "", _m: "disabled",
+      get mode() { return this._m; },
+      set mode(m) { this._m = m; self._cmd(m === "showing" ? "loadModule" : "unloadModule", ["captions"]); } };
+    this.textTracks = [track];
+    addEventListener("message", (ev) => this._hear(ev));
+    const hello = () => { try { frame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: "inpace", channel: "widget" }), "*"); } catch (e) {} };
+    frame.addEventListener("load", () => { hello(); setTimeout(hello, 800); setTimeout(hello, 2500);
+      setTimeout(() => { this._cmd("addEventListener", ["onError"]); this._cmd("addEventListener", ["onStateChange"]); }, 300); });
+  }
+  _cmd(func, args) { try { this.frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*"); } catch (e) {} }
+  _fire(name) { this.dispatchEvent(new Event(name)); }
+  _hear(ev) {
+    if (ev.source !== this.frame.contentWindow) return;
+    let d = ev.data;
+    try { if (typeof d === "string") d = JSON.parse(d); } catch (e) { return; }
+    if (!d || typeof d !== "object") return;
+    if (d.event === "onError") { this.error = { code: d.info }; this._fire("yterror"); return; }
+    const i = d.info;
+    if (!i || typeof i !== "object") return;
+    this._fire("ythello");
+    if (typeof i.duration === "number" && i.duration > 0 && !this.duration) {
+      this.duration = i.duration; this.readyState = 1; this._fire("loadedmetadata");
+      if (this._vol !== 1) this._cmd("setVolume", [Math.round(this._vol * 100)]);
+      if (this._rate !== 1) this._cmd("setPlaybackRate", [this._rate]);
+    }
+    if (typeof i.muted === "boolean") this._muted = i.muted;
+    if (typeof i.volume === "number") this._vol = i.volume / 100;
+    if (typeof i.currentTime === "number") { this._t = i.currentTime; this._fire("timeupdate"); }
+    if (typeof i.videoLoadedFraction === "number" && this.duration) {
+      const f = i.videoLoadedFraction; this.buffered = { length: 1, end: () => f * this.duration }; this._fire("progress");
+    }
+    if (typeof i.playerState === "number") {
+      const st = i.playerState;
+      if (st === 1 && this.paused) { this.paused = false; this.ended = false; this._fire("play"); }
+      else if (st === 2 && !this.paused) { this.paused = true; this._fire("pause"); }
+      else if (st === 0) { this.paused = true; this.ended = true; this._fire("pause"); this._fire("ended"); }
+    }
+  }
+  get currentTime() { return this._t; }
+  set currentTime(t) { this._t = Math.max(0, t); this._cmd("seekTo", [this._t, true]); this._fire("timeupdate"); }
+  get volume() { return this._vol; }
+  set volume(x) { this._vol = Math.min(1, Math.max(0, x)); this._cmd("setVolume", [Math.round(this._vol * 100)]); }
+  get muted() { return this._muted; }
+  set muted(m) { this._muted = !!m; this._cmd(m ? "mute" : "unMute"); }
+  get playbackRate() { return this._rate; }
+  set playbackRate(r) { this._rate = r; this._cmd("setPlaybackRate", [r]); }
+  set controls(x) {}
+  play() { this.ended = false; this._cmd("playVideo"); return Promise.resolve(); }
+  pause() { this._cmd("pauseVideo"); }
+  load() { this.frame.src = this.frame.src; }
+  querySelector() { return null; }
+}
+
+function youtubeAsPlayer(box) {
+  const L = box.dataset, id = L.ytId;
+  const player = document.createElement("div");
+  player.className = "player yt-player";
+  player.tabIndex = 0;
+  for (const k in L) if (k !== "embed" && k !== "ytId") player.dataset[k] = L[k];
+  player.dataset.key = L.ytKey;
+  const frame = document.createElement("iframe");
+  frame.src = youtubeSrc(box);
+  frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+  frame.referrerPolicy = "strict-origin-when-cross-origin";
+  frame.title = "YouTube";
+  frame.setAttribute("tabindex", "-1");
+  // The cover sits over YouTube's picture: it catches clicks (so YouTube never shows its own buttons),
+  // and while the video isn't playing it shows the video's still picture instead of YouTube's pause screen.
+  const cover = document.createElement("div");
+  cover.className = "yt-cover";
+  cover.style.backgroundImage = `url("https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg")`;
+  player.append(frame, cover);
+  box.replaceWith(player);
+  const v = new YouTubeMedia(frame, cover);
+  const show = () => player.classList.toggle("yt-showing", !v.paused);
+  // YouTube shows its title for a moment when a video starts: the still picture stays a little longer.
+  v.addEventListener("play", () => setTimeout(show, 2500));
+  v.addEventListener("pause", show);
+  const ctl = window.inpacePlayer(player, v);
+  player.focus({ preventScroll: true });
+  const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const link = `<a class="btn small" href="${esc(L.watch)}" target="_blank" rel="noopener">${esc(L.lOpen)}</a>`;
+  const note = (html, cls) => {
+    let n = player.parentElement.querySelector(".yt-note");
+    if (!n) { n = document.createElement("p"); player.insertAdjacentElement("afterend", n); }
+    n.className = "yt-note " + (cls || ""); n.innerHTML = html;
+  };
+  let heard = false;
+  v.addEventListener("ythello", () => { heard = true; const s = player.parentElement.querySelector(".yt-note.soft"); s && s.remove(); });
+  v.addEventListener("yterror", () => { player.classList.add("failed"); note(`<b>${esc(L.lErr)}</b> <span class="small muted">(YouTube ${esc(v.error.code)})</span> ${link}`, "warn"); });
+  setTimeout(() => { if (!heard && L.watch) note(`${esc(L.lSlow)} ${link}`, "soft"); }, 15000);
+  return ctl;
+}
 
 // YouTube lessons: a lesson can be one piece of a long video (start and end), and it continues from the
 // second you stopped at. The player tells us where it is through its own messages (no extra script).
@@ -891,8 +997,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
   };
   const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-  document.querySelectorAll("[data-player]").forEach((box) => {
-    const v = box.querySelector("video");
+  const setup = (box, v) => {
     const L = box.dataset;
     const lo = parseFloat(L.start || "0") || 0, hiSet = parseFloat(L.end || "0") || 0;
     const hi = () => hiSet || v.duration || 0;
@@ -917,7 +1022,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
           <span class="pl-grow"></span>
           ${v.textTracks.length || L.subAction ? `<button type="button" class="pl-btn pl-cc" title="${L.lCc} (C)" aria-haspopup="true">CC</button>` : ""}
           <button type="button" class="pl-btn pl-speed" title="${L.lSpeed}">${speed}×</button>
-          ${document.pictureInPictureEnabled ? `<button type="button" class="pl-btn pl-pip" title="${L.lPip}">${ICON.pip}</button>` : ""}
+          ${document.pictureInPictureEnabled && v.requestPictureInPicture ? `<button type="button" class="pl-btn pl-pip" title="${L.lPip}">${ICON.pip}</button>` : ""}
           <button type="button" class="pl-btn pl-full" title="${L.lFull} (F)">${ICON.full}</button>
         </div>
       </div>`);
@@ -969,8 +1074,8 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     v.addEventListener("ended", () => { state(); say(L.lEnded); const done = document.querySelector(".lesson-actions, .lesson-foot"); done && done.scrollIntoView({ behavior: "smooth", block: "center" }); });
     // Keep the keyboard keys working after a click (the big button disappears once it's pressed).
     box.addEventListener("click", (e) => { if (e.target.tagName !== "INPUT") box.focus({ preventScroll: true }); });
-    v.addEventListener("click", toggle);
-    v.addEventListener("dblclick", () => $(".pl-full").click());
+    (v.clickTarget || v).addEventListener("click", toggle);
+    (v.clickTarget || v).addEventListener("dblclick", () => $(".pl-full").click());
     big.addEventListener("click", toggle);
     play.addEventListener("click", toggle);
     $(".pl-back").addEventListener("click", () => jump(-10));
@@ -988,7 +1093,9 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     pip && pip.addEventListener("click", () => (document.pictureInPictureElement ? document.exitPictureInPicture() : v.requestPictureInPicture()).catch(() => {}));
     $(".pl-full").addEventListener("click", () => {
       if (document.fullscreenElement) document.exitFullscreen();
-      else (box.requestFullscreen ? box.requestFullscreen() : v.webkitEnterFullscreen && v.webkitEnterFullscreen());
+      else if (box.requestFullscreen) box.requestFullscreen().catch(() => {});
+      else if (box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
     });
     box.addEventListener("mousemove", wake);
     box.addEventListener("keydown", (e) => {
@@ -1015,7 +1122,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
       let pref = null;
       try { pref = localStorage.getItem("inpace-cc"); } catch (e) {}
       const list = tracks();
-      if (list.length && pref !== "off") {
+      if (list.length && pref !== "off" && !(v.ccQuiet && pref !== list[0].label)) {
         let i = list.findIndex((t) => t.label === pref);
         if (i < 0) i = list.findIndex((t) => t.language && t.language === document.documentElement.lang);
         pick(i < 0 ? 0 : i);
@@ -1103,7 +1210,10 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     v.addEventListener("loadeddata", picCheck, { once: true });
     if (v.error) fail("error");
     state(); draw(); volState(); wake();
-  });
+    return { toggle };
+  };
+  window.inpacePlayer = setup;
+  document.querySelectorAll("[data-player]").forEach((box) => { const v = box.querySelector("video"); v && setup(box, v); });
 })();
 
 // AI course maker: show only the fields for the chosen starting point.
