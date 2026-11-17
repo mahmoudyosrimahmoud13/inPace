@@ -154,6 +154,18 @@
     </form>
   </details>
 </section>
+<section class="card stack" style="max-width:620px" id="about">
+  <div class="row">{{ mascot('happy', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}About inPace{% endtrans %}</h2>
+  <p class="muted" style="margin:.2rem 0 0">{{ T('Version {v}', v=update.version) }}</p></div></div>
+  <p>{% trans trimmed %}inPace is a free, open-source app that helps you finish the courses you start, one small step a day. Everything stays on your device.{% endtrans %}</p>
+  <div class="row" style="flex-wrap:wrap;gap:.6rem">
+    <a class="btn primary" href="https://github.com/mahmoudyosrimahmoud13/inpace" target="_blank" rel="noopener">{{ icon('code') }} {% trans trimmed %}Code on GitHub{% endtrans %}</a>
+    <a class="btn" href="https://github.com/mahmoudyosrimahmoud13/inpace/stargazers" target="_blank" rel="noopener">{{ icon('spark') }} {% trans trimmed %}Star it on GitHub{% endtrans %}</a>
+    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/discord.html" target="_blank" rel="noopener">{{ icon('discord') }} Discord</a>
+    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/" target="_blank" rel="noopener">{{ icon('link') }} {% trans trimmed %}Website{% endtrans %}</a>
+  </div>
+  <p class="small muted">{% trans trimmed %}Made by Mahmoud Yosri. MIT license.{% endtrans %}</p>
+</section>
 {% if not on_phone() %}
 <section class="card" style="max-width:620px">
   <h2>{% trans trimmed %}Quit inPace{% endtrans %}</h2>

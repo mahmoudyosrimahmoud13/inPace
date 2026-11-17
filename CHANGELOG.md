@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.28.1
+
+- **About inPace** in Settings: your version, a link to the code on GitHub (stars welcome), Discord and the website. The footer has an **About** link too.
+- **Website fix on phones:** the top bar no longer squeezes the inPace logo under the Discord button.
+
 ## v1.28.0
 
 - **inPace speaks 14 languages.** English, العربية, Español, Français, Deutsch, Português, Bahasa Indonesia, Türkçe, Tiếng Việt, Русский, हिन्दी, ไทย, 日本語 and 简体中文.

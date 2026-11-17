@@ -321,3 +321,17 @@ select.lang { font: inherit; font-weight: 700; padding: .55rem .6rem; background
 .guide-note { max-width: 1240px; margin: 1.2rem auto 0; padding: .7rem 1rem; background: var(--surface);
   border: 3px solid var(--line); box-shadow: var(--hard-sm) var(--line); font-size: .95rem; }
 [dir=rtl] .guide-note { box-shadow: -4px 4px 0 var(--line); }
+
+/* Phone header: keep the logo, Discord and theme buttons full size; only the language menu may shrink */
+@media (max-width: 760px) {
+  .top { gap: .5rem; }
+  .brand, .top .theme { flex-shrink: 0; }
+  .top .theme { width: 40px; height: 40px; }
+  .top select.lang { flex: 0 1 auto; min-width: 0; max-width: 9.5rem; padding: .45rem .4rem; }
+}
+@media (max-width: 380px) {
+  .brand { font-size: 1.3rem; gap: .4rem; }
+  .brand img { width: 30px; height: 30px; }
+  .top .theme { width: 36px; height: 36px; }
+  .top select.lang { max-width: 7.2rem; }
+}
