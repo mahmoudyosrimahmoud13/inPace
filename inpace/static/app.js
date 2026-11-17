@@ -1687,29 +1687,89 @@ document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventLi
   });
 })();
 
-// My courses: type to find a course by its title, description, modules or lessons.
+// Course search (My courses, the library, roadmaps): every word must match somewhere in the course: title, tags,
+// section, description, author, or a module or lesson title. Forgiving: Arabic letter variants and accents don't
+// matter, common short names work (k8s, js, ml, postgres), and a small typo still finds the word. The best
+// matches come first: a word in the title or tags counts more than one deep in a lesson.
+const SEARCH_SAME = { k8s: "kubernetes", js: "javascript", ts: "typescript", py: "python", ml: "machine learning",
+  dl: "deep learning", ai: "artificial intelligence", db: "database", postgres: "postgresql", pg: "postgresql",
+  sql: "sql", devops: "devops", sre: "observability", cv: "computer vision", nlp: "nlp", llm: "language model",
+  cicd: "ci/cd", "c#": "csharp", dotnet: "dotnet", ".net": "dotnet", linux: "linux", os: "operating systems",
+  "بايثون": "python", "لينكس": "linux", "انجليزي": "english", "الماني": "german", "اسباني": "spanish" };
+function searchFold(s) {
+  return String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ًͯ-ٰٟ]/g, "")
+    .replace(/[أإآٱ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/ـ/g, "");
+}
+function nearWord(term, words) {  // one letter wrong, missing or extra (for words of 5+ letters)
+  if (term.length < 5) return false;
+  return words.some((w) => {
+    if (Math.abs(w.length - term.length) > 1 || w[0] !== term[0]) return false;
+    let i = 0, j = 0, edits = 0;
+    while (i < term.length && j < w.length) {
+      if (term[i] === w[j]) { i++; j++; continue; }
+      if (++edits > 1) return false;
+      if (term.length > w.length) i++; else if (w.length > term.length) j++; else { i++; j++; }
+    }
+    return edits + (term.length - i) + (w.length - j) <= 1;
+  });
+}
 (() => {
   const box = document.querySelector("[data-course-filter]");
   if (!box) return;
   const cards = [...document.querySelectorAll("[data-course-search]")];
+  cards.forEach((c, i) => {
+    c._order = i;
+    c._text = searchFold(c.dataset.courseSearch);
+    c._title = searchFold(c.dataset.searchTitle || "");
+    c._words = c._text.split(/[^\p{L}\p{N}#+.]+/u).filter(Boolean);
+  });
   const none = document.querySelector("[data-course-none]");
-  let topic = "";  // the library's topic buttons narrow the list too
+  const levelBox = document.querySelector("[data-lib-level]"), langBox = document.querySelector("[data-lib-lang]");
+  let topic = "";  // the library's section (or topic) buttons narrow the list too
+  const score = (c, terms) => {
+    let total = 0;
+    for (const t of terms) {
+      const alt = SEARCH_SAME[t] ? searchFold(SEARCH_SAME[t]) : null;
+      const has = (s) => s.includes(t) || (alt && s.includes(alt));
+      if (c._title && has(c._title)) total += 3;
+      else if (has(c._text)) total += 1;
+      else if (nearWord(t, c._words)) total += 0.5;
+      else return -1;   // every word must match somewhere
+    }
+    return total;
+  };
   const run = () => {
-    const words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const terms = searchFold(box.value).split(/\s+/).filter(Boolean);
+    const level = levelBox ? levelBox.value : "", lang = langBox ? langBox.value : "";
     let shown = 0;
     cards.forEach((c) => {
-      const ok = words.every((w) => c.dataset.courseSearch.includes(w)) &&
-        (!topic || (c.dataset.tags || "").split("|").includes(topic));
+      const s = terms.length ? score(c, terms) : 0;
+      const ok = s >= 0 &&
+        (!topic || c.dataset.section === topic || (c.dataset.tags || "").split("|").includes(topic)) &&
+        (!level || c.dataset.level === level) && (!lang || c.dataset.lang === lang);
+      c._score = s;
       c.hidden = !ok;
       shown += ok;
     });
+    // Best matches first inside each list while searching; the usual order otherwise.
+    const parents = new Set(cards.map((c) => c.parentElement));
+    parents.forEach((p) => {
+      const kids = cards.filter((c) => c.parentElement === p);
+      kids.sort((a, b) => terms.length ? (b._score - a._score) || (a._order - b._order) : a._order - b._order);
+      kids.forEach((k) => p.appendChild(k));
+    });
     if (none) none.hidden = shown > 0;
+    document.querySelectorAll("[data-lib-section]").forEach((sec) => {
+      sec.hidden = !sec.querySelector("[data-course-search]:not([hidden])");
+    });
     document.querySelectorAll("[data-folder-box]").forEach((f) => {
-      f.hidden = words.length > 0 && !f.querySelector("[data-course-search]:not([hidden])");
-      if (words.length && !f.hidden) f.querySelector("details").open = true;
+      f.hidden = terms.length > 0 && !f.querySelector("[data-course-search]:not([hidden])");
+      if (terms.length && !f.hidden) f.querySelector("details").open = true;
     });
   };
   box.addEventListener("input", run);
+  levelBox && levelBox.addEventListener("change", run);
+  langBox && langBox.addEventListener("change", run);
   document.querySelectorAll("[data-lib-topic]").forEach((b) => b.addEventListener("click", () => {
     topic = b.dataset.libTopic;
     document.querySelectorAll("[data-lib-topic]").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));

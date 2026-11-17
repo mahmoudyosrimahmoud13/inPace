@@ -77,7 +77,7 @@ def test_browse_add_and_share_from_the_library(tmp_path, monkeypatch):
     fv, f = client(tmp_path, "Sara")
     page = html.unescape(f.get("/library").text)
     assert "FastAPI: from first API to production" in page and "by Omar ✓" in page
-    assert "Videos download separately · 1.2 GB" in page
+    assert "Extra downloads · 1.2 GB" in page
     r = f.post("/library/fastapi/add", follow_redirects=True)
     assert "Added the course" in html.unescape(r.text) and fv.get_course("fastapi")
     assert "Added" in html.unescape(f.get("/library").text)

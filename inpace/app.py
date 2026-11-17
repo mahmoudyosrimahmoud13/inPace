@@ -504,6 +504,38 @@ class NavMiddleware:
         await self.app(scope, receive, wrapped)
 
 
+def _library_groups(index: dict, entries: list[dict], lang: str) -> tuple[list[dict], list[dict]]:
+    """The library list in sections (from the library's sections list), and the buttons above it.
+    Inside a section: new courses first, then beginner to advanced, your language first, then by title.
+    An older library without sections: one group, and the most shared tags as buttons."""
+    rank = {"beginner": 0, "intermediate": 1, "advanced": 2}
+
+    def order(e):
+        tags = [str(x).lower() for x in (e.get("tags") or [])]
+        lvl = min([rank[t] for t in tags if t in rank] or [1])
+        return (not e.get("new"), lvl, e.get("language") != lang, str(e.get("title", "")).lower())
+
+    secs = [x for x in (index.get("sections") or []) if isinstance(x, dict) and x.get("id")]
+    if secs:
+        known = {x["id"] for x in secs}
+        groups = []
+        for x in secs:
+            items = sorted([e for e in entries if (e.get("section") if e.get("section") in known else "other") == x["id"]], key=order)
+            if items:
+                label = str(x.get(lang) or x.get("en") or x["id"])
+                groups.append({"id": x["id"], "label": label, "entries": items})
+        rest = [e for e in entries if e.get("section") not in known]
+        if rest and not any(g["id"] == "other" for g in groups):
+            groups.append({"id": "other", "label": "", "entries": sorted(rest, key=order)})
+        return groups, [{"id": g["id"], "label": g["label"]} for g in groups if g["label"]]
+    counts: dict[str, int] = {}
+    for e in entries:
+        for tag in {str(x).strip().lower() for x in (e.get("tags") or []) if str(x).strip()}:
+            counts[tag] = counts.get(tag, 0) + 1
+    tags = [tag for tag, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])) if n > 1][:10]
+    return [{"id": "", "label": "", "entries": sorted(entries, key=lambda e: not e.get("new"))}], [{"id": t, "label": t} for t in tags]
+
+
 def create_app(vault: Vault) -> Starlette:
     V = vault
     from . import ytrules
@@ -1030,25 +1062,29 @@ def create_app(vault: Vault) -> Starlette:
         for e in index.get("courses", []):
             local = V.get_course(str(e.get("id", "")))
             state = "add" if not local else ("have" if local.hash == e.get("hash") else "update")
-            words = " ".join(str(x) for x in [e.get("id"), e.get("title"), e.get("description"), e.get("author", {}).get("name"),
-                                                " ".join(e.get("tags") or [])] if x).lower()
-            entries.append({**e, "state": state, "search": words, "new": str(e.get("id", "")) in new_ids,
+            # The search looks at the title, tags, section, description, author, and every module and lesson title.
+            outline = e.get("outline") if isinstance(e.get("outline"), list) else []
+            lessons = " ".join(str(m.get("title", "")) + " " + " ".join(str(l.get("title", "")) for l in (m.get("lessons") or []))
+                               for m in outline if isinstance(m, dict))
+            words = " ".join(str(x) for x in [e.get("id"), e.get("title"), " ".join(e.get("tags") or []), e.get("section"),
+                                                e.get("description"), e.get("author", {}).get("name"), lessons] if x).lower()
+            tags = [str(x).lower() for x in (e.get("tags") or [])]
+            level = next((t for t in ("beginner", "intermediate", "advanced") if t in tags), "")
+            entries.append({**e, "state": state, "search": words, "level": level,
+                            "search_title": (str(e.get("title", "")) + " " + " ".join(tags)).lower(),
+                            "new": str(e.get("id", "")) in new_ids,
                             "hours": round(int(e.get("minutes") or 0) / 60) if e.get("minutes") else 0})
-        # Topic buttons above the list: the tags several courses share, most common first.
-        counts: dict[str, int] = {}
-        for e in entries:
-            for tag in {str(x).strip().lower() for x in (e.get("tags") or []) if str(x).strip()}:
-                counts[tag] = counts.get(tag, 0) + 1
-        topics = [tag for tag, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])) if n > 1][:10]
+        lang = V._meta("lang", "en") or "en"
+        groups, topics = _library_groups(index, entries, lang)
         tab = "roadmaps" if request.query_params.get("tab") == "roadmaps" else "courses"
         followed = {r["id"] for r in roadmaps.mine(V.home)}
         lib_roadmaps = roadmaps.library_list(index)
-        lang = V._meta("lang", "en") or "en"
         lib_roadmaps.sort(key=lambda r: (r["id"] in followed, r.get("language") != lang))
         titles = {str(e.get("id")): e.get("title", "") for e in entries}
         entries.sort(key=lambda e: not e["new"])  # new courses first
+        extra_groups = {"groups": groups}
         checked = (V.home / "library.json").stat().st_mtime if (V.home / "library.json").exists() else 0
-        extra = {"tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles,
+        extra = {**extra_groups, "tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles,
                  "new_count": sum(1 for e in entries if e["new"]),
                  "checked_min": int((_time.time() - checked) // 60) if checked else None}
         if new_ids and tab == "courses":

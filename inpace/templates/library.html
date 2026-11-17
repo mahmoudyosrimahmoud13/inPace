@@ -46,10 +46,23 @@
 {% if index.offline %}<p class="note warn">{% trans trimmed %}You're offline, so this is the list from the last time you looked.{% endtrans %}</p>{% endif %}
 <div class="lib-tools">
   <label class="course-filter">{{ icon('search', 18) }}<input type="search" data-course-filter dir="auto" value="{{ show or '' }}" placeholder="{{ _('Search the library') }}" aria-label="{{ _('Search the library') }}"></label>
+  <div class="lib-filters" role="group" aria-label="{{ _('Filters') }}">
+    <select data-lib-level aria-label="{{ _('Level') }}">
+      <option value="">{% trans trimmed %}Any level{% endtrans %}</option>
+      <option value="beginner">{% trans trimmed %}Beginner{% endtrans %}</option>
+      <option value="intermediate">{% trans trimmed %}Intermediate{% endtrans %}</option>
+      <option value="advanced">{% trans trimmed %}Advanced{% endtrans %}</option>
+    </select>
+    <select data-lib-lang aria-label="{{ _('Language') }}">
+      <option value="">{% trans trimmed %}Any language{% endtrans %}</option>
+      <option value="en">English</option>
+      <option value="ar">العربية</option>
+    </select>
+  </div>
   {% if topics %}
   <div class="lib-topics" role="group" aria-label="{{ _('Topics') }}">
     <button type="button" class="lib-topic" data-lib-topic="" aria-pressed="true">{% trans trimmed %}All{% endtrans %}</button>
-    {% for tp in topics %}<button type="button" class="lib-topic" data-lib-topic="{{ tp }}" aria-pressed="false">{{ tp }}</button>{% endfor %}
+    {% for tp in topics %}<button type="button" class="lib-topic" data-lib-topic="{{ tp.id }}" aria-pressed="false" dir="auto">{{ tp.label }}</button>{% endfor %}
   </div>
   {% endif %}
   <a class="btn lib-refresh" href="/library?refresh=1" title="{{ _('Look for new courses') }}">{{ icon('undo', 18) }} {% trans trimmed %}Refresh{% endtrans %}</a>
@@ -57,9 +70,12 @@
 </div>
 {% if new_count %}<p class="note lib-new-note">{{ icon('spark', 18) }} {{ T('{n} new course(s) since you last looked. They are first in the list.', n=new_count) }}</p>{% endif %}
 <p class="muted" data-course-none hidden>{% trans trimmed %}No course matches that. Try another word.{% endtrans %}</p>
+{% for g in groups %}
+<section class="lib-section" data-lib-section="{{ g.id }}">
+{% if g.label %}<h2 class="lib-section-title" dir="auto">{{ g.label }} <span class="lib-section-n">{{ g.entries|length }}</span></h2>{% endif %}
 <div class="lib-grid">
-{% for e in entries %}
-<article class="lib-card{{ ' picked' if show and e.id == show }}" id="lib-{{ e.id }}" data-course-search="{{ e.search }}" data-tags="{{ (e.tags or [])|map('lower')|join('|') }}">
+{% for e in g.entries %}
+<article class="lib-card{{ ' picked' if show and e.id == show }}" id="lib-{{ e.id }}" data-course-search="{{ e.search }}" data-search-title="{{ e.search_title }}" data-level="{{ e.level }}" data-lang="{{ e.language }}" data-section="{{ g.id }}" data-tags="{{ (e.tags or [])|map('lower')|join('|') }}">
   <a class="lib-cover" href="/library/{{ e.id }}" tabindex="-1" aria-hidden="true">
     {% if e.cover %}<img src="{{ e.cover }}" alt="" loading="lazy">{% else %}<span class="blank" style="--hue:{{ (e.id|length * 47) % 360 }}">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
   </a>
@@ -73,7 +89,7 @@
     </ul>
     {% if e.description %}<p class="lib-desc" dir="auto">{{ e.description }}</p>{% endif %}
     <p class="muted small lib-by">{% if e.author %}{{ T('by {name}', name=e.author.name) }}{% if e.author.verified %} ✓{% endif %}{% endif %}
-      {% if e.downloads %}<span class="chip warn">{{ T('Videos download separately{size}', size=(' · ' ~ e.downloads[0].size) if e.downloads[0].size else '') }}</span>{% endif %}</p>
+      {% if e.downloads %}<span class="chip warn">{{ T('Extra downloads{size}', size=(' · ' ~ e.downloads[0].size) if e.downloads[0].size else '') }}</span>{% endif %}</p>
     <div class="lib-actions">
       {% if e.state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
       {% else %}<form method="post" action="/library/{{ e.id }}/add"><button class="btn primary">{{ _('Update') if e.state == 'update' else _('Add') }}</button></form>{% endif %}
@@ -83,6 +99,8 @@
 </article>
 {% endfor %}
 </div>
+</section>
+{% endfor %}
 {% endif %}
 
 {% if tab != 'roadmaps' %}

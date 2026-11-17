@@ -221,3 +221,42 @@ def test_youtube_box_offers_two_choices(tmp_path):
     ytrules.use_home(tmp_path)
     out = media.youtube_player("c", "https://www.youtube.com/watch?v=CS4cs9xVecg", "", lambda p: False, lambda s, **k: s)
     assert 'class="yt-choice play"' in out and 'class="yt-choice" data-yt-noads' in out and "Play on YouTube" in out and "yt-noads-row" not in out
+
+
+# ---- 1.28.16: library sections and a smarter search ----
+def test_library_groups_by_section_and_level():
+    from inpace.app import _library_groups
+    index = {"sections": [{"id": "linux-cloud-devops", "en": "Linux, Cloud and DevOps", "ar": "لينكس"},
+                          {"id": "languages", "en": "Languages", "ar": "اللغات"}]}
+    entries = [
+        {"id": "adv", "title": "Advanced Linux", "section": "linux-cloud-devops", "tags": ["linux", "advanced"], "language": "en"},
+        {"id": "fund", "title": "Linux Fundamentals", "section": "linux-cloud-devops", "tags": ["linux", "beginner"], "language": "en"},
+        {"id": "eng", "title": "English A1", "section": "languages", "tags": ["english", "beginner"], "language": "ar"},
+        {"id": "odd", "title": "Something else", "section": "unknown", "tags": [], "language": "en"},
+    ]
+    groups, topics = _library_groups(index, entries, "ar")
+    assert [g["id"] for g in groups] == ["linux-cloud-devops", "languages", "other"]
+    assert [e["id"] for e in groups[0]["entries"]] == ["fund", "adv"]          # beginner before advanced
+    assert groups[0]["label"] == "لينكس" and topics[0] == {"id": "linux-cloud-devops", "label": "لينكس"}
+
+
+def test_library_without_sections_still_works():
+    from inpace.app import _library_groups
+    entries = [{"id": "a", "title": "A", "tags": ["python", "web"]}, {"id": "b", "title": "B", "tags": ["python"]}]
+    groups, topics = _library_groups({}, entries, "en")
+    assert len(groups) == 1 and len(groups[0]["entries"]) == 2
+    assert topics == [{"id": "python", "label": "python"}]
+
+
+def test_library_page_has_sections_and_filters(tmp_path):
+    import json
+    from tests.test_app import client
+    v, c = client(tmp_path, "Sara")
+    (v.home / "library.json").write_text(json.dumps({"inpace": "library", "v": 1, "sections": [
+        {"id": "data-databases", "en": "Data and Databases", "ar": "البيانات"}], "courses": [
+        {"id": "pg", "title": "PostgreSQL for Beginners", "description": "SQL", "section": "data-databases", "language": "en",
+         "tags": ["postgresql", "beginner"], "hash": "x", "modules": 1, "lessons": 1, "minutes": 30,
+         "outline": [{"title": "Day 1", "lessons": [{"title": "Install and meet psql"}]}]}], "roadmaps": []}))
+    page = c.get("/library").text
+    assert "Data and Databases" in page and 'data-section="data-databases"' in page
+    assert 'data-level="beginner"' in page and "data-lib-level" in page and "install and meet psql" in page

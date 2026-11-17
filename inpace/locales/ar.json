@@ -170,7 +170,7 @@
  "Added “{a}”. Press Start when you're ready.": "تمت إضافة «{a}». اضغط «ابدأ» عندما تكون مستعدًا.",
  "Adding…": "جارٍ الإضافة…",
  "Address (only for Ollama on another port, or other OpenAI-compatible services)": "العنوان (فقط لـ Ollama على منفذ آخر، أو خدمات أخرى متوافقة مع OpenAI)",
- "Advanced": "متقدّم",
+ "Advanced": "متقدم",
  "Advanced: write the course file yourself": "متقدم: اكتب ملف الدورة بنفسك",
  "After it downloads, press Find it for me.": "بعد التحميل، اضغط «ابحث عنه لي».",
  "After your first milestone": "بعد أول محطة",
@@ -2321,5 +2321,12 @@
  "Getting it without ads…": "جارٍ الجلب بدون إعلانات…",
  "No ad-free copy right now.": "لا توجد نسخة بدون إعلانات الآن.",
  "Full video": "الفيديو كاملًا",
- "{label} · {size}": "{label} · {size}"
+ "{label} · {size}": "{label} · {size}",
+ "Extra downloads{size}": "تنزيلات إضافية{size}",
+ "Filters": "التصفية",
+ "Level": "المستوى",
+ "Any level": "أي مستوى",
+ "Beginner": "مبتدئ",
+ "Intermediate": "متوسط",
+ "Any language": "أي لغة"
 }

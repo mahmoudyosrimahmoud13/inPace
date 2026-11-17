@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.28.16
+
+- **The library is in sections:** Linux, Cloud and DevOps; Programming and Web; Data and Databases; AI and Machine Learning; Maths; Careers and Interviews; Business and Accounting; Languages; Build inPace. The buttons above the list jump to a section, and inside each one courses go from beginner to advanced. Works the same on phones (the section buttons scroll sideways).
+- **A smarter course search,** in the library and in My courses: it looks inside module and lesson titles too, forgives a small typo ("kubernets"), understands short names (k8s, js, ml, postgres), ignores Arabic spelling variants (أ/ا, ة/ه), and shows the best matches first.
+- **Level and language filters** in the library: beginner, intermediate or advanced; English or Arabic.
+- Courses with extra files now say "Extra downloads" instead of always "Videos download separately".
+
 ## v1.28.15
 
 - **"Play without ads" works for far more videos.** YouTube now gives most videos only as separate picture and sound files, which inPace used to skip. Now it tries one file first, then plays the picture and sound files together (kept in step), then the phone stream where the device plays it, and if YouTube says no, it asks again as other YouTube apps (TV, iPhone and more).
