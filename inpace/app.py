@@ -1,7 +1,9 @@
 """The local web app. Runs only on this computer (127.0.0.1)."""
 from __future__ import annotations
 
+import hashlib
 import json
+from . import __version__
 from html import escape as html_escape
 import mimetypes
 import os
@@ -367,6 +369,19 @@ def icon(name: str, size: int = 20) -> Markup:
 
 
 env.globals["icon"] = icon
+
+
+def _static_stamp(name: str) -> str:
+    """A short fingerprint of a file in static/: it changes whenever the file does, so after an update the
+    app window loads the new script and styles instead of the copy it kept (they're cached for a year)."""
+    try:
+        return hashlib.sha256((HERE / "static" / name).read_bytes()).hexdigest()[:10]
+    except OSError:
+        return __version__
+
+
+STATIC_V = {n: _static_stamp(n) for n in ("app.js", "style.css", "builder.js")}
+env.globals["static_v"] = STATIC_V
 env.globals["LANGS"] = langs.LANGS
 env.globals["lang_dir"] = langs.direction
 DISCORD_URL = "https://mahmoudyosrimahmoud13.github.io/inPace/discord.html"  # opens the server's invite
@@ -3697,6 +3712,39 @@ def create_app(vault: Vault) -> Starlette:
         V.__init__(V.home)
         return go("/", ok="Backup restored.")
 
+    async def delete_everything(request: Request):
+        """Settings → Delete all my data: empties inPace's folder (courses, progress, notes, people, keys,
+        backups inside it) and starts fresh, like the first day. Asks you to type a word first."""
+        import shutil as _sh
+        form = await request.form()
+        word = str(form.get("confirm", "")).strip()
+        if word.casefold() not in {"delete", gettext("DELETE").casefold()}:
+            return go("/settings#delete", err="Nothing was deleted. Type the word exactly to confirm.")
+        folders = []
+        if form.get("videos"):
+            folders = [offline.system_folder("downloads") / "inPace", offline.system_folder("videos") / "inPace"]
+        try:
+            V.db.close()
+        except Exception:
+            pass
+        left = []
+        for item in list(V.home.iterdir()):
+            try:
+                _sh.rmtree(item) if item.is_dir() and not item.is_symlink() else item.unlink()
+            except OSError:
+                left.append(item.name)
+        for f in folders:
+            _sh.rmtree(f, ignore_errors=True)
+        V.__init__(V.home)  # an empty inPace: the welcome page comes next
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            try:
+                notifier.sync(V, True)  # no courses left, so no reminders on this computer either
+            except Exception:
+                pass
+        if left:
+            return go("/", err=say("Almost everything was deleted. A few files were in use: %s", [", ".join(left[:5])]))
+        return go("/", ok="All your inPace data was deleted.")
+
     async def ai_settings(request: Request):
         form = await request.form()
         integrations.save_ai_settings(V, str(form.get("provider", "")), str(form.get("model", "")),
@@ -4502,6 +4550,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
+        Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     from starlette.middleware import Middleware

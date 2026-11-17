@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.28.7
+
+- **Updates now really show up.** The app window kept its old copy of inPace's script and styles after an update, so new things (like the new YouTube player) didn't appear. Their links now change whenever the files change, so every update loads the new ones.
+- **Delete all my data** (Settings, at the bottom): removes your courses, progress, notes, milestones, people, races, reminders and private key, and inPace starts fresh. You type a word to confirm, and you can also delete the videos inPace downloaded.
+
 ## v1.28.6
 
 - **A real Windows installer: `inPace-setup.exe`.** Run it and click through: it installs inPace for you (no admin password), adds it to the Start menu (and the desktop if you like), shows up in *Settings → Apps* with an uninstaller, and opens inpace:// links. Your courses and progress stay in `Documents\inPace`, so installing, updating or removing inPace never touches them.

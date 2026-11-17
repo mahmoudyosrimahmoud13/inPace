@@ -2089,3 +2089,8 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 .yt-player .pl-big, .yt-player .pl-bar, .yt-player .pl-toast, .yt-player .pl-menu { z-index: 2; }
 .yt-player:fullscreen { aspect-ratio: auto; max-height: none; }
 .yt-player.failed .yt-cover { background-image: none !important; }
+
+/* Settings → Delete all my data */
+.danger-zone { border-color: #d64545; }
+.danger-zone summary.btn { display: inline-flex; list-style: none; cursor: pointer; }
+.danger-zone summary::-webkit-details-marker { display: none; }

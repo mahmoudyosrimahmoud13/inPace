@@ -42,3 +42,22 @@ def test_youtube_hides_its_own_controls():
     out = media.youtube_player("c1", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "", lambda _: False, lambda s: s)
     assert "controls=0" in out and 'data-l-full="Full screen"' in out
     assert 'data-yt-id="dQw4w9WgXcQ"' in out and 'data-l-pip=' in out   # the same player labels as video files
+
+
+def test_script_and_style_links_change_when_the_files_change(tmp_path):
+    from inpace.app import STATIC_V
+    v, c = client(tmp_path, "Omar")
+    page = c.get("/").text
+    assert f"/static/app.js?v={STATIC_V['app.js']}" in page and f"/static/style.css?v={STATIC_V['style.css']}" in page
+    assert "?v=30" not in page and "?v=36" not in page
+
+
+def test_delete_all_my_data(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    (v.home / "courses" / "mine").mkdir()
+    (v.home / "notes.txt").write_text("x")
+    r = c.post("/settings/delete-everything", data={"confirm": "nope"})
+    assert "Nothing was deleted" in html.unescape(r.text) and (v.home / "notes.txt").exists()
+    r = c.post("/settings/delete-everything", data={"confirm": "DELETE"})
+    assert not (v.home / "notes.txt").exists() and not (v.home / "courses" / "mine").exists()
+    assert not v.is_set_up and "Welcome to inPace" in html.unescape(r.text)

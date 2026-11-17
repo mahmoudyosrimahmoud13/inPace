@@ -28,8 +28,8 @@ def test_the_window_keeps_inpaces_own_files(tmp_path):
     page = c.get("/")
     assert page.headers["cache-control"] == "no-store"  # pages are always fresh
     import re
-    css = re.search(r'href="(/static/style\.css\?v=\d+)"', page.text).group(1)
-    js = re.search(r'src="(/static/app\.js\?v=\d+)"', page.text).group(1)
+    css = re.search(r'href="(/static/style\.css\?v=\w+)"', page.text).group(1)
+    js = re.search(r'src="(/static/app\.js\?v=\w+)"', page.text).group(1)
     for url in (css, js):
         assert c.get(url).headers["cache-control"] == "public, max-age=31536000, immutable"
     assert c.get("/static/icon.svg").headers["cache-control"] == "public, max-age=86400"

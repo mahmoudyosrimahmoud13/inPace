@@ -154,6 +154,19 @@
     </form>
   </details>
 </section>
+<section class="card stack danger-zone" style="max-width:620px" id="delete">
+  <h2 style="margin:0">{% trans trimmed %}Delete all my data{% endtrans %}</h2>
+  <p class="muted">{% trans trimmed %}Removes everything inPace keeps in its folder: your courses, progress, notes, milestones, people, races, reminders and your private key. inPace starts fresh, like the first day. This can't be undone, so make a backup first if you might want it back.{% endtrans %}</p>
+  <details>
+    <summary class="btn danger">{% trans trimmed %}Delete all my data…{% endtrans %}</summary>
+    <form method="post" action="/settings/delete-everything" class="stack" style="margin-block-start:.8rem">
+      <label class="check small"><input type="checkbox" name="videos" value="1"> <span>{% trans trimmed %}Also delete the videos inPace downloaded (the inPace folders in Downloads and Videos){% endtrans %}</span></label>
+      <label>{{ T('Type {word} to confirm', word=_('DELETE')) }}
+        <input name="confirm" required autocomplete="off" dir="auto" placeholder="{{ _('DELETE') }}"></label>
+      <button class="btn danger">{% trans trimmed %}Delete everything{% endtrans %}</button>
+    </form>
+  </details>
+</section>
 <section class="card stack" style="max-width:620px" id="about">
   <div class="row">{{ mascot('happy', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}About inPace{% endtrans %}</h2>
   <p class="muted" style="margin:.2rem 0 0">{{ T('Version {v}', v=update.version) }}</p></div></div>
