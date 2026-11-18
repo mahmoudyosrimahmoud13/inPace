@@ -2457,3 +2457,35 @@ h3.set-h { font-size: 1.25rem; }
 .trip-controls > :first-child button, .trip-controls > button:first-child { border-inline-start: 0; }
 .trip-controls .tc-main { background: var(--sun); color: #111; }
 body:has(.trip:not([hidden])) .ftimer { display: none !important; }  /* the trip screen is the timer already */
+
+/* A YouTube video in a small window (Android's floating window, the pop-out, the mini player) fills that window:
+   the "sharper quality" trick draws YouTube's frame big and scales it down for the lesson page; here it's undone. */
+:is(html.in-pip .pip-video, .mw-video, figure.mini-player) .yt-player { aspect-ratio: auto; max-height: none; }
+html.in-pip .pip-video.yt-player, html.in-pip .pip-video .yt-player { height: 100vh !important; }
+:is(html.in-pip .pip-video, .mw-video) .yt-player iframe,
+:is(html.in-pip .pip-video, .mw-video) .yt-player iframe[style] { position: absolute !important; inset: 0 !important; left: 0 !important; top: 0 !important;
+  width: 100% !important; height: 100% !important; transform: none !important; }
+figure.mini-player .yt-player { aspect-ratio: 16 / 9; }
+figure.mini-player .yt-player iframe[style] { inset: 0 !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; transform: none !important; }
+html.in-pip .pip-video .yt-cover { display: none !important; }
+html.in-pip .pip-video video { max-height: none !important; height: 100vh !important; width: 100vw !important; object-fit: contain; }
+
+/* Tempo asks for notifications (phone) */
+.notify-sheet { width: min(420px, calc(100vw - 2rem)); padding: 1.4rem 1.3rem 1.1rem; border: 3px solid var(--line); box-shadow: var(--hard);
+  background: var(--surface); color: var(--ink); text-align: center; }
+.notify-sheet::backdrop { background: rgba(0, 0, 0, .45); }
+.notify-sheet[open] { animation: ns-in .35s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes ns-in { from { transform: translateY(24px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .notify-sheet[open] { animation: none; } }
+.ns-tempo { position: relative; display: inline-block; margin-bottom: .3rem; }
+.ns-bubble { position: absolute; top: -6px; inset-inline-end: -14px; display: grid; place-items: center; width: 44px; height: 44px;
+  background: var(--sun); color: #111; border: 3px solid var(--line); border-radius: 50%; animation: ns-ring 1.6s ease-in-out 2 .4s; }
+@keyframes ns-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-16deg); } 30% { transform: rotate(14deg); } 45% { transform: rotate(-10deg); } 60% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .ns-bubble { animation: none; } }
+.notify-sheet h2 { margin: .2rem 0 .3rem; font-size: 1.45rem; line-height: 1.2; }
+.ns-lead { margin: 0 0 .9rem; color: var(--muted); }
+.ns-list { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: .5rem; text-align: start; }
+.ns-list li { display: flex; align-items: center; gap: .7rem; padding: .55rem .7rem; background: var(--raised); border: 2.5px solid var(--line); font-weight: 600; }
+.ns-list li svg { flex: none; }
+.notify-sheet .btn + .btn { margin-top: .5rem; }
+.ns-foot { margin: .7rem 0 0; }

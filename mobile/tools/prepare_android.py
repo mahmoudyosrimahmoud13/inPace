@@ -10,19 +10,54 @@ from pathlib import Path
 # The app's one screen, with picture-in-picture added. The page says when floating makes sense ("auto": a video
 # plays or a timer runs); Android 12+ then floats by itself when you leave, older ones on onUserLeaveHint.
 # While floating, the page is told so it shows only the video and the timer.
-PIP_ACTIVITY = """package org.inpace.inpace_mobile
+PIP_ACTIVITY = r"""package org.inpace.inpace_mobile
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Rational
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.net.URL
 
+// inPace's one screen, plus:
+//  - picture-in-picture: leave inPace while a video plays or a timer runs, and it keeps floating over other apps
+//  - a media session: the lesson video shows in Android's media controls (notification shade, lock screen), with
+//    play/pause, 10 seconds back and forward, and previous/next lesson. Android's floating window uses it too.
+// The page drives both through the "inpace/pip" channel (see main.dart and app.js).
 class MainActivity : FlutterActivity() {
     private var autoPip = false
     private var channel: MethodChannel? = null
+    private var session: MediaSessionCompat? = null
+    private var artUrl = ""
+    private var art: Bitmap? = null
+    private var last: Map<*, *>? = null
+    private val main = Handler(Looper.getMainLooper())
+    private val mediaAction = "org.inpace.inpace_mobile.MEDIA"
+    private val mediaReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val what = intent?.getStringExtra("what") ?: return
+            channel?.invokeMethod("media", what)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -37,11 +72,27 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "enter" -> result.success(enter())
+                "media" -> {
+                    try { media(call.arguments as? Map<*, *>) } catch (e: Exception) { }
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
+        try {
+            ContextCompat.registerReceiver(this, mediaReceiver, IntentFilter(mediaAction), ContextCompat.RECEIVER_NOT_EXPORTED)
+        } catch (e: Exception) { }
     }
 
+    override fun onDestroy() {
+        try { unregisterReceiver(mediaReceiver) } catch (e: Exception) { }
+        try { session?.release() } catch (e: Exception) { }
+        session = null
+        cancelMedia()
+        super.onDestroy()
+    }
+
+    // ---- picture-in-picture ----
     private fun params(): PictureInPictureParams {
         val b = PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9))
         if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(autoPip)
@@ -61,6 +112,127 @@ class MainActivity : FlutterActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         channel?.invokeMethod("changed", isInPictureInPictureMode)
+    }
+
+    // ---- the media session and its notification ----
+    private fun tell(what: String) { channel?.invokeMethod("media", what) }
+
+    private fun media(a: Map<*, *>?) {
+        if (a == null || a["active"] != true) {
+            try { session?.isActive = false } catch (e: Exception) { }
+            cancelMedia()
+            return
+        }
+        last = a
+        val s = session ?: MediaSessionCompat(this, "inPace").also { ms ->
+            ms.setCallback(object : MediaSessionCompat.Callback() {
+                override fun onPlay() { tell("play") }
+                override fun onPause() { tell("pause") }
+                override fun onStop() { tell("pause") }
+                override fun onSkipToNext() { tell("next") }
+                override fun onSkipToPrevious() { tell("prev") }
+                override fun onFastForward() { tell("fwd") }
+                override fun onRewind() { tell("back") }
+                override fun onSeekTo(pos: Long) { tell("seek:$pos") }
+            })
+            session = ms
+        }
+        val title = (a["title"] as? String) ?: "inPace"
+        val artist = (a["artist"] as? String) ?: ""
+        val playing = a["playing"] == true
+        val pos = (((a["position"] as? Number)?.toDouble()) ?: 0.0) * 1000.0
+        val dur = (((a["duration"] as? Number)?.toDouble()) ?: 0.0) * 1000.0
+        val rate = ((a["rate"] as? Number)?.toFloat()) ?: 1f
+        val hasNext = a["next"] == true
+        val hasPrev = a["prev"] == true
+        val url = (a["art"] as? String) ?: ""
+        if (url != artUrl) {
+            artUrl = url
+            art = null
+            if (url.isNotEmpty()) {
+                Thread {
+                    try {
+                        val bmp = URL(url).openStream().use { BitmapFactory.decodeStream(it) }
+                        main.post { if (artUrl == url && bmp != null) { art = bmp; last?.let { media(it) } } }
+                    } catch (e: Exception) { }
+                }.start()
+            }
+        }
+        val meta = MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "inPace")
+        if (dur > 0) meta.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, dur.toLong())
+        art?.let { meta.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, it) }
+        s.setMetadata(meta.build())
+        var actions = PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
+            PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SEEK_TO or
+            PlaybackStateCompat.ACTION_FAST_FORWARD or PlaybackStateCompat.ACTION_REWIND or PlaybackStateCompat.ACTION_STOP
+        if (hasNext) actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+        if (hasPrev) actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+        s.setPlaybackState(
+            PlaybackStateCompat.Builder()
+                .setActions(actions)
+                .setState(if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                    pos.toLong(), if (playing) rate else 0f)
+                .build()
+        )
+        s.isActive = true
+        notifyMedia(s, title, artist, playing, hasPrev, hasNext)
+    }
+
+    private fun button(what: String, req: Int): PendingIntent {
+        val i = Intent(mediaAction).setPackage(packageName).putExtra("what", what)
+        return PendingIntent.getBroadcast(this, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun notifyMedia(s: MediaSessionCompat, title: String, artist: String, playing: Boolean, hasPrev: Boolean, hasNext: Boolean) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(MEDIA_CH) == null) {
+            nm.createNotificationChannel(NotificationChannel(MEDIA_CH, "Lesson video", NotificationManager.IMPORTANCE_LOW))
+        }
+        var icon = resources.getIdentifier("ic_stat_inpace", "drawable", packageName)
+        if (icon == 0) icon = applicationInfo.icon
+        val open = PendingIntent.getActivity(this, 0,
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val b = NotificationCompat.Builder(this, MEDIA_CH)
+            .setSmallIcon(icon)
+            .setContentTitle(title)
+            .setContentText(artist)
+            .setContentIntent(open)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setSilent(true)
+            .setOngoing(playing)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        art?.let { b.setLargeIcon(it) }
+        var n = 0
+        if (hasPrev) { b.addAction(android.R.drawable.ic_media_previous, "Previous", button("prev", 1)); n++ }
+        val back = n
+        b.addAction(android.R.drawable.ic_media_rew, "-10s", button("back", 2)); n++
+        val pp = n
+        if (playing) b.addAction(android.R.drawable.ic_media_pause, "Pause", button("pause", 3))
+        else b.addAction(android.R.drawable.ic_media_play, "Play", button("play", 3))
+        n++
+        val fwd = n
+        b.addAction(android.R.drawable.ic_media_ff, "+10s", button("fwd", 4)); n++
+        if (hasNext) { b.addAction(android.R.drawable.ic_media_next, "Next", button("next", 5)); n++ }
+        b.setStyle(androidx.media.app.NotificationCompat.MediaStyle()
+            .setMediaSession(s.sessionToken)
+            .setShowActionsInCompactView(back, pp, fwd))
+        try { nm.notify(MEDIA_ID, b.build()) } catch (e: Exception) { }
+    }
+
+    private fun cancelMedia() {
+        try { (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(MEDIA_ID) } catch (e: Exception) { }
+    }
+
+    companion object {
+        const val MEDIA_ID = 7301
+        const val MEDIA_CH = "inpace_media"
     }
 }
 """
@@ -273,3 +445,12 @@ if "supportsPictureInPicture" not in m:
 kotlin = ROOT / "src" / "main" / "kotlin" / "org" / "inpace" / "inpace_mobile" / "MainActivity.kt"
 kotlin.parent.mkdir(parents=True, exist_ok=True)
 kotlin.write_text(PIP_ACTIVITY, encoding="utf-8")
+
+# The media session (MediaSessionCompat, MediaStyle) comes from androidx.media.
+for gradle in (ROOT / "build.gradle.kts", ROOT / "build.gradle"):
+    if gradle.exists():
+        g = gradle.read_text(encoding="utf-8")
+        if "androidx.media:media" not in g:
+            line = 'implementation("androidx.media:media:1.7.0")' if gradle.suffix == ".kts" else "implementation 'androidx.media:media:1.7.0'"
+            gradle.write_text(g.rstrip() + "\n\ndependencies {\n    " + line + "\n}\n", encoding="utf-8")
+        break

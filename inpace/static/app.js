@@ -1175,6 +1175,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
   const setup = (box, v) => {
     const L = box.dataset;
     // The mini player follows whichever video is playing. (The focus timer is its own thing: videos never touch it.)
+    for (const ev of ["play", "pause", "ratechange", "seeked", "ended"]) v.addEventListener(ev, () => window.inpaceMediaChanged && window.inpaceMediaChanged());
     v.addEventListener("play", () => {
       window.inpaceNowPlaying = { box, v };
       if (window.inpaceMediaSession) inpaceMediaSession(box, v);
@@ -1866,12 +1867,33 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
     } catch (e) {}
   };
   syncPlan(onReminders);
+  // Tempo's friendly ask: shown before Android's own permission box, once on a new install, then at most once a
+  // week, and when you start a timer or a video while notifications are off. "Maybe later" is fine: no nagging.
+  const sheet = document.querySelector("[data-notify-sheet]");
+  const NS = "inpace-notify-asked";
+  let notifyOn = null, askedNow = false;
+  const recently = () => { try { return Date.now() - (+localStorage.getItem(NS) || 0) < 7 * 864e5; } catch (e) { return false; } };
+  const askNicely = (force) => {
+    if (!sheet || notifyOn !== false || askedNow || sheet.open || document.querySelector(".tour-shade")) return;
+    if (!force && recently()) return;
+    askedNow = true;
+    try { localStorage.setItem(NS, String(Date.now())); } catch (e) { /* private */ }
+    sheet.showModal ? sheet.showModal() : sheet.setAttribute("open", "");
+  };
+  if (sheet) {
+    sheet.querySelector("[data-notify-yes]").addEventListener("click", () => { sheet.close(); send({ type: "notifyAllow" }); });
+    sheet.querySelector("[data-notify-later]").addEventListener("click", () => sheet.close());
+  }
   window.inpaceNotifyState = (state) => {
     const ask = document.querySelector("[data-notify-ask]");
     if (ask) ask.hidden = !!(state && state.enabled);
-    if (state && state.enabled) syncPlan(true);
+    notifyOn = !!(state && state.enabled);
+    if (notifyOn) syncPlan(true);
+    else setTimeout(() => askNicely(false), 1500);  // let the page settle first
   };
-  if (onReminders) send({ type: "notifyState" });
+  send({ type: "notifyState" });
+  addEventListener("inpace-timer", (e) => { if (e.detail && e.detail.on) askNicely(true); });
+  window.inpaceAskNotify = () => askNicely(true);
   document.querySelectorAll("[data-notify-allow]").forEach((btn) =>
     btn.addEventListener("click", () => send({ type: "notifyAllow" })));
   document.querySelectorAll("[data-notify-test]").forEach((btn) => {
@@ -1910,6 +1932,21 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   addEventListener("inpace-timer", tellPip);
   document.addEventListener("play", tellPip, true);
   document.addEventListener("pause", tellPip, true);
+  // The lesson video in Android's media controls (the notification shade and lock screen), like YouTube's.
+  let mediaTimer = null;
+  window.inpaceMediaChanged = () => {
+    if (window.inpaceNowPlaying && !inpaceNowPlaying.v.paused && window.inpaceAskNotify) inpaceAskNotify();
+    clearTimeout(mediaTimer);
+    mediaTimer = setTimeout(() => {
+      const n = window.inpaceNowPlaying;
+      if (!n || !window.inpaceMediaInfo) return;
+      const v = n.v, i = inpaceMediaInfo(n.box);
+      send({ type: "media", state: { active: true, title: i.lesson, artist: i.course, art: i.art,
+        playing: !v.paused && !v.ended, position: v.currentTime || 0, duration: isFinite(v.duration) ? v.duration : 0,
+        rate: v.playbackRate || 1, next: !!document.querySelector("[data-key-next]"), prev: !!document.querySelector("[data-key-prev]") } });
+    }, 80);
+  };
+  addEventListener("pagehide", () => { if (window.inpaceNowPlaying) send({ type: "media", state: { active: false } }); });
   window.inpacePip = (on) => {
     document.documentElement.classList.toggle("in-pip", !!on);
     document.querySelectorAll(".pip-video").forEach((x) => x.classList.remove("pip-video"));
@@ -3057,11 +3094,30 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
 // While a lesson video plays, the computer's media controls (the media center on Windows and Linux, Control
 // Center on Mac, media keys on the keyboard) show the lesson's name and course, with play/pause, 10 seconds back
 // and forward, and previous/next lesson.
+window.inpaceMediaInfo = (box) => {
+  const lesson = ((document.querySelector("article h1") || document.querySelector(".mw-brand b") || {}).textContent || document.title).trim();
+  const course = ((document.querySelector(".eyebrow a[data-up]") || {}).textContent || "inPace").trim();
+  const yt = box.dataset.ytId || "";
+  return { lesson, course, art: yt ? `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg` : location.origin + "/static/icon-256.png" };
+};
+// The buttons in the system's media controls (and Android's notification) land here.
+window.inpaceMediaControl = (what) => {
+  const n = window.inpaceNowPlaying;
+  const v = n && n.v;
+  const go = (sel) => { const a = document.querySelector(sel); if (a) location.href = a.href; };
+  if (what === "next") return go("[data-key-next]");
+  if (what === "prev") return go("[data-key-prev]");
+  if (!v) return;
+  if (what === "play") v.play();
+  else if (what === "pause") v.pause();
+  else if (what === "back") v.currentTime = Math.max(0, v.currentTime - 10);
+  else if (what === "fwd") v.currentTime = Math.min(v.duration || 1e9, v.currentTime + 10);
+  else if (String(what).startsWith("seek:")) v.currentTime = (parseFloat(String(what).slice(5)) || 0) / 1000;
+};
 window.inpaceMediaSession = (box, v) => {
   const ms = navigator.mediaSession;
   if (!ms || !window.MediaMetadata) return;
-  const lesson = ((document.querySelector("article h1") || document.querySelector(".mw-brand b") || {}).textContent || document.title).trim();
-  const course = ((document.querySelector(".eyebrow a[data-up]") || {}).textContent || "inPace").trim();
+  const { lesson, course } = inpaceMediaInfo(box);
   const yt = box.dataset.ytId || "";
   const art = yt ? [{ src: `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg`, sizes: "480x360", type: "image/jpeg" }]
                  : [{ src: "/static/icon-256.png", sizes: "256x256", type: "image/png" }];

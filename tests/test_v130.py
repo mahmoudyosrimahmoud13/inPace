@@ -132,3 +132,21 @@ def test_island_trip_has_the_same_buttons_and_they_change_the_trip(tmp_path):
     c.post("/timer/resume", headers=J)
     assert c.post("/timer/add", headers=J).json()["goal"] == 30 * 60   # +5 min: the plant grows for 30
     assert garden.active(v)["goal"] == 30
+
+
+def test_tempo_asks_nicely_for_notifications(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    page = html.unescape(c.get("/courses").text)
+    assert "data-notify-sheet" in page and "Can Tempo tap you on the shoulder?" in page
+    assert "data-notify-yes" in page and "data-notify-later" in page
+
+
+def test_android_has_a_media_session_and_fills_its_floating_window():
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    prep = (root / "mobile/tools/prepare_android.py").read_text(encoding="utf-8")
+    assert "MediaSessionCompat" in prep and "androidx.media:media" in prep and "MediaStyle" in prep
+    dart = (root / "mobile/lib/main.dart").read_text(encoding="utf-8")
+    assert "case 'media':" in dart and "inpaceMediaControl" in dart
+    css = (root / "inpace/static/style.css").read_text(encoding="utf-8")
+    assert "html.in-pip .pip-video video { max-height: none !important" in css

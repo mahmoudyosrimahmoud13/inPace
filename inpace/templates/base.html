@@ -209,6 +209,22 @@
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
 {% if me and timer_json is defined %}{% include "_timer.html" %}{% endif %}
+{% if me %}
+{# On the phone: Tempo asks, nicely, before Android's own "Allow notifications?" box. app.js decides when. #}
+<dialog class="notify-sheet" data-notify-sheet aria-labelledby="notify-sheet-h">
+  <div class="ns-tempo">{{ mascot('wave', 120, '') }}<span class="ns-bubble" aria-hidden="true">{{ icon('bell', 26) }}</span></div>
+  <h2 id="notify-sheet-h">{% trans trimmed %}Can Tempo tap you on the shoulder?{% endtrans %}</h2>
+  <p class="ns-lead">{% trans trimmed %}Only for things that help you study. Never ads, never spam.{% endtrans %}</p>
+  <ul class="ns-list">
+    <li>{{ icon('timer', 22) }}<span>{% trans trimmed %}Your focus timer, with Pause and Stop right there{% endtrans %}</span></li>
+    <li>{{ icon('video', 22) }}<span>{% trans trimmed %}Lesson video controls, like YouTube's{% endtrans %}</span></li>
+    <li>{{ icon('alarm', 22) }}<span>{% trans trimmed %}A gentle nudge at the study times you pick{% endtrans %}</span></li>
+  </ul>
+  <button type="button" class="btn primary big wide" data-notify-yes>{% trans trimmed %}Yes, Tempo can ping me{% endtrans %}</button>
+  <button type="button" class="btn ghost wide" data-notify-later>{% trans trimmed %}Maybe later{% endtrans %}</button>
+  <p class="small muted ns-foot">{% trans trimmed %}You can change this any time in Reminders.{% endtrans %}</p>
+</dialog>
+{% endif %}
 {% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
 <script src="/static/app.js?v={{ static_v['app.js'] }}"></script>
 </body>

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.30.3
+
+- **Phone: lesson videos in Android's media controls, like YouTube.** The notification shade and lock screen show the lesson, the course and its picture, with play/pause, 10 seconds back and forward, and previous/next lesson. The floating window gets play/pause from it too.
+- **Phone: the floating window is all video.** The video filled only the top of it, with a black strip below; now it fills the whole window, for YouTube and for saved videos.
+- **Tempo asks nicely before notifications.** On the phone, Tempo explains what notifications are for (the timer, video controls, your study reminders) before Android's own question. "Maybe later" is fine: it asks again at most once a week, or when you start a timer or a video.
+
 ## v1.30.2
 
 - **The pop-out window shows the video, filling the whole window at any size.** The timer bar shows under it only while a timer is running, and there's no "Start a timer" button there any more.
