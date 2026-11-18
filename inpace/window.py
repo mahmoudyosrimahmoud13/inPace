@@ -530,12 +530,13 @@ def which() -> str:
         except Exception as e:
             print(f"pywebview not usable: {e}", file=sys.stderr)
     if sys.platform.startswith("linux"):
-        try:
-            from .qtwindow import available
-            if available():
+        if (Path(sys.executable).parent / "inpace-full").exists() or not getattr(sys, "frozen", False):
+            try:  # the "with its own engine" download: say why its engine can't load, if it can't
+                import PySide6.QtWebEngineWidgets  # type: ignore  # noqa: F401
                 return "qt"
-        except Exception:
-            pass
+            except Exception as e:
+                if getattr(sys, "frozen", False):
+                    print(f"Qt window not usable: {e}", file=sys.stderr)
         py = "/usr/bin/python3"
         if os.path.exists(py):
             r = subprocess.run([py, "-I", "-c", "import gi; gi.require_version('Gtk','3.0');"

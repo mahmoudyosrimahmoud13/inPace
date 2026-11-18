@@ -76,7 +76,9 @@ def test_full_download_updates_to_full(tmp_path, monkeypatch):
 
 def test_release_and_site_list_both_linux_downloads():
     root = Path(__file__).resolve().parent.parent
-    wf = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
-    assert "inPace-linux-full.deb" in wf and "--full" in wf and "WANT=qt" in wf
+    main = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "inPace-linux.AppImage" in main and "inPace-linux-full" not in main  # the two builds are separate
+    wf = (root / ".github/workflows/release-linux-full.yml").read_text(encoding="utf-8")
+    assert "inPace-linux-full.AppImage" in wf and "--full" in wf and '"$GOT" != "qt"' in wf
     site = (root / "site/index.html").read_text(encoding="utf-8")
     assert site.count("inPace-linux-full") == 2

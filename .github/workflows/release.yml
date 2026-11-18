@@ -2,7 +2,8 @@ name: release
 
 # Push a version tag and GitHub does the rest:
 #   git tag v1.0.0 && git push --tags
-# It tests, builds the Windows, Mac and Linux apps, checks each one starts,
+# It tests, builds the Windows, Mac and Linux apps (the Linux "with its own engine" download has its own
+# workflow, release-linux-full.yml, which adds its files to the same release page), checks each one starts,
 # then publishes one release page with all three downloads and the notes from CHANGELOG.md.
 on:
   push:
@@ -36,14 +37,6 @@ jobs:
               dist/inPace-linux.deb
               dist/inPace-linux.AppImage
             extra: pillow
-          - os: ubuntu-22.04
-            label: Linux-full
-            file: |
-              dist/inPace-linux-full.tar.gz
-              dist/inPace-linux-full.deb
-              dist/inPace-linux-full.AppImage
-            extra: pillow PySide6-Essentials==6.8.1 PySide6-Addons==6.8.1
-            build: --full
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -73,13 +66,12 @@ jobs:
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
       - name: Build the app
-        run: python packaging/build.py ${{ matrix.build }}
+        run: python packaging/build.py
       - name: Check the app starts
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then APP=dist/inPace/inPace.exe;
           elif [ "$RUNNER_OS" = "macOS" ]; then APP=dist/inPace.app/Contents/MacOS/inPace;
-          elif [ -d dist/inPace ]; then APP=dist/inPace/inPace;
           else APP=dist/inPace; fi
           INPACE_HOME="$RUNNER_TEMP/vault" "$APP" --no-browser --port 8799 &
           for i in $(seq 1 90); do curl -s -o /dev/null http://127.0.0.1:8799/setup && break; sleep 1; done
@@ -90,12 +82,7 @@ jobs:
       - name: Check the app opens in its own window (not a browser tab)
         shell: bash
         run: |
-          if [ "${{ matrix.build }}" = "--full" ]; then
-            # The bundled engine needs a few small system libraries that GitHub's machine doesn't have.
-            sudo apt-get update -q > /dev/null
-            sudo apt-get install -y -q libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libnss3 > /dev/null
-            APP=dist/inPace/inPace; WANT=qt
-          elif [ "$RUNNER_OS" = "Linux" ]; then
+          if [ "$RUNNER_OS" = "Linux" ]; then
             # Refresh the package list first: GitHub's machine image can point at package versions that are gone.
             sudo apt-get update -q > /dev/null
             sudo apt-get install -y -q --fix-missing python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1 > /dev/null
@@ -134,7 +121,7 @@ jobs:
           path: downloads
           merge-multiple: true
       - name: Write the checksums (the app's auto-update checks every download against these)
-        run: cd downloads && sha256sum inPace-setup.exe inPace-windows.zip inPace-mac.dmg inPace-linux.tar.gz inPace-linux.deb inPace-linux-full.tar.gz inPace-linux-full.deb inPace-linux.AppImage inPace-linux-full.AppImage > SHA256SUMS && cat SHA256SUMS
+        run: cd downloads && sha256sum inPace-setup.exe inPace-windows.zip inPace-mac.dmg inPace-linux.tar.gz inPace-linux.deb inPace-linux.AppImage > SHA256SUMS && cat SHA256SUMS
       - name: Write the release notes
         run: python packaging/release_notes.py "${GITHUB_REF_NAME}" "${GITHUB_REPOSITORY}" > notes.md
       - uses: softprops/action-gh-release@v2
@@ -147,8 +134,5 @@ jobs:
             downloads/inPace-mac.dmg
             downloads/inPace-linux.tar.gz
             downloads/inPace-linux.deb
-            downloads/inPace-linux-full.tar.gz
-            downloads/inPace-linux-full.deb
             downloads/inPace-linux.AppImage
-            downloads/inPace-linux-full.AppImage
             downloads/SHA256SUMS

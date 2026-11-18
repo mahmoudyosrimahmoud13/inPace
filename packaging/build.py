@@ -304,6 +304,7 @@ def build_deb(full: bool = False) -> Path:
         + (# What the bundled Qt engine needs from the system (most desktops already have these)
            "Depends: libnss3, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1,"
            " libxcb-render-util0, libxcb-xinerama0, libxcb-shape0, libegl1, libgl1, libxkbfile1, libxshmfence1,"
+           " libnspr4, libxcomposite1, libxdamage1, libxrandr2, libxtst6, libgbm1, libfontconfig1, libdbus-1-3,"
            " libasound2t64 | libasound2\n" if full else
            "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n")
         # The app window plays videos through GStreamer: without these, MP4 videos (H.264) and YouTube stay black.

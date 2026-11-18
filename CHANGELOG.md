@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.29.2
+
+- Same as v1.29.0 (below), with fixes to how the downloads are built. The Linux download with its own engine is now built by its own workflow (release-linux-full.yml), which adds its files to the release page when they're ready, so it never holds up the other downloads. It also installs everything its engine needs before it's checked, and says exactly what's missing if the engine can't load.
+
 ## v1.29.1
 
 - Same as v1.29.0 (below). The v1.29.0 build stopped on Windows because one new check read a file the wrong way there; this version fixes that check, so all the downloads get built.
