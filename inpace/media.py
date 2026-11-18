@@ -274,7 +274,9 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
     if resume > start + 5:
         hint = (f'<span class="small resume-hint">{e(t("You stopped at {time}. It continues from there.").format(time=_clock(resume)))} '
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
-    labels = {**player_labels(t), "piece": t("This part"), "quality": t("Quality"), "auto": t("Auto"), "ad": t("Ad: the lesson starts after it"),
+    labels = {**player_labels(t), "piece": t("This part"), "quality": t("Quality"), "auto": t("Auto"),
+              "qwait": t("The other qualities show here once the video plays."),
+              "ccfinding": t("Finding subtitles…"), "ccnone": t("This video has no subtitles."), "ad": t("Ad: the lesson starts after it"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead."),
               "finding": t("Getting the video without ads…"),

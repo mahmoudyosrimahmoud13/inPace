@@ -625,6 +625,26 @@ function ytRules(box) {
   return R;
 }
 
+// WebVTT subtitles into [{a, b, text}] (seconds). YouTube's automatic ones repeat the previous line as it rolls up:
+// only each cue's newest line is kept, without the word-timing tags.
+function parseVtt(text) {
+  const sec = (s) => { const p = s.trim().split(":").map(parseFloat); return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p[0] * 60 + p[1]; };
+  const out = [];
+  for (const block of String(text || "").replace(/\r/g, "").split(/\n\n+/)) {
+    const lines = block.split("\n");
+    const i = lines.findIndex((l) => l.includes("-->"));
+    if (i < 0) continue;
+    const [a, b] = lines[i].split("-->").map((x) => sec(x.split(" ").filter(Boolean)[0] || "0"));
+    const body = lines.slice(i + 1).map((l) => l.replace(/<[^>]+>/g, "").trim()).filter(Boolean);
+    if (!body.length || !(b > a)) continue;
+    out.push({ a, b, text: body.join("\n") });
+  }
+  // rolling captions: drop a cue that only repeats the one before, and show the newest line of each
+  return out.filter((c, k) => !(k && c.text === out[k - 1].text && c.b - c.a < 0.05)).map((c) => {
+    const ls = c.text.split("\n"); return ls.length > 1 && /align:start/.test(text) ? { ...c, text: ls[ls.length - 1] } : c;
+  });
+}
+
 class YouTubeMedia extends EventTarget {
   constructor(frame, cover, id, from, R) {
     super();
@@ -633,17 +653,45 @@ class YouTubeMedia extends EventTarget {
     this.paused = true; this.ended = false; this.duration = 0; this.readyState = 0; this.error = null;
     this._t = 0; this._vol = 1; this._muted = false; this._rate = 1; this._started = false;
     this.buffered = { length: 0, end: () => 0 }; this.videoWidth = 16; this.videoHeight = 9; this.ccQuiet = true;
-    const self = this;
-    const track = { label: "YouTube", language: "", _m: "disabled",
-      get mode() { return this._m; },
-      set mode(m) { this._m = m; self._cmd(m === "showing" ? "loadModule" : "unloadModule", ["captions"]); } };
-    this.textTracks = [track];
+    // Subtitles: inPace asks which languages the video has (yt-dlp, on this computer), and shows the one you pick
+    // in its own style over the video. YouTube's captions are never switched on, so only the video shows.
+    this.textTracks = []; this.subsLater = !!this.id; this.subsLoading = false; this.subsWhy = "";
+    this._subsBox = null; this._cues = [];
     addEventListener("message", (ev) => this._hear(ev));
+    this.addEventListener("timeupdate", () => this._drawSub());
     const hello = () => { try { frame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: "inpace", channel: "widget" }), "*"); } catch (e) {} };
     frame.addEventListener("load", () => { hello(); setTimeout(hello, 800); setTimeout(hello, 2500);
       setTimeout(() => { this._cmd("addEventListener", ["onError"]); this._cmd("addEventListener", ["onStateChange"]); }, 300); });
   }
   _cmd(func, args) { try { this.frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*"); } catch (e) {} }
+  loadSubs() {  // once: the list of languages, as text tracks the CC menu can show
+    if (!this.id || this.subsLoading || this._subsAsked) return;
+    this._subsAsked = true; this.subsLoading = true; this._fire("yttracks");
+    fetch(`/yt-subs/${encodeURIComponent(this.id)}.json`).then((r) => r.json()).then((d) => {
+      const self = this;
+      this.textTracks = (d.tracks || []).map((x) => ({ label: x.label, language: x.lang, _m: "disabled",
+        get mode() { return this._m; },
+        set mode(m) { this._m = m; if (m === "showing") self._showSub(this); else if (self._shown === this) self._showSub(null); } }));
+      this.subsWhy = d.why || "";
+    }).catch(() => { this.subsWhy = "x"; }).finally(() => { this.subsLoading = false; this._fire("yttracks"); });
+  }
+  _showSub(track) {
+    this._shown = track; this._cues = [];
+    if (!this._subsBox) {
+      this._subsBox = document.createElement("div"); this._subsBox.className = "yt-subs"; this._subsBox.setAttribute("aria-live", "off");
+      this.frame.parentElement.appendChild(this._subsBox);
+    }
+    this._subsBox.textContent = "";
+    if (!track) return;
+    fetch(`/yt-subs/${encodeURIComponent(this.id)}/${encodeURIComponent(track.language)}.vtt`).then((r) => (r.ok ? r.text() : ""))
+      .then((text) => { if (this._shown === track) { this._cues = parseVtt(text); this._drawSub(); } });
+  }
+  _drawSub() {
+    if (!this._subsBox) return;
+    const t = this._t, c = this._cues.find((x) => t >= x.a && t < x.b);
+    const line = c ? c.text : "";
+    if (this._subsBox.textContent !== line) { this._subsBox.textContent = line; this._subsBox.hidden = !line; }
+  }
   _fire(name) { this.dispatchEvent(new Event(name)); }
   _hear(ev) {
     if (ev.source !== this.frame.contentWindow) return;
@@ -677,6 +725,11 @@ class YouTubeMedia extends EventTarget {
       }
       if (t !== null) { this._t = t; this._fire("timeupdate"); }
     }
+    // The qualities this video has, and the one playing now (YouTube reports both while it plays).
+    if (Array.isArray(i.availableQualityLevels) && i.availableQualityLevels.join() !== (this.qualities || []).join()) {
+      this.qualities = i.availableQualityLevels.slice(); this._fire("ytquality");
+    }
+    if (typeof i.playbackQuality === "string" && i.playbackQuality !== this.quality) { this.quality = i.playbackQuality; this._fire("ytquality"); }
     if (typeof i.muted === "boolean") this._muted = i.muted;
     if (typeof i.volume === "number") this._vol = i.volume / 100;
     if (typeof i.videoLoadedFraction === "number" && this.duration && !inAd) {
@@ -707,8 +760,12 @@ class YouTubeMedia extends EventTarget {
 // Quality for YouTube: YouTube ignores "play in 1080p" requests from embedded players, but it does pick the
 // quality from the size of its player. So 1080p draws YouTube's player at 1920×1080 and scales it down to fit;
 // Auto leaves it the real size. YouTube still lowers it if the internet is too slow for that.
-function youtubeQuality(player, frame) {
-  const L = player.dataset, sizes = { 1080: 1920, 720: 1280, 480: 854, 360: 640 };
+function youtubeQuality(player, frame, v) {
+  // The menu lists the qualities this video really has (YouTube reports them once it plays), the button shows the
+  // quality that's really playing, and Auto lets YouTube choose. A chosen quality the video doesn't have falls back
+  // to the best one it has below it.
+  const L = player.dataset;
+  const P = { hd2160: 2160, hd1440: 1440, hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144 };
   const row = player.querySelector(".pl-row"), spd = player.querySelector(".pl-speed");
   if (!row || !spd) return;
   let q = "auto";
@@ -719,26 +776,41 @@ function youtubeQuality(player, frame) {
   const menu = document.createElement("div");
   menu.className = "pl-menu pl-qmenu"; menu.hidden = true;
   player.appendChild(menu);
+  const have = () => [...new Set((v.qualities || []).map((n) => P[n]).filter(Boolean))].sort((x, y) => y - x);
+  const target = () => {  // the height to ask for: the chosen one, or the best this video has below it
+    if (q === "auto") return 0;
+    const hs = have(), want = +q;
+    if (!hs.length) return want;
+    return hs.find((h) => h <= want) || hs[hs.length - 1];
+  };
   const fit = () => {
-    if (q === "auto" || !sizes[q]) {
+    const H = target();
+    if (!H || player.closest(".pip-video, .mini-player, .mw-video")) {  // small windows: YouTube picks for their size
       Object.assign(frame.style, { width: "", height: "", transform: "", left: "", top: "" });
       return;
     }
-    const W = sizes[q], H = +q, bw = player.clientWidth, bh = player.clientHeight;
+    const W = Math.round(H * 16 / 9), bw = player.clientWidth, bh = player.clientHeight;
     const k = Math.min(bw / W, bh / H) || 1;
     Object.assign(frame.style, { width: W + "px", height: H + "px", transformOrigin: "0 0", transform: `scale(${k})`,
       left: Math.max(0, (bw - W * k) / 2) + "px", top: Math.max(0, (bh - H * k) / 2) + "px" });
   };
-  const draw = () => { btn.textContent = q === "auto" ? (L.lAuto || "Auto") : q + "p"; };
+  const now = () => P[v.quality] || 0;  // what YouTube is really playing
+  const draw = () => {
+    btn.textContent = now() ? now() + "p" : (q === "auto" ? (L.lAuto || "Auto") : q + "p");
+    btn.classList.toggle("auto", q === "auto");
+  };
   const pick = (x) => { q = x; try { localStorage.setItem("inpace-ytq", x); } catch (e) {} draw(); fit(); };
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    menu.innerHTML = ["auto", "1080", "720", "480", "360"].map((x) =>
-      `<button type="button" data-q="${x}" class="${x === q ? "on" : ""}">${x === "auto" ? (L.lAuto || "Auto") : x + "p"}</button>`).join("");
-    menu.hidden = !menu.hidden;
-  });
+  const fill = () => {
+    const hs = have(), auto = L.lAuto || "Auto";
+    const items = [`<button type="button" data-q="auto" class="${q === "auto" ? "on" : ""}">${auto}${q === "auto" && now() ? ` · ${now()}p` : ""}</button>`]
+      .concat(hs.map((h) => `<button type="button" data-q="${h}" class="${q !== "auto" && target() === h ? "on" : ""}">${h}p${h >= 720 ? " <small>HD</small>" : ""}</button>`));
+    if (!hs.length) items.push(`<p class="pl-qwait">${L.lQwait || "The other qualities show here once the video plays."}</p>`);
+    menu.innerHTML = items.join("");
+  };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); fill(); menu.hidden = !menu.hidden; });
   menu.addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("button"); if (b) { pick(b.dataset.q); menu.hidden = true; } });
   document.addEventListener("click", () => (menu.hidden = true));
+  v.addEventListener("ytquality", () => { draw(); fit(); if (!menu.hidden) fill(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(player);
   document.addEventListener("fullscreenchange", () => setTimeout(fit, 50));
   draw(); fit();
@@ -866,7 +938,7 @@ function youtubeAsPlayer(box) {
   v.addEventListener("pause", show);
   const ctl = window.inpacePlayer(player, v);
   player.focus({ preventScroll: true });
-  if (R.quality_menu !== false) youtubeQuality(player, frame);
+  if (R.quality_menu !== false) youtubeQuality(player, frame, v);
   const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const link = `<a class="btn small" href="${esc(L.watch)}" target="_blank" rel="noopener">${esc(L.lOpen)}</a>`;
   const note = (html, cls) => {
@@ -1202,7 +1274,7 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
           <input type="range" class="pl-vol" min="0" max="1" step="0.05" value="1" aria-label="${L.lMute}">
           <span class="pl-time" dir="ltr">0:00 / 0:00</span>
           <span class="pl-grow"></span>
-          ${v.textTracks.length || L.subAction ? `<button type="button" class="pl-btn pl-cc" title="${L.lCc} (C)" aria-haspopup="true">CC</button>` : ""}
+          ${v.textTracks.length || L.subAction || v.subsLater ? `<button type="button" class="pl-btn pl-cc" title="${L.lCc} (C)" aria-haspopup="true">CC</button>` : ""}
           <button type="button" class="pl-btn pl-speed" title="${L.lSpeed}">${speed}×</button>
           ${document.pictureInPictureEnabled && v.requestPictureInPicture ? `<button type="button" class="pl-btn pl-pip" title="${L.lPip}">${ICON.pip}</button>` : ""}
           ${document.body.hasAttribute("data-mini-window") || window.InPaceAndroid ? "" : `<button type="button" class="pl-btn pl-out" title="${L.lMiniout}" aria-label="${L.lMiniout}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16"/><rect x="11" y="11" width="8" height="7" fill="currentColor"/></svg></button>`}
@@ -1319,16 +1391,29 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
         let i = list.findIndex((t) => t.label === pref);
         if (i < 0) i = list.findIndex((t) => t.language && t.language === document.documentElement.lang);
         pick(i < 0 ? 0 : i);
-      } else pick(-1);
+      } else if (!(v.subsLater && !list.length)) pick(-1);  // a YouTube lesson's languages come later: keep your choice
       const menu = document.createElement("div");
       menu.className = "pl-menu"; menu.hidden = true;
       const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
       const fill = () => {
         const cur = tracks().findIndex((t) => t.mode === "showing");
-        menu.innerHTML = tracks().map((t, i) => `<button type="button" data-i="${i}" class="${i === cur ? "on" : ""}" dir="auto">${esc(t.label)}</button>`).join("")
+        const note = v.subsLoading ? `<p class="pl-qwait">${esc(L.lCcfinding || "Finding subtitles…")}</p>`
+          : (v.subsLater && !tracks().length ? `<p class="pl-qwait">${esc(L.lCcnone || "This video has no subtitles.")}</p>` : "");
+        menu.innerHTML = note + tracks().map((t, i) => `<button type="button" data-i="${i}" class="${i === cur ? "on" : ""}" dir="auto">${esc(t.label)}</button>`).join("")
           + `<button type="button" data-i="-1" class="${cur < 0 ? "on" : ""}">${esc(L.lCcoff)}</button>`
           + (L.subAction ? `<button type="button" data-add>${esc(L.lCcadd)}</button>` : "");
       };
+      // YouTube lessons: the languages arrive a moment after the video starts; the one you chose last comes back.
+      if (v.subsLater) {
+        v.addEventListener("yttracks", () => {
+          if (!menu.hidden) fill();
+          if (v.subsLoading || !tracks().length || pref === "off" || !pref) return;
+          const i = tracks().findIndex((t) => t.label === pref || t.language === pref);
+          if (i >= 0 && !tracks().some((t) => t.mode === "showing")) pick(i);
+        });
+        v.addEventListener("play", () => v.loadSubs(), { once: true });
+        cc.addEventListener("click", () => v.loadSubs());
+      }
       const file = document.createElement("input");
       file.type = "file"; file.accept = ".srt,.vtt"; file.hidden = true;
       box.appendChild(menu); box.appendChild(file);

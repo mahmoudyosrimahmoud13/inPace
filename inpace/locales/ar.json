@@ -2385,5 +2385,9 @@
  "Yes, Tempo can ping me": "نعم، يمكن لتيمبو تنبيهي",
  "Maybe later": "ربما لاحقًا",
  "You can change this any time in Reminders.": "يمكنك تغيير هذا في أي وقت من التذكيرات.",
- "On a phone, the timer is a bar at the top while you're in inPace. When you leave the app, it's in your notifications, with Pause and Stop.": "على الهاتف، يكون المؤقت شريطًا في الأعلى وأنت داخل inPace. وعندما تخرج من التطبيق تجده في الإشعارات، مع الإيقاف المؤقت والإيقاف."
+ "On a phone, the timer is a bar at the top while you're in inPace. When you leave the app, it's in your notifications, with Pause and Stop.": "على الهاتف، يكون المؤقت شريطًا في الأعلى وأنت داخل inPace. وعندما تخرج من التطبيق تجده في الإشعارات، مع الإيقاف المؤقت والإيقاف.",
+ "The other qualities show here once the video plays.": "تظهر الجودات الأخرى هنا بعد أن يبدأ الفيديو.",
+ "Finding subtitles…": "جارٍ البحث عن الترجمات…",
+ "This video has no subtitles.": "هذا الفيديو بلا ترجمات.",
+ "made by YouTube": "من يوتيوب تلقائيًا"
 }

@@ -599,6 +599,97 @@ def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str =
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# Subtitles for YouTube lessons: which languages a video has, and their text (WebVTT)
+# ---------------------------------------------------------------------------------------------------------------
+_SUBS: dict[str, tuple[float, dict]] = {}
+
+
+def subtitles(home: Path, vid: str, ui_lang: str = "en", load_fn=None) -> dict:
+    """The subtitles a YouTube video has: {"tracks": [{"lang", "name", "auto", "url"}]} or {"why"}.
+    The ones its maker added come first. YouTube's automatic ones: the video's own language, plus that
+    language translated into the app's language and English. Kept 4 hours, like stream()."""
+    if not VIDEO_ID.fullmatch(vid or ""):
+        return {"why": "This isn't a YouTube video."}
+    key = f"{vid}:{ui_lang}"
+    hit = _SUBS.get(key)
+    if hit and time.time() - hit[0] < 4 * 3600:
+        return hit[1]
+    yt_dlp = (load_fn or load)(home)
+    if yt_dlp is None and load_fn is None:
+        with _FETCHING:
+            try:
+                update_tool(home)
+            except Exception:
+                pass
+        yt_dlp = load(home)
+    if yt_dlp is None:
+        return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
+    info, why = None, ""
+    for clients in OTHER_CLIENTS:
+        opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True, "socket_timeout": 15,
+                "js_runtimes": _js_runtimes()}
+        if clients:
+            opts["extractor_args"] = {"youtube": {"player_client": clients}}
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={vid}", download=False, process=False)
+            if info:
+                break
+        except Exception as e:
+            why = _short(e)
+    if not info:
+        return {"why": why or "YouTube didn't answer."}
+    out = {"tracks": pick_subtitles(info, ui_lang)}
+    _SUBS[key] = (time.time(), out)
+    return out
+
+
+def pick_subtitles(info: dict, ui_lang: str = "en") -> list[dict]:
+    def vtt(formats):
+        for f in formats or []:
+            if f.get("ext") == "vtt" and f.get("url"):
+                return f
+        return None
+    tracks, seen = [], set()
+    for lang, formats in (info.get("subtitles") or {}).items():
+        if lang == "live_chat":
+            continue
+        f = vtt(formats)
+        if f and lang not in seen:
+            seen.add(lang)
+            tracks.append({"lang": lang, "name": f.get("name") or lang, "auto": False, "url": f["url"]})
+    auto = info.get("automatic_captions") or {}
+    orig = next((k for k in auto if k.endswith("-orig")), None) or (info.get("language") if info.get("language") in auto else None)
+    base = (orig or "").replace("-orig", "")
+    wanted = [k for k in (orig, ui_lang, "en") if k]
+    for lang in wanted:
+        clean = lang.replace("-orig", "")
+        if clean in seen or lang not in auto:
+            continue
+        f = vtt(auto[lang])
+        if not f:
+            continue
+        seen.add(clean)
+        tracks.append({"lang": clean, "name": (f.get("name") or clean).replace(" (Original)", ""), "auto": True,
+                       "translated": bool(base) and clean != base, "url": f["url"]})
+    return tracks
+
+
+def subtitle_text(home: Path, vid: str, lang: str, ui_lang: str = "en", fetch=None) -> str:
+    """One subtitle track's WebVTT text, fetched for the page (YouTube's links don't work from inside the app)."""
+    found = subtitles(home, vid, ui_lang)
+    track = next((t for t in found.get("tracks", []) if t["lang"] == lang), None)
+    if not track:
+        return ""
+    if fetch is None:
+        from .net import urlopen
+        import urllib.request
+        with urlopen(urllib.request.Request(track["url"], headers={"User-Agent": "Mozilla/5.0"}), timeout=20) as r:
+            return r.read().decode("utf-8", "replace")
+    return fetch(track["url"])
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Downloading a course's videos (in the background)
 # ---------------------------------------------------------------------------------------------------------------
 class Stopped(Exception):

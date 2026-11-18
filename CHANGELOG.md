@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.30.5
+
+- **YouTube's own screen never shows in the floating window.** When a video was paused there, YouTube's title, logo, play button and suggested videos showed through. Now the video's still picture covers them whenever it isn't playing, as on the lesson page.
+- **The quality menu shows the qualities the video really has.** It used to always list 1080p to 360p. Now it lists what YouTube offers for that video (once it starts playing), the button shows the quality that's really playing, and a quality the video doesn't have falls back to the best one below it.
+- **CC works for YouTube lessons and lists the languages.** The CC button only switched YouTube's captions on and off. Now it lists the video's subtitles: the ones its maker added, and YouTube's automatic ones in the video's language, your app language and English. The one you pick shows over the video in inPace's style (YouTube's captions stay off). The last language you chose comes back next time.
+
 ## v1.30.4
 
 - **Phone media controls show the course's picture.** The notification shade and lock screen showed inPace's logo; now they show the course's cover (or the YouTube video's picture when the course has none).

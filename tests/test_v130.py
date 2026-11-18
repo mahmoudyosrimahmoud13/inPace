@@ -168,3 +168,40 @@ def test_v1304_fixes(tmp_path):
     assert "html.in-pip .ftimer, html.in-pip .mini-bar, html.in-pip .notify-sheet { display: none !important; }" in css
     dart = (root / "mobile/lib/main.dart").read_text(encoding="utf-8")
     assert "_inPip = call.arguments == true" in dart and "floating: edge to edge" in dart
+
+
+def test_youtube_subtitle_languages_are_picked_well():
+    from inpace import offline
+    info = {"language": "en",
+            "subtitles": {"es": [{"ext": "json3", "url": "x"}, {"ext": "vtt", "url": "es.vtt", "name": "Spanish"}],
+                          "live_chat": [{"ext": "vtt", "url": "chat"}]},
+            "automatic_captions": {"en-orig": [{"ext": "vtt", "url": "en.vtt", "name": "English (Original)"}],
+                                   "en": [{"ext": "vtt", "url": "en2.vtt", "name": "English"}],
+                                   "ar": [{"ext": "vtt", "url": "ar.vtt", "name": "Arabic"}],
+                                   "fr": [{"ext": "vtt", "url": "fr.vtt", "name": "French"}]}}
+    got = offline.pick_subtitles(info, "ar")
+    assert [(t["lang"], t["auto"]) for t in got] == [("es", False), ("en", True), ("ar", True)]   # no chat, no French
+    assert got[1]["name"] == "English" and got[2]["translated"] is True
+
+
+def test_youtube_subtitles_routes(tmp_path, monkeypatch):
+    from inpace import offline
+    v, c = client(tmp_path, "Omar")
+    monkeypatch.setattr(offline, "subtitles", lambda home, vid, ui="en", load_fn=None: {"tracks": [
+        {"lang": "en", "name": "English", "auto": True, "url": "u"}, {"lang": "es", "name": "Spanish", "auto": False, "url": "u2"}]})
+    d = c.get("/yt-subs/dQw4w9WgXcQ.json").json()
+    assert [t["label"] for t in d["tracks"]] == ["English · made by YouTube", "Spanish"]
+    monkeypatch.setattr(offline, "subtitle_text", lambda home, vid, lang, ui="en", fetch=None: "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nhi\n")
+    r = c.get("/yt-subs/dQw4w9WgXcQ/en.vtt")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/vtt")
+    monkeypatch.setattr(offline, "subtitle_text", lambda *a, **k: "")
+    assert c.get("/yt-subs/dQw4w9WgXcQ/xx.vtt").status_code == 404
+
+
+def test_quality_menu_mirrors_youtube_and_youtube_screen_stays_hidden():
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    js = (root / "inpace/static/app.js").read_text(encoding="utf-8")
+    assert "i.availableQualityLevels" in js and "youtubeQuality(player, frame, v)" in js
+    css = (root / "inpace/static/style.css").read_text(encoding="utf-8")
+    assert "html.in-pip .pip-video .yt-cover { display: block !important;" in css

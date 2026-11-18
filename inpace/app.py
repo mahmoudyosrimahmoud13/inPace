@@ -3994,6 +3994,25 @@ def create_app(vault: Vault) -> Starlette:
             found["why"] = gettext(found["why"])
         return JSONResponse(found, headers={"Cache-Control": "no-store"})
 
+    async def yt_subs(request: Request):
+        """A YouTube lesson's subtitle languages (for the CC button), or one track's text."""
+        from starlette.concurrency import run_in_threadpool
+        vid, lang = request.path_params["vid"], request.path_params.get("lang", "")
+        ui = V._meta("lang", "en") or "en"
+        if not lang:
+            found = await run_in_threadpool(offline.subtitles, V.home, vid, ui)
+            tracks = [{"lang": x["lang"], "label": (x["name"] + " · " + say("made by YouTube")) if x["auto"] else x["name"]}
+                      for x in found.get("tracks", [])]
+            return JSONResponse({"tracks": tracks, "why": gettext(found["why"]) if found.get("why") else ""},
+                                headers={"Cache-Control": "no-store"})
+        try:
+            text = await run_in_threadpool(offline.subtitle_text, V.home, vid, lang, ui)
+        except Exception:
+            text = ""
+        if not text.startswith("WEBVTT"):
+            return Response(status_code=404)
+        return Response(text, media_type="text/vtt", headers={"Cache-Control": "max-age=3600"})
+
     async def delete_everything(request: Request):
         """Settings → Delete all my data: empties inPace's folder (courses, progress, notes, people, keys,
         backups inside it) and starts fresh, like the first day. Asks you to type a word first."""
@@ -4748,6 +4767,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/media-pos", needs_setup(media_position), methods=["POST"]),
         Route("/yt/{cid}/{vid}", needs_setup(yt_file)),
         Route("/yt-stream/{vid}", needs_setup(yt_stream)),
+        Route("/yt-subs/{vid}.json", needs_setup(yt_subs)),
+        Route("/yt-subs/{vid}/{lang}.vtt", needs_setup(yt_subs)),
         Route("/courses/{cid}/subs", needs_setup(subtitle_file)),
         Route("/courses/{cid}/subs/add", needs_setup(subtitle_add), methods=["POST"]),
         Route("/courses/{cid}/open-media", needs_setup(open_media), methods=["POST"]),
