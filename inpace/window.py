@@ -91,6 +91,7 @@ except Exception as e:
     print("NOGTK", e, flush=True); sys.exit(3)
 
 url, parent = sys.argv[1], int(sys.argv[2])
+splash = sys.argv[3] if len(sys.argv) > 3 else ""
 GLib.set_prgname("inpace"); GLib.set_application_name("inPace")
 
 win = Gtk.Window(title="inPace")
@@ -201,11 +202,21 @@ def parent_alive():
 GLib.timeout_add_seconds(1, parent_alive)
 win.connect("destroy", Gtk.main_quit)
 win.add(view)
-view.load_uri(url)
-state = {"ready": False}
+state = {"ready": False, "splash": bool(splash)}
+if splash:  # show "Opening inPace..." at once; the app's page replaces it when it's ready to draw
+    view.load_html(splash, "about:blank")
+else:
+    view.load_uri(url)
 
 def on_load(v, event):
-    if event == WebKit2.LoadEvent.FINISHED and not state["ready"]:
+    if state["splash"]:
+        if event == WebKit2.LoadEvent.FINISHED:
+            state["splash"] = False
+            v.load_uri(url)
+        return
+    # "Ready" as soon as the page starts showing: waiting for every picture to finish loading made a slow
+    # first start look like a broken window, and inPace then moved to a browser window.
+    if event in (WebKit2.LoadEvent.COMMITTED, WebKit2.LoadEvent.FINISHED) and not state["ready"]:
         state["ready"] = True
         print("READY", flush=True)
 
@@ -216,7 +227,7 @@ def on_crash(v, reason=None):
     now = time.time()
     state["crashes"] = [t for t in state.get("crashes", []) if now - t < 60] + [now]
     print("CRASH", getattr(reason, "value_nick", reason), flush=True)
-    if not state["ready"] or len(state["crashes"]) >= 3:  # never loaded, or keeps crashing: try another window
+    if len(state["crashes"]) >= 3:  # keeps crashing: try another kind of window
         os._exit(4)
     GLib.timeout_add(400, lambda: (v.reload(), False)[1])
 
@@ -226,15 +237,55 @@ def too_slow():
         os._exit(5)
     return False
 
+def on_failed(v, event, uri, error):
+    # The app's server may still be starting (the window now opens at the same time): try again shortly.
+    if not state["ready"] and uri.startswith("http://127.0.0.1") and state.setdefault("tries", 0) < 100:
+        state["tries"] += 1
+        GLib.timeout_add(250, lambda: (v.load_uri(url), False)[1])
+        return True
+    return False
+
 view.connect("load-changed", on_load)
+view.connect("load-failed", on_failed)
 view.connect("web-process-terminated", on_crash)
-GLib.timeout_add_seconds(20, too_slow)
+GLib.timeout_add_seconds(60, too_slow)
 win.show_all()
 Gtk.main()
 '''
 
 
-def _linux_gtk(url: str) -> bool:
+def _log(home: Path | None, line: str) -> None:
+    print(line)
+    if home:
+        try:
+            with open(home / "window.log", "a", encoding="utf-8") as f:
+                import time
+                f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + line + "\n")
+        except OSError:
+            pass
+
+
+def splash_html() -> str:
+    """What the window shows while inPace's first page loads: Tempo, a moving bar, in both languages."""
+    try:
+        from .mascot import mascot
+        tempo = str(mascot("read", 150, "Tempo"))
+    except Exception:
+        tempo = ""
+    return ("<!doctype html><html><head><meta charset='utf-8'><style>"
+            "html,body{margin:0;height:100%;background:#F7F3EA;color:#111;font:600 18px system-ui,sans-serif}"
+            "@media (prefers-color-scheme:dark){html,body{background:#12110E;color:#F2EDE2}}"
+            "body{display:grid;place-items:center}.b{display:flex;flex-direction:column;align-items:center;gap:14px}"
+            ".bar{width:220px;height:10px;border:2.5px solid currentColor;overflow:hidden}"
+            ".bar i{display:block;width:40%;height:100%;background:#FFD43B;animation:m 1.1s ease-in-out infinite}"
+            "@keyframes m{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}"
+            "@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}"
+            "small{font-weight:500;opacity:.75}</style></head><body><div class='b'>" + tempo +
+            "<div>Opening inPace…</div><div class='bar'><i></i></div><small dir='rtl'>جارٍ فتح inPace…</small>"
+            "</div></body></html>")
+
+
+def _linux_gtk(url: str, home: Path | None = None) -> bool:
     if not sys.platform.startswith("linux"):
         return False
     py = shutil.which("python3", path="/usr/bin:/bin") or "/usr/bin/python3"
@@ -245,7 +296,7 @@ def _linux_gtk(url: str) -> bool:
     env.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
     env.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
     try:
-        p = subprocess.Popen([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid())], env=env,
+        p = subprocess.Popen([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid()), splash_html()], env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     except Exception:
         return False
@@ -258,17 +309,17 @@ def _linux_gtk(url: str) -> bool:
             if line.startswith("READY"):
                 ready.set()
             elif line.startswith("NOGTK"):
-                print("App window needs: sudo apt install python3-gi gir1.2-webkit2-4.1")
+                _log(home, "App window needs: sudo apt install python3-gi gir1.2-webkit2-4.1 (" + line.strip() + ")")
             elif line.startswith(("CRASH", "SLOW")):
-                print("App window:", line.strip(), "(reloading the page)" if line.startswith("CRASH") else "")
+                _log(home, "App window: " + line.strip() + (" (reloading the page)" if line.startswith("CRASH") else ""))
         ready.set()  # stream closed
 
     threading.Thread(target=watch, daemon=True).start()
-    ready.wait(40)
+    ready.wait(75)
     if p.poll() is None and not ready.is_set():
         p.kill()
     if p.wait() != 0 and p.returncode not in (-15,):  # didn't load, or crashed: try the next way
-        print(f"GTK window didn't work (code {p.returncode}); trying another way.")
+        _log(home, f"GTK window didn't work (code {p.returncode}); trying another way.")
         return False
     return True
 
@@ -352,5 +403,5 @@ def open_window(url: str, home: Path) -> bool:
     if choice == "app":
         return _app_mode(url, home)
     if choice == "gtk":
-        return _linux_gtk(url) or _app_mode(url, home)
-    return _pywebview(url) or _linux_gtk(url) or _app_mode(url, home)
+        return _linux_gtk(url, home) or _app_mode(url, home)
+    return _pywebview(url) or _linux_gtk(url, home) or _app_mode(url, home)

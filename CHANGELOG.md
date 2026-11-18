@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.28.20
+
+- **Linux: inPace opens faster and stays in its own window.** Reported on Zorin and Pop!_OS: the inPace window opened, closed after a while, and inPace reopened as an Edge or Chrome window.
+  - The window used to get 20 seconds to load *every* picture of the first page, or inPace decided it didn't work there. Now it counts as working as soon as the page starts to show, and waits up to 60 seconds.
+  - If the page engine stops before the first page shows, it tries again (up to 3 times in a minute) instead of giving up at once.
+  - The window now opens at the same moment as the app, with Tempo and "Opening inPace…" and a moving bar, instead of an empty wait.
+  - Anything that goes wrong with the window is written to `window.log` in the inPace data folder, so it can be reported.
+
 ## v1.28.19
 
 - **Linux: inPace stays in its own window.** On some systems (reported on Pop!_OS with COSMIC), the page engine inside the window could stop when opening a page like My courses. inPace then closed the window and opened in the browser instead. Now it simply loads the page again in the same window. Only if it keeps failing (3 times in a minute) does it move to another way of showing inPace.

@@ -298,3 +298,10 @@ def test_linux_window_reloads_after_a_crash_instead_of_leaving():
     from inpace import window
     ast.parse(window.LINUX_HELPER)
     assert "v.reload()" in window.LINUX_HELPER and 'len(state["crashes"]) >= 3' in window.LINUX_HELPER
+    assert "LoadEvent.COMMITTED" in window.LINUX_HELPER and "timeout_add_seconds(60, too_slow)" in window.LINUX_HELPER
+
+
+def test_window_problems_go_to_a_log_file(tmp_path, capsys):
+    from inpace import window
+    window._log(tmp_path, "GTK window didn't work (code 4); trying another way.")
+    assert "code 4" in (tmp_path / "window.log").read_text() and "code 4" in capsys.readouterr().out

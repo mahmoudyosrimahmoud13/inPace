@@ -159,7 +159,8 @@ def main() -> None:
     if not args.browser:
         from .window import open_window
         threading.Thread(target=server.run, daemon=True).start()
-        _wait_until_up(port)
+        if not sys.platform.startswith("linux"):
+            _wait_until_up(port)  # on Linux the window opens at once with "Opening inPace..." and waits itself
         if open_window(url, vault.home):
             os._exit(0)  # window closed: stop everything
         print("No app window available here; opening your browser instead.")
