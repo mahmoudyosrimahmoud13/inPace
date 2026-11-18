@@ -5,7 +5,13 @@
 Output in dist/:
   Windows  inPace-setup.exe     (a normal installer; also inPace-windows.zip for copies that update from an old version)
   macOS    inPace-mac.dmg       (drag inPace.app to Applications)
-  Linux    inPace-linux.tar.gz  (run ./inPace)
+  Linux    inPace-linux.tar.gz  (run ./inPace)  and inPace-linux.deb
+
+    python packaging/build.py --full      (Linux only: needs `pip install PySide6-Essentials PySide6-Addons`)
+
+  Linux    inPace-linux-full.tar.gz and inPace-linux-full.deb: the same app with its own page engine
+           (Qt WebEngine, based on Chromium) inside, so its window doesn't depend on the system's WebKit.
+           About 150 MB more. It's a folder, not one file, so it opens fast (nothing to unpack at each start).
 """
 from __future__ import annotations
 
@@ -28,8 +34,13 @@ def run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, cwd=ROOT)
 
 
+FULL = "--full" in sys.argv
+
+
 def main() -> None:
     system = platform.system()
+    if FULL and system != "Linux":
+        sys.exit("--full is only for Linux.")
     data = [f"{PKG / d}{SEP}inpace/{d}" for d in ("templates", "static", "sample_courses", "locales")]
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", "inPace",
            "--paths", str(ROOT), "--collect-submodules", "inpace", "--collect-submodules", "uvicorn",
@@ -62,6 +73,12 @@ def main() -> None:
     elif system == "Darwin":
         cmd += ["--windowed", "--icon", str(ROOT / "packaging" / "icon.icns"),
                 "--osx-bundle-identifier", "org.inpace.app"]
+    elif FULL:
+        # Qt WebEngine for the window (PyInstaller's hooks bring its page process and resources).
+        cmd += ["--hidden-import", "PySide6.QtWebEngineWidgets", "--hidden-import", "PySide6.QtWebEngineCore",
+                "--exclude-module", "PySide6.Qt3DCore", "--exclude-module", "PySide6.QtCharts",
+                "--exclude-module", "PySide6.QtDataVisualization", "--exclude-module", "PySide6.QtMultimedia",
+                "--exclude-module", "PySide6.QtQuick3D", "--exclude-module", "PySide6.QtSql"]
     else:
         cmd += ["--onefile"]
     cmd.append(str(ROOT / "packaging" / "launcher.py"))
@@ -96,6 +113,17 @@ def main() -> None:
         shutil.copytree(DIST / "inPace.app", stage / "inPace.app", symlinks=True)
         (stage / "Applications").symlink_to("/Applications")
         run(["hdiutil", "create", "-volname", "inPace", "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(out)])
+    elif FULL:
+        folder = DIST / "inPace"
+        trim_qt(folder)
+        (folder / "inpace-full").write_text("This copy of inPace has its own page engine (Qt WebEngine).\n")
+        shutil.copy2(ROOT / "packaging" / "icon.png", folder / "icon.png")
+        out = DIST / "inPace-linux-full.tar.gz"
+        with tarfile.open(out, "w:gz") as tf:
+            tf.add(folder, arcname="inPace")
+        if shutil.which("dpkg-deb"):
+            print(f"\nBuilt {build_deb(full=True)}")
+        print(f"\nBuilt {build_appimage(full=True)}")
     else:
         out = DIST / "inPace-linux.tar.gz"
         with tarfile.open(out, "w:gz") as tf:
@@ -103,6 +131,7 @@ def main() -> None:
             tf.add(ROOT / "packaging" / "icon.png", arcname="inPace/icon.png")
         if shutil.which("dpkg-deb"):
             print(f"\nBuilt {build_deb()}")
+        print(f"\nBuilt {build_appimage()}")
     print(f"\nBuilt {out}")
 
 
@@ -154,8 +183,90 @@ def build_windows_installer() -> Path:
     return DIST / "inPace-setup.exe"
 
 
-def build_deb() -> Path:
-    """Ubuntu / Debian package: installs to /opt/inpace, adds a menu entry and an `inpace` command."""
+def trim_qt(folder: Path) -> None:
+    """Leave out the parts of Qt that inPace's window never uses (about 100 MB): other languages' screens
+    of Qt itself, Qt Quick controls and 3D, and the libraries nothing left needs."""
+    qt = folder / "_internal" / "PySide6" / "Qt"
+    if not qt.exists():
+        return
+    tr = qt / "translations"
+    for f in tr.glob("*.qm"):
+        f.unlink()  # inPace has its own English and Arabic; these are Qt's own dialogs
+    for f in (tr / "qtwebengine_locales").glob("*.pak"):
+        if f.stem not in ("en-US", "ar"):
+            f.unlink()
+    shutil.rmtree(qt / "qml", ignore_errors=True)
+    # Keep every library that the engine, the window and the plugins load; remove other Qt libraries.
+    import re as _re
+    lib = qt / "lib"
+    keep: set[str] = set()
+    todo = [p for p in (list(folder.rglob("*.so*")) + [qt / "libexec" / "QtWebEngineProcess"])
+            if p.is_file() and not (p.parent == lib)]
+    todo += [lib / n for n in ("libQt6WebEngineCore.so.6", "libQt6WebEngineWidgets.so.6") if (lib / n).exists()]
+    while todo:
+        f = todo.pop()
+        try:
+            out = subprocess.run(["readelf", "-d", str(f)], capture_output=True, text=True).stdout
+        except OSError:
+            return  # no readelf: keep everything
+        for name in _re.findall(r"\(NEEDED\)\s+Shared library: \[([^\]]+)\]", out):
+            if name not in keep and (lib / name).exists():
+                keep.add(name)
+                todo.append(lib / name)
+    removed = 0
+    for f in lib.iterdir():
+        if f.name.startswith(("libQt6", "libicu")) and f.name not in keep and f.is_file():
+            removed += f.stat().st_size
+            f.unlink()
+    print(f"Left out {removed // (1024 * 1024)} MB of unused Qt libraries")
+
+
+def _appimagetool() -> str:
+    """appimagetool makes the AppImage (one file that runs on most Linux systems, no install)."""
+    tool = shutil.which("appimagetool")
+    if tool:
+        return tool
+    tool_path = ROOT / "build" / "appimagetool"
+    if not tool_path.exists():
+        import urllib.request
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        url = "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+        print("Downloading", url, flush=True)
+        urllib.request.urlretrieve(url, tool_path)
+        tool_path.chmod(0o755)
+    return str(tool_path)
+
+
+def build_appimage(full: bool = False) -> Path:
+    """inPace-linux.AppImage / inPace-linux-full.AppImage: download, allow it to run, double-click."""
+    app = DIST / ("AppDir-full" if full else "AppDir")
+    shutil.rmtree(app, ignore_errors=True)
+    (app / "usr" / "bin").mkdir(parents=True)
+    if full:
+        shutil.copytree(DIST / "inPace", app / "usr" / "lib" / "inpace", symlinks=True)
+        target = "usr/lib/inpace/inPace"
+    else:
+        shutil.copy2(DIST / "inPace", app / "usr" / "bin" / "inPace")
+        target = "usr/bin/inPace"
+    (app / "AppRun").write_text('#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\n'
+                                f'exec "$HERE/{target}" "$@"\n', encoding="utf-8")
+    (app / "AppRun").chmod(0o755)
+    shutil.copy2(ROOT / "packaging" / "icon.png", app / "inpace.png")
+    (app / ".DirIcon").symlink_to("inpace.png")
+    (app / "inpace.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=inPace\nComment=Learn at your pace. Prove you kept it.\n"
+        "Exec=inPace %u\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
+        "MimeType=x-scheme-handler/inpace;\nStartupWMClass=inpace\n", encoding="utf-8")
+    out = DIST / ("inPace-linux-full.AppImage" if full else "inPace-linux.AppImage")
+    env = dict(__import__("os").environ, ARCH="x86_64", APPIMAGE_EXTRACT_AND_RUN="1")
+    print("+ appimagetool", app, out, flush=True)
+    subprocess.run([_appimagetool(), "--no-appstream", str(app), str(out)], check=True, cwd=ROOT, env=env)
+    return out
+
+
+def build_deb(full: bool = False) -> Path:
+    """Ubuntu / Debian package: installs to /opt/inpace, adds a menu entry and an `inpace` command.
+    Both downloads are the package "inpace", so installing one replaces the other."""
     import re as _re
     __version__ = _re.search(r'__version__ = "([^"]+)"', (PKG / "__init__.py").read_text()).group(1)
 
@@ -166,7 +277,11 @@ def build_deb() -> Path:
     (stage / "usr" / "bin").mkdir(parents=True)
     (stage / "usr" / "share" / "applications").mkdir(parents=True)
     icons = stage / "usr" / "share" / "icons" / "hicolor"
-    shutil.copy2(DIST / "inPace", stage / "opt" / "inpace" / "inPace")
+    if full:
+        shutil.rmtree(stage / "opt" / "inpace")
+        shutil.copytree(DIST / "inPace", stage / "opt" / "inpace", symlinks=True)
+    else:
+        shutil.copy2(DIST / "inPace", stage / "opt" / "inpace" / "inPace")
     (stage / "opt" / "inpace" / "inPace").chmod(0o755)
     (stage / "usr" / "bin" / "inpace").symlink_to("/opt/inpace/inPace")
     from PIL import Image
@@ -186,16 +301,20 @@ def build_deb() -> Path:
     (stage / "DEBIAN" / "control").write_text(
         f"Package: inpace\nVersion: {__version__}\nSection: education\nPriority: optional\n"
         f"Architecture: amd64\nInstalled-Size: {size_kb}\n"
-        "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n"
+        + (# What the bundled Qt engine needs from the system (most desktops already have these)
+           "Depends: libnss3, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1,"
+           " libxcb-render-util0, libxcb-xinerama0, libxcb-shape0, libegl1, libgl1, libxkbfile1, libxshmfence1,"
+           " libasound2t64 | libasound2\n" if full else
+           "Depends: python3, python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1 | gir1.2-webkit2-4.0\n")
         # The app window plays videos through GStreamer: without these, MP4 videos (H.264) and YouTube stay black.
-        "Recommends: gstreamer1.0-libav, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-gl\n"
-        "Maintainer: Mahmoud Saad Mahmoud Yosri <noreply@github.com>\n"
+        + ("" if full else "Recommends: gstreamer1.0-libav, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-gl\n")
+        + "Maintainer: Mahmoud Saad Mahmoud Yosri <noreply@github.com>\n"
         "Homepage: https://github.com/mahmoudyosrimahmoud13/inpace\n"
         "Description: Learn at your pace. Prove you kept it.\n"
         " A local, open-source learning app. Follow a course, save signed milestones,\n"
         " and let someone you trust check your progress. Everything stays on your computer.\n",
         encoding="utf-8")
-    out = DIST / "inPace-linux.deb"
+    out = DIST / ("inPace-linux-full.deb" if full else "inPace-linux.deb")
     run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(out)])
     return out
 

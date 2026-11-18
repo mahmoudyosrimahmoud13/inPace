@@ -1539,7 +1539,9 @@ def create_app(vault: Vault) -> Starlette:
         import platform
         kind = updater.install_kind()
         where = {"android": "Android app", "windows": "Windows app", "mac": "Mac app", "deb": "Linux (.deb)",
-                 "folder": "Linux (folder)", "source": "from the code"}.get(kind, kind)
+                 "folder": "Linux (folder)", "deb-full": "Linux (.deb, own engine)",
+                 "folder-full": "Linux (folder, own engine)",
+                 "appimage": "Linux (AppImage)", "appimage-full": "Linux (AppImage, own engine)", "source": "from the code"}.get(kind, kind)
         osname = "Android" if kind == "android" else f"{platform.system()} {platform.release()}".strip()
         return f"{where} · {osname}"
 

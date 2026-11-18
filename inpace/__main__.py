@@ -106,6 +106,10 @@ def _remember_port(home: Path, port: int) -> None:
 
 
 def main() -> None:
+    if sys.argv[1:2] == ["--qt-window"]:  # the window of the Linux "with its own engine" download
+        from .qtwindow import main as qt_window
+        qt_window(sys.argv[2:])
+        return
     ap = argparse.ArgumentParser(prog="inpace", description="inPace: learn at your pace, prove you kept it.")
     ap.add_argument("--home", type=Path, default=None, help=f"data folder (default: {default_home()})")
     ap.add_argument("--port", type=int, default=8765)

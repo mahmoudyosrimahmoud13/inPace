@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.29.0
+
+- **Linux: a smarter app window.** On Zorin and Pop!_OS the window could stay gray for 20 seconds, then inPace reopened as an Edge window. The cause: inPace forced the page engine (WebKit) to draw without the graphics card, and newer WebKit versions on Wayland show nothing that way.
+  - inPace now tries WebKit's normal drawing first. If the window stays blank for 4 seconds or the engine crashes, it tries the safe way, then a full software way, then the Edge or Chrome app window.
+  - The way that works is remembered (`window.json` in the data folder), so the next start goes straight to it, with no waiting.
+  - If none of inPace's own windows work, the next starts open the Edge or Chrome app window at once. After each update inPace tries its own window again. To try again yourself: `INPACE_WINDOW=reset inpace`.
+  - When a way fails, `window.log` now says why, with the engine's own error message.
+- **New Linux download with its own engine:** `inPace-linux-full.deb` and `inPace-linux-full.AppImage`. It's the same app with its own page engine (Chromium, through Qt) inside, so the window looks and works the same on every Linux, whatever WebKit the system has. About 150 MB bigger. It updates itself to the same kind of download.
+- **Linux AppImage:** both Linux versions now also come as an AppImage, one file that runs on most Linux systems without installing. It updates itself too.
+- The website's download section shows both Linux versions, with the normal one first and what makes the other one different.
+
 ## v1.28.20
 
 - **Linux: inPace opens faster and stays in its own window.** Reported on Zorin and Pop!_OS: the inPace window opened, closed after a while, and inPace reopened as an Edge or Chrome window.

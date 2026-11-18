@@ -2,9 +2,12 @@
 
 Tried in this order, first one that works wins:
   1. pywebview (bundled in the Windows and Mac apps)
-  2. Linux: a small GTK + WebKit window run by the system's Python
-     (the .deb installs what it needs: python3-gi and gir1.2-webkit2-4.1)
-  3. Edge, Chrome, Chromium or Brave in "app mode": a plain window with no tabs or address bar
+  2. Linux "with its own engine" download: a Qt WebEngine window (qtwindow.py)
+  3. Linux: a small GTK + WebKit window run by the system's Python
+     (the .deb installs what it needs: python3-gi and gir1.2-webkit2-4.1).
+     It tries normal drawing, then two safer ways, each giving up after a few seconds if the window stays
+     blank. The way that works is saved in window.json in the data folder and tried first next time.
+  4. Edge, Chrome, Chromium or Brave in "app mode": a plain window with no tabs or address bar
 If none works, the caller opens a normal browser tab.
 
 Each opener blocks until the window is closed, then returns True.
@@ -92,6 +95,7 @@ except Exception as e:
 
 url, parent = sys.argv[1], int(sys.argv[2])
 splash = sys.argv[3] if len(sys.argv) > 3 else ""
+mode = sys.argv[4] if len(sys.argv) > 4 else "safe"   # gpu, safe or soft (see _linux_gtk)
 GLib.set_prgname("inpace"); GLib.set_application_name("inPace")
 
 win = Gtk.Window(title="inPace")
@@ -113,8 +117,20 @@ for _name in ("set_enable_media_stream", "set_enable_mediasource", "set_enable_e
         getattr(s, _name)(_name != "set_media_playback_requires_user_gesture")
     except Exception:
         pass
-try:  # draw on the CPU: avoids blank windows and busy fans with some graphics drivers
-    s.set_hardware_acceleration_policy(WebKit2.HardwareAccelerationPolicy.NEVER)
+if mode != "gpu":
+    try:  # draw on the CPU: avoids blank windows with some graphics drivers
+        s.set_hardware_acceleration_policy(WebKit2.HardwareAccelerationPolicy.NEVER)
+    except Exception:
+        pass
+
+# The loading screen tells us when it has really drawn a frame. A window that stays gray never sends this,
+# so we can give up on this way of drawing after a few seconds instead of leaving people staring at gray.
+painted_signal = False
+try:
+    _ucm = view.get_user_content_manager()
+    _ucm.register_script_message_handler("inpace")
+    _ucm.connect("script-message-received::inpace", lambda *a: on_painted())
+    painted_signal = True
 except Exception:
     pass
 
@@ -202,17 +218,26 @@ def parent_alive():
 GLib.timeout_add_seconds(1, parent_alive)
 win.connect("destroy", Gtk.main_quit)
 win.add(view)
-state = {"ready": False, "splash": bool(splash)}
+state = {"ready": False, "splash": bool(splash), "painted": False}
 if splash:  # show "Opening inPace..." at once; the app's page replaces it when it's ready to draw
     view.load_html(splash, "about:blank")
 else:
+    state["painted"] = True
     view.load_uri(url)
+
+def on_painted():
+    if state["painted"]:
+        return
+    state["painted"] = True
+    print("PAINTED", flush=True)
+    if state["splash"]:
+        state["splash"] = False
+        view.load_uri(url)
 
 def on_load(v, event):
     if state["splash"]:
-        if event == WebKit2.LoadEvent.FINISHED:
-            state["splash"] = False
-            v.load_uri(url)
+        if event == WebKit2.LoadEvent.FINISHED and not painted_signal:
+            on_painted()
         return
     # "Ready" as soon as the page starts showing: waiting for every picture to finish loading made a slow
     # first start look like a broken window, and inPace then moved to a browser window.
@@ -227,9 +252,15 @@ def on_crash(v, reason=None):
     now = time.time()
     state["crashes"] = [t for t in state.get("crashes", []) if now - t < 60] + [now]
     print("CRASH", getattr(reason, "value_nick", reason), flush=True)
-    if len(state["crashes"]) >= 3:  # keeps crashing: try another kind of window
-        os._exit(4)
+    if not state["ready"] or len(state["crashes"]) >= 3:  # crashed before showing anything, or keeps crashing:
+        os._exit(4)                                        # try another way of drawing right away
     GLib.timeout_add(400, lambda: (v.reload(), False)[1])
+
+def no_paint():
+    if not state["painted"]:
+        print("NOPAINT", flush=True)
+        os._exit(6)
+    return False
 
 def too_slow():
     if not state["ready"]:
@@ -248,6 +279,7 @@ def on_failed(v, event, uri, error):
 view.connect("load-changed", on_load)
 view.connect("load-failed", on_failed)
 view.connect("web-process-terminated", on_crash)
+GLib.timeout_add_seconds(int(os.environ.get("INPACE_PAINT_WAIT", "4")), no_paint)
 GLib.timeout_add_seconds(60, too_slow)
 win.show_all()
 Gtk.main()
@@ -282,7 +314,115 @@ def splash_html() -> str:
             "@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}"
             "small{font-weight:500;opacity:.75}</style></head><body><div class='b'>" + tempo +
             "<div>Opening inPace…</div><div class='bar'><i></i></div><small dir='rtl'>جارٍ فتح inPace…</small>"
-            "</div></body></html>")
+            "</div><script>requestAnimationFrame(function(){requestAnimationFrame(function(){"
+            "try{window.webkit.messageHandlers.inpace.postMessage('painted')}catch(e){}})})</script>"
+            "</body></html>")
+
+
+# Ways the GTK window can draw, tried in this order the first time. The one that works is remembered.
+#   gpu   WebKit's normal drawing, with the graphics card (fastest, and what new WebKit versions expect)
+#   safe  no graphics card: the fix for blank windows with some drivers (NVIDIA, VMs) on older WebKit
+#   soft  like safe, and also software OpenGL for everything (last try before the browser window)
+GTK_MODES = ("gpu", "safe", "soft")
+_FAILED = {3: "GTK or WebKit isn't installed", 4: "the page engine crashed", 5: "the page took too long",
+           6: "the window stayed blank"}
+
+
+def _mode_env(mode: str) -> dict:
+    env = _clean_env()
+    if mode in ("safe", "soft"):
+        env.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+        env.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
+    if mode == "soft":
+        env.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
+    return env
+
+
+def _memory_file(home: Path | None) -> Path | None:
+    return (home / "window.json") if home else None
+
+
+def remembered(home: Path | None) -> dict:
+    """What worked last time: {"version": "1.29.0", "way": "gpu" | "safe" | "soft" | "qt" | "qt-soft" | "app"}."""
+    f = _memory_file(home)
+    try:
+        import json
+        data = json.loads(f.read_text(encoding="utf-8")) if f else {}
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def remember(home: Path | None, way: str) -> None:
+    f = _memory_file(home)
+    if not f or remembered(home).get("way") == way:
+        return
+    try:
+        import json
+        from . import __version__
+        f.write_text(json.dumps({"version": __version__, "way": way}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def forget(home: Path | None) -> None:
+    f = _memory_file(home)
+    if f:
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
+def _order(modes: tuple[str, ...], home: Path | None) -> list[str]:
+    last = remembered(home).get("way")
+    return ([last] if last in modes else []) + [m for m in modes if m != last]
+
+
+def _run_helper(cmd: list[str], env: dict, home: Path | None, name: str, on_ready=None) -> str:
+    """Start one window and wait until it closes. Returns "closed" when it showed inPace (or the person closed
+    it before that), otherwise the reason it failed. on_ready runs as soon as inPace shows in it."""
+    try:
+        p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception as e:
+        return f"couldn't start ({e})"
+    _children.append(p)
+    ready = threading.Event()
+    errors: list[str] = []
+
+    def watch_out():
+        assert p.stdout
+        for line in p.stdout:
+            if line.startswith("READY"):
+                ready.set()
+                if on_ready:
+                    on_ready()
+            elif line.startswith("NOGTK"):
+                _log(home, "App window needs: sudo apt install python3-gi gir1.2-webkit2-4.1 (" + line.strip() + ")")
+            elif line.startswith("CRASH") and ready.is_set():
+                _log(home, f"App window ({name}): {line.strip()} (reloading the page)")
+        ready.set()  # stream closed
+
+    def watch_err():
+        assert p.stderr
+        for line in p.stderr:  # WebKit and Qt say why they can't draw here; keep the last few lines for the log
+            line = line.strip()
+            if line:
+                errors.append(line[:300])
+                del errors[:-6]
+
+    threading.Thread(target=watch_out, daemon=True).start()
+    threading.Thread(target=watch_err, daemon=True).start()
+    ready.wait(75)
+    if p.poll() is None and not ready.is_set():
+        p.kill()
+    code = p.wait()
+    if code in (0, -15):
+        return "closed"
+    why = _FAILED.get(code, f"it stopped (code {code})")
+    if errors:
+        why += " | " + " / ".join(errors)
+    return why
 
 
 def _linux_gtk(url: str, home: Path | None = None) -> bool:
@@ -291,37 +431,44 @@ def _linux_gtk(url: str, home: Path | None = None) -> bool:
     py = shutil.which("python3", path="/usr/bin:/bin") or "/usr/bin/python3"
     if not os.path.exists(py):
         return False
-    env = _clean_env()
-    # Known fixes for blank WebKit windows on some graphics drivers (NVIDIA, Wayland, VMs).
-    env.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
-    env.setdefault("WEBKIT_DISABLE_COMPOSITING_MODE", "1")
-    try:
-        p = subprocess.Popen([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid()), splash_html()], env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-    except Exception:
-        return False
-    _children.append(p)
-    ready = threading.Event()
+    splash = splash_html()
+    for mode in _order(GTK_MODES, home):
+        why = _run_helper([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid()), splash, mode],
+                          _mode_env(mode), home, f"gtk-{mode}", on_ready=lambda m=mode: remember(home, m))
+        if why == "closed":
+            return True
+        _log(home, f"App window, {mode} drawing: {why}")
+        if why.startswith("GTK or WebKit isn't installed"):
+            break
+    return False
 
-    def watch():
-        assert p.stdout
-        for line in p.stdout:
-            if line.startswith("READY"):
-                ready.set()
-            elif line.startswith("NOGTK"):
-                _log(home, "App window needs: sudo apt install python3-gi gir1.2-webkit2-4.1 (" + line.strip() + ")")
-            elif line.startswith(("CRASH", "SLOW")):
-                _log(home, "App window: " + line.strip() + (" (reloading the page)" if line.startswith("CRASH") else ""))
-        ready.set()  # stream closed
 
-    threading.Thread(target=watch, daemon=True).start()
-    ready.wait(75)
-    if p.poll() is None and not ready.is_set():
-        p.kill()
-    if p.wait() != 0 and p.returncode not in (-15,):  # didn't load, or crashed: try the next way
-        _log(home, f"GTK window didn't work (code {p.returncode}); trying another way.")
+# ---------- 2b. Linux "with its own engine" download: Qt WebEngine ----------
+
+QT_MODES = ("qt", "qt-soft")
+
+
+def _qt_cmd() -> list[str]:
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--qt-window"]
+    return [sys.executable, "-m", "inpace", "--qt-window"]
+
+
+def _linux_qt(url: str, home: Path | None = None) -> bool:
+    if not sys.platform.startswith("linux"):
         return False
-    return True
+    from .qtwindow import available, prepare_env
+    if not available():
+        return False
+    splash = splash_html()
+    for mode in _order(QT_MODES, home):
+        env = prepare_env(os.environ.copy(), mode)  # the bundled engine wants the bundle's own libraries
+        why = _run_helper(_qt_cmd() + [url, str(os.getpid()), splash, mode], env, home, mode,
+                          on_ready=lambda m=mode: remember(home, m))
+        if why == "closed":
+            return True
+        _log(home, f"App window, {mode}: {why}")
+    return False
 
 
 # ---------- 3. A Chromium-family browser in app mode ----------
@@ -353,6 +500,8 @@ def _app_mode_browsers() -> list[str]:
 
 
 def _app_mode(url: str, home: Path) -> bool:
+    if sys.platform.startswith("linux") and _app_mode_browsers():
+        remember(home, "app")
     for exe in _app_mode_browsers():
         profile = home / "window"
         profile.mkdir(parents=True, exist_ok=True)
@@ -381,6 +530,12 @@ def which() -> str:
         except Exception as e:
             print(f"pywebview not usable: {e}", file=sys.stderr)
     if sys.platform.startswith("linux"):
+        try:
+            from .qtwindow import available
+            if available():
+                return "qt"
+        except Exception:
+            pass
         py = "/usr/bin/python3"
         if os.path.exists(py):
             r = subprocess.run([py, "-I", "-c", "import gi; gi.require_version('Gtk','3.0');"
@@ -397,11 +552,31 @@ def which() -> str:
 
 def open_window(url: str, home: Path) -> bool:
     """Show inPace in a window and wait until it's closed. False means: use a browser tab."""
-    choice = os.environ.get("INPACE_WINDOW", "").lower()  # gtk, app, pywebview or browser
+    choice = os.environ.get("INPACE_WINDOW", "").lower()  # qt, gtk, app, pywebview, browser or reset
+    if choice == "reset":  # forget what worked before and try every way again
+        forget(home)
+        choice = ""
     if choice == "browser":
         return False
     if choice == "app":
         return _app_mode(url, home)
     if choice == "gtk":
         return _linux_gtk(url, home) or _app_mode(url, home)
-    return _pywebview(url) or _linux_gtk(url, home) or _app_mode(url, home)
+    if choice == "qt":
+        return _linux_qt(url, home) or _app_mode(url, home)
+    if not sys.platform.startswith("linux"):
+        return _pywebview(url) or _app_mode(url, home)
+
+    # Linux. If no app window worked last time, go straight to the browser window: no waiting at every start.
+    # After an update inPace tries its own window again, since the update may have fixed it.
+    from . import __version__
+    last = remembered(home)
+    if last.get("way") == "app" and last.get("version") == __version__ and _app_mode(url, home):
+        return True
+    if _linux_qt(url, home) or _linux_gtk(url, home):
+        return True
+    if _app_mode(url, home):
+        if _app_mode_browsers():
+            _log(home, "Using the browser's app window. To try inPace's own window again: INPACE_WINDOW=reset inpace")
+        return True
+    return False

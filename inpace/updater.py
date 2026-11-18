@@ -32,7 +32,11 @@ REPO = "mahmoudyosrimahmoud13/inpace"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 CHECK_EVERY = 20 * 3600
 ASSETS = {"deb": "inPace-linux.deb", "folder": "inPace-linux.tar.gz", "windows": "inPace-setup.exe",
-          "mac": "inPace-mac.dmg"}
+          "mac": "inPace-mac.dmg",
+          # The Linux download "with its own engine" (Qt WebEngine inside): it updates to the same kind
+          "deb-full": "inPace-linux-full.deb", "folder-full": "inPace-linux-full.tar.gz",
+          "appimage": "inPace-linux.AppImage", "appimage-full": "inPace-linux-full.AppImage"}
+FULL_MARK = "inpace-full"  # a file next to the program in the "with its own engine" download
 
 
 def is_frozen() -> bool:
@@ -40,7 +44,7 @@ def is_frozen() -> bool:
 
 
 def install_kind() -> str:
-    """source, deb, folder, windows, mac or android."""
+    """source, deb, folder, appimage (each also "-full"), windows, mac or android."""
     if os.environ.get("INPACE_MOBILE") == "android":
         return "android"
     if not is_frozen():
@@ -50,7 +54,11 @@ def install_kind() -> str:
         return "windows"
     if sys.platform == "darwin":
         return "mac"
-    return "deb" if str(exe).startswith("/opt/inpace/") else "folder"
+    if os.environ.get("APPIMAGE"):  # running from an AppImage: that one file is what gets updated
+        kind = "appimage"
+    else:
+        kind = "deb" if str(exe).startswith("/opt/inpace/") else "folder"
+    return kind + "-full" if (exe.parent / FULL_MARK).exists() else kind
 
 
 def version_tuple(v: str) -> tuple:
@@ -147,6 +155,33 @@ def install(kind: str, file: Path) -> str:
                 except TypeError:  # older Python without extraction filters
                     tf.extract(member, work)
             _swap_file(work / "inPace", exe)
+        elif kind in ("appimage", "appimage-full"):
+            target = Path(os.environ["APPIMAGE"])
+            new = target.with_name(target.name + ".new")
+            shutil.copy2(file, new)
+            new.chmod(0o755)
+            old = target.with_name(target.name + ".old")
+            old.unlink(missing_ok=True)
+            target.rename(old)
+            new.rename(target)
+        elif kind == "folder-full":
+            # The whole folder changes (program and engine): unpack next to it, then swap the two folders.
+            here = exe.parent
+            with tarfile.open(file) as tf:
+                try:
+                    tf.extractall(work, filter="data")
+                except TypeError:
+                    tf.extractall(work)
+            fresh = work / "inPace"
+            if not (fresh / "inPace").exists() or not (fresh / FULL_MARK).exists():
+                raise RuntimeError("The download doesn't look like inPace with its own engine.")
+            new = here.with_name(here.name + ".new")
+            old = here.with_name(here.name + ".old")
+            shutil.rmtree(new, ignore_errors=True)
+            shutil.rmtree(old, ignore_errors=True)
+            shutil.move(str(fresh), str(new))
+            here.rename(old)
+            new.rename(here)
         elif kind == "mac":
             app = exe.parents[2]  # .../inPace.app/Contents/MacOS/inPace
             mnt = work / "mnt"
@@ -163,7 +198,7 @@ def install(kind: str, file: Path) -> str:
                 fresh.rename(app)
             finally:
                 subprocess.run(["hdiutil", "detach", str(mnt), "-quiet"], capture_output=True)
-        elif kind == "deb":
+        elif kind in ("deb", "deb-full"):
             if not shutil.which("pkexec"):
                 raise RuntimeError("This computer can't ask for your password here. Install the downloaded .deb by double-clicking it.")
             r = subprocess.run(["pkexec", "apt-get", "install", "-y", "--allow-downgrades", str(file)],
@@ -200,6 +235,11 @@ def clean_old_copies() -> None:
             pass
     if sys.platform == "darwin":
         shutil.rmtree(exe.parents[2].with_name("inPace.old.app"), ignore_errors=True)
+    if os.environ.get("APPIMAGE"):
+        target = Path(os.environ["APPIMAGE"])
+        target.with_name(target.name + ".old").unlink(missing_ok=True)
+    elif (exe.parent / FULL_MARK).exists() and not str(exe).startswith("/opt/"):
+        shutil.rmtree(exe.parent.with_name(exe.parent.name + ".old"), ignore_errors=True)
 
 
 def restart() -> None:
@@ -207,6 +247,8 @@ def restart() -> None:
     exe = Path(sys.executable).resolve()
     if install_kind() == "mac":
         subprocess.Popen(["open", "-n", str(exe.parents[2])])
+    elif os.environ.get("APPIMAGE"):  # start the new AppImage file, not the old one's unpacked program
+        subprocess.Popen([os.environ["APPIMAGE"], *sys.argv[1:]], start_new_session=True)
     else:
         kw = {"start_new_session": True} if os.name != "nt" else {"creationflags": 0x00000008 | 0x00000200}
         subprocess.Popen([str(exe), *sys.argv[1:]], **kw)
@@ -280,7 +322,7 @@ def run(vault, force: bool = False) -> dict:
             status = {"state": "current", "checked": int(time.time())}
         else:
             file = download(rel, kind, vault.home / "updates")
-            if kind in ("deb", "windows"):  # installed by its installer, when you press "Install and restart"
+            if kind in ("deb", "deb-full", "windows"):  # installed by its installer, when you press "Install and restart"
                 status = {"state": "ready", "version": rel["version"], "file": str(file)}
             else:
                 install(kind, file)

@@ -29,8 +29,9 @@ def main() -> None:
 |---|---|---|
 | **Windows** 10 or 11 | [inPace-setup.exe]({base}/inPace-setup.exe) | Run it and click through. It adds inPace to the Start menu (no admin password needed) |
 | **Mac** (Apple Silicon: M1 or newer) | [inPace-mac.dmg]({base}/inPace-mac.dmg) | Open it, drag **inPace** into Applications |
-| **Ubuntu / Debian** | [inPace-linux.deb]({base}/inPace-linux.deb) | Double-click to install, then find **inPace** in your apps |
-| **Other Linux** | [inPace-linux.tar.gz]({base}/inPace-linux.tar.gz) | Unpack, then run **inPace** |
+| **Linux**: Ubuntu, Debian, Mint, Zorin, Pop!_OS | [inPace-linux.deb]({base}/inPace-linux.deb) | Double-click to install, then find **inPace** in your apps |
+| **Linux**: any other | [inPace-linux.AppImage]({base}/inPace-linux.AppImage) | Right-click → Properties → allow it to run, then double-click it |
+| **Linux, with its own engine** | [inPace-linux-full.deb]({base}/inPace-linux-full.deb) or [inPace-linux-full.AppImage]({base}/inPace-linux-full.AppImage) | Same app with its own page engine (Chromium, through Qt), so it works the same on every Linux. About 150 MB bigger. Pick this if the normal one shows a gray window or opens in Edge or Chrome |
 | **Android** 7 or newer | [inPace-android-arm64-v8a.apk]({base}/inPace-android-arm64-v8a.apk) | Open it on your phone and tap **Install** |
 
 The Android file may appear a few minutes after the others, because it's built separately.
