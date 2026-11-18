@@ -209,9 +209,16 @@ def on_load(v, event):
         state["ready"] = True
         print("READY", flush=True)
 
-def on_crash(*a):
-    print("CRASH", flush=True)
-    os._exit(4)
+def on_crash(v, reason=None):
+    # The page's helper process stopped (a WebKit crash, or it ran out of memory). Load the page again in this
+    # same window instead of giving up: before, inPace closed the window and reopened in the browser.
+    import time
+    now = time.time()
+    state["crashes"] = [t for t in state.get("crashes", []) if now - t < 60] + [now]
+    print("CRASH", getattr(reason, "value_nick", reason), flush=True)
+    if not state["ready"] or len(state["crashes"]) >= 3:  # never loaded, or keeps crashing: try another window
+        os._exit(4)
+    GLib.timeout_add(400, lambda: (v.reload(), False)[1])
 
 def too_slow():
     if not state["ready"]:
@@ -252,6 +259,8 @@ def _linux_gtk(url: str) -> bool:
                 ready.set()
             elif line.startswith("NOGTK"):
                 print("App window needs: sudo apt install python3-gi gir1.2-webkit2-4.1")
+            elif line.startswith(("CRASH", "SLOW")):
+                print("App window:", line.strip(), "(reloading the page)" if line.startswith("CRASH") else "")
         ready.set()  # stream closed
 
     threading.Thread(target=watch, daemon=True).start()

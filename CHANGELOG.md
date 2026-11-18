@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.28.19
+
+- **Linux: inPace stays in its own window.** On some systems (reported on Pop!_OS with COSMIC), the page engine inside the window could stop when opening a page like My courses. inPace then closed the window and opened in the browser instead. Now it simply loads the page again in the same window. Only if it keeps failing (3 times in a minute) does it move to another way of showing inPace.
+
 ## v1.28.18
 
 - **inPace is on Telegram:** follow [t.me/inPace_app](https://t.me/inPace_app) for new versions, new courses and roadmaps, in English and Arabic. The link is in the side menu (next to Discord), on the Feedback page, on the website and in the library.

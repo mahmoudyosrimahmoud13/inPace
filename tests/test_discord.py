@@ -216,3 +216,9 @@ def test_release_goes_to_telegram_too(monkeypatch):
     assert dp.telegram(msg, opener=lambda req: sent.append(req) or R())
     body = json.loads(sent[0].data)
     assert body["chat_id"] == "@inpace" and "v9.9.9" in body["text"] and "&lt;b&gt;" in body["text"]
+    assert "message_thread_id" not in body and dp.telegram(msg, "devlog") is False  # no topics: releases only
+    monkeypatch.setenv("TELEGRAM_TOPICS", json.dumps({"releases": 4, "devlog": 7}))
+    sent.clear()
+    assert dp.telegram(msg, "devlog", opener=lambda req: sent.append(req) or R())
+    assert json.loads(sent[0].data)["message_thread_id"] == 7
+    assert dp.telegram(msg, "feedback") is False

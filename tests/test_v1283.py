@@ -291,3 +291,10 @@ def test_tempo_the_librarian():
     from inpace.mascot import mascot
     svg = str(mascot("librarian", 120))
     assert "tempo-librarian" in svg and 'r="10.6"' in svg  # the glasses
+
+
+def test_linux_window_reloads_after_a_crash_instead_of_leaving():
+    import ast
+    from inpace import window
+    ast.parse(window.LINUX_HELPER)
+    assert "v.reload()" in window.LINUX_HELPER and 'len(state["crashes"]) >= 3' in window.LINUX_HELPER
