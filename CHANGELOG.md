@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.8
+
+- **The quality and subtitle menus fit small video players.** On phones the quality list was taller than the video, so the top of it was cut off. Now the sizes sit in two columns under Auto, the note only shows when there's room (otherwise it's the menu's tooltip), and a long subtitle list scrolls inside the video instead of being cut.
+
 ## v1.30.7
 
 - **Phones on their side and mid-size windows use the whole width.** Between 761 and 860 pixels wide (most phones turned sideways), every page was squeezed into a narrow strip on one side, with an empty space where the side menu used to be. The side menu is hidden at that size, and now its space goes with it.

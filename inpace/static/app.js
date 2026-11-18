@@ -879,13 +879,15 @@ function qualityMenu(player, opts) {
   spd.insertAdjacentElement("beforebegin", btn);
   const menu = document.createElement("div");
   menu.className = "pl-menu pl-qmenu"; menu.hidden = true;
+  menu.title = L.lQnote || "";
   player.appendChild(menu);
   const draw = () => { btn.textContent = opts.label(); btn.classList.toggle("auto", opts.current() === "auto"); };
   const fill = () => {
     const cur = opts.current(), auto = L.lAuto || "Auto", now = opts.autoNow ? opts.autoNow() : 0;
     menu.innerHTML = [`<button type="button" data-q="auto" class="${cur === "auto" ? "on" : ""}">${auto}${cur === "auto" && now ? ` · ${now}p` : ""}</button>`]
       .concat(opts.heights().map((h) => `<button type="button" data-q="${h}" class="${String(cur) === String(h) ? "on" : ""}">${h}p${h >= 720 ? " <small>HD</small>" : ""}</button>`))
-      .concat([`<p class="pl-qwait">${L.lQnote || "Auto: YouTube picks. Any other quality plays in inPace's own player."}</p>`]).join("");
+      // the short note only where there's room for it (in small players it's the menu's tooltip)
+      .concat(player.clientHeight >= 300 ? [`<p class="pl-qwait">${L.lQnote || "Auto: YouTube picks. Any other quality plays in inPace's own player."}</p>`] : []).join("");
   };
   btn.addEventListener("click", (e) => { e.stopPropagation(); fill(); menu.hidden = !menu.hidden; });
   menu.addEventListener("click", (e) => {
