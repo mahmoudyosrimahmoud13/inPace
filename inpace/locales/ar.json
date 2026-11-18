@@ -2393,5 +2393,13 @@
  "Getting {q}…": "جارٍ جلب {q}…",
  "{q} isn't available here right now, so YouTube picks the quality.": "الجودة {q} غير متاحة هنا الآن، لذلك يختار يوتيوب الجودة.",
  "Auto: YouTube picks. Any other quality plays in inPace's own player.": "تلقائي: يختار يوتيوب. أي جودة أخرى تعمل في مشغّل inPace نفسه.",
- "Subtitles (YouTube)": "الترجمة (من يوتيوب)"
+ "Subtitles (YouTube)": "الترجمة (من يوتيوب)",
+ "Mode": "الوضع",
+ "Like my device": "مثل جهازي",
+ "Light": "فاتح",
+ "Dark": "داكن",
+ "Dark mode looks": "شكل الوضع الداكن",
+ "Warm dark": "داكن دافئ",
+ "AMOLED black": "أسود AMOLED",
+ "AMOLED black makes the background fully black: easier on the eyes at night, and it saves battery on phones with OLED screens.": "أسود AMOLED يجعل الخلفية سوداء تمامًا: أريح للعين ليلًا، ويوفّر البطارية في الهواتف ذات شاشات OLED."
 }

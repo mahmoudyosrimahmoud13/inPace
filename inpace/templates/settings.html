@@ -40,6 +40,24 @@
   </div>
   {% endif %}
 </section>
+<section class="card" style="max-width:620px" id="look">
+  <h3 class="set-h">{% trans trimmed %}Light or dark{% endtrans %}</h3>
+  <form method="post" action="/settings/look" class="stack" data-nav-form>
+    <fieldset class="look-pick">
+      <legend class="muted small">{% trans trimmed %}Mode{% endtrans %}</legend>
+      {% for val, name in (('', _('Like my device')), ('light', _('Light')), ('dark', _('Dark'))) %}
+      <label><input type="radio" name="theme" value="{{ val }}" {{ 'checked' if (theme or '') == val }} data-autosubmit><span>{{ name }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <fieldset class="look-pick">
+      <legend class="muted small">{% trans trimmed %}Dark mode looks{% endtrans %}</legend>
+      <label><input type="radio" name="dark_style" value="" {{ 'checked' if not black }} data-autosubmit><span class="dark-chip">{{ _('Warm dark') }}</span></label>
+      <label><input type="radio" name="dark_style" value="black" {{ 'checked' if black }} data-autosubmit><span class="dark-chip black">{{ _('AMOLED black') }}</span></label>
+    </fieldset>
+    <p class="muted small">{% trans trimmed %}AMOLED black makes the background fully black: easier on the eyes at night, and it saves battery on phones with OLED screens.{% endtrans %}</p>
+    <noscript><button class="btn">{{ _('Save') }}</button></noscript>
+  </form>
+</section>
 <section class="card" style="max-width:620px" id="colors">
   <h3 class="set-h">{% trans trimmed %}Colors{% endtrans %}</h3>
   <p class="muted small">{% trans trimmed %}Pick the colors for the whole app. They work in light and dark mode.{% endtrans %}</p>

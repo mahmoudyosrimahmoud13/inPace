@@ -624,6 +624,7 @@ def create_app(vault: Vault) -> Starlette:
                 "err": tr_lines(request.query_params.get("err")) or None, "lang": CURRENT["lang"],
                 "theme": (V._meta("theme", "") or "") if V.is_set_up else "",
                 "accent": (V._meta("accent", "") or "") if V.is_set_up else "",
+                "black": V.is_set_up and V._meta("dark_style", "") == "black",
                 "update": _update_info() if V.is_set_up else None,
                 "update_news": _update_news() if V.is_set_up else None,
                 "lib_new": (_look_for_courses() or len(_library_new())) if V.is_set_up else 0,
@@ -4692,6 +4693,14 @@ def create_app(vault: Vault) -> Starlette:
                             '<body style="font-family:system-ui;padding:3rem;background:#F7F3EA;color:#111">'
                             '<h1>Restarting inPace…</h1><p>The new version opens in a moment.</p></body>')
 
+    async def set_look(request: Request):
+        """Settings → Light or dark: like the device, light, or dark; and dark as dark brown or AMOLED black."""
+        form = await request.form()
+        theme = str(form.get("theme", ""))
+        V._set_meta("theme", theme if theme in ("light", "dark") else "")
+        V._set_meta("dark_style", "black" if form.get("dark_style") == "black" else "")
+        return go("/settings#look", ok="Saved.")
+
     async def set_theme(request: Request):
         form = await request.form()
         theme = str(form.get("theme", ""))
@@ -4846,6 +4855,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings", needs_setup(settings), methods=["GET", "POST"]),
         Route("/quit", quit_app, methods=["POST"]),
         Route("/theme", set_theme, methods=["POST"]),
+        Route("/settings/look", needs_setup(set_look), methods=["POST"]),
         Route("/island", needs_setup(island)),
         Route("/island/mode", needs_setup(island_mode), methods=["POST"]),
         Route("/island/world", needs_setup(island_world), methods=["POST"]),

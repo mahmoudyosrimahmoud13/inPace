@@ -248,3 +248,17 @@ def test_phone_page_view_is_not_rebuilt_for_the_floating_window():
     assert "WebViewWidget(key: _webKey" in dart and "top: !_inPip" in dart
     js = (root / "inpace/static/app.js").read_text(encoding="utf-8")
     assert "revive()" in js and '"unloadModule", ["captions"]' in js and "ytOwnPlayer(" in js
+
+
+def test_amoled_black_and_phone_landscape_layout(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    c.post("/settings/look", data={"theme": "dark", "dark_style": "black"})
+    page = c.get("/courses").text
+    assert 'data-theme="dark" data-black' in page
+    c.post("/settings/look", data={"theme": "", "dark_style": ""})
+    assert "data-black" not in c.get("/courses").text.split(">", 2)[1]
+    import pathlib
+    css = (pathlib.Path(__file__).resolve().parent.parent / "inpace/static/style.css").read_text(encoding="utf-8")
+    assert ":root[data-black][data-theme=dark]" in css
+    # 761-860px wide (a phone on its side): the side menu is hidden, so the page must not keep its column
+    assert "@media (min-width: 861px) { .shell { grid-template-columns: 228px" in css

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.30.7
+
+- **Phones on their side and mid-size windows use the whole width.** Between 761 and 860 pixels wide (most phones turned sideways), every page was squeezed into a narrow strip on one side, with an empty space where the side menu used to be. The side menu is hidden at that size, and now its space goes with it.
+- **New: AMOLED black.** Settings → Light or dark has the mode (like my device, light, dark) and how dark mode looks: warm dark, as before, or AMOLED black, with fully black backgrounds. It's easier on the eyes at night and saves battery on OLED phone screens. The light/dark button at the top keeps your choice.
+
 ## v1.30.6
 
 - **Choosing a quality now really changes it.** YouTube's player inside apps ignores quality requests, and on phones it ignored inPace's size trick too. Now the menu has Auto (YouTube picks, as before) and the sizes the video has (1080p, 720p, 480p, 360p). Picking a size gets the video at that size and plays it in inPace's own player from the same second; YouTube keeps playing until it's ready. Auto takes you back to YouTube's player. Your choice is remembered for the next lessons. If a size can't be had on your device, it says so and YouTube keeps playing.
