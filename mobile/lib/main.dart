@@ -319,6 +319,7 @@ class _ShellState extends State<Shell> {
   StreamSubscription<Uri>? _links;
   Widget? _fullScreen; // a video playing full screen
   bool _inPip = false; // floating over other apps (picture-in-picture)
+  final GlobalKey _webKey = GlobalKey(); // the page's view is never rebuilt from scratch
 
   String get _base => 'http://127.0.0.1:$_port/';
 
@@ -732,11 +733,18 @@ class _ShellState extends State<Shell> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF7F3EA),
         body: Stack(fit: StackFit.expand, children: [
+          // The page's view keeps the same place in the layout when the floating window opens and closes (only
+          // the edges change). Swapping its parent made Android take the page off the screen and put it back,
+          // which stopped YouTube and left the page laid out at the floating window's small size.
           _fullScreen != null
               ? ColoredBox(color: Colors.black, child: _fullScreen!)
-              : _inPip
-                  ? ColoredBox(color: Colors.black, child: WebViewWidget(controller: web)) // floating: edge to edge
-                  : SafeArea(child: WebViewWidget(controller: web)),
+              : ColoredBox(
+                  color: _inPip ? Colors.black : const Color(0xFFF7F3EA),
+                  child: SafeArea(
+                    top: !_inPip, bottom: !_inPip, left: !_inPip, right: !_inPip, // floating: edge to edge
+                    child: WebViewWidget(key: _webKey, controller: web),
+                  ),
+                ),
           // The splash stays on top until the first page is drawn, then fades away (no white flash).
           if (!_splashGone)
             IgnorePointer(

@@ -555,14 +555,16 @@ def _pick(info: dict) -> dict:
     return out
 
 
-def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str = "720") -> dict:
+def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str = "720", sized: bool = False) -> dict:
     """How to play one video without ads: {url} (one file), {video, audio} (two files played together),
     {url, hls} (a phone stream), or {why} in plain words. Each answer is kept 4 hours (YouTube's links last
-    about 6). The first time, yt-dlp itself is fetched first."""
+    about 6). The first time, yt-dlp itself is fetched first.
+    sized: the quality menu asked for this quality, so the picture at that size comes first (the one-file
+    version is only 360p); the one file is the fallback."""
     if not VIDEO_ID.fullmatch(vid or ""):
         return {"why": "This isn't a YouTube video."}
     q = quality if quality in ("360", "480", "720", "1080") else "720"
-    key = f"{vid}:{q}:{int(hls)}"
+    key = f"{vid}:{q}:{int(hls)}:{int(sized)}"
     hit = _STREAMS.get(key)
     if hit and time.time() - hit[0] < 4 * 3600:
         return hit[1]
@@ -577,7 +579,8 @@ def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str =
         yt_dlp = loader(home)
     if yt_dlp is None:
         return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
-    spec = ONE_FILE + "/" + TWO_FILES.format(q=q) + (("/" + PHONE_STREAM) if hls else "")
+    spec = (TWO_FILES.format(q=q) + "/" + ONE_FILE) if sized else (ONE_FILE + "/" + TWO_FILES.format(q=q))
+    spec += ("/" + PHONE_STREAM) if hls else ""
     why = ""
     for clients in OTHER_CLIENTS:
         opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True,
@@ -671,7 +674,8 @@ def pick_subtitles(info: dict, ui_lang: str = "en") -> list[dict]:
             continue
         seen.add(clean)
         tracks.append({"lang": clean, "name": (f.get("name") or clean).replace(" (Original)", ""), "auto": True,
-                       "translated": bool(base) and clean != base, "url": f["url"]})
+                       "translated": bool(base) and clean != base, "from": base if base and clean != base else "",
+                       "url": f["url"]})
     return tracks
 
 

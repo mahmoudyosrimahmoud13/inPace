@@ -3985,11 +3985,14 @@ def create_app(vault: Vault) -> Starlette:
         Empty answer: play it in YouTube's player instead (with the ad guard)."""
         from starlette.concurrency import run_in_threadpool
         from . import ytrules as _yr
-        if not _yr.current()["ad_block"]:
+        asked = request.query_params.get("q", "")  # the quality menu of a YouTube lesson asked for this size
+        if asked not in ("360", "480", "720", "1080"):
+            asked = ""
+        if not asked and not _yr.current()["ad_block"]:
             return JSONResponse({"why": gettext("It's turned off in Settings.")})
-        q = V._meta("ytdlp_quality", "720") or "720"
+        q = asked or V._meta("ytdlp_quality", "720") or "720"
         found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"], None,
-                                        request.query_params.get("hls") == "1", "720" if q == "best" else q)
+                                        request.query_params.get("hls") == "1", "720" if q == "best" else q, bool(asked))
         if found.get("why"):
             found["why"] = gettext(found["why"])
         return JSONResponse(found, headers={"Cache-Control": "no-store"})
@@ -4001,8 +4004,8 @@ def create_app(vault: Vault) -> Starlette:
         ui = V._meta("lang", "en") or "en"
         if not lang:
             found = await run_in_threadpool(offline.subtitles, V.home, vid, ui)
-            tracks = [{"lang": x["lang"], "label": (x["name"] + " · " + say("made by YouTube")) if x["auto"] else x["name"]}
-                      for x in found.get("tracks", [])]
+            tracks = [{"lang": x["lang"], "label": (x["name"] + " · " + say("made by YouTube")) if x["auto"] else x["name"],
+                       "from": x.get("from", "")} for x in found.get("tracks", [])]
             return JSONResponse({"tracks": tracks, "why": gettext(found["why"]) if found.get("why") else ""},
                                 headers={"Cache-Control": "no-store"})
         try:

@@ -669,11 +669,54 @@ class YouTubeMedia extends EventTarget {
     this._subsAsked = true; this.subsLoading = true; this._fire("yttracks");
     fetch(`/yt-subs/${encodeURIComponent(this.id)}.json`).then((r) => r.json()).then((d) => {
       const self = this;
-      this.textTracks = (d.tracks || []).map((x) => ({ label: x.label, language: x.lang, _m: "disabled",
-        get mode() { return this._m; },
-        set mode(m) { this._m = m; if (m === "showing") self._showSub(this); else if (self._shown === this) self._showSub(null); } }));
+      this.textTracks = (d.tracks || []).map((x) => this._track(x.label, x.lang, x.from || ""));
       this.subsWhy = d.why || "";
-    }).catch(() => { this.subsWhy = "x"; }).finally(() => { this.subsLoading = false; this._fire("yttracks"); });
+    }).catch(() => { this.subsWhy = "x"; }).finally(() => {
+      this.subsLoading = false;
+      // inPace couldn't read the list (yt-dlp failed on this device): YouTube's own subtitles are still there.
+      if (!this.textTracks.length && this.subsWhy) this._useYouTubeList();
+      this._fire("yttracks");
+    });
+  }
+  // One subtitle language for the CC menu. Showing it: inPace draws it over the video in its own style; if inPace
+  // can't get its text, YouTube shows that language itself. Turning it off turns off both.
+  _track(label, lang, from, onlyYouTube) {
+    const self = this;
+    return { label, language: lang, from, _m: "disabled", _yt: !!onlyYouTube,
+      get mode() { return this._m; },
+      set mode(m) {
+        this._m = m;
+        if (m === "showing") self._showSub(this);
+        else if (self._shown === this) self._showSub(null);
+      } };
+  }
+  _useYouTubeList() {
+    const L = (this.frame.parentElement && this.frame.parentElement.dataset) || {};
+    const list = this.ytList && this.ytList.length ? this.ytList : [{ lang: "", label: L.lCcyt || "Subtitles (YouTube)" }];
+    let was = this._shown && this._shown.language;
+    if (was === "" && this.ytList && this.ytList.length) was = this.ytNow || this.ytList[0].lang;  // YouTube's choice was showing
+    this.textTracks = list.map((x) => this._track(x.label, x.lang, "", true));
+    if (was !== undefined && was !== null) {
+      const t = this.textTracks.find((x) => x.language === was) || null;
+      if (t) { t._m = "showing"; this._shown = t; }
+    }
+  }
+  // YouTube's own subtitles, through its player's messages. lang null: off.
+  _ytCaptions(lang, from) {
+    if (lang === null) {
+      if (this._ytCc === null) return;
+      this._ytCc = null;
+      this._cmd("setOption", ["captions", "track", {}]);
+      this._cmd("unloadModule", ["captions"]);
+      return;
+    }
+    this._ytCc = lang;
+    const track = from ? { languageCode: from, translationLanguage: { languageCode: lang } } : (lang ? { languageCode: lang } : null);
+    this._cmd("loadModule", ["captions"]);
+    if (track) {
+      this._cmd("setOption", ["captions", "track", track]);
+      setTimeout(() => { if (this._ytCc === lang) this._cmd("setOption", ["captions", "track", track]); }, 700);  // once the module is in
+    }
   }
   _showSub(track) {
     this._shown = track; this._cues = [];
@@ -681,10 +724,17 @@ class YouTubeMedia extends EventTarget {
       this._subsBox = document.createElement("div"); this._subsBox.className = "yt-subs"; this._subsBox.setAttribute("aria-live", "off");
       this.frame.parentElement.appendChild(this._subsBox);
     }
-    this._subsBox.textContent = "";
-    if (!track) return;
+    this._subsBox.textContent = ""; this._subsBox.hidden = true;
+    if (!track) { this._ytCaptions(null); return; }
+    if (track._yt) { this._ytCaptions(track.language, track.from); return; }
+    this._ytCaptions(null);
     fetch(`/yt-subs/${encodeURIComponent(this.id)}/${encodeURIComponent(track.language)}.vtt`).then((r) => (r.ok ? r.text() : ""))
-      .then((text) => { if (this._shown === track) { this._cues = parseVtt(text); this._drawSub(); } });
+      .catch(() => "").then((text) => {
+        if (this._shown !== track) return;
+        this._cues = parseVtt(text);
+        if (this._cues.length) this._drawSub();
+        else this._ytCaptions(track.language, track.from);  // inPace couldn't get the text: YouTube shows it
+      });
   }
   _drawSub() {
     if (!this._subsBox) return;
@@ -701,6 +751,15 @@ class YouTubeMedia extends EventTarget {
     if (d.event === "onError") { this.error = { code: d.info }; this._fire("yterror"); return; }
     const i = d.info;
     if (!i || typeof i !== "object") return;
+    // YouTube's own list of subtitle languages (it sends it once its subtitles are loaded)
+    const caps = i.captions && (i.captions.tracklist || i.captions.trackList);
+    if (i.captions && i.captions.track && i.captions.track.languageCode) this.ytNow = i.captions.track.languageCode;
+    if (Array.isArray(caps) && caps.length && !this.ytList) {
+      this.ytList = caps.map((t) => ({ lang: t.languageCode || "", label: t.displayName || t.languageName || t.languageCode || "" }))
+        .filter((t) => t.lang);
+      if (this.ytList.length && this.textTracks.length && this.textTracks.every((t) => t._yt)) { this._useYouTubeList(); this._fire("yttracks"); }
+    }
+    if (d.event === "apiInfoDelivery") return;
     this._fire("ythello");
     // Ads: while YouTube plays an ad it reports the ad's time and length. Until we're sure the lesson's video
     // is playing (it reached the second we asked for, or it's the right video, or it's longer than an ad),
@@ -737,6 +796,12 @@ class YouTubeMedia extends EventTarget {
     }
     if (typeof i.playerState === "number") {
       const st = i.playerState;
+      this._st = st;
+      if (st === 1 && !this._capsOff) {  // YouTube's own subtitles stay off unless you pick them in the CC menu
+        this._capsOff = true;
+        if (!this._ytCc && this._ytCc !== "") { this._ytCc = undefined; this._cmd("unloadModule", ["captions"]); }
+      }
+      if (st === 1) { this._started = true; clearTimeout(this._wd); }
       if (st === 1 && this.paused) { this.paused = false; this.ended = false; this._fire("play"); }
       else if (st === 2 && !this.paused) { this.paused = true; this._fire("pause"); }
       else if (st === 0 && !inAd) { this.paused = true; this.ended = true; this._fire("pause"); this._fire("ended"); }
@@ -751,69 +816,204 @@ class YouTubeMedia extends EventTarget {
   get playbackRate() { return this._rate; }
   set playbackRate(r) { this._rate = r; this._cmd("setPlaybackRate", [r]); }
   set controls(x) {}
-  play() { this.ended = false; this._cmd("playVideo"); return Promise.resolve(); }
+  play() {
+    this.ended = false; this._cmd("playVideo");
+    // Sometimes YouTube's player gets stuck (after the app was in the background, or a floating window): it
+    // doesn't answer Play. Then it's loaded again at the same second and plays from there.
+    clearTimeout(this._wd);
+    if (this._started) {
+      let waits = 0;
+      const check = () => {
+        if (!this.paused || this._inAd || document.visibilityState !== "visible") return;
+        if (this._st === 3 && ++waits < 4) { this._wd = setTimeout(check, 2500); return; }  // still loading: give it time
+        this.revive();
+      };
+      this._wd = setTimeout(check, 3000);
+    }
+    return Promise.resolve();
+  }
+  revive() {
+    if (this._revived && Date.now() - this._revived < 10000) return;
+    this._revived = Date.now();
+    const t = Math.floor(this._t);
+    try {
+      const u = new URL(this.frame.src);
+      u.searchParams.set("start", String(t)); u.searchParams.set("autoplay", "1");
+      this.from = t; this._confirmed = this.R.ad_guard === false; this._vidOk = null; this._capsOff = false;
+      if (this._ytCc !== undefined && this._ytCc !== null) { const lang = this._ytCc; this._ytCc = undefined;
+        this.frame.addEventListener("load", () => setTimeout(() => this._ytCaptions(lang), 1500), { once: true }); }
+      this.frame.src = u.href;
+    } catch (e) { /* not a normal YouTube address */ }
+  }
   pause() { this._cmd("pauseVideo"); }
   load() { this.frame.src = this.frame.src; }
   querySelector() { return null; }
 }
 
-// Quality for YouTube: YouTube ignores "play in 1080p" requests from embedded players, but it does pick the
-// quality from the size of its player. So 1080p draws YouTube's player at 1920×1080 and scales it down to fit;
-// Auto leaves it the real size. YouTube still lowers it if the internet is too slow for that.
-function youtubeQuality(player, frame, v) {
-  // The menu lists the qualities this video really has (YouTube reports them once it plays), the button shows the
-  // quality that's really playing, and Auto lets YouTube choose. A chosen quality the video doesn't have falls back
-  // to the best one it has below it.
-  const L = player.dataset;
-  const P = { hd2160: 2160, hd1440: 1440, hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144 };
-  const row = player.querySelector(".pl-row"), spd = player.querySelector(".pl-speed");
-  if (!row || !spd) return;
-  let q = "auto";
-  try { q = localStorage.getItem("inpace-ytq") || "auto"; } catch (e) {}
+// Quality for YouTube lessons. YouTube's player inside apps ignores "play in 1080p" (and on phones it ignores the
+// size trick too), so the menu works like this:
+//   Auto: YouTube's player, and YouTube picks the quality (the button shows what it's playing).
+//   1080p, 720p, 480p, 360p (only the ones this video has): inPace gets the video at that size (yt-dlp) and plays
+//   it in its own player, from the same second. YouTube keeps playing until it's ready, so there's no wait.
+// The choice is remembered for the next lessons. If a size can't be had on this device, it says so and YouTube
+// keeps playing.
+const YT_SIZES = { hd2160: 2160, hd1440: 1440, hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144 };
+const YT_HEIGHTS = [1080, 720, 480, 360];
+let ytQualityFailed = false;  // one failed try per page is enough: the next lessons stay on Auto until the page reloads
+
+function plToast(player, text, ms) {
+  const t = player.querySelector(".pl-toast");
+  if (!t) return;
+  t.textContent = text; t.classList.add("on");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), ms || 2600);
+}
+function ytWantQuality() { try { return localStorage.getItem("inpace-ytq") || "auto"; } catch (e) { return "auto"; } }
+function ytSaveQuality(q) { try { localStorage.setItem("inpace-ytq", String(q)); } catch (e) { /* private window */ } }
+
+// The quality button and menu (the same in YouTube's player and in inPace's own one).
+function qualityMenu(player, opts) {
+  const L = player.dataset, spd = player.querySelector(".pl-speed");
+  if (!spd) return null;
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "pl-btn pl-q"; btn.title = L.lQuality || "Quality"; btn.setAttribute("aria-haspopup", "true");
   spd.insertAdjacentElement("beforebegin", btn);
   const menu = document.createElement("div");
   menu.className = "pl-menu pl-qmenu"; menu.hidden = true;
   player.appendChild(menu);
-  const have = () => [...new Set((v.qualities || []).map((n) => P[n]).filter(Boolean))].sort((x, y) => y - x);
-  const target = () => {  // the height to ask for: the chosen one, or the best this video has below it
-    if (q === "auto") return 0;
-    const hs = have(), want = +q;
-    if (!hs.length) return want;
-    return hs.find((h) => h <= want) || hs[hs.length - 1];
-  };
-  const fit = () => {
-    const H = target();
-    if (!H || player.closest(".pip-video, .mini-player, .mw-video")) {  // small windows: YouTube picks for their size
-      Object.assign(frame.style, { width: "", height: "", transform: "", left: "", top: "" });
-      return;
-    }
-    const W = Math.round(H * 16 / 9), bw = player.clientWidth, bh = player.clientHeight;
-    const k = Math.min(bw / W, bh / H) || 1;
-    Object.assign(frame.style, { width: W + "px", height: H + "px", transformOrigin: "0 0", transform: `scale(${k})`,
-      left: Math.max(0, (bw - W * k) / 2) + "px", top: Math.max(0, (bh - H * k) / 2) + "px" });
-  };
-  const now = () => P[v.quality] || 0;  // what YouTube is really playing
-  const draw = () => {
-    btn.textContent = now() ? now() + "p" : (q === "auto" ? (L.lAuto || "Auto") : q + "p");
-    btn.classList.toggle("auto", q === "auto");
-  };
-  const pick = (x) => { q = x; try { localStorage.setItem("inpace-ytq", x); } catch (e) {} draw(); fit(); };
+  const draw = () => { btn.textContent = opts.label(); btn.classList.toggle("auto", opts.current() === "auto"); };
   const fill = () => {
-    const hs = have(), auto = L.lAuto || "Auto";
-    const items = [`<button type="button" data-q="auto" class="${q === "auto" ? "on" : ""}">${auto}${q === "auto" && now() ? ` · ${now()}p` : ""}</button>`]
-      .concat(hs.map((h) => `<button type="button" data-q="${h}" class="${q !== "auto" && target() === h ? "on" : ""}">${h}p${h >= 720 ? " <small>HD</small>" : ""}</button>`));
-    if (!hs.length) items.push(`<p class="pl-qwait">${L.lQwait || "The other qualities show here once the video plays."}</p>`);
-    menu.innerHTML = items.join("");
+    const cur = opts.current(), auto = L.lAuto || "Auto", now = opts.autoNow ? opts.autoNow() : 0;
+    menu.innerHTML = [`<button type="button" data-q="auto" class="${cur === "auto" ? "on" : ""}">${auto}${cur === "auto" && now ? ` · ${now}p` : ""}</button>`]
+      .concat(opts.heights().map((h) => `<button type="button" data-q="${h}" class="${String(cur) === String(h) ? "on" : ""}">${h}p${h >= 720 ? " <small>HD</small>" : ""}</button>`))
+      .concat([`<p class="pl-qwait">${L.lQnote || "Auto: YouTube picks. Any other quality plays in inPace's own player."}</p>`]).join("");
   };
   btn.addEventListener("click", (e) => { e.stopPropagation(); fill(); menu.hidden = !menu.hidden; });
-  menu.addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("button"); if (b) { pick(b.dataset.q); menu.hidden = true; } });
+  menu.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const b = e.target.closest("button");
+    if (!b) return;
+    menu.hidden = true;
+    if (String(opts.current()) !== b.dataset.q) opts.pick(b.dataset.q);
+  });
   document.addEventListener("click", () => (menu.hidden = true));
-  v.addEventListener("ytquality", () => { draw(); fit(); if (!menu.hidden) fill(); });
-  if (window.ResizeObserver) new ResizeObserver(fit).observe(player);
-  document.addEventListener("fullscreenchange", () => setTimeout(fit, 50));
-  draw(); fit();
+  draw();
+  return { draw, refill: () => { if (!menu.hidden) fill(); }, busy: (h) => { btn.textContent = h + "p…"; btn.classList.add("busy"); },
+           idle: () => { btn.classList.remove("busy"); draw(); } };
+}
+
+// In YouTube's player.
+function youtubeQuality(player, frame, v, box) {
+  const L = player.dataset;
+  const heights = () => {  // the sizes this video has (YouTube tells once it plays); all four until then
+    const hs = [...new Set((v.qualities || []).map((n) => YT_SIZES[n]).filter((h) => YT_HEIGHTS.includes(h)))].sort((x, y) => y - x);
+    return hs.length ? hs : YT_HEIGHTS;
+  };
+  let busy = false;
+  const m = qualityMenu(player, {
+    current: () => "auto",
+    label: () => (YT_SIZES[v.quality] ? YT_SIZES[v.quality] + "p" : (L.lAuto || "Auto")),
+    autoNow: () => YT_SIZES[v.quality] || 0,
+    heights,
+    pick: (q) => { if (q !== "auto") { ytSaveQuality(q); go(+q, false); } },
+  });
+  if (!m) return;
+  const go = (h, quiet) => {
+    if (busy || !player.isConnected) return;
+    busy = true; m.busy(h);
+    if (!quiet) plToast(player, (L.lQget || "Getting {q}…").replace("{q}", h + "p"), 4000);
+    box._ytHeights = heights();
+    ytOwnPlayer(player, box, v, h).then((r) => {
+      busy = false;
+      if (r.ok || !player.isConnected) return;
+      m.idle();
+      ytQualityFailed = true;
+      plToast(player, (L.lQfail || "{q} isn't available here right now, so YouTube picks the quality.").replace("{q}", h + "p"), 4500);
+    });
+  };
+  v.addEventListener("ytquality", () => { if (!busy) m.draw(); m.refill(); });
+  // A quality you chose before: once the video plays, it moves to that size (YouTube plays meanwhile).
+  const want = +ytWantQuality();
+  if (YT_HEIGHTS.includes(want) && !ytQualityFailed) v.addEventListener("play", () => setTimeout(() => go(want, true), 400), { once: true });
+}
+
+// inPace's own player for a YouTube lesson at one size. from: the player it replaces (YouTube's, or this one at
+// another size); oldV: its video. Resolves {ok} once it's in place, or {why}.
+function ytOwnPlayer(from, box, oldV, h) {
+  const L = box.dataset, id = L.ytId;
+  const hls = document.createElement("video").canPlayType("application/vnd.apple.mpegurl") ? "1" : "0";
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 90000);
+  const subs = fetch(`/yt-subs/${encodeURIComponent(id)}.json`).then((r) => r.json()).catch(() => ({}));
+  return fetch(`/yt-stream/${encodeURIComponent(id)}?hls=${hls}&q=${h}`, { signal: ctl.signal }).then((r) => r.json()).catch(() => ({}))
+    .then(async (d) => {
+      clearTimeout(timer);
+      if (!d || !(d.url || (d.video && d.audio))) return { why: (d && d.why) || "" };
+      if (!from.isConnected) return { why: "gone" };
+      const s = await Promise.race([subs, new Promise((r) => setTimeout(() => r({}), 2500))]);
+      const t = oldV.currentTime || 0, wasPlaying = !oldV.paused;
+      const player = document.createElement("div");
+      player.className = "player yt-own"; player.tabIndex = 0; player.dataset.player = "";
+      for (const k in L) if (/^l[A-Z]/.test(k) || ["speed", "start", "end", "ytId", "ytKey", "watch"].includes(k)) player.dataset[k] = L[k];
+      player.dataset.key = L.ytKey; player.dataset.resume = String(t);
+      const v = document.createElement("video");
+      v.preload = "auto"; v.playsInline = true; v.ccQuiet = true;  // subtitles only if you chose them before
+      v.src = d.url || d.video;
+      for (const x of (s && s.tracks) || []) {
+        const tr = document.createElement("track");
+        tr.kind = "subtitles"; tr.label = x.label; tr.srclang = x.lang; tr.src = `/yt-subs/${encodeURIComponent(id)}/${encodeURIComponent(x.lang)}.vtt`;
+        v.appendChild(tr);
+      }
+      player.appendChild(v);
+      oldV.pause();
+      if (from._sound) from._sound.pause();
+      from.replaceWith(player);
+      if (d.audio) player._sound = pairSound(v, d.audio);
+      window.inpacePlayer(player, v);
+      ownQuality(player, box, v, h, d.height);
+      let played = false;
+      v.addEventListener("playing", () => (played = true), { once: true });
+      v.addEventListener("error", () => {
+        if (played || !player.isConnected) return;
+        ytQualityFailed = true;
+        ytBackToYouTube(player, box, v, (L.lQfail || "{q} isn't available here right now, so YouTube picks the quality.").replace("{q}", h + "p"));
+      });
+      if (wasPlaying) v.play().catch(() => {});
+      player.focus({ preventScroll: true });
+      return { ok: true };
+    });
+}
+
+// The quality menu in inPace's own player: another size, or Auto (back to YouTube's player at the same second).
+function ownQuality(player, box, v, h, got) {
+  const L = player.dataset;
+  let busy = false;
+  const m = qualityMenu(player, {
+    current: () => h,
+    label: () => (got || h) + "p",
+    heights: () => box._ytHeights || YT_HEIGHTS,
+    pick: (q) => {
+      ytSaveQuality(q);
+      if (q === "auto") { ytBackToYouTube(player, box, v); return; }
+      if (busy) return;
+      busy = true; m.busy(+q);
+      plToast(player, (L.lQget || "Getting {q}…").replace("{q}", q + "p"), 4000);
+      ytOwnPlayer(player, box, v, +q).then((r) => {
+        busy = false;
+        if (r.ok || !player.isConnected) return;
+        m.idle();
+        plToast(player, (L.lQfail || "{q} isn't available here right now.").replace("{q}", q + "p"), 4500);
+      });
+    },
+  });
+}
+
+function ytBackToYouTube(own, box, v, msg) {
+  const t = v.currentTime || +own.dataset.resume || 0;
+  v.pause();
+  if (own._sound) own._sound.pause();
+  box.dataset.resume = String(Math.floor(t));
+  own.replaceWith(box);
+  youtubeAsPlayer(box);
+  if (msg) { const p = box.isConnected ? null : document.querySelector(".yt-player"); if (p) plToast(p, msg, 4500); }
 }
 
 // "Play without ads", the second choice in a YouTube lesson's box: yt-dlp finds the video and inPace's own player
@@ -938,7 +1138,7 @@ function youtubeAsPlayer(box) {
   v.addEventListener("pause", show);
   const ctl = window.inpacePlayer(player, v);
   player.focus({ preventScroll: true });
-  if (R.quality_menu !== false) youtubeQuality(player, frame, v);
+  if (R.quality_menu !== false) youtubeQuality(player, frame, v, box);
   const esc = (t) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const link = `<a class="btn small" href="${esc(L.watch)}" target="_blank" rel="noopener">${esc(L.lOpen)}</a>`;
   const note = (html, cls) => {
@@ -2030,10 +2230,19 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   };
   addEventListener("pagehide", () => { if (window.inpaceNowPlaying) send({ type: "media", state: { active: false } }); });
   window.inpacePip = (on) => {
+    const n = window.inpaceNowPlaying;
+    const wasPlaying = !!(n && !n.v.paused && !n.v.ended);
     document.documentElement.classList.toggle("in-pip", !!on);
     document.querySelectorAll(".pip-video").forEach((x) => x.classList.remove("pip-video"));
-    const n = window.inpaceNowPlaying;
     if (on && n) n.box.classList.add("pip-video");
+    if (!on) {
+      // Back in the app: lay the page out again for the full screen, and if the video was playing when the
+      // floating window opened back up, make sure it still is (Android can pause it on the way).
+      requestAnimationFrame(() => dispatchEvent(new Event("resize")));
+      if (wasPlaying) setTimeout(() => {
+        if (document.visibilityState === "visible" && n.box.isConnected && n.v.paused && !n.v.ended) n.v.play();
+      }, 1200);
+    }
   };
 
   // "More apps…" opens Android's share sheet.

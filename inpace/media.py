@@ -276,6 +276,9 @@ def youtube_player(course_id: str, ref: str, cap: str, exists: Callable[[str], b
                 f'<button type="button" class="link" data-yt-restart>{e(t("Start over"))}</button></span>')
     labels = {**player_labels(t), "piece": t("This part"), "quality": t("Quality"), "auto": t("Auto"),
               "qwait": t("The other qualities show here once the video plays."),
+              "qget": t("Getting {q}…"), "qfail": t("{q} isn't available here right now, so YouTube picks the quality."),
+              "qnote": t("Auto: YouTube picks. Any other quality plays in inPace's own player."),
+              "ccyt": t("Subtitles (YouTube)"),
               "ccfinding": t("Finding subtitles…"), "ccnone": t("This video has no subtitles."), "ad": t("Ad: the lesson starts after it"),
               "err": t("YouTube won't play this video inside inPace."), "open": t("Watch it on YouTube"),
               "slow": t("Not playing? Watch it on YouTube instead."),

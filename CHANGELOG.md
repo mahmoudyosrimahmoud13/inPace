@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.30.6
+
+- **Choosing a quality now really changes it.** YouTube's player inside apps ignores quality requests, and on phones it ignored inPace's size trick too. Now the menu has Auto (YouTube picks, as before) and the sizes the video has (1080p, 720p, 480p, 360p). Picking a size gets the video at that size and plays it in inPace's own player from the same second; YouTube keeps playing until it's ready. Auto takes you back to YouTube's player. Your choice is remembered for the next lessons. If a size can't be had on your device, it says so and YouTube keeps playing.
+- **CC really switches subtitles, and Off turns them off.** Subtitles YouTube had switched on by itself stayed on whatever you picked. Now YouTube's own subtitles stay off until you pick one. When inPace can't get a language's text, YouTube shows that language itself. When inPace can't read the list at all, the menu offers YouTube's subtitles, then lists its languages.
+- **Phone: YouTube no longer stops for good after the floating window.** Coming back from the floating window rebuilt the page's view, which stopped YouTube and could leave the page laid out at the floating window's small size. The view now stays as it is, the page lays itself out again, and a video that was playing keeps playing.
+- **A YouTube video that doesn't answer Play loads again at the same second and plays.**
+
 ## v1.30.5
 
 - **YouTube's own screen never shows in the floating window.** When a video was paused there, YouTube's title, logo, play button and suggested videos showed through. Now the video's still picture covers them whenever it isn't playing, as on the lesson page.

@@ -2389,5 +2389,9 @@
  "The other qualities show here once the video plays.": "تظهر الجودات الأخرى هنا بعد أن يبدأ الفيديو.",
  "Finding subtitles…": "جارٍ البحث عن الترجمات…",
  "This video has no subtitles.": "هذا الفيديو بلا ترجمات.",
- "made by YouTube": "من يوتيوب تلقائيًا"
+ "made by YouTube": "من يوتيوب تلقائيًا",
+ "Getting {q}…": "جارٍ جلب {q}…",
+ "{q} isn't available here right now, so YouTube picks the quality.": "الجودة {q} غير متاحة هنا الآن، لذلك يختار يوتيوب الجودة.",
+ "Auto: YouTube picks. Any other quality plays in inPace's own player.": "تلقائي: يختار يوتيوب. أي جودة أخرى تعمل في مشغّل inPace نفسه.",
+ "Subtitles (YouTube)": "الترجمة (من يوتيوب)"
 }

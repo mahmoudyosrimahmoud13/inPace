@@ -202,6 +202,49 @@ def test_quality_menu_mirrors_youtube_and_youtube_screen_stays_hidden():
     import pathlib
     root = pathlib.Path(__file__).resolve().parent.parent
     js = (root / "inpace/static/app.js").read_text(encoding="utf-8")
-    assert "i.availableQualityLevels" in js and "youtubeQuality(player, frame, v)" in js
+    assert "i.availableQualityLevels" in js and "youtubeQuality(player, frame, v, box)" in js
     css = (root / "inpace/static/style.css").read_text(encoding="utf-8")
     assert "html.in-pip .pip-video .yt-cover { display: block !important;" in css
+
+
+def test_quality_menu_asks_for_that_size(tmp_path, monkeypatch):
+    """Picking 720p in a YouTube lesson's quality menu gets the video at that size, even with the ad blocker off."""
+    from inpace import offline, ytrules
+    v, c = client(tmp_path, "Omar")
+    seen = {}
+
+    def fake_stream(home, vid, load_fn=None, hls=False, quality="720", sized=False):
+        seen.update(quality=quality, sized=sized)
+        return {"video": "https://x/v.mp4", "audio": "https://x/a.m4a", "height": int(quality)}
+    monkeypatch.setattr(offline, "stream", fake_stream)
+    monkeypatch.setattr(ytrules, "current", lambda: {"ad_block": False})
+    assert c.get("/yt-stream/dQw4w9WgXcQ").json().get("why")              # the plain ad-free choice is off
+    d = c.get("/yt-stream/dQw4w9WgXcQ?q=720").json()                      # the quality menu still works
+    assert d["height"] == 720 and seen == {"quality": "720", "sized": True}
+
+
+def test_sized_stream_puts_the_size_first(tmp_path):
+    class Fake:
+        opts = []
+
+        class YoutubeDL:
+            def __init__(self, o): Fake.opts.append(o)
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def extract_info(self, url, download=False):
+                return {"requested_formats": [{"vcodec": "avc1", "url": "https://v", "height": 1080},
+                                              {"acodec": "mp4a", "vcodec": "none", "url": "https://a"}]}
+    from inpace import offline
+    out = offline.stream(tmp_path, "dQw4w9WgXcQ", load_fn=lambda h: Fake, quality="1080", sized=True)
+    assert out["height"] == 1080 and Fake.opts[-1]["format"].startswith("bv*[ext=mp4][vcodec^=avc1][height<=1080]")
+    offline.stream(tmp_path, "dQw4w9WgXcQ", load_fn=lambda h: Fake, quality="1080")
+    assert Fake.opts[-1]["format"].startswith("18/")                      # the ad-free choice keeps the quick file first
+
+
+def test_phone_page_view_is_not_rebuilt_for_the_floating_window():
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    dart = (root / "mobile/lib/main.dart").read_text(encoding="utf-8")
+    assert "WebViewWidget(key: _webKey" in dart and "top: !_inPip" in dart
+    js = (root / "inpace/static/app.js").read_text(encoding="utf-8")
+    assert "revive()" in js and '"unloadModule", ["captions"]' in js and "ytOwnPlayer(" in js
