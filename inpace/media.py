@@ -206,6 +206,8 @@ def player_labels(t: Tr, name: str = "") -> dict:
     return {"play": t("Play"), "pause": t("Pause"), "back": t("Back 10 seconds"), "fwd": t("Forward 10 seconds"),
               "mute": t("Mute"), "unmute": t("Sound on"), "speed": t("Speed"), "full": t("Full screen"),
               "pip": t("Picture in picture"), "restart": t("Start over"),
+              "miniback": t("Back to the lesson"), "miniclose": t("Close the video"),
+              "miniout": t("Pop out: a small window on top of your other apps"), "minidrag": t("Drag to move the video"),
               "ended": t("Finished! Mark the lesson as done below."),
               "cc": t("Subtitles"), "ccoff": t("Off"), "ccadd": t("Add a subtitle file (.srt or .vtt)…"),
               "ccsaved": t("Subtitles added."), "ccbad": t("That isn't a subtitle file. Choose a .srt or .vtt file."),

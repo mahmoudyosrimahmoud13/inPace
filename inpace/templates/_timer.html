@@ -1,0 +1,59 @@
+{# The floating focus timer (on every page) and the "Start a timer" sheet. app.js counts it down.
+   Every look has the same three clear buttons: pause / go on, 5 more minutes, stop. #}
+<script type="application/json" id="timer-data">{{ timer_json|safe }}</script>
+{% macro ft_buttons(cls='') %}
+  <span class="ft-btns {{ cls }}">
+    <button type="button" class="ft-ic ft-toggle" data-ft-toggle aria-label="{{ _('Pause the timer') }}" title="{{ _('Pause the timer') }}">
+      <span class="when-run">{{ icon('pause', 20) }}</span><span class="when-paused">{{ icon('play', 20) }}</span></button>
+    <button type="button" class="ft-ic ft-plus" data-ft-plus aria-label="{{ _('5 more minutes') }}" title="{{ _('5 more minutes') }}"><b>+5</b></button>
+    <button type="button" class="ft-ic" data-ft-stop aria-label="{{ _('Stop the timer') }}" title="{{ _('Stop the timer') }}">{{ icon('stop', 18) }}</button>
+  </span>
+{% endmacro %}
+<div class="ftimer" data-ftimer data-look="{{ timer_look }}" hidden role="region" aria-label="{{ _('Focus timer') }}"
+     data-l-pause="{{ _('Pause the timer') }}" data-l-resume="{{ _('Go on with the timer') }}"
+     data-l-done="{{ _('Time is up!') }}" data-l-done-body="{{ _('{n} minutes of focus. Take a short break.') }}"
+     data-l-paused="{{ _('Paused') }}" data-l-left="{{ _('{time} left') }}">
+  <button type="button" class="ft-size" data-ft-size aria-label="{{ _('Drag to make the timer bigger or smaller') }}" title="{{ _('Drag to make the timer bigger or smaller') }}"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M13 5L5 13M13 9l-4 4" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
+  <div class="ft-pill">
+    <span class="ft-grip" data-ft-grip title="{{ _('Drag to move the timer') }}">{{ icon('timer', 20) }}<b data-ft-time>25:00</b></span>
+    {{ ft_buttons() }}
+  </div>
+  <div class="ft-card">
+    <div class="ft-card-top" data-ft-grip title="{{ _('Drag to move the timer') }}">
+      <span class="ft-tempo">{{ mascot('read', 52, '') }}</span>
+      <span class="ft-card-txt"><b data-ft-time>25:00</b><small data-ft-label dir="auto"></small></span>
+    </div>
+    <div class="ft-bar" aria-hidden="true"><i data-ft-bar></i></div>
+    {{ ft_buttons('ft-card-btns') }}
+  </div>
+  <div class="ft-ring">
+    <span class="ft-ring-face" data-ft-grip title="{{ _('Drag to move the timer') }}">
+      <svg viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="60" class="ft-ring-bg"></circle><circle cx="66" cy="66" r="46" class="ft-ring-track"></circle><circle cx="66" cy="66" r="46" class="ft-ring-fill" data-ft-ring transform="rotate(-90 66 66)"></circle></svg>
+      <b data-ft-time>25:00</b>
+    </span>
+    {{ ft_buttons() }}
+  </div>
+</div>
+
+<dialog class="timer-sheet" data-timer-sheet aria-labelledby="timer-sheet-h">
+  <form method="post" action="/timer/start" data-timer-form>
+    <div class="sheet-head"><h2 id="timer-sheet-h">{{ icon('timer', 22) }} {{ _('Start a timer') }}</h2>
+      <button type="button" class="btn icon-btn" data-timer-close aria-label="{{ _('Close') }}">{{ icon('x', 20) }}</button></div>
+    <fieldset class="timer-lengths">
+      <legend class="ft-sr">{{ _('How long') }}</legend>
+      {% for m in (10, 15, 25, 45, 60, 90) %}
+      <label class="timer-len"><input type="radio" name="minutes" value="{{ m }}" {{ 'checked' if m == 25 }}><span>{{ T('{n} min', n=m) }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <input type="hidden" name="label" value="{{ timer_here.label if timer_here else '' }}">
+    <input type="hidden" name="journey" value="{{ timer_here.journey if timer_here else '' }}">
+    {% if timer_here and timer_here.label %}<p class="small muted" dir="auto">{{ T('For: {course}', course=timer_here.label) }}</p>{% endif %}
+    {% if island_on %}
+    <label class="check"><input type="checkbox" name="plant" value="1"><span>{% trans trimmed %}Also grow a plant on Tempo's island when it ends{% endtrans %}</span></label>
+    {% endif %}
+    <input type="hidden" name="follow" value="off">
+    <label class="check"><input type="checkbox" name="follow" value="on" {{ 'checked' if timer_follow }}><span>{% trans trimmed %}Pause the timer when the lesson video pauses{% endtrans %}</span></label>
+    <button class="btn primary big wide">{{ _('Start') }}</button>
+    <p class="small muted">{% trans trimmed %}It stays in a corner of every page, with Pause, +5 min and Stop. Drag it anywhere. Change how it looks in Settings.{% endtrans %}</p>
+  </form>
+</dialog>

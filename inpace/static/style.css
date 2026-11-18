@@ -2259,3 +2259,187 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 .rm-head-thumb { max-width: 520px; margin-block: .4rem 1.1rem; }
 @media (min-width: 900px) { .rm-head { display: grid; grid-template-columns: 1fr minmax(280px, 420px); column-gap: 2rem; }
   .rm-head > * { grid-column: 1; } .rm-head > .rm-head-thumb { grid-column: 2; grid-row: 1 / span 6; margin: 0; align-self: start; } }
+
+/* ---- Floating focus timer (v1.30): pill, card or ring, in a corner of every page, draggable ---- */
+.timer-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; cursor: pointer;
+  background: var(--surface); color: var(--ink); border: 3px solid var(--line); box-shadow: 3px 3px 0 var(--line); }
+[dir=rtl] .timer-btn { box-shadow: -3px 3px 0 var(--line); }
+.timer-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--line); }
+.timer-btn.on { background: var(--sun); color: #111; }
+.search-btn + .timer-btn { margin-inline-start: .6rem; }
+.timer-btn + .theme-toggle { margin-inline-start: .6rem; }
+.ft-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ftimer { position: fixed; z-index: 45; inset-inline-start: 1.25rem; bottom: 1.25rem; touch-action: none; user-select: none;
+  font-variant-numeric: tabular-nums; }
+.ftimer[hidden] { display: none; }
+.ftimer > div { display: none; }
+.ftimer[data-look=pill] .ft-pill, .ftimer[data-look=card] .ft-card, .ftimer[data-look=ring] .ft-ring { display: flex; }
+.ftimer.dragging { opacity: .85; }
+.ftimer button { font: inherit; color: inherit; cursor: pointer; }
+[data-ft-grip] { cursor: grab; touch-action: none; }
+.ftimer.dragging [data-ft-grip] { cursor: grabbing; }
+/* the three buttons every look has: pause / go on, +5 min, stop */
+.ft-btns { display: flex; }
+.ft-ic { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0 .5rem; background: var(--surface); color: var(--ink);
+  border: 0; border-inline-start: 3px solid var(--line); }
+.ft-ic:hover { background: var(--raised); }
+.ft-ic:focus-visible { outline: 3px solid var(--focus); outline-offset: -5px; }
+.ft-ic b { font-size: .95rem; font-weight: 800; }
+.ft-toggle { background: var(--sun); color: #111; }
+.ft-toggle .when-paused, .ftimer.paused .ft-toggle .when-run { display: none; }
+.ftimer.paused .ft-toggle .when-paused { display: inline; }
+.ftimer.trip .ft-plus { display: none; }
+
+.ft-pill { align-items: stretch; background: var(--surface); border: 3px solid var(--line); box-shadow: var(--hard-sm); }
+.ft-grip { display: flex; align-items: center; gap: .5rem; padding: 0 .8rem 0 .65rem; font-size: 1.3rem; font-weight: 800; background: var(--sun); color: #111; }
+.ftimer.paused .ft-grip { background: var(--surface); color: var(--ink); }
+
+.ft-card { flex-direction: column; width: 270px; background: var(--raised); border: 3px solid var(--line); box-shadow: var(--hard); }
+.ft-card-top { display: flex; align-items: center; gap: .7rem; padding: .6rem .8rem; }
+.ft-card-top svg { display: block; }
+.ft-card-txt { display: flex; flex-direction: column; min-width: 0; }
+.ft-card-txt b { font-size: 1.9rem; line-height: 1; }
+.ft-card-txt small { color: var(--muted); font-size: .8rem; margin-top: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.ft-bar { height: 10px; border-top: 3px solid var(--line); background: var(--surface); }
+.ft-bar i { display: block; height: 100%; width: 0; background: var(--shell); }
+.ft-card-btns { border-top: 3px solid var(--line); }
+.ft-card-btns .ft-ic { flex: 1; }
+.ft-card-btns .ft-ic:first-child { border-inline-start: 0; }
+
+.ft-ring { flex-direction: column; align-items: center; gap: .5rem; }
+.ft-ring-face { position: relative; width: 112px; height: 112px; display: grid; place-items: center; }
+.ft-ring-face svg { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(3px 3px 0 var(--line)); }
+.ft-ring-bg { fill: var(--surface); stroke: var(--line); stroke-width: 3; }
+.ft-ring-track { fill: none; stroke: var(--hair); stroke-width: 12; }
+.ft-ring-fill { fill: none; stroke: var(--sun); stroke-width: 12; stroke-dasharray: 289 289; }
+.ft-ring-face b { position: relative; font-size: 1.3rem; font-weight: 800; }
+.ftimer.paused .ft-ring-fill { stroke: var(--hair); }
+.ft-ring .ft-btns { border: 3px solid var(--line); box-shadow: var(--hard-sm); }
+.ft-ring .ft-btns .ft-ic:first-child { border-inline-start: 0; }
+
+.timer-sheet { width: min(460px, calc(100vw - 2rem)); padding: 1.25rem; border: 3px solid var(--line); box-shadow: var(--hard); background: var(--surface); color: var(--ink); }
+.timer-sheet::backdrop { background: rgba(0, 0, 0, .35); }
+.timer-sheet form { display: flex; flex-direction: column; gap: .9rem; }
+.timer-sheet .sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.timer-sheet h2 { margin: 0; display: flex; align-items: center; gap: .5rem; font-size: 1.35rem; }
+.timer-lengths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; border: 0; padding: 0; margin: 0; }
+.timer-len input { position: absolute; opacity: 0; pointer-events: none; }
+.timer-len span { display: grid; place-items: center; min-height: 46px; font-weight: 700; border: 3px solid var(--line); background: var(--surface); cursor: pointer; }
+.timer-len input:checked + span { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+.timer-len input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* the Settings choice, drawn as the three looks */
+.look-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; border: 0; padding: 0; margin: 0; }
+.look-pick label { display: flex; flex-direction: column; align-items: center; gap: .4rem; padding: .7rem .4rem; border: 3px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 700; text-align: center; }
+.look-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.look-pick label:has(input:checked) { background: var(--sun); color: #111; box-shadow: var(--hard-sm); }
+.look-pick label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.look-pick small { font-weight: 500; color: inherit; opacity: .8; }
+
+/* Bigger or smaller: drag the corner handle (the size is kept). */
+.ftimer { transform: scale(var(--ft-scale, 1)); transform-origin: top left; }
+[dir=rtl] .ftimer { transform-origin: top right; }
+.ft-size { position: absolute; z-index: 1; bottom: -12px; inset-inline-end: -12px; width: 26px; height: 26px; padding: 0; display: grid; place-items: center;
+  background: var(--surface); color: var(--ink); border: 2.5px solid var(--line); cursor: nwse-resize; touch-action: none; }
+[dir=rtl] .ft-size { cursor: nesw-resize; }
+[dir=rtl] .ft-size svg { transform: scaleX(-1); }
+
+/* On a phone, inside the app the timer is one bar under the header, whatever look you picked.
+   The look you picked shows when you leave the app (Android's floating window). */
+@media (max-width: 860px) {
+  .timer-btn { width: 36px; height: 36px; }
+  .ftimer, [dir=rtl] .ftimer { transform: none; inset-inline: 0 !important; left: 0 !important; right: 0 !important; top: var(--header, 56px) !important; bottom: auto !important; }
+  .ftimer > .ft-card, .ftimer > .ft-ring, .ft-size { display: none !important; }
+  .ftimer > .ft-pill { display: flex !important; box-shadow: none; border-inline: 0; border-top: 0; }
+  .ft-pill .ft-grip { flex: 1; cursor: default; padding-block: .3rem; }
+  .ftimer .ft-ic { min-width: 52px; }
+  body:has(.ftimer:not([hidden])) main { padding-top: 48px; }
+}
+
+/* ---- The mini player (v1.30): the lesson video in a corner while you use the rest of inPace ---- */
+html.mini-on, html.mini-on body { overflow: hidden; }
+html.mini-on .ftimer { display: none !important; }  /* the page in the frame shows its own */
+.mini-host { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 60; background: var(--bg); }
+.mini-bar { display: none; }
+figure.mini-player { position: fixed; z-index: 70; width: 380px; margin: 0 !important; padding: 0; background: var(--surface);
+  border: 3px solid var(--line); box-shadow: var(--hard); }
+figure.mini-player[data-corner=br] { right: 1.25rem; bottom: 1.25rem; }
+figure.mini-player[data-corner=bl] { left: 1.25rem; bottom: 1.25rem; }
+figure.mini-player[data-corner=tr] { right: 1.25rem; top: calc(var(--header) + 1rem); }
+figure.mini-player[data-corner=tl] { left: 1.25rem; top: calc(var(--header) + 1rem); }
+figure.mini-player.mini-drag { opacity: .9; transition: none; }
+figure.mini-player.mini-gone { display: none; }
+figure.mini-player > :not(.mini-bar):not(:has(video, iframe)) { display: none !important; }
+figure.mini-player .pl-bar, figure.mini-player .pl-big, figure.mini-player .pl-toast { display: none !important; }
+figure.mini-player :is([data-player], .yt-player, .frame-wrap) { margin: 0 !important; border: 0 !important; box-shadow: none !important; max-height: none; }
+figure.mini-player .mini-bar { display: flex; align-items: center; border-top: 3px solid var(--line); }
+.mini-title { flex: 1; min-width: 0; padding: .4rem .7rem; cursor: grab; touch-action: none; }
+.mini-title b { display: block; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-ic { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; background: var(--surface); color: var(--ink);
+  border: 0; border-inline-start: 3px solid var(--line); cursor: pointer; }
+.mini-ic:hover { background: var(--raised); }
+.mini-ic:focus-visible { outline: 3px solid var(--focus); outline-offset: -5px; }
+.mini-toggle { background: var(--sun); color: #111; }
+.mini-toggle .i-play, .mini-bar.paused .mini-toggle .i-pause { display: none; }
+.mini-bar.paused .mini-toggle .i-play { display: inline; }
+@media (max-width: 860px) {  /* phone: one row above the tabs, the video small on the left */
+  figure.mini-player, figure.mini-player[data-corner] { left: 0; right: 0; top: auto; width: auto; border-inline: 0; box-shadow: none;
+    bottom: calc(var(--tabbar, 64px) + env(safe-area-inset-bottom, 0px)); display: flex; align-items: stretch; }
+  figure.mini-player > :has(video, iframe) { width: 128px; flex: none; }
+  figure.mini-player .mini-bar { flex: 1; min-width: 0; border-top: 0; border-inline-start: 3px solid var(--line); align-items: stretch; }
+  figure.mini-player .mini-ic { width: 54px; height: auto; min-height: 44px; }
+  figure.mini-player .mini-title { display: flex; align-items: center; }
+  figure.mini-player .mini-title b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; }
+  figure.mini-player [data-mini-back], figure.mini-player [data-mini-out] { display: none; }
+  .mini-title { cursor: default; }
+}
+
+/* ---- The pop-out mini window (v1.30) ---- */
+body.mini-window { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+.mw-head { display: flex; align-items: stretch; border-bottom: 3px solid var(--line); background: var(--raised); flex: none; }
+.mw-brand { flex: 1; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; }
+.mw-brand b { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mw-btn { font: inherit; font-weight: 700; font-size: .85rem; padding: 0 .8rem; min-height: 40px; background: var(--surface); color: var(--ink);
+  border: 0; border-inline-start: 3px solid var(--line); cursor: pointer; }
+.mw-x { width: 40px; padding: 0; display: grid; place-items: center; }
+.mw-video { flex: 1; min-height: 0; margin: 0; padding: 0; max-width: none; display: flex; }
+.mw-video > figure { margin: 0; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.mw-video > figure > :not(:has(video, iframe, [data-embed], .player)) { display: none; }
+.mw-video :is(.player, .yt-player, .frame-wrap, .embed-box) { margin: 0; border: 0; box-shadow: none; flex: 1; }
+body.mini-window .ftimer { position: static; transform: none; display: block; flex: none; border-top: 3px solid var(--line); }
+body.mini-window .ftimer .ft-size { display: none; }
+body.mini-window .ftimer > .ft-pill { display: flex; border: 0; box-shadow: none; }
+body.mini-window .ftimer > .ft-pill .ft-grip { flex: 1; cursor: default; }
+body.mini-window .ftimer > .ft-card, body.mini-window .ftimer > .ft-ring { display: none !important; }
+.mw-start { margin: 0; padding: .4rem; border-top: 3px solid var(--line); text-align: center; flex: none; }
+
+/* ---- Android: floating over other apps (picture-in-picture) (v1.30) ----
+   Only the playing video and the timer show, the timer in the look picked in Settings. */
+html.in-pip, html.in-pip body { overflow: hidden !important; background: #000; }
+html.in-pip body { visibility: hidden; }
+html.in-pip .pip-video, html.in-pip .pip-video * { visibility: visible; }
+html.in-pip .pip-video { position: fixed !important; inset: 0 !important; z-index: 100; margin: 0 !important; border: 0 !important; background: #000; width: 100vw !important; height: 100vh !important; }
+html.in-pip .pip-video :is(video, iframe) { width: 100%; height: 100%; object-fit: contain; }
+html.in-pip .pip-video :is(.pl-bar, .pl-big, .pl-toast, .yt-cover) { display: none !important; }
+html.in-pip .ftimer:not([hidden]), html.in-pip .ftimer:not([hidden]) * { visibility: visible; }
+html.in-pip .ftimer:not([hidden]) { display: block !important; position: fixed !important; z-index: 101; top: auto !important; right: auto !important;
+  left: 6px !important; bottom: 6px !important; transform: scale(.55) !important; transform-origin: bottom left; }
+html.in-pip .ftimer .ft-btns, html.in-pip .ftimer .ft-size { display: none !important; }
+html.in-pip .ftimer[data-look=pill] > .ft-pill, html.in-pip .ftimer[data-look=card] > .ft-card, html.in-pip .ftimer[data-look=ring] > .ft-ring { display: flex !important; }
+html.in-pip .ftimer[data-look=card] > .ft-pill, html.in-pip .ftimer[data-look=ring] > .ft-pill { display: none !important; }
+html.in-pip.pip-timer-only body { background: var(--bg); }
+html.in-pip.pip-timer-only .ftimer:not([hidden]) { left: 50% !important; top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%) scale(.85) !important; transform-origin: center; }
+
+/* Settings in groups (v1.30) */
+.set-group { margin: 2.2rem 0 .2rem; font-size: 1.6rem; scroll-margin-top: calc(var(--header) + 1rem); }
+.set-group:first-of-type { margin-top: 1rem; }
+.set-sub { margin: 0 0 .9rem; max-width: 620px; }
+h3.set-h { font-size: 1.25rem; }
+#timer, #profile, #turtle, #colors, #reminders, #updates, #data, #youtube, #videos, #ai, #backups, #delete, #about { scroll-margin-top: calc(var(--header) + 1rem); }
+
+/* The side menu's "Continue" box: a long lesson title wraps inside the box (two lines at most) instead of running past it. */
+.side a.continue { white-space: normal; min-width: 0; flex-shrink: 0; }
+.side a.continue > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; flex-shrink: 0; }
+.side a.continue b, .side a.continue .muted { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.side a.continue .muted { -webkit-line-clamp: 1; }

@@ -1172,6 +1172,13 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
 
   const setup = (box, v) => {
     const L = box.dataset;
+    // The mini player and the floating timer follow whichever video is playing.
+    v.addEventListener("play", () => {
+      window.inpaceNowPlaying = { box, v };
+      if (window.inpaceTimer) inpaceTimer.resume("video");
+      try { if (window.parent !== window && parent.inpaceMini) parent.inpaceMini.stop(); } catch (e) { /* not ours */ }
+    });
+    v.addEventListener("pause", () => { if (window.inpaceTimer) inpaceTimer.pause("video"); });
     const lo = parseFloat(L.start || "0") || 0, hiSet = parseFloat(L.end || "0") || 0;
     const hi = () => hiSet || v.duration || 0;
     const span = () => Math.max(0, hi() - lo);
@@ -1196,10 +1203,13 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
           ${v.textTracks.length || L.subAction ? `<button type="button" class="pl-btn pl-cc" title="${L.lCc} (C)" aria-haspopup="true">CC</button>` : ""}
           <button type="button" class="pl-btn pl-speed" title="${L.lSpeed}">${speed}×</button>
           ${document.pictureInPictureEnabled && v.requestPictureInPicture ? `<button type="button" class="pl-btn pl-pip" title="${L.lPip}">${ICON.pip}</button>` : ""}
+          ${document.body.hasAttribute("data-mini-window") || window.InPaceAndroid ? "" : `<button type="button" class="pl-btn pl-out" title="${L.lMiniout}" aria-label="${L.lMiniout}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16"/><rect x="11" y="11" width="8" height="7" fill="currentColor"/></svg></button>`}
           <button type="button" class="pl-btn pl-full" title="${L.lFull} (F)">${ICON.full}</button>
         </div>
       </div>`);
     const $ = (c) => box.querySelector(c);
+    const outBtn = $(".pl-out");
+    if (outBtn) outBtn.addEventListener("click", () => window.inpacePopout && window.inpacePopout({ box, v }));
     const seek = $(".pl-seek"), time = $(".pl-time"), play = $(".pl-play"), big = $(".pl-big");
     const mute = $(".pl-mute"), vol = $(".pl-vol"), spd = $(".pl-speed"), toast = $(".pl-toast");
     let toastTimer, hideTimer, dragging = false;
@@ -1885,6 +1895,27 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
     } catch (e) {}
   };
   window.inpaceTripPaused = () => { if (trip) send({ type: "trip", trip: { ...trip, state: "paused", ends_ms: null } }); };
+  addEventListener("inpace-timer", () => window.inpaceTripChanged());  // the floating timer shows there too
+
+  // Leaving the app (Home button, another app) while a video plays or a timer runs: Android keeps a small
+  // window floating over other apps, with the video and the timer in the look picked in Settings.
+  const wantPip = () => {
+    const n = window.inpaceNowPlaying, d = window.inpaceTimer ? inpaceTimer.get() : {};
+    return !!((n && !n.v.paused && !n.v.ended) || (d && d.on));
+  };
+  let lastPip = null;
+  const tellPip = () => { const w = wantPip(); if (w !== lastPip) { lastPip = w; send({ type: "pip", auto: w }); } };
+  setInterval(tellPip, 1500);
+  addEventListener("inpace-timer", tellPip);
+  document.addEventListener("play", tellPip, true);
+  document.addEventListener("pause", tellPip, true);
+  window.inpacePip = (on) => {
+    document.documentElement.classList.toggle("in-pip", !!on);
+    document.querySelectorAll(".pip-video").forEach((x) => x.classList.remove("pip-video"));
+    const n = window.inpaceNowPlaying;
+    if (on && n && !n.v.paused) n.box.classList.add("pip-video");
+    document.documentElement.classList.toggle("pip-timer-only", !!on && !document.querySelector(".pip-video"));
+  };
 
   // "More apps…" opens Android's share sheet.
   document.querySelectorAll("[data-share]").forEach((btn) => {
@@ -2657,3 +2688,370 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
   box.addEventListener("change", build);
   build();
 });
+
+// ---- The floating focus timer (v1.30) ------------------------------------------------------------------
+// The server keeps the timer (so it carries on across pages and windows); this counts it down on screen,
+// pauses and stops it, lets you drag it anywhere (the spot is remembered), and chimes when time is up.
+// Other parts (the lesson video, the mini window) call window.inpaceTimer.pause("video") / .resume("video").
+(() => {
+  const box = document.querySelector("[data-ftimer]");
+  const sheet = document.querySelector("[data-timer-sheet]");
+  const openBtn = document.querySelector("[data-timer-open]");
+  if (!box) return;
+  let d = {};
+  try { d = JSON.parse((document.getElementById("timer-data") || {}).textContent || "{}") || {}; } catch (e) { d = {}; }
+  let t0 = Date.now();
+  const L = (k) => box.dataset["l" + k[0].toUpperCase() + k.slice(1)] || "";
+  const fmt = (s) => { s = Math.max(0, Math.ceil(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : String(m).padStart(2, "0")) + ":" + String(x).padStart(2, "0"); };
+  const left = () => (d.state === "running" ? d.left - (Date.now() - t0) / 1000 : d.left);
+  const chime = () => {
+    try {
+      const a = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(a.destination);
+        const t = a.currentTime + i * 0.16;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+        o.start(t); o.stop(t + 0.65);
+      });
+    } catch (e) { /* no sound here */ }
+  };
+  const say = (text) => {
+    const y = document.createElement("div");
+    y.className = "yay"; y.setAttribute("role", "status");
+    y.innerHTML = '<p></p><button type="button" class="yay-close" aria-label="×">×</button>';
+    y.querySelector("p").textContent = text;
+    y.querySelector("button").addEventListener("click", () => y.remove());
+    document.body.appendChild(y);
+    setTimeout(() => y.remove(), 12000);
+  };
+  const finished = () => {
+    chime();
+    say(L("done") + " " + L("doneBody").replace("{n}", Math.round((d.goal || 0) / 60) || ""));
+  };
+  const draw = () => {
+    const on = !!d.on;
+    box.hidden = !on;
+    if (openBtn) openBtn.classList.toggle("on", on);
+    if (!on) return;
+    const s = left(), p = d.goal ? Math.min(1, Math.max(0, 1 - s / d.goal)) : 0;
+    box.classList.toggle("paused", d.state !== "running");
+    box.querySelectorAll("[data-ft-time]").forEach((el) => (el.textContent = fmt(s)));
+    box.querySelectorAll("[data-ft-label]").forEach((el) => (el.textContent = d.state !== "running" ? L("paused") : (d.label || "")));
+    const bar = box.querySelector("[data-ft-bar]"); if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
+    const ring = box.querySelector("[data-ft-ring]"); if (ring) ring.style.strokeDasharray = ((1 - p) * 289).toFixed(1) + " 289";
+    box.classList.toggle("trip", d.kind === "trip");
+    const label = d.state === "running" ? L("pause") : L("resume");
+    box.querySelectorAll("[data-ft-toggle]").forEach((b) => { b.setAttribute("aria-label", label); b.title = label; });
+    if (d.state === "running" && s <= 0 && !draw.ending) { draw.ending = true; refresh(true); }
+  };
+  const take = (nd, chimeIfDone) => {
+    const wasOn = d.on;
+    d = nd || { on: false }; t0 = Date.now(); draw.ending = false;
+    if (!d.on && d.done && (wasOn || chimeIfDone)) finished();
+    draw();
+    window.dispatchEvent(new CustomEvent("inpace-timer", { detail: d }));
+  };
+  const send = async (what, extra) => {
+    const body = new URLSearchParams(extra || {});
+    try {
+      const r = await fetch("/timer/" + what, { method: "POST", body, headers: { "x-inpace-fetch": "1", "accept": "application/json" } });
+      take(await r.json(), false);
+    } catch (e) { /* offline for a moment: the next look fixes it */ }
+  };
+  const refresh = async (chimeIfDone) => {
+    try { take(await (await fetch("/timer.json", { cache: "no-store" })).json(), chimeIfDone); } catch (e) { /* later */ }
+  };
+  // Pause / go on, +5 min and Stop: the same three buttons in all three looks.
+  box.querySelectorAll("[data-ft-toggle]").forEach((b) => b.addEventListener("click", () => send(d.state === "running" ? "pause" : "resume")));
+  box.querySelectorAll("[data-ft-plus]").forEach((b) => b.addEventListener("click", () => send("add")));
+  box.querySelectorAll("[data-ft-stop]").forEach((b) => b.addEventListener("click", () => send("stop")));
+  window.inpaceTimer = {
+    get: () => d,
+    pause: (by) => (d.on && d.state === "running" ? send("pause", { by: by || "you" }) : null),
+    resume: (by) => (d.on && d.state !== "running" ? send("resume", { by: by || "you" }) : null),
+    refresh,
+  };
+  // The header button: start a timer, or bring the running one back into view.
+  if (openBtn && sheet) openBtn.addEventListener("click", () => {
+    if (d.on) { box.animate([{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 350 }); return; }
+    sheet.showModal ? sheet.showModal() : sheet.setAttribute("open", "");
+  });
+  if (sheet) {
+    sheet.querySelector("[data-timer-close]").addEventListener("click", () => sheet.close());
+    sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
+    sheet.querySelector("[data-timer-form]").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await send("start", Object.fromEntries(new FormData(e.target)));
+      sheet.close();
+    });
+  }
+  // Drag it anywhere; the spot is kept for next time (separately for phone-size and computer-size windows).
+  const spotKey = () => "inpace-timer-spot-" + (innerWidth < 860 ? "s" : "l");
+  const place = (x, y) => {
+    const r = box.getBoundingClientRect();
+    x = Math.min(Math.max(8, x), innerWidth - r.width - 8); y = Math.min(Math.max(8, y), innerHeight - r.height - 8);
+    Object.assign(box.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" });
+  };
+  const phone = () => innerWidth < 860;  // there it's a bar under the header: nothing to move or resize
+  try { const s = JSON.parse(localStorage.getItem(spotKey()) || "null"); if (s && !phone()) requestAnimationFrame(() => place(s.x, s.y)); } catch (e) { /* none */ }
+  // Resize: drag the corner handle; the size (70% to 180%) is kept for next time.
+  const setScale = (k) => { k = Math.min(1.8, Math.max(0.7, k)); box.style.setProperty("--ft-scale", k.toFixed(2)); return k; };
+  try { setScale(parseFloat(localStorage.getItem("inpace-timer-scale") || "1") || 1); } catch (e) { /* none */ }
+  const sizer = box.querySelector("[data-ft-size]");
+  if (sizer) sizer.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = box.getBoundingClientRect(), k0 = parseFloat(getComputedStyle(box).getPropertyValue("--ft-scale")) || 1;
+    const w0 = r.width / k0, rtl = document.dir === "rtl";
+    const mv = (ev) => { const w = rtl ? r.right - ev.clientX : ev.clientX - r.left; setScale(w / w0); };
+    const up = () => {
+      removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+      try { localStorage.setItem("inpace-timer-scale", getComputedStyle(box).getPropertyValue("--ft-scale").trim()); } catch (e2) { /* private */ }
+      const r2 = box.getBoundingClientRect(); place(r2.left, r2.top);
+    };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
+  // Keyboard: the size handle grows and shrinks with the arrow keys too.
+  if (sizer) sizer.addEventListener("keydown", (e) => {
+    const k = parseFloat(getComputedStyle(box).getPropertyValue("--ft-scale")) || 1;
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); setScale(k + 0.1); }
+    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); setScale(k - 0.1); }
+    else return;
+    try { localStorage.setItem("inpace-timer-scale", getComputedStyle(box).getPropertyValue("--ft-scale").trim()); } catch (e2) { /* private */ }
+  });
+  box.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest("[data-ft-grip]") || phone()) return;
+    const r = box.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top, sx = e.clientX, sy = e.clientY;
+    let dragging = false;
+    const mv = (ev) => {
+      if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      dragging = true; box.classList.add("dragging");
+      place(ev.clientX - dx, ev.clientY - dy);
+    };
+    const up = () => {
+      removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+      box.classList.remove("dragging");
+      if (dragging) {
+        const r2 = box.getBoundingClientRect();
+        try { localStorage.setItem(spotKey(), JSON.stringify({ x: r2.left, y: r2.top })); } catch (e2) { /* private window */ }
+      }
+    };
+    addEventListener("pointermove", mv); addEventListener("pointerup", up);
+  });
+  addEventListener("resize", () => {
+    if (phone()) { Object.assign(box.style, { left: "", top: "", right: "", bottom: "" }); return; }
+    if (box.style.left) { const r = box.getBoundingClientRect(); place(r.left, r.top); }
+  });
+  if (!d.on && d.done) finished();  // it ended while this page was loading
+  setInterval(draw, 1000);
+  setInterval(() => { if (!document.hidden) refresh(true); }, 30000);  // another window may have paused or stopped it
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(true); });
+  draw();
+})();
+
+
+// ---- The pop-out mini window (v1.30) ---------------------------------------------------------------------------
+// A small inPace window above your other apps, with the lesson's video and the timer. The app window makes it
+// (Windows, Mac, Linux); in a browser, Chrome and Edge's "picture-in-picture window" holds it, else a popup.
+// The windows talk over a BroadcastChannel: "Back to inPace" in the small window brings the video back here.
+(() => {
+  const chan = "BroadcastChannel" in window ? new BroadcastChannel("inpace-mini") : null;
+  if (document.body && document.body.hasAttribute("data-mini-window")) return;  // the small window itself: below
+  window.inpacePopout = async (n) => {
+    const key = n.box.dataset.key || "";
+    const lesson = n.lesson || location.pathname;
+    const url = lesson + "?mini=1&key=" + encodeURIComponent(key);
+    n.v.pause();  // saves the second it's at, so the small window starts there
+    await new Promise((r) => setTimeout(r, 350));
+    let ok = false;
+    try {
+      const body = new URLSearchParams({ url });
+      ok = (await (await fetch("/window/popout", { method: "POST", body })).json()).ok;
+    } catch (e) { ok = false; }
+    if (!ok && window.documentPictureInPicture) {
+      try {
+        const pip = await documentPictureInPicture.requestWindow({ width: 440, height: 360 });
+        pip.document.body.style.margin = "0";
+        const f = pip.document.createElement("iframe");
+        f.src = url; f.allow = "autoplay; fullscreen";
+        Object.assign(f.style, { border: "0", width: "100vw", height: "100vh", display: "block" });
+        pip.document.body.appendChild(f);
+        ok = true;
+      } catch (e) { ok = false; }
+    }
+    if (!ok) ok = !!window.open(url, "inpace-mini", "popup,width=440,height=360");
+    if (ok && window.inpaceMini && inpaceMini.active()) inpaceMini.stop();
+  };
+  // "Back to inPace" in the small window: carry on here, from the same second.
+  if (chan) chan.addEventListener("message", (e) => {
+    const m = e.data || {};
+    if (m.type !== "back" || !m.lesson) return;
+    if (location.pathname === m.lesson) {
+      if (window.inpaceMini && inpaceMini.active()) inpaceMini.expand();
+      const box = [...document.querySelectorAll("[data-player]")].find((b) => b.dataset.key === m.key);
+      const v = box && box.querySelector("video");
+      if (v) { if (m.t) v.currentTime = m.t; v.play().catch(() => {}); }
+      else location.reload();
+    } else location.href = m.lesson;
+  });
+})();
+
+// The small window: keep only the video it was opened for, start it, and wire Back and Close.
+(() => {
+  if (!document.body || !document.body.hasAttribute("data-mini-window")) return;
+  const chan = "BroadcastChannel" in window ? new BroadcastChannel("inpace-mini") : null;
+  const lesson = document.body.dataset.lesson;
+  const key = new URLSearchParams(location.search).get("key") || "";
+  const prose = document.querySelector(".mw-video");
+  const figs = [...prose.querySelectorAll("figure")];
+  const sel = key ? `[data-key="${CSS.escape(key)}"], [data-yt-key="${CSS.escape(key)}"]` : "";
+  const keep = (sel && figs.find((f) => f.querySelector(sel))) || figs.find((f) => f.querySelector("video, [data-embed], [data-player]"));
+  prose.replaceChildren(...(keep ? [keep] : []));
+  const media = () => { const n = window.inpaceNowPlaying; if (n) return n.v; const v = prose.querySelector("video"); return v; };
+  setTimeout(() => {
+    const v = prose.querySelector("video");
+    if (v) v.play().catch(() => {});
+    else { const b = prose.querySelector(".yt-choice.play, .embed-box .play"); if (b) b.click(); }
+  }, 450);
+  const shut = async () => {
+    try { await fetch("/window/popout/close", { method: "POST" }); } catch (e) { /* no app window */ }
+    try { window.close(); } catch (e) { /* not allowed */ }
+  };
+  document.querySelector("[data-mw-back]").addEventListener("click", async () => {
+    const v = media();
+    const t = v ? v.currentTime : 0;
+    if (v) v.pause();
+    await new Promise((r) => setTimeout(r, 250));  // let the second it's at be saved
+    if (chan) chan.postMessage({ type: "back", lesson, key, t });
+    if (window.parent !== window) { try { parent.close(); } catch (e) { /* the browser's PiP window closes itself */ } }
+    shut();
+  });
+  document.querySelector("[data-mw-close]").addEventListener("click", () => { const v = media(); if (v) v.pause(); shut(); });
+  // No timer running: offer to start one right here.
+  const start = document.querySelector("[data-mw-start]");
+  const sync = (d) => { if (start) start.hidden = !!(d && d.on); };
+  addEventListener("inpace-timer", (e) => sync(e.detail));
+  try { sync(JSON.parse(document.getElementById("timer-data").textContent)); } catch (e) { sync(null); }
+})();
+
+// ---- The mini player (v1.30) ---------------------------------------------------------------------------------
+// Leave a lesson while its video plays, and the video shrinks into a corner and keeps playing, like YouTube.
+// How: the lesson page stays loaded underneath; the page you went to opens in a full-window frame on top of
+// it, and the video sits above that frame. Every page works as always inside the frame. "Back to the lesson"
+// (or Back from the first page you opened) removes the frame: the lesson is right there, at the same second.
+(() => {
+  const html = document.documentElement;
+  if (window.parent !== window) {
+    // Inside the frame: a link to the lesson that's playing brings it back instead of loading it again.
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("a[href]");
+      try { if (a && parent.inpaceMini && parent.inpaceMini.isLesson(a.href)) { e.preventDefault(); e.stopImmediatePropagation(); parent.inpaceMini.expand(); } } catch (x) { /* not ours */ }
+    }, true);
+    html.classList.add("in-mini-host");
+    return;
+  }
+  let host = null, cur = null;
+  const playing = () => { const n = window.inpaceNowPlaying; return n && !n.v.paused && !n.v.ended ? n : null; };
+  const figOf = (n) => n.box.closest("figure") || n.box;
+  const corner = () => { try { return localStorage.getItem("inpace-mini-corner") || "br"; } catch (e) { return "br"; } };
+  const bar = (f, n) => {
+    let b = f.querySelector(":scope > .mini-bar");
+    if (b) return b;
+    const L = n.box.dataset;
+    const title = (document.querySelector("article h1") || {}).textContent || document.title;
+    b = document.createElement("div");
+    b.className = "mini-bar";
+    b.innerHTML = `<span class="mini-title" data-mini-grip title="${L.lMinidrag || ""}"><b></b></span>
+      <button type="button" class="mini-ic mini-toggle" data-mini-toggle aria-label="${L.lPause}" title="${L.lPause}"><svg viewBox="0 0 24 24" width="18" height="18"><path class="i-pause" d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z" fill="currentColor"/><path class="i-play" d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg></button>
+      <button type="button" class="mini-ic" data-mini-back aria-label="${L.lMiniback}" title="${L.lMiniback}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7"/></svg></button>
+      ${window.inpacePopout ? `<button type="button" class="mini-ic" data-mini-out aria-label="${L.lMiniout}" title="${L.lMiniout}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14"/><rect x="12" y="12" width="7" height="5" fill="currentColor"/></svg></button>` : ""}
+      <button type="button" class="mini-ic" data-mini-close aria-label="${L.lMiniclose}" title="${L.lMiniclose}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+    b.querySelector("b").textContent = title.trim();
+    const sync = () => b.classList.toggle("paused", n.v.paused);
+    n.v.addEventListener("play", sync); n.v.addEventListener("pause", sync); sync();
+    b.querySelector("[data-mini-toggle]").addEventListener("click", () => (n.v.paused ? n.v.play() : n.v.pause()));
+    b.querySelector("[data-mini-back]").addEventListener("click", () => api.expand());
+    b.querySelector("[data-mini-close]").addEventListener("click", () => api.close());
+    const out = b.querySelector("[data-mini-out]");
+    if (out) out.addEventListener("click", () => window.inpacePopout(n));
+    // Drag it; let go and it moves to the nearest corner (remembered).
+    // Tap the title to go back to the lesson; drag it to move the video (it settles in the nearest corner).
+    b.querySelector("[data-mini-grip]").addEventListener("pointerdown", (e) => {
+      if (innerWidth < 860) return;
+      const r = f.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top, sx = e.clientX, sy = e.clientY;
+      let moved = false;
+      const mv = (ev) => {
+        if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        moved = true; f.classList.add("mini-drag");
+        Object.assign(f.style, { left: ev.clientX - dx + "px", top: ev.clientY - dy + "px", right: "auto", bottom: "auto" });
+      };
+      const up = (ev) => {
+        removeEventListener("pointermove", mv); removeEventListener("pointerup", up);
+        if (!moved) { api.expand(); return; }
+        f.classList.remove("mini-drag");
+        const c = (ev.clientY < innerHeight / 2 ? "t" : "b") + (ev.clientX < innerWidth / 2 ? "l" : "r");
+        try { localStorage.setItem("inpace-mini-corner", c); } catch (x) { /* private */ }
+        Object.assign(f.style, { left: "", top: "", right: "", bottom: "" });
+        f.dataset.corner = c;
+      };
+      addEventListener("pointermove", mv); addEventListener("pointerup", up);
+    });
+    b.querySelector("[data-mini-grip]").addEventListener("click", () => { if (innerWidth < 860) api.expand(); });
+    f.appendChild(b);
+    return b;
+  };
+  const lessonPath = location.pathname;
+  const api = window.inpaceMini = {
+    isLesson: (href) => { try { const u = new URL(href, location.href); return u.origin === location.origin && u.pathname === lessonPath; } catch (e) { return false; } },
+    active: () => !!host,
+    enter(url) {
+      cur = playing();
+      if (!cur) return false;
+      const f = figOf(cur);
+      bar(f, cur);
+      f.dataset.corner = corner();
+      f.classList.add("mini-player");
+      f.classList.remove("mini-gone");
+      html.classList.add("mini-on");
+      history.pushState({ inpaceMini: 1 }, "", location.href);
+      host = document.createElement("iframe");
+      host.className = "mini-host";
+      host.title = document.title;
+      host.src = url;
+      host.addEventListener("load", () => { try { document.title = host.contentDocument.title; } catch (e) { /* elsewhere */ } });
+      document.body.appendChild(host);
+      return true;
+    },
+    expand() {
+      if (!host) return;
+      host.remove(); host = null;
+      html.classList.remove("mini-on");
+      document.querySelectorAll(".mini-player").forEach((f) => f.classList.remove("mini-player", "mini-gone"));
+      document.title = document.title;  // the frame's title went with it
+      if (history.state && history.state.inpaceMini) history.replaceState(null, "", location.href);
+    },
+    stop() {  // another video started in the frame: this one stops and its mini player goes away
+      if (cur) { cur.v.pause(); figOf(cur).classList.add("mini-gone"); }
+    },
+    close() {  // stop the video and stay on the page you're on now
+      if (cur) cur.v.pause();
+      let to = null;
+      try { to = host && host.contentWindow.location.href; } catch (e) { to = null; }
+      if (to) location.href = to; else api.expand();
+    },
+  };
+  // Back from the first page in the frame comes back here: show the lesson again.
+  addEventListener("popstate", (e) => { if (host && !(e.state && e.state.inpaceMini)) api.expand(); });
+  // Going to another inPace page while the video plays: open it above the lesson instead of leaving it.
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || host) return;
+    const a = e.target.closest("a[href]");
+    if (!a || a.target === "_blank" || a.hasAttribute("download") || !playing()) return;
+    let u;
+    try { u = new URL(a.href, location.href); } catch (x) { return; }
+    if (u.origin !== location.origin || (u.pathname === location.pathname && u.search === location.search)) return;
+    if (/^\/(files|media|yt-stream|pdf|outbox|static)\//.test(u.pathname)) return;  // files open as before
+    if (api.enter(u.href)) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+})();

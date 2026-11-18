@@ -160,6 +160,47 @@ def main(argv: list[str]) -> None:
 
     page.renderProcessTerminated.connect(on_crash)
 
+    # The pop-out mini window: window.py asks for it on stdin ("POPOUT <url>", "CLOSEPOP").
+    import queue
+    import threading
+    from PySide6.QtCore import Qt
+    asks: "queue.Queue[str]" = queue.Queue()
+
+    def read_stdin():
+        for line in sys.stdin:
+            asks.put(line.strip())
+
+    threading.Thread(target=read_stdin, daemon=True).start()
+    pop = {"view": None}
+
+    def open_pop(u: str):
+        pv = pop["view"]
+        if pv is None:
+            pv = QWebEngineView()
+            pv.setPage(Page(profile, pv))
+            pv.setWindowTitle("inPace")
+            pv.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)  # stays above your other apps
+            pv.resize(440, 360)
+            pv.setMinimumSize(300, 220)
+            pop["view"] = pv
+        pv.load(QUrl(u))
+        pv.show()
+        pv.raise_()
+
+    def take_asks():
+        while not asks.empty():
+            cmd, _, arg = asks.get().partition(" ")
+            if cmd == "POPOUT" and arg.startswith("http://127.0.0.1"):
+                open_pop(arg)
+            elif cmd == "CLOSEPOP" and pop["view"] is not None:
+                pop["view"].close()
+            elif cmd == "SHOW":
+                view.raise_(); view.activateWindow()
+
+    asker = QTimer()
+    asker.timeout.connect(take_asks)
+    asker.start(150)
+
     def checks():
         try:
             os.kill(parent, 0)

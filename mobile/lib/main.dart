@@ -208,7 +208,7 @@ class Reminders {
         return;
       }
       final channel = (t['channel'] as String?) ?? 'Focus trip';
-      final payload = jsonEncode({'url': '/island/trip'});
+      final payload = jsonEncode({'url': (t['url'] as String?) ?? '/island/trip'});
       if (state == 'paused') {
         await plugin.cancel(id: tripDoneId);
         final body = (t['paused_body'] as String?) ?? '';
@@ -235,7 +235,7 @@ class Reminders {
               category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
               largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
       await _at(tripDoneId, ends, (t['done_title'] as String?) ?? '', (t['done_body'] as String?) ?? '', 'tempo',
-          '/island/trip', picture: 'tempo_cheer', exact: true);
+          (t['url'] as String?) ?? '/island/trip', picture: 'tempo_cheer', exact: true);
     } catch (_) {
       _tripKey = ''; // notifications not allowed (yet): try again on the next page
     }
@@ -288,6 +288,8 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   WebViewController? _web;
+  // Picture-in-picture (floating over other apps): MainActivity.kt answers on this channel.
+  static const _pip = MethodChannel('inpace/pip');
   late int _port;
   bool _ready = false; // Python answers
   bool _shown = false; // the first page is drawn: the splash fades out
@@ -305,6 +307,13 @@ class _ShellState extends State<Shell> {
     super.initState();
     // The web view starts up (it loads the browser engine, which takes a moment) while Python starts.
     _web = _makeWebView();
+    _pip.setMethodCallHandler((call) async {
+      if (call.method == 'changed') {
+        // The page shows only the video and the timer while it floats.
+        await _web?.runJavaScript('window.inpacePip && window.inpacePip(${call.arguments == true})');
+      }
+      return null;
+    });
     _start();
   }
 
@@ -500,6 +509,9 @@ class _ShellState extends State<Shell> {
         await Reminders.sync(Map<String, dynamic>.from(msg['plan'] as Map));
       case 'trip':
         await Reminders.trip(msg['trip'] == null ? null : Map<String, dynamic>.from(msg['trip'] as Map));
+      case 'pip':
+        // Float over other apps when you leave inPace while a video plays or a timer runs (MainActivity.kt).
+        try { await _pip.invokeMethod('auto', msg['auto'] == true); } catch (_) {}
       case 'notifyState':
         await _sendNotifyState();
       case 'notifyAllow':

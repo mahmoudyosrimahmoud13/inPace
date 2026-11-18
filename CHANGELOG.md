@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.30.0
+
+- **Floating focus timer.** Press the new timer button at the top of any page and pick 10 to 90 minutes. The timer stays in a corner of every page, with three clear buttons: Pause or Go on, +5 min, and Stop.
+  - Drag it anywhere. Drag its corner to make it bigger or smaller. inPace remembers both.
+  - Three looks to pick from in Settings: a small pill, a card with Tempo and a progress bar, or a round dial.
+  - It works without Tempo's island. If the island is on, you can also tick "grow a plant" and the timer becomes a focus trip.
+  - It can pause by itself when the lesson video pauses, and go on when it plays again (on by default, in Settings).
+  - On a computer, inPace tells you when the time is up even if it's minimized. On the phone, the timer is a bar under the top bar, and it counts down in the notification.
+- **Mini player.** Leave a lesson while its video plays, and the video moves to a corner and keeps playing while you use the rest of inPace, like YouTube. Tap it, or press Back, to return to the lesson at the same second. Drag it to any corner. On the phone it sits above the bottom tabs.
+- **Pop-out window.** A new button on the video player opens a small inPace window that stays above your other apps, with the video and the timer. "Back to inPace" carries on in the main window from the same second. Works in the Windows, Mac and Linux app windows. In a browser, Chrome and Edge use their picture-in-picture window.
+- **Android: floating over other apps.** Leave inPace while a video plays or a timer runs, and it keeps floating in a small window over your other apps, showing the video and the timer in the look you picked.
+- **Settings in clear groups:** You and the look, Studying, Videos, AI, Your data, and The app, with links at the top.
+- The side menu's "Continue" box no longer cuts off long lesson titles.
+
 ## v1.29.2
 
 - Same as v1.29.0 (below), with fixes to how the downloads are built. The Linux download with its own engine is now built by its own workflow (release-linux-full.yml), which adds its files to the release page when they're ready, so it never holds up the other downloads. It also installs everything its engine needs before it's checked, and says exactly what's missing if the engine can't load.

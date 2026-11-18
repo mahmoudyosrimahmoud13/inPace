@@ -27,7 +27,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, editor, encourage, exchange, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -357,6 +357,11 @@ _ICONS = {
     "x": '<path d="M6 6l12 12M18 6 6 18"/>',
     "video": '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
     "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "timer": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>',
+    "pause": '<path d="M8 5v14M16 5v14"/>',
+    "stop": '<rect x="6" y="6" width="12" height="12"/>',
+    "popout": '<rect x="3" y="5" width="18" height="14"/><rect x="12" y="12" width="7" height="5" fill="currentColor"/>',
+    "shrink": '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
     "doc": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
     "audio": '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
     "image": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
@@ -632,6 +637,13 @@ def create_app(vault: Vault) -> Starlette:
             base["active_path"] = request.url.path
             base["resume"] = _last_lesson()
             base["island_on"] = garden.is_on(V)
+            try:  # the floating timer, on every page
+                base["timer_json"] = json.dumps(_timer_live()).replace("<", "\\u003c")
+            except Exception:
+                base["timer_json"] = '{"on": false}'
+            base["timer_look"] = focus.look(V)
+            base["timer_follow"] = focus.follows_video(V)
+            base["timer_here"] = _timer_here(request.url.path)
             if os.environ.get("INPACE_MOBILE"):
                 try:
                     base["trip_live_json"] = json.dumps(_trip_live()).replace("<", "\\u003c")
@@ -650,6 +662,120 @@ def create_app(vault: Vault) -> Starlette:
                 V._set_meta("welcome_back", str(away))
         base.update(ctx)
         return HTMLResponse(env.get_template(name).render(**base))
+
+    def _timer_live() -> dict:
+        d = focus.live(V)
+        _arm_focus_timer(d)
+        return d
+
+    def _timer_here(path: str) -> dict:
+        """What you're studying on this page, so a timer started here is labelled with it."""
+        m = re.match(r"^/learn/([^/]+)", path)
+        if not m:
+            return {}
+        try:
+            j = V.journey(m.group(1))
+            c = V.get_course(j["course_id"]) if j else None
+            return {"journey": j["id"], "label": c.title} if c else {}
+        except Exception:
+            return {}
+
+    _focus_timer: dict = {"key": None, "timer": None}
+
+    def _arm_focus_timer(d: dict | None = None) -> None:
+        """On a computer, say "time's up" the moment a plain timer ends, even if inPace is minimized.
+        (A timer that grows a plant is an island trip: _arm_trip_timer says that one.)"""
+        if os.environ.get("INPACE_MOBILE") or (os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("INPACE_TEST_TRIP_TIMER")):
+            return
+        try:
+            d = d if d is not None else focus.live(V)
+            key = f'{d["id"]}:{d["left"]:.0f}' if d.get("on") and d.get("kind") == "timer" and d["state"] == "running" else None
+            if key and _focus_timer["key"] and _focus_timer["key"].split(":")[0] == d["id"] and _focus_timer["timer"]:
+                return  # already set for this timer
+            if _focus_timer["timer"]:
+                _focus_timer["timer"].cancel()
+            _focus_timer.update(key=key, timer=None)
+            if key:
+                tm = threading.Timer(max(1.0, d["left"] + 0.6), _focus_ring)
+                tm.daemon = True
+                tm.start()
+                _focus_timer["timer"] = tm
+            if d.get("kind") == "trip":
+                _arm_trip_timer()
+        except Exception:
+            pass
+
+    def _focus_ring() -> None:
+        _focus_timer.update(key=None, timer=None)
+        try:
+            CURRENT["lang"] = V._meta("lang", "en") or "en"
+            d = focus._load(V)
+            if not d or focus.elapsed(d) < d["goal"] - 1:
+                return  # paused or stopped meanwhile
+            notifier.notify(say("Time's up!"), t("{n} minutes of focus. Take a short break.", n=round(d["goal"] / 60)),
+                            "/", V.home)
+        except Exception:
+            pass
+
+    async def timer_json(request: Request):
+        return JSONResponse(_timer_live(), headers={"Cache-Control": "no-store"})
+
+    async def timer_action(request: Request):
+        """Start, pause, go on or stop the floating timer. Answers with the timer as it is now."""
+        what = request.path_params["what"]
+        form = await request.form()
+        by = "video" if form.get("by") == "video" else "you"
+        if what == "start":
+            try:
+                minutes = int(form.get("minutes") or 25)
+            except ValueError:
+                minutes = 25
+            if form.get("follow") in ("on", "off"):
+                focus.set_follows_video(V, form.get("follow") == "on")
+            focus.start(V, minutes, plant=form.get("plant") == "1", label=str(form.get("label", "")),
+                        journey=str(form.get("journey", "")))
+        elif what == "pause":
+            if by == "video" and not focus.follows_video(V):
+                return JSONResponse(_timer_live())
+            focus.pause(V, by)
+        elif what == "resume":
+            if by == "video" and not focus.follows_video(V):
+                return JSONResponse(_timer_live())
+            focus.resume(V, by)
+        elif what == "stop":
+            focus.stop(V)
+        elif what == "add":
+            focus.add(V, 5)
+        else:
+            return Response(status_code=404)
+        if request.headers.get("accept", "").startswith("application/json") or request.headers.get("x-inpace-fetch"):
+            return JSONResponse(_timer_live())
+        return go(_back(request))
+
+    async def window_popout(request: Request):
+        """Open the pop-out mini window: a small inPace window that stays on top of your other apps.
+        Answers {"ok": false} when this window can't make one (then the page uses the browser's own way)."""
+        from . import window as win
+        form = await request.form()
+        url = str(form.get("url", ""))
+        if not url.startswith("/"):
+            return JSONResponse({"ok": False})
+        base = f"{request.url.scheme}://{request.url.netloc}"
+        return JSONResponse({"ok": win.popout(base + url)})
+
+    async def window_popout_close(request: Request):
+        from . import window as win
+        return JSONResponse({"ok": win.close_popout()})
+
+    async def timer_settings(request: Request):
+        form = await request.form()
+        if form.get("look"):
+            focus.set_look(V, str(form.get("look")))
+        if form.get("follow") in ("on", "off"):
+            focus.set_follows_video(V, form.get("follow") == "on")
+        if request.headers.get("x-inpace-fetch"):
+            return Response(status_code=204)
+        return go("/settings#timer", ok="Saved.")
 
     def _last_lesson() -> dict | None:
         """The lesson you opened last, for the "Continue" button in the side bar."""
@@ -2809,12 +2935,14 @@ def create_app(vault: Vault) -> Starlette:
         mstate = _module_state(prog, module["id"])
         if mstate["status"] == "locked":
             return go(f"/learn/{j['id']}", err="Finish the module before this one first.")
-        V.add_event(j["id"], "lesson_opened", {"lesson": les["id"]})
+        mini = request.query_params.get("mini") == "1"  # the pop-out window: just this lesson's video and the timer
+        if not mini:
+            V.add_event(j["id"], "lesson_opened", {"lesson": les["id"]})
         idx = [x["id"] for x in module["lessons"]].index(les["id"])
         lstate = mstate["lessons"][idx]
         nxt = module["lessons"][idx + 1]["id"] if idx + 1 < len(module["lessons"]) else None
         prv = module["lessons"][idx - 1]["id"] if idx > 0 else None
-        return page("lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
+        return page("mini.html" if mini else "lesson.html", request, j=j, course=course, module=module, mstate=mstate, lesson=les,
                     lstate=lstate, html=media_mod.lesson_html(course.id, les, md.render(_drop_title(les["content"], les["title"])),
                                                        _course_files_view(course.id), gettext),
                     next_id=nxt, prev_id=prv, notes=V.notes(course.id, les["id"]),
@@ -3971,12 +4099,20 @@ def create_app(vault: Vault) -> Starlette:
         return out[:8]
 
     def _trip_live() -> dict | None:
-        """The running focus trip, for the phone's countdown notification (None when there's nothing to show)."""
-        if not garden.is_on(V):
-            return None
-        trip = garden.active(V)
+        """The running focus trip, or the floating timer, for the phone's countdown notification (None when
+        there's nothing to show)."""
+        trip = garden.active(V) if garden.is_on(V) else None
         if not trip or trip["state"] not in ("running", "paused"):
-            return None
+            d = focus.live(V)
+            if not d.get("on") or d.get("kind") != "timer":
+                return None
+            CURRENT["lang"] = V._meta("lang", "en") or "en"
+            return {"id": d["id"], "state": d["state"], "mode": "anywhere", "goal": round(d["goal"] / 60), "url": "/",
+                    "ends_ms": int((_time.time() + d["left"]) * 1000) if d["state"] == "running" else None,
+                    "channel": say("Focus timer"), "title": say("Focus timer"),
+                    "body": d.get("label") or say("Keep going. Tap to open inPace."),
+                    "paused_title": say("Timer paused"), "paused_body": say("Tap to open inPace and go on."),
+                    "done_title": say("Time's up!"), "done_body": t("{n} minutes of focus. Take a short break.", n=round(d["goal"] / 60))}
         CURRENT["lang"] = V._meta("lang", "en") or "en"
         plant = say(garden.PLANT_NAMES.get(trip["kind"], ""))
         left = max(0, trip["goal"] * 60 - garden.elapsed(trip))
@@ -4709,6 +4845,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/resume", needs_setup(island_resume), methods=["POST"]),
         Route("/island/done", needs_setup(island_done), methods=["POST"]),
         Route("/island/live.json", needs_setup(island_live)),
+        Route("/timer.json", needs_setup(timer_json)),
+        Route("/window/popout", needs_setup(window_popout), methods=["POST"]),
+        Route("/window/popout/close", needs_setup(window_popout_close), methods=["POST"]),
+        Route("/timer/{what}", needs_setup(timer_action), methods=["POST"]),
+        Route("/settings/timer", needs_setup(timer_settings), methods=["POST"]),
         Route("/tour/done", needs_setup(tour_done), methods=["POST"]),
         Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),

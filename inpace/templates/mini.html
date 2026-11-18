@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="{{ lang or 'en' }}" dir="{{ lang_dir(lang or 'en') }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ lesson.title }} · inPace</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/style.css?v={{ static_v['style.css'] }}">
+</head>
+{# The pop-out mini window: this lesson's video and the timer, in a small window above your other apps. #}
+<body class="mini-window" data-mini-window data-lesson="/learn/{{ j.id }}/lesson/{{ lesson.id }}">
+<header class="mw-head">
+  <span class="mw-brand"><img src="/static/icon.svg" alt="" width="22" height="22"><b dir="auto">{{ lesson.title }}</b></span>
+  <button type="button" class="mw-btn" data-mw-back>{{ _('Back to inPace') }}</button>
+  <button type="button" class="mw-btn mw-x" data-mw-close aria-label="{{ _('Close') }}" title="{{ _('Close') }}">{{ icon('x', 16) }}</button>
+</header>
+<div class="prose mw-video" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
+{% if me and timer_json is defined %}{% with timer_look = 'pill' %}{% include "_timer.html" %}{% endwith %}{% endif %}
+<p class="mw-start" data-mw-start hidden><button type="button" class="btn" data-timer-open>{{ icon('timer', 18) }} {{ _('Start a timer') }}</button></p>
+<script src="/static/app.js?v={{ static_v['app.js'] }}"></script>
+</body>
+</html>

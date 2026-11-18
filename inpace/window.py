@@ -22,6 +22,63 @@ import threading
 from pathlib import Path
 
 _children: list[subprocess.Popen] = []
+# The app window that's open now, so the pop-out mini window can be made next to it.
+_active: dict = {"kind": None, "proc": None, "webview": None, "main": None, "pop": None}
+
+
+def popout(url: str) -> bool:
+    """Open (or reuse) the pop-out mini window: small, above your other apps, showing url.
+    False when this kind of app window can't make one; the page then uses the browser's own way."""
+    kind = _active.get("kind")
+    if kind == "pywebview":
+        wv = _active["webview"]
+        pop = _active.get("pop")
+        try:
+            if pop is not None:
+                pop.load_url(url)
+                pop.show()
+                return True
+        except Exception:
+            _active["pop"] = None
+        try:
+            pop = wv.create_window("inPace", url, width=440, height=360, min_size=(300, 220), on_top=True)
+            _active["pop"] = pop
+            try:
+                pop.events.closed += lambda: _active.update(pop=None)
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            print(f"pop-out window failed: {e}")
+            return False
+    if kind == "helper":
+        return _tell_helper(f"POPOUT {url}")
+    return False
+
+
+def close_popout() -> bool:
+    if _active.get("kind") == "pywebview" and _active.get("pop") is not None:
+        try:
+            _active["pop"].destroy()
+        except Exception:
+            pass
+        _active["pop"] = None
+        return True
+    if _active.get("kind") == "helper":
+        return _tell_helper("CLOSEPOP")
+    return False
+
+
+def _tell_helper(line: str) -> bool:
+    p = _active.get("proc")
+    if not p or p.poll() is not None or not p.stdin:
+        return False
+    try:
+        p.stdin.write(line.replace("\n", " ") + "\n")
+        p.stdin.flush()
+        return True
+    except (OSError, ValueError):
+        return False
 
 
 def close_children() -> None:
@@ -61,6 +118,7 @@ def _pywebview(url: str) -> bool:
         except Exception:
             pass
         win = webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600))
+        _active.update(kind="pywebview", webview=webview, main=win)
         if sys.platform == "darwin":
             # Mac sends inpace:// links to the running app; show them in this window.
             from .links import mac_listen
@@ -276,6 +334,49 @@ def on_failed(v, event, uri, error):
         return True
     return False
 
+# The pop-out mini window: inPace's parent process asks for it on stdin ("POPOUT <url>", "CLOSEPOP").
+pop = {"win": None}
+
+def open_pop(uri):
+    if pop["win"]:
+        pop["view"].load_uri(uri); pop["win"].present(); return
+    pw = Gtk.Window(title="inPace")
+    pw.set_default_size(440, 360)
+    pw.set_keep_above(True)  # stays above your other apps
+    try:
+        pw.set_icon_from_file(icon) if os.path.exists(icon) else pw.set_icon_name("inpace")
+    except Exception:
+        pass
+    pv = WebKit2.WebView.new_with_related_view(view)
+    pv.set_settings(view.get_settings())
+    pv.connect("decide-policy", on_policy)
+    pv.load_uri(uri)
+    pw.add(pv)
+    pw.connect("destroy", lambda *a: pop.update(win=None, view=None))
+    pop.update(win=pw, view=pv)
+    pw.show_all()
+
+def on_cmd(ch, cond):
+    if cond & (GLib.IOCondition.HUP | GLib.IOCondition.ERR):
+        return False
+    line = sys.stdin.readline()
+    if not line:
+        return False
+    cmd, _, arg = line.strip().partition(" ")
+    if cmd == "POPOUT" and arg.startswith("http://127.0.0.1"):
+        open_pop(arg)
+    elif cmd == "CLOSEPOP" and pop["win"]:
+        pop["win"].destroy()
+    elif cmd == "SHOW":
+        win.present()
+    return True
+
+try:
+    GLib.io_add_watch(GLib.IOChannel.unix_new(sys.stdin.fileno()), GLib.PRIORITY_DEFAULT,
+                      GLib.IOCondition.IN | GLib.IOCondition.HUP | GLib.IOCondition.ERR, on_cmd)
+except Exception:
+    pass
+
 view.connect("load-changed", on_load)
 view.connect("load-failed", on_failed)
 view.connect("web-process-terminated", on_crash)
@@ -383,7 +484,7 @@ def _run_helper(cmd: list[str], env: dict, home: Path | None, name: str, on_read
     """Start one window and wait until it closes. Returns "closed" when it showed inPace (or the person closed
     it before that), otherwise the reason it failed. on_ready runs as soon as inPace shows in it."""
     try:
-        p = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        p = subprocess.Popen(cmd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except Exception as e:
         return f"couldn't start ({e})"
     _children.append(p)
@@ -395,6 +496,7 @@ def _run_helper(cmd: list[str], env: dict, home: Path | None, name: str, on_read
         for line in p.stdout:
             if line.startswith("READY"):
                 ready.set()
+                _active.update(kind="helper", proc=p)
                 if on_ready:
                     on_ready()
             elif line.startswith("NOGTK"):

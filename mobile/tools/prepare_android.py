@@ -7,6 +7,64 @@
 import re
 from pathlib import Path
 
+# The app's one screen, with picture-in-picture added. The page says when floating makes sense ("auto": a video
+# plays or a timer runs); Android 12+ then floats by itself when you leave, older ones on onUserLeaveHint.
+# While floating, the page is told so it shows only the video and the timer.
+PIP_ACTIVITY = """package org.inpace.inpace_mobile
+
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.os.Build
+import android.util.Rational
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+    private var autoPip = false
+    private var channel: MethodChannel? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "inpace/pip")
+        channel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "auto" -> {
+                    autoPip = call.arguments == true
+                    if (Build.VERSION.SDK_INT >= 31) {
+                        try { setPictureInPictureParams(params()) } catch (e: Exception) { }
+                    }
+                    result.success(null)
+                }
+                "enter" -> result.success(enter())
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun params(): PictureInPictureParams {
+        val b = PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9))
+        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(autoPip)
+        return b.build()
+    }
+
+    private fun enter(): Boolean {
+        if (Build.VERSION.SDK_INT < 26) return false
+        return try { enterPictureInPictureMode(params()) } catch (e: Exception) { false }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (autoPip && Build.VERSION.SDK_INT in 26..30) enter()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        channel?.invokeMethod("changed", isInPictureInPictureMode)
+    }
+}
+"""
+
 ROOT = Path(__file__).resolve().parent.parent / "android" / "app"
 manifest = ROOT / "src" / "main" / "AndroidManifest.xml"
 m = manifest.read_text(encoding="utf-8")
@@ -206,3 +264,12 @@ if app_kts.exists():
                       'signingConfigs.getByName("release") else signingConfigs.getByName("debug")', 1)
         app_kts.write_text(t, encoding="utf-8")
         print("Release signing ready")
+
+# Picture-in-picture: leave inPace while a video plays or a timer runs, and it keeps floating over other apps.
+m = manifest.read_text(encoding="utf-8")
+if "supportsPictureInPicture" not in m:
+    m = re.sub(r'(<activity\b(?=[^>]*MainActivity))', r'\1 android:supportsPictureInPicture="true" android:resizeableActivity="true"', m, count=1)
+    manifest.write_text(m, encoding="utf-8")
+kotlin = ROOT / "src" / "main" / "kotlin" / "org" / "inpace" / "inpace_mobile" / "MainActivity.kt"
+kotlin.parent.mkdir(parents=True, exist_ok=True)
+kotlin.write_text(PIP_ACTIVITY, encoding="utf-8")

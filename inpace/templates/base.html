@@ -53,6 +53,7 @@
   {% if me %}<span class="top-title" dir="auto">{{ self.title() }}</span>{% endif %}
   <span class="pill" title="{{ _('Nothing leaves this computer unless you send a file yourself') }}"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
   {% if me %}<button type="button" class="search-btn" data-search title="{{ _('Search and jump (Ctrl+K)') }}">{{ icon('search', 18) }}<span>{{ _('Search…') }}</span><kbd>Ctrl K</kbd></button>{% endif %}
+  {% if me %}<button type="button" class="timer-btn" data-timer-open aria-haspopup="dialog" title="{{ _('Focus timer') }}" aria-label="{{ _('Focus timer') }}">{{ icon('timer', 20) }}</button>{% endif %}
   <button type="button" class="theme-toggle" data-theme-toggle aria-label="{{ _('Switch light or dark mode') }}" title="{{ _('Switch light or dark mode') }}">
     <span class="when-light">{{ icon('moon', 20) }}</span><span class="when-dark">{{ icon('sun', 20) }}</span>
   </button>
@@ -207,6 +208,7 @@
 {% for mood in ("wave", "happy", "think", "proud", "cheer", "sleepy") %}<template id="tour-tempo-{{ mood }}">{{ mascot(mood, 110) }}</template>{% endfor %}
 {% endif %}
 {% if me %}<template id="search-labels" data-placeholder="{{ _('Search courses, lessons and pages…') }}" data-empty="{{ _('Nothing found.') }}" data-hint="{{ _('↑ ↓ to choose · Enter to open · Esc to close') }}"></template>{% endif %}
+{% if me and timer_json is defined %}{% include "_timer.html" %}{% endif %}
 {% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
 <script src="/static/app.js?v={{ static_v['app.js'] }}"></script>
 </body>

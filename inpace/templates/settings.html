@@ -4,16 +4,17 @@
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Settings{% endtrans %}.</h1></div>
 <nav class="jump-links" aria-label="{{ _('On this page') }}">
-  <a href="#turtle">{% trans trimmed %}Your turtle{% endtrans %}</a>
-  <a href="#colors">{% trans trimmed %}Colors{% endtrans %}</a>
-  <a href="#reminders">{% trans trimmed %}Reminders and alarms{% endtrans %}</a>
-  <a href="#videos">{% trans trimmed %}Video downloads{% endtrans %}</a>
-  <a href="#ai">{% trans trimmed %}AI course maker{% endtrans %}</a>
-  <a href="#backups">{% trans trimmed %}Backups{% endtrans %}</a>
-  <a href="#updates">{% trans trimmed %}Updates{% endtrans %}</a>
-  <a href="#data">{% trans trimmed %}Where your data lives{% endtrans %}</a>
+  <a href="#g-you">{% trans trimmed %}You and the look{% endtrans %}</a>
+  <a href="#g-study">{% trans trimmed %}Studying{% endtrans %}</a>
+  <a href="#g-videos">{% trans trimmed %}Videos{% endtrans %}</a>
+  <a href="#g-ai">{% trans trimmed %}AI{% endtrans %}</a>
+  <a href="#g-data">{% trans trimmed %}Your data{% endtrans %}</a>
+  <a href="#g-app">{% trans trimmed %}The app{% endtrans %}</a>
 </nav>
-<form method="post" class="card stack" style="max-width:620px" data-nav-form>
+<h2 class="set-group" id="g-you">{% trans trimmed %}You and the look{% endtrans %}</h2>
+<p class="muted set-sub">{% trans trimmed %}Your name, the language, your turtle and the colors.{% endtrans %}</p>
+<form method="post" class="card stack" style="max-width:620px" id="profile" data-nav-form>
+  <h3 class="set-h" style="margin:0">{% trans trimmed %}Name and language{% endtrans %}</h3>
   <label>{% trans trimmed %}Your name{% endtrans %}<input name="name" value="{{ me.name }}" maxlength="40"></label>
   <label>{{ _('Interface language') }}<select name="lang">
     {% for code, info in LANGS.items() %}<option value="{{ code }}" {{ 'selected' if lang == code }}>{{ info[1] }}{% if code != 'en' %} · {{ info[0] }}{% endif %}</option>
@@ -21,7 +22,7 @@
   <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
 </form>
 <section class="card stack" style="max-width:620px" id="turtle">
-  <h2 style="margin:0">{% trans trimmed %}Your turtle{% endtrans %}</h2>
+  <h3 class="set-h" style="margin:0">{% trans trimmed %}Your turtle{% endtrans %}</h3>
   {% if not has_turtle %}<p class="note">{% trans trimmed %}New: instead of a coloured letter, you can be a turtle. Make one below and save it.{% endtrans %}</p>{% endif %}
   <form method="post" action="/settings/turtle" class="stack" data-nav-form>
     {{ turtle_maker(av, maker, False) }}
@@ -40,7 +41,7 @@
   {% endif %}
 </section>
 <section class="card" style="max-width:620px" id="colors">
-  <h2>{% trans trimmed %}Colors{% endtrans %}</h2>
+  <h3 class="set-h">{% trans trimmed %}Colors{% endtrans %}</h3>
   <p class="muted small">{% trans trimmed %}Pick the colors for the whole app. They work in light and dark mode.{% endtrans %}</p>
   <form method="post" action="/settings/colors" class="swatches" data-nav-form>
     {% for key, (name, main, second) in ACCENTS.items() %}
@@ -50,50 +51,44 @@
     {% endfor %}
   </form>
 </section>
+<h2 class="set-group" id="g-study">{% trans trimmed %}Studying{% endtrans %}</h2>
+<p class="muted set-sub">{% trans trimmed %}The focus timer, reminders, and the tour.{% endtrans %}</p>
+<section class="card stack" style="max-width:620px" id="timer">
+  <div><h3 class="set-h" style="margin:0">{% trans trimmed %}Focus timer{% endtrans %}</h3>
+    <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Start it with the timer button at the top of any page. It floats in a corner: drag it to move it, drag its corner to make it bigger or smaller.{% endtrans %}</p></div>
+  <form method="post" action="/settings/timer" class="stack" data-nav-form>
+    <fieldset class="look-pick">
+      <legend class="ft-sr">{% trans trimmed %}How the timer looks{% endtrans %}</legend>
+      <label><input type="radio" name="look" value="pill" {{ 'checked' if timer_look == 'pill' }} data-autosubmit>
+        <svg width="96" height="40" viewBox="0 0 96 40" aria-hidden="true"><rect x="2" y="6" width="90" height="28" fill="#FFD43B" stroke="currentColor" stroke-width="3"/><text x="40" y="26" text-anchor="middle" font-size="14" font-weight="800" fill="#111">25:00</text><path d="M74 13v14M82 13v14" stroke="#111" stroke-width="3"/></svg>
+        {% trans trimmed %}Pill{% endtrans %}<small>{% trans trimmed %}The smallest{% endtrans %}</small></label>
+      <label><input type="radio" name="look" value="card" {{ 'checked' if timer_look == 'card' }} data-autosubmit>
+        <svg width="96" height="40" viewBox="0 0 96 40" aria-hidden="true"><rect x="2" y="2" width="92" height="36" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="18" cy="16" r="8" fill="#1F9D6A"/><text x="58" y="21" text-anchor="middle" font-size="14" font-weight="800" fill="currentColor">25:00</text><rect x="2" y="29" width="40" height="7" fill="#1F9D6A"/></svg>
+        {% trans trimmed %}Card{% endtrans %}<small>{% trans trimmed %}With Tempo, the course and a bar{% endtrans %}</small></label>
+      <label><input type="radio" name="look" value="ring" {{ 'checked' if timer_look == 'ring' }} data-autosubmit>
+        <svg width="96" height="40" viewBox="0 0 96 40" aria-hidden="true"><circle cx="48" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="48" cy="20" r="12" fill="none" stroke="#FFD43B" stroke-width="5" stroke-dasharray="56 76" transform="rotate(-90 48 20)"/></svg>
+        {% trans trimmed %}Ring{% endtrans %}<small>{% trans trimmed %}A round dial{% endtrans %}</small></label>
+    </fieldset>
+    <input type="hidden" name="follow" value="off">
+    <label class="check"><input type="checkbox" name="follow" value="on" {{ 'checked' if timer_follow }} data-autosubmit><span>{% trans trimmed %}Pause the timer when the lesson video pauses{% endtrans %}</span></label>
+    <noscript><button class="btn">{% trans trimmed %}Save{% endtrans %}</button></noscript>
+  </form>
+  <p class="small muted" style="margin:0">{% trans trimmed %}On a phone, the timer is a bar at the top while you're in inPace. Leave the app and it floats over your other apps in the look you picked here.{% endtrans %}</p>
+</section>
 <section class="card" style="max-width:620px" id="reminders">
-  <div class="row">{{ icon('bell', 28) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}Reminders and alarms{% endtrans %}</h2>
+  <div class="row">{{ icon('bell', 28) }}<div class="grow"><h3 class="set-h" style="margin:0">{% trans trimmed %}Reminders and alarms{% endtrans %}</h3>
     <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Study reminders at the times you choose, and Tempo's notifications.{% endtrans %}</p></div>
     <a class="btn primary" href="/reminders">{% trans trimmed %}Set reminders{% endtrans %}</a></div>
 </section>
 <section class="card tour-card" style="max-width:620px">
-  <div class="row">{{ mascot('wave', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}The welcome tour{% endtrans %}</h2>
+  <div class="row">{{ mascot('wave', 70) }}<div class="grow"><h3 class="set-h" style="margin:0">{% trans trimmed %}The welcome tour{% endtrans %}</h3>
     <p class="muted small" style="margin:.2rem 0 0">{% trans trimmed %}Tempo shows you around inPace again.{% endtrans %}</p></div>
     <form method="post" action="/tour/again"><button class="btn primary">{% trans trimmed %}Show the tour again{% endtrans %}</button></form></div>
 </section>
-<section class="card" style="max-width:620px" id="updates">
-  <h2>{% trans trimmed %}Updates{% endtrans %}</h2>
-  <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>
-  {% if update.kind == 'android' %}
-    <p class="small">{% trans trimmed %}On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.{% endtrans %}</p>
-    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/#download">{% trans trimmed %}Get the newest version{% endtrans %}</a>
-  {% elif update.kind == 'source' %}
-    <p class="small">{% trans trimmed %}This copy runs from its code folder. Update it with git pull, and it uses the new code next time it starts.{% endtrans %}</p>
-  {% else %}
-    <form method="post" action="/updates/setting" class="row" data-nav-form>
-      {% if update.setting == 'auto' %}
-        <span class="chip good">{% trans trimmed %}Automatic updates are on{% endtrans %}</span>
-        <button class="btn" name="choice" value="off">{% trans trimmed %}Turn off{% endtrans %}</button>
-      {% else %}
-        <span class="chip muted">{% trans trimmed %}Automatic updates are off{% endtrans %}</span>
-        <button class="btn primary" name="choice" value="auto">{% trans trimmed %}Turn on{% endtrans %}</button>
-      {% endif %}
-    </form>
-    <form method="post" action="/updates/check" style="margin-block-start:.6rem"><button class="btn" data-busy="{{ _('Checking…') }}">{% trans trimmed %}Check now{% endtrans %}</button></form>
-    {% if update.status.state == 'waiting' %}<p class="small muted">{% trans trimmed %}A new version is being published right now. inPace looks again in an hour.{% endtrans %}</p>{% endif %}
-    {% if update.status.state == 'failed' %}<p class="small muted">{{ T('Last check didn’t work: {why}', why=_(update.status.error or '')) }}</p>{% endif %}
-    <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>
-  {% endif %}
-</section>
-<section class="card" style="max-width:620px" id="data">
-  <h2>{% trans trimmed %}Where your data lives{% endtrans %}</h2>
-  <p>{% trans trimmed %}Everything is in this folder on your computer:{% endtrans %}</p>
-  <p><code>{{ home }}</code></p>
-  <p class="muted small">{% trans trimmed %}Back up this whole folder to keep your progress safe. The file{% endtrans %} <b>{% trans trimmed %}identity.key{% endtrans %}</b> {% trans trimmed %}is your private key: never send it to anyone.{% endtrans %}</p>
-  <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code>
-    {% if startup %}<br>{{ _('Last start: ready in %s s, first page in %s s.')|format('%.1f'|format((startup.python or 0) / 1000), '%.1f'|format((startup.page or startup.python or 0) / 1000)) }}{% endif %}</details>
-</section>
+<h2 class="set-group" id="g-videos">{% trans trimmed %}Videos{% endtrans %}</h2>
+<p class="muted set-sub">{% trans trimmed %}YouTube lessons and saving videos to watch offline.{% endtrans %}</p>
 <section class="card stack" style="max-width:620px" id="youtube">
-  <h2 style="margin:0">{% trans trimmed %}YouTube videos{% endtrans %}</h2>
+  <h3 class="set-h" style="margin:0">{% trans trimmed %}YouTube videos{% endtrans %}</h3>
   <form method="post" action="/settings/youtube" class="stack" data-nav-form>
     <label class="check"><input type="checkbox" name="block" value="1" {{ 'checked' if yt_block }} data-autosubmit>
       <span>{% trans trimmed %}"Play without ads" button under YouTube videos (recommended){% endtrans %}</span></label>
@@ -105,7 +100,7 @@
   </form>
 </section>
 <section class="card" style="max-width:620px" id="videos">
-  <h2>{% trans trimmed %}Video downloads{% endtrans %}</h2>
+  <h3 class="set-h">{% trans trimmed %}Video downloads{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}For watching YouTube lessons offline. inPace uses yt-dlp, a free open-source downloader, kept in your inPace folder.{% endtrans %}</p>
   <p>{% if videos.version %}<span class="chip good plain">{{ T('yt-dlp {v}', v=videos.version) }}</span>{% else %}<span class="chip muted plain">{% trans trimmed %}Not downloaded yet{% endtrans %}</span>{% endif %}</p>
   <form method="post" action="/settings/videos/update"><button class="btn" data-busy="{{ _('Checking…') }}">{% if videos.version %}{% trans trimmed %}Update now{% endtrans %}{% else %}{% trans trimmed %}Get yt-dlp now{% endtrans %}{% endif %}</button></form>
@@ -132,8 +127,9 @@
   </form>
   <p class="small muted">{% trans trimmed %}yt-dlp comes from its official GitHub releases, and each copy is checked against its published checksums before inPace uses it.{% endtrans %}</p>
 </section>
+<h2 class="set-group" id="g-ai">{% trans trimmed %}AI{% endtrans %}</h2>
 <section class="card" style="max-width:620px" id="ai">
-  <h2>{% trans trimmed %}AI course maker{% endtrans %}</h2>
+  <h3 class="set-h">{% trans trimmed %}AI course maker{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
   <form method="post" action="/settings/ai" class="stack" data-nav-form>
     <label>{% trans trimmed %}Provider{% endtrans %}<select name="provider">{% for k, label in providers.items() %}<option value="{{ k }}" {{ 'selected' if ai.provider == k }}>{{ label }}</option>{% endfor %}</select></label>
@@ -144,8 +140,18 @@
     <button class="btn">{% trans trimmed %}Save AI settings{% endtrans %}</button>
   </form>
 </section>
+<h2 class="set-group" id="g-data">{% trans trimmed %}Your data{% endtrans %}</h2>
+<p class="muted set-sub">{% trans trimmed %}Where it's kept, backups, and starting fresh.{% endtrans %}</p>
+<section class="card" style="max-width:620px" id="data">
+  <h3 class="set-h">{% trans trimmed %}Where your data lives{% endtrans %}</h3>
+  <p>{% trans trimmed %}Everything is in this folder on your computer:{% endtrans %}</p>
+  <p><code>{{ home }}</code></p>
+  <p class="muted small">{% trans trimmed %}Back up this whole folder to keep your progress safe. The file{% endtrans %} <b>{% trans trimmed %}identity.key{% endtrans %}</b> {% trans trimmed %}is your private key: never send it to anyone.{% endtrans %}</p>
+  <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code>
+    {% if startup %}<br>{{ _('Last start: ready in %s s, first page in %s s.')|format('%.1f'|format((startup.python or 0) / 1000), '%.1f'|format((startup.page or startup.python or 0) / 1000)) }}{% endif %}</details>
+</section>
 <section class="card" style="max-width:620px" id="backups">
-  <h2>{% trans trimmed %}Backups{% endtrans %}</h2>
+  <h3 class="set-h">{% trans trimmed %}Backups{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
   <p class="small muted">{% trans trimmed %}To keep it small, a backup leaves out downloaded YouTube videos and files bigger than 50 MB. Your progress, notes and answers are all in it.{% endtrans %}</p>
   <form method="post" action="/settings/backup" class="row">
@@ -167,7 +173,7 @@
   </details>
 </section>
 <section class="card stack danger-zone" style="max-width:620px" id="delete">
-  <h2 style="margin:0">{% trans trimmed %}Delete all my data{% endtrans %}</h2>
+  <h3 class="set-h" style="margin:0">{% trans trimmed %}Delete all my data{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Removes everything inPace keeps in its folder: your courses, progress, notes, milestones, people, races, reminders and your private key. inPace starts fresh, like the first day. This can't be undone, so make a backup first if you might want it back.{% endtrans %}</p>
   <details>
     <summary class="btn danger">{% trans trimmed %}Delete all my data…{% endtrans %}</summary>
@@ -179,8 +185,33 @@
     </form>
   </details>
 </section>
+<h2 class="set-group" id="g-app">{% trans trimmed %}The app{% endtrans %}</h2>
+<section class="card" style="max-width:620px" id="updates">
+  <h3 class="set-h">{% trans trimmed %}Updates{% endtrans %}</h3>
+  <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>
+  {% if update.kind == 'android' %}
+    <p class="small">{% trans trimmed %}On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.{% endtrans %}</p>
+    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/#download">{% trans trimmed %}Get the newest version{% endtrans %}</a>
+  {% elif update.kind == 'source' %}
+    <p class="small">{% trans trimmed %}This copy runs from its code folder. Update it with git pull, and it uses the new code next time it starts.{% endtrans %}</p>
+  {% else %}
+    <form method="post" action="/updates/setting" class="row" data-nav-form>
+      {% if update.setting == 'auto' %}
+        <span class="chip good">{% trans trimmed %}Automatic updates are on{% endtrans %}</span>
+        <button class="btn" name="choice" value="off">{% trans trimmed %}Turn off{% endtrans %}</button>
+      {% else %}
+        <span class="chip muted">{% trans trimmed %}Automatic updates are off{% endtrans %}</span>
+        <button class="btn primary" name="choice" value="auto">{% trans trimmed %}Turn on{% endtrans %}</button>
+      {% endif %}
+    </form>
+    <form method="post" action="/updates/check" style="margin-block-start:.6rem"><button class="btn" data-busy="{{ _('Checking…') }}">{% trans trimmed %}Check now{% endtrans %}</button></form>
+    {% if update.status.state == 'waiting' %}<p class="small muted">{% trans trimmed %}A new version is being published right now. inPace looks again in an hour.{% endtrans %}</p>{% endif %}
+    {% if update.status.state == 'failed' %}<p class="small muted">{{ T('Last check didn’t work: {why}', why=_(update.status.error or '')) }}</p>{% endif %}
+    <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>
+  {% endif %}
+</section>
 <section class="card stack" style="max-width:620px" id="about">
-  <div class="row">{{ mascot('happy', 70) }}<div class="grow"><h2 style="margin:0">{% trans trimmed %}About inPace{% endtrans %}</h2>
+  <div class="row">{{ mascot('happy', 70) }}<div class="grow"><h3 class="set-h" style="margin:0">{% trans trimmed %}About inPace{% endtrans %}</h3>
   <p class="muted" style="margin:.2rem 0 0">{{ T('Version {v}', v=update.version) }}</p></div></div>
   <p>{% trans trimmed %}inPace is a free, open-source app that helps you finish the courses you start, one small step a day. Everything stays on your device.{% endtrans %}</p>
   <div class="row" style="flex-wrap:wrap;gap:.6rem">
@@ -193,7 +224,7 @@
 </section>
 {% if not on_phone() %}
 <section class="card" style="max-width:620px">
-  <h2>{% trans trimmed %}Quit inPace{% endtrans %}</h2>
+  <h3 class="set-h">{% trans trimmed %}Quit inPace{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Stops inPace in the background. Your data stays safe in the folder above.{% endtrans %}</p>
   <form method="post" action="/quit"><button class="btn">{% trans trimmed %}Quit inPace{% endtrans %}</button></form>
 </section>
