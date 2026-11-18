@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.29.1
+
+- Same as v1.29.0 (below). The v1.29.0 build stopped on Windows because one new check read a file the wrong way there; this version fixes that check, so all the downloads get built.
+
 ## v1.29.0
 
 - **Linux: a smarter app window.** On Zorin and Pop!_OS the window could stay gray for 20 seconds, then inPace reopened as an Edge window. The cause: inPace forced the page engine (WebKit) to draw without the graphics card, and newer WebKit versions on Wayland show nothing that way.

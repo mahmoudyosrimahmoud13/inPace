@@ -11,7 +11,7 @@ def test_remembers_and_orders(tmp_path):
     assert window.remembered(tmp_path) == {}
     assert window._order(window.GTK_MODES, tmp_path) == ["gpu", "safe", "soft"]
     window.remember(tmp_path, "safe")
-    assert json.loads((tmp_path / "window.json").read_text())["way"] == "safe"
+    assert json.loads((tmp_path / "window.json").read_text(encoding="utf-8"))["way"] == "safe"
     assert window._order(window.GTK_MODES, tmp_path) == ["safe", "gpu", "soft"]
     window.forget(tmp_path)
     assert window.remembered(tmp_path) == {}
@@ -76,7 +76,7 @@ def test_full_download_updates_to_full(tmp_path, monkeypatch):
 
 def test_release_and_site_list_both_linux_downloads():
     root = Path(__file__).resolve().parent.parent
-    wf = (root / ".github/workflows/release.yml").read_text()
+    wf = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
     assert "inPace-linux-full.deb" in wf and "--full" in wf and "WANT=qt" in wf
-    site = (root / "site/index.html").read_text()
+    site = (root / "site/index.html").read_text(encoding="utf-8")
     assert site.count("inPace-linux-full") == 2
