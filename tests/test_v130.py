@@ -149,4 +149,22 @@ def test_android_has_a_media_session_and_fills_its_floating_window():
     dart = (root / "mobile/lib/main.dart").read_text(encoding="utf-8")
     assert "case 'media':" in dart and "inpaceMediaControl" in dart
     css = (root / "inpace/static/style.css").read_text(encoding="utf-8")
-    assert "html.in-pip .pip-video video { max-height: none !important" in css
+    assert "html.in-pip .pip-video video { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;" in css
+
+
+def test_v1304_fixes(tmp_path):
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    v, c = client(tmp_path, "Omar")
+    # the lesson page carries the course picture, for the phone's media controls
+    c.post("/courses/sample/python-basics")
+    jid = c.post("/courses/python-basics/start", follow_redirects=False).headers["location"].rsplit("/", 1)[1]
+    assert 'data-cover="/m/python-basics/' in c.get(f"/learn/{jid}/lesson/m1-l1").text
+    js = (root / "inpace/static/app.js").read_text(encoding="utf-8")
+    assert "const wantPip = () => { const n = window.inpaceNowPlaying; return !!(n && !n.v.paused && !n.v.ended); };" in js  # only video floats
+    assert 'if (k !== "embed") player.dataset[k]' in js                                                          # YouTube keeps its id
+    css = (root / "inpace/static/style.css").read_text(encoding="utf-8")
+    assert ".look-pick input, .timer-len input { width: 1px !important" in css                                   # Settings no longer slides
+    assert "html.in-pip .ftimer, html.in-pip .mini-bar, html.in-pip .notify-sheet { display: none !important; }" in css
+    dart = (root / "mobile/lib/main.dart").read_text(encoding="utf-8")
+    assert "_inPip = call.arguments == true" in dart and "floating: edge to edge" in dart

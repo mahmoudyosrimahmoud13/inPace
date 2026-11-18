@@ -318,6 +318,7 @@ class _ShellState extends State<Shell> {
   String? _pendingLink;
   StreamSubscription<Uri>? _links;
   Widget? _fullScreen; // a video playing full screen
+  bool _inPip = false; // floating over other apps (picture-in-picture)
 
   String get _base => 'http://127.0.0.1:$_port/';
 
@@ -332,6 +333,7 @@ class _ShellState extends State<Shell> {
         await _web?.runJavaScript('window.inpaceMediaControl && window.inpaceMediaControl(${jsonEncode(call.arguments)})');
       }
       if (call.method == 'changed') {
+        if (mounted) setState(() => _inPip = call.arguments == true);
         // The page shows only the video and the timer while it floats.
         await _web?.runJavaScript('window.inpacePip && window.inpacePip(${call.arguments == true})');
       }
@@ -732,7 +734,9 @@ class _ShellState extends State<Shell> {
         body: Stack(fit: StackFit.expand, children: [
           _fullScreen != null
               ? ColoredBox(color: Colors.black, child: _fullScreen!)
-              : SafeArea(child: WebViewWidget(controller: web)),
+              : _inPip
+                  ? ColoredBox(color: Colors.black, child: WebViewWidget(controller: web)) // floating: edge to edge
+                  : SafeArea(child: WebViewWidget(controller: web)),
           // The splash stays on top until the first page is drawn, then fades away (no white flash).
           if (!_splashGone)
             IgnorePointer(

@@ -21,7 +21,7 @@
 
 
 
-<article class="card" style="padding: clamp(1.25rem, 4vw, 2.5rem)">
+<article class="card" style="padding: clamp(1.25rem, 4vw, 2.5rem)"{% if course.extra and course.extra.image %} data-cover="/m/{{ course.id|urlencode }}/{{ course.extra.image|urlencode }}"{% endif %}>
   <div class="row between" style="margin-block-end: .5rem">
     <h1 dir="auto" style="margin:0">{{ lesson.title }}</h1>
     {% if lstate.done %}<span class="chip good">{% trans trimmed %}Done{% endtrans %}</span>{% elif lesson.optional %}<span class="chip muted">{% trans trimmed %}Optional{% endtrans %}</span>{% endif %}

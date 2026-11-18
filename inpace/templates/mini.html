@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/static/style.css?v={{ static_v['style.css'] }}">
 </head>
 {# The pop-out mini window: this lesson's video, in a small window above your other apps, and the timer if one runs. #}
-<body class="mini-window" data-mini-window data-lesson="/learn/{{ j.id }}/lesson/{{ lesson.id }}">
+<body class="mini-window" data-mini-window data-lesson="/learn/{{ j.id }}/lesson/{{ lesson.id }}"{% if course.extra and course.extra.image %} data-cover="/m/{{ course.id|urlencode }}/{{ course.extra.image|urlencode }}"{% endif %}>
 <header class="mw-head">
   <span class="mw-brand"><img src="/static/icon.svg" alt="" width="22" height="22"><b dir="auto">{{ lesson.title }}</b></span>
   <button type="button" class="mw-btn" data-mw-back>{{ _('Back to inPace') }}</button>

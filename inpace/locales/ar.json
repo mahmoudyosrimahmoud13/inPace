@@ -2367,7 +2367,6 @@
  "With Tempo, the course and a bar": "مع تيمبو والدورة وشريط تقدّم",
  "Ring": "دائرة",
  "A round dial": "قرص دائري",
- "On a phone, the timer is a bar at the top while you're in inPace. Leave the app and it floats over your other apps in the look you picked here.": "على الهاتف، يكون المؤقت شريطًا في الأعلى وأنت داخل inPace. وعندما تخرج من التطبيق يطفو فوق تطبيقاتك الأخرى بالشكل الذي اخترته هنا.",
  "You and the look": "أنت والمظهر",
  "Your name, the language, your turtle and the colors.": "اسمك واللغة وسلحفاتك والألوان.",
  "Studying": "المذاكرة",
@@ -2385,5 +2384,6 @@
  "A gentle nudge at the study times you pick": "تذكير لطيف في أوقات المذاكرة التي تختارها",
  "Yes, Tempo can ping me": "نعم، يمكن لتيمبو تنبيهي",
  "Maybe later": "ربما لاحقًا",
- "You can change this any time in Reminders.": "يمكنك تغيير هذا في أي وقت من التذكيرات."
+ "You can change this any time in Reminders.": "يمكنك تغيير هذا في أي وقت من التذكيرات.",
+ "On a phone, the timer is a bar at the top while you're in inPace. When you leave the app, it's in your notifications, with Pause and Stop.": "على الهاتف، يكون المؤقت شريطًا في الأعلى وأنت داخل inPace. وعندما تخرج من التطبيق تجده في الإشعارات، مع الإيقاف المؤقت والإيقاف."
 }

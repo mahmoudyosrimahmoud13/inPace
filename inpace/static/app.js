@@ -834,7 +834,7 @@ function youtubeAsPlayer(box) {
   const player = document.createElement("div");
   player.className = "player yt-player";
   player.tabIndex = 0;
-  for (const k in L) if (k !== "embed" && k !== "ytId") player.dataset[k] = L[k];
+  for (const k in L) if (k !== "embed") player.dataset[k] = L[k];
   player.dataset.key = L.ytKey;
   const frame = document.createElement("iframe");
   frame.src = youtubeSrc(box);
@@ -1922,14 +1922,11 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
 
   // Leaving the app (Home button, another app) while a video plays or a timer runs: Android keeps a small
   // window floating over other apps, with the video and the timer in the look picked in Settings.
-  const wantPip = () => {
-    const n = window.inpaceNowPlaying, d = window.inpaceTimer ? inpaceTimer.get() : {};
-    return !!((n && !n.v.paused && !n.v.ended) || (d && d.on));
-  };
+  // Only a playing video floats. The timer has its own place: the notification, with Pause and Stop.
+  const wantPip = () => { const n = window.inpaceNowPlaying; return !!(n && !n.v.paused && !n.v.ended); };
   let lastPip = null;
   const tellPip = () => { const w = wantPip(); if (w !== lastPip) { lastPip = w; send({ type: "pip", auto: w }); } };
   setInterval(tellPip, 1500);
-  addEventListener("inpace-timer", tellPip);
   document.addEventListener("play", tellPip, true);
   document.addEventListener("pause", tellPip, true);
   // The lesson video in Android's media controls (the notification shade and lock screen), like YouTube's.
@@ -1951,8 +1948,7 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
     document.documentElement.classList.toggle("in-pip", !!on);
     document.querySelectorAll(".pip-video").forEach((x) => x.classList.remove("pip-video"));
     const n = window.inpaceNowPlaying;
-    if (on && n && !n.v.paused) n.box.classList.add("pip-video");
-    document.documentElement.classList.toggle("pip-timer-only", !!on && !document.querySelector(".pip-video"));
+    if (on && n) n.box.classList.add("pip-video");
   };
 
   // "More apps…" opens Android's share sheet.
@@ -3098,7 +3094,11 @@ window.inpaceMediaInfo = (box) => {
   const lesson = ((document.querySelector("article h1") || document.querySelector(".mw-brand b") || {}).textContent || document.title).trim();
   const course = ((document.querySelector(".eyebrow a[data-up]") || {}).textContent || "inPace").trim();
   const yt = box.dataset.ytId || "";
-  return { lesson, course, art: yt ? `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg` : location.origin + "/static/icon-256.png" };
+  // The picture: the course's own cover, else the YouTube video's picture, else inPace's icon.
+  const cover = (document.querySelector("[data-cover]") || { dataset: {} }).dataset.cover || "";
+  const art = cover ? new URL(cover, location.href).href
+    : yt ? `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg` : location.origin + "/static/icon-256.png";
+  return { lesson, course, art };
 };
 // The buttons in the system's media controls (and Android's notification) land here.
 window.inpaceMediaControl = (what) => {
@@ -3119,8 +3119,7 @@ window.inpaceMediaSession = (box, v) => {
   if (!ms || !window.MediaMetadata) return;
   const { lesson, course } = inpaceMediaInfo(box);
   const yt = box.dataset.ytId || "";
-  const art = yt ? [{ src: `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg`, sizes: "480x360", type: "image/jpeg" }]
-                 : [{ src: "/static/icon-256.png", sizes: "256x256", type: "image/png" }];
+  const art = [{ src: inpaceMediaInfo(box).art, sizes: "512x512" }];
   try { ms.metadata = new MediaMetadata({ title: lesson, artist: course, album: "inPace", artwork: art }); } catch (e) { return; }
   const set = (action, fn) => { try { ms.setActionHandler(action, fn); } catch (e) { /* not on this system */ } };
   const jump = (s) => { v.currentTime = Math.max(0, Math.min((v.duration || 1e9), v.currentTime + s)); };

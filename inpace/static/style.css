@@ -2419,22 +2419,25 @@ body.mini-window .timer-sheet { display: none; }
 .mw-video .player video { width: 100%; height: 100%; object-fit: contain; background: #000; }
 .mw-video .yt-player iframe { width: 100%; height: 100%; }
 
-/* ---- Android: floating over other apps (picture-in-picture) (v1.30) ----
-   Only the playing video and the timer show, the timer in the look picked in Settings. */
-html.in-pip, html.in-pip body { overflow: hidden !important; background: #000; }
+/* ---- Android: floating over other apps (picture-in-picture) ----
+   Only the playing video shows, filling the whole small window. (The timer isn't here: it's in the notification,
+   with its Pause and Stop buttons.) Anything around the video that could trap it (a transform, a filter, a clipped
+   box) is switched off while floating, so "fixed" really means the whole window. */
+html.in-pip, html.in-pip body { overflow: hidden !important; background: #000 !important; margin: 0 !important; padding: 0 !important; }
 html.in-pip body { visibility: hidden; }
+html.in-pip :has(> .pip-video), html.in-pip :has(.pip-video) { transform: none !important; filter: none !important; contain: none !important;
+  will-change: auto !important; perspective: none !important; backdrop-filter: none !important; overflow: visible !important; animation: none !important; }
 html.in-pip .pip-video, html.in-pip .pip-video * { visibility: visible; }
-html.in-pip .pip-video { position: fixed !important; inset: 0 !important; z-index: 100; margin: 0 !important; border: 0 !important; background: #000; width: 100vw !important; height: 100vh !important; }
-html.in-pip .pip-video :is(video, iframe) { width: 100%; height: 100%; object-fit: contain; }
-html.in-pip .pip-video :is(.pl-bar, .pl-big, .pl-toast, .yt-cover) { display: none !important; }
-html.in-pip .ftimer:not([hidden]), html.in-pip .ftimer:not([hidden]) * { visibility: visible; }
-html.in-pip .ftimer:not([hidden]) { display: block !important; position: fixed !important; z-index: 101; top: auto !important; right: auto !important;
-  left: 6px !important; bottom: 6px !important; transform: scale(.55) !important; transform-origin: bottom left; }
-html.in-pip .ftimer .ft-btns, html.in-pip .ftimer .ft-size { display: none !important; }
-html.in-pip .ftimer[data-look=pill] > .ft-pill, html.in-pip .ftimer[data-look=card] > .ft-card, html.in-pip .ftimer[data-look=ring] > .ft-ring { display: flex !important; }
-html.in-pip .ftimer[data-look=card] > .ft-pill, html.in-pip .ftimer[data-look=ring] > .ft-pill { display: none !important; }
-html.in-pip.pip-timer-only body { background: var(--bg); }
-html.in-pip.pip-timer-only .ftimer:not([hidden]) { left: 50% !important; top: 50% !important; bottom: auto !important; transform: translate(-50%, -50%) scale(.85) !important; transform-origin: center; }
+html.in-pip .pip-video { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+  inset: 0 !important; width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;
+  aspect-ratio: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important;
+  transform: none !important; z-index: 2147483000; background: #000; }
+html.in-pip .pip-video video { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
+  max-height: none !important; object-fit: contain; }
+html.in-pip .pip-video iframe, html.in-pip .pip-video iframe[style] { position: absolute !important; inset: 0 !important; left: 0 !important; top: 0 !important;
+  width: 100% !important; height: 100% !important; transform: none !important; }
+html.in-pip .pip-video :is(.pl-bar, .pl-big, .pl-toast, .yt-cover, .yt-adtag) { display: none !important; }
+html.in-pip .ftimer, html.in-pip .mini-bar, html.in-pip .notify-sheet { display: none !important; }
 
 /* Settings in groups (v1.30) */
 .set-group { margin: 2.2rem 0 .2rem; font-size: 1.6rem; scroll-margin-top: calc(var(--header) + 1rem); }
@@ -2460,15 +2463,12 @@ body:has(.trip:not([hidden])) .ftimer { display: none !important; }  /* the trip
 
 /* A YouTube video in a small window (Android's floating window, the pop-out, the mini player) fills that window:
    the "sharper quality" trick draws YouTube's frame big and scales it down for the lesson page; here it's undone. */
-:is(html.in-pip .pip-video, .mw-video, figure.mini-player) .yt-player { aspect-ratio: auto; max-height: none; }
-html.in-pip .pip-video.yt-player, html.in-pip .pip-video .yt-player { height: 100vh !important; }
-:is(html.in-pip .pip-video, .mw-video) .yt-player iframe,
-:is(html.in-pip .pip-video, .mw-video) .yt-player iframe[style] { position: absolute !important; inset: 0 !important; left: 0 !important; top: 0 !important;
+:is(.mw-video, figure.mini-player) .yt-player { aspect-ratio: auto; max-height: none; }
+.mw-video .yt-player iframe,
+.mw-video .yt-player iframe[style] { position: absolute !important; inset: 0 !important; left: 0 !important; top: 0 !important;
   width: 100% !important; height: 100% !important; transform: none !important; }
 figure.mini-player .yt-player { aspect-ratio: 16 / 9; }
 figure.mini-player .yt-player iframe[style] { inset: 0 !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; transform: none !important; }
-html.in-pip .pip-video .yt-cover { display: none !important; }
-html.in-pip .pip-video video { max-height: none !important; height: 100vh !important; width: 100vw !important; object-fit: contain; }
 
 /* Tempo asks for notifications (phone) */
 .notify-sheet { width: min(420px, calc(100vw - 2rem)); padding: 1.4rem 1.3rem 1.1rem; border: 3px solid var(--line); box-shadow: var(--hard);
@@ -2489,3 +2489,10 @@ html.in-pip .pip-video video { max-height: none !important; height: 100vh !impor
 .ns-list li svg { flex: none; }
 .notify-sheet .btn + .btn { margin-top: .5rem; }
 .ns-foot { margin: .7rem 0 0; }
+
+/* v1.30.4: the hidden radio buttons of the timer looks and lengths took the full screen width (inputs are 100% wide
+   by default), so the Settings page became wider than a phone and slid sideways. They stay tiny, inside their box. */
+.look-pick label, .timer-len { position: relative; }
+.look-pick input, .timer-len input { width: 1px !important; height: 1px !important; margin: 0 !important; padding: 0 !important; inset: 0 auto auto 0; }
+.look-pick svg { max-width: 100%; height: auto; }
+.look-pick label { min-width: 0; }

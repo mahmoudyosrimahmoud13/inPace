@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.30.4
+
+- **Phone media controls show the course's picture.** The notification shade and lock screen showed inPace's logo; now they show the course's cover (or the YouTube video's picture when the course has none).
+- **The floating video is only the video, filling the whole window.** It still had a black strip on some phones: the video was trapped in the size of the page around it, and the app kept room for the phone's status bars while floating. Both are fixed, for YouTube and saved videos.
+- **The timer no longer floats.** It was squeezed into the floating window over the video, or floated on its own half cut off. Now, when you leave the app, the timer is in your notifications, with Pause and Stop; inside the app it's the bar at the top. Only a playing video floats.
+- **Settings no longer slides sideways on phones.** The three timer looks had hidden buttons as wide as the screen, which made the page wider than the phone and cut off the top bar and the tabs.
+- "+5" reads the right way round in Arabic.
+
 ## v1.30.3
 
 - **Phone: lesson videos in Android's media controls, like YouTube.** The notification shade and lock screen show the lesson, the course and its picture, with play/pause, 10 seconds back and forward, and previous/next lesson. The floating window gets play/pause from it too.

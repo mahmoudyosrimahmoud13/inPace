@@ -25,7 +25,7 @@
     {% else %}
     <form method="post" action="/timer/resume"><button class="tc-main">{{ icon('play', 20) }}{{ _('Go on') }}</button></form>
     {% endif %}
-    <form method="post" action="/timer/add"><button>+5 {{ _('min') }}</button></form>
+    <form method="post" action="/timer/add"><button><bdi dir="ltr">+5</bdi> {{ _('min') }}</button></form>
     <form method="post" action="/island/rest"><button title="{{ _('Resting keeps every minute. Your sprout waits for you.') }}">{{ icon('stop', 18) }}{{ _('Stop') }}</button></form>
   </div>
   {% endif %}
