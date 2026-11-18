@@ -58,6 +58,18 @@ class Reminders {
   static Future<void> ready = Future.value(); // done once init() has finished (or failed)
   static void Function(String page)? onOpen;
   static void Function(String text)? onToast;
+  static void Function(String action)? onTimerAction; // 'pause', 'resume' or 'stop'
+
+  // The buttons on the focus timer's notification (the words come from the page, in your language).
+  static List<AndroidNotificationAction>? _timerActions(Map<String, dynamic> t, bool running) {
+    if (t['actions'] != true) return null;
+    return <AndroidNotificationAction>[
+      running
+          ? AndroidNotificationAction('timer_pause', (t['l_pause'] as String?) ?? 'Pause', showsUserInterface: true)
+          : AndroidNotificationAction('timer_resume', (t['l_resume'] as String?) ?? 'Go on', showsUserInterface: true),
+      AndroidNotificationAction('timer_stop', (t['l_stop'] as String?) ?? 'Stop', showsUserInterface: true, cancelNotification: true),
+    ];
+  }
 
   static AndroidFlutterLocalNotificationsPlugin? get android =>
       plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -78,6 +90,11 @@ class Reminders {
       if (r.payload != null) data = jsonDecode(r.payload!) as Map<String, dynamic>;
     } catch (_) {}
     if (r.actionId == 'stop') return;
+    // Pause, Go on and Stop on the focus timer's notification: the app tells inPace, then the page updates it.
+    if (r.actionId != null && r.actionId!.startsWith('timer_')) {
+      onTimerAction?.call(r.actionId!.substring(6));
+      return;
+    }
     if (r.actionId == 'snooze') {
       _snooze(data);
       onToast?.call((labels['snoozed'] as String?) ?? 'Snoozed for 10 minutes.');
@@ -216,6 +233,7 @@ class Reminders {
             notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
                 importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
                 category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+                actions: _timerActions(t, false),
                 largeIcon: const DrawableResourceAndroidBitmap('tempo_sleepy'))));
         return;
       }
@@ -233,6 +251,7 @@ class Reminders {
               showWhen: true, when: ends.millisecondsSinceEpoch, usesChronometer: true, chronometerCountDown: true,
               timeoutAfter: left.inMilliseconds, // gone when the time is up
               category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+              actions: _timerActions(t, true),
               largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
       await _at(tripDoneId, ends, (t['done_title'] as String?) ?? '', (t['done_body'] as String?) ?? '', 'tempo',
           (t['url'] as String?) ?? '/island/trip', picture: 'tempo_cheer', exact: true);
@@ -371,6 +390,13 @@ class _ShellState extends State<Shell> {
       if (fromNotification != null) _pendingLink = fromNotification.replaceFirst(RegExp(r'^/'), '');
       Reminders.onOpen = (page) => _openPage(page.replaceFirst(RegExp(r'^/'), ''));
       Reminders.onToast = _toast;
+      Reminders.onTimerAction = (action) async {
+        try {
+          await http.post(Uri.parse('${_base}timer/$action'), headers: {'x-inpace-fetch': '1', 'accept': 'application/json'});
+        } catch (_) {}
+        // The page fetches the timer again and sends the notification its new state.
+        await _web?.runJavaScript('window.inpaceTimer && window.inpaceTimer.refresh()');
+      };
       _web!.loadRequest(Uri.parse(_base + (_pendingLink ?? '')));
       _pendingLink = null;
       // If the first page never says it's finished (a very slow phone, an error), don't keep the splash forever.

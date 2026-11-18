@@ -6,8 +6,7 @@ island instead, and the floating timer shows that trip.
 A plain timer is kept in the data folder's meta table as JSON, so it keeps counting across pages, windows
 (the pop-out mini window too) and restarts:
     {"id", "goal": seconds, "banked": seconds already counted, "run_from": when it last started or None,
-     "state": "running" | "paused", "label": what you're studying, "journey": course journey id,
-     "paused_by": "you" | "video" | ""}
+     "state": "running" | "paused", "label": what you're studying, "journey": course journey id}
 """
 from __future__ import annotations
 
@@ -29,15 +28,6 @@ def look(v) -> str:
 
 def set_look(v, x: str) -> None:
     v._set_meta("timer_look", x if x in LOOKS else "pill")
-
-
-def follows_video(v) -> bool:
-    """Pause the timer when the lesson video pauses (and go on when it plays)."""
-    return (v._meta("timer_follow_video", "on") or "on") == "on"
-
-
-def set_follows_video(v, on: bool) -> None:
-    v._set_meta("timer_follow_video", "on" if on else "off")
 
 
 def _load(v) -> dict | None:
@@ -73,11 +63,11 @@ def start(v, minutes: int, plant: bool = False, label: str = "", journey: str = 
         return live(v)
     now = time.time()
     _save(v, {"id": uuid.uuid4().hex[:12], "goal": minutes * 60, "banked": 0, "run_from": now, "state": "running",
-              "label": label[:80], "journey": journey, "paused_by": "", "started": now})
+              "label": label[:80], "journey": journey, "started": now})
     return live(v)
 
 
-def pause(v, by: str = "you") -> dict:
+def pause(v) -> dict:
     t = _trip(v)
     if t:
         if t["state"] == "running":
@@ -85,27 +75,31 @@ def pause(v, by: str = "you") -> dict:
         return live(v)
     d = _load(v)
     if d and d["state"] == "running":
-        d.update(banked=elapsed(d), run_from=None, state="paused", paused_by=by)
+        d.update(banked=elapsed(d), run_from=None, state="paused")
         _save(v, d)
     return live(v)
 
 
-def resume(v, by: str = "you") -> dict:
+def resume(v) -> dict:
     t = _trip(v)
     if t:
         if t["state"] == "paused":
             garden.resume(v)
         return live(v)
     d = _load(v)
-    # The video only restarts a timer that the video paused: a timer you paused yourself stays paused.
-    if d and d["state"] == "paused" and (by == "you" or d.get("paused_by") == "video"):
-        d.update(run_from=time.time(), state="running", paused_by="")
+    if d and d["state"] == "paused":
+        d.update(run_from=time.time(), state="running")
         _save(v, d)
     return live(v)
 
 
 def add(v, minutes: int = 5) -> dict:
-    """A few more minutes on a plain timer (an island trip keeps the length you chose for its plant)."""
+    """A few more minutes: on the plain timer, or on the island trip (its plant then grows for the longer time)."""
+    t = _trip(v)
+    if t:
+        v.db.execute("UPDATE garden SET goal=? WHERE id=?", (min(t["goal"] + minutes, 240), t["id"]))
+        v.db.commit()
+        return live(v)
     d = _load(v)
     if d:
         d["goal"] = min(d["goal"] + minutes * 60, 4 * 3600)
@@ -158,5 +152,4 @@ def live(v) -> dict:
     if not d:
         return {"on": False}
     return {"on": True, "kind": "timer", "id": d["id"], "state": d["state"], "goal": d["goal"],
-            "left": round(max(0.0, d["goal"] - elapsed(d)), 1), "label": d.get("label", ""),
-            "paused_by": d.get("paused_by", "")}
+            "left": round(max(0.0, d["goal"] - elapsed(d)), 1), "label": d.get("label", "")}

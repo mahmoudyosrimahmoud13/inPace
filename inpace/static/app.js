@@ -859,8 +859,10 @@ function youtubeAsPlayer(box) {
   v.addEventListener("ytad", () => player.classList.add("yt-ad"));
   v.addEventListener("ytmain", () => player.classList.remove("yt-ad"));
   const show = () => player.classList.toggle("yt-showing", !v.paused);
-  // YouTube shows its title for a moment when a video starts: the still picture stays a little longer.
-  v.addEventListener("play", () => setTimeout(show, R.cover_after_ms));
+  // YouTube shows its title for a moment when a video first starts: only then does the still picture stay a little
+  // longer. Going on after a pause shows the video right away.
+  let firstPlay = true;
+  v.addEventListener("play", () => { setTimeout(show, firstPlay ? R.cover_after_ms : 120); firstPlay = false; });
   v.addEventListener("pause", show);
   const ctl = window.inpacePlayer(player, v);
   player.focus({ preventScroll: true });
@@ -1172,13 +1174,12 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
 
   const setup = (box, v) => {
     const L = box.dataset;
-    // The mini player and the floating timer follow whichever video is playing.
+    // The mini player follows whichever video is playing. (The focus timer is its own thing: videos never touch it.)
     v.addEventListener("play", () => {
       window.inpaceNowPlaying = { box, v };
-      if (window.inpaceTimer) inpaceTimer.resume("video");
+      if (window.inpaceMediaSession) inpaceMediaSession(box, v);
       try { if (window.parent !== window && parent.inpaceMini) parent.inpaceMini.stop(); } catch (e) { /* not ours */ }
     });
-    v.addEventListener("pause", () => { if (window.inpaceTimer) inpaceTimer.pause("video"); });
     const lo = parseFloat(L.start || "0") || 0, hiSet = parseFloat(L.end || "0") || 0;
     const hi = () => hiSet || v.duration || 0;
     const span = () => Math.max(0, hi() - lo);
@@ -2692,7 +2693,7 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
 // ---- The floating focus timer (v1.30) ------------------------------------------------------------------
 // The server keeps the timer (so it carries on across pages and windows); this counts it down on screen,
 // pauses and stops it, lets you drag it anywhere (the spot is remembered), and chimes when time is up.
-// Other parts (the lesson video, the mini window) call window.inpaceTimer.pause("video") / .resume("video").
+// It runs on its own: only you pause or stop it (and, if you ticked it, it grows a plant on Tempo's island).
 (() => {
   const box = document.querySelector("[data-ftimer]");
   const sheet = document.querySelector("[data-timer-sheet]");
@@ -2769,8 +2770,8 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
   box.querySelectorAll("[data-ft-stop]").forEach((b) => b.addEventListener("click", () => send("stop")));
   window.inpaceTimer = {
     get: () => d,
-    pause: (by) => (d.on && d.state === "running" ? send("pause", { by: by || "you" }) : null),
-    resume: (by) => (d.on && d.state !== "running" ? send("resume", { by: by || "you" }) : null),
+    pause: () => (d.on && d.state === "running" ? send("pause") : null),
+    resume: () => (d.on && d.state !== "running" ? send("resume") : null),
     refresh,
   };
   // The header button: start a timer, or bring the running one back into view.
@@ -2852,7 +2853,7 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
 
 
 // ---- The pop-out mini window (v1.30) ---------------------------------------------------------------------------
-// A small inPace window above your other apps, with the lesson's video and the timer. The app window makes it
+// A small inPace window above your other apps, with just the lesson's video. The app window makes it
 // (Windows, Mac, Linux); in a browser, Chrome and Edge's "picture-in-picture window" holds it, else a popup.
 // The windows talk over a BroadcastChannel: "Back to inPace" in the small window brings the video back here.
 (() => {
@@ -2928,11 +2929,6 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     shut();
   });
   document.querySelector("[data-mw-close]").addEventListener("click", () => { const v = media(); if (v) v.pause(); shut(); });
-  // No timer running: offer to start one right here.
-  const start = document.querySelector("[data-mw-start]");
-  const sync = (d) => { if (start) start.hidden = !!(d && d.on); };
-  addEventListener("inpace-timer", (e) => sync(e.detail));
-  try { sync(JSON.parse(document.getElementById("timer-data").textContent)); } catch (e) { sync(null); }
 })();
 
 // ---- The mini player (v1.30) ---------------------------------------------------------------------------------
@@ -3055,3 +3051,41 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     if (api.enter(u.href)) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
 })();
+
+
+// ---- The system's media controls (v1.30) ----------------------------------------------------------------------
+// While a lesson video plays, the computer's media controls (the media center on Windows and Linux, Control
+// Center on Mac, media keys on the keyboard) show the lesson's name and course, with play/pause, 10 seconds back
+// and forward, and previous/next lesson.
+window.inpaceMediaSession = (box, v) => {
+  const ms = navigator.mediaSession;
+  if (!ms || !window.MediaMetadata) return;
+  const lesson = ((document.querySelector("article h1") || document.querySelector(".mw-brand b") || {}).textContent || document.title).trim();
+  const course = ((document.querySelector(".eyebrow a[data-up]") || {}).textContent || "inPace").trim();
+  const yt = box.dataset.ytId || "";
+  const art = yt ? [{ src: `https://i.ytimg.com/vi/${encodeURIComponent(yt)}/hqdefault.jpg`, sizes: "480x360", type: "image/jpeg" }]
+                 : [{ src: "/static/icon-256.png", sizes: "256x256", type: "image/png" }];
+  try { ms.metadata = new MediaMetadata({ title: lesson, artist: course, album: "inPace", artwork: art }); } catch (e) { return; }
+  const set = (action, fn) => { try { ms.setActionHandler(action, fn); } catch (e) { /* not on this system */ } };
+  const jump = (s) => { v.currentTime = Math.max(0, Math.min((v.duration || 1e9), v.currentTime + s)); };
+  set("play", () => v.play());
+  set("pause", () => v.pause());
+  set("stop", () => v.pause());
+  set("seekbackward", (d) => jump(-((d && d.seekOffset) || 10)));
+  set("seekforward", (d) => jump((d && d.seekOffset) || 10));
+  set("seekto", (d) => { if (d && typeof d.seekTime === "number") v.currentTime = d.seekTime; });
+  const go = (sel) => { const a = document.querySelector(sel); return a ? () => { location.href = a.href; } : null; };
+  set("previoustrack", go("[data-key-prev]"));
+  set("nexttrack", go("[data-key-next]"));
+  const state = () => {
+    try { ms.playbackState = v.paused ? "paused" : "playing"; } catch (e) { /* older */ }
+    try { if (v.duration && isFinite(v.duration)) ms.setPositionState({ duration: v.duration, position: Math.min(v.currentTime, v.duration), playbackRate: v.playbackRate || 1 }); } catch (e) { /* older */ }
+  };
+  if (!v._msHooked) {
+    v._msHooked = true;
+    v.addEventListener("play", state); v.addEventListener("pause", state); v.addEventListener("ratechange", state);
+    let last = 0;
+    v.addEventListener("timeupdate", () => { const n = Date.now(); if (n - last > 4000) { last = n; state(); } });
+  }
+  state();
+};

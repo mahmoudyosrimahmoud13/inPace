@@ -7,7 +7,7 @@
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/style.css?v={{ static_v['style.css'] }}">
 </head>
-{# The pop-out mini window: this lesson's video and the timer, in a small window above your other apps. #}
+{# The pop-out mini window: this lesson's video, in a small window above your other apps, and the timer if one runs. #}
 <body class="mini-window" data-mini-window data-lesson="/learn/{{ j.id }}/lesson/{{ lesson.id }}">
 <header class="mw-head">
   <span class="mw-brand"><img src="/static/icon.svg" alt="" width="22" height="22"><b dir="auto">{{ lesson.title }}</b></span>
@@ -15,8 +15,8 @@
   <button type="button" class="mw-btn mw-x" data-mw-close aria-label="{{ _('Close') }}" title="{{ _('Close') }}">{{ icon('x', 16) }}</button>
 </header>
 <div class="prose mw-video" dir="{{ 'rtl' if course.language == 'ar' else 'auto' }}">{{ html|safe }}</div>
+{# The timer shows here only while one is running (app.js hides it otherwise): the old bar, nothing to start one. #}
 {% if me and timer_json is defined %}{% with timer_look = 'pill' %}{% include "_timer.html" %}{% endwith %}{% endif %}
-<p class="mw-start" data-mw-start hidden><button type="button" class="btn" data-timer-open>{{ icon('timer', 18) }} {{ _('Start a timer') }}</button></p>
 <script src="/static/app.js?v={{ static_v['app.js'] }}"></script>
 </body>
 </html>

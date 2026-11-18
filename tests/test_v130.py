@@ -19,21 +19,14 @@ def test_timer_start_pause_resume_stop(tmp_path):
     assert c.post("/timer/stop", headers=J).json() == {"on": False}
 
 
-def test_video_only_restarts_what_the_video_paused(tmp_path):
+def test_the_timer_is_its_own_thing(tmp_path):
     v, c = client(tmp_path, "Omar")
     c.post("/timer/start", data={"minutes": "10"}, headers=J)
-    c.post("/timer/pause", headers=J)                         # you paused it
-    assert c.post("/timer/resume", data={"by": "video"}, headers=J).json()["state"] == "paused"
-    c.post("/timer/resume", headers=J)
-    assert c.post("/timer/pause", data={"by": "video"}, headers=J).json()["paused_by"] == "video"
-    assert c.post("/timer/resume", data={"by": "video"}, headers=J).json()["state"] == "running"
-
-
-def test_video_does_nothing_when_switched_off(tmp_path):
-    v, c = client(tmp_path, "Omar")
-    c.post("/settings/timer", data={"follow": "off"})
-    c.post("/timer/start", data={"minutes": "10"}, headers=J)
-    assert c.post("/timer/pause", data={"by": "video"}, headers=J).json()["state"] == "running"
+    page = c.get("/settings").text + c.get("/").text
+    assert 'name="follow"' not in page                      # no "pause with the video" any more
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parent.parent / "inpace/static/app.js").read_text(encoding="utf-8")
+    assert 'inpaceTimer.pause("video")' not in js and 'inpaceTimer.resume("video")' not in js
 
 
 def test_timer_ends(tmp_path):
@@ -101,7 +94,7 @@ def test_pop_out_window_page_and_routes(tmp_path):
     c.post("/courses/sample/python-basics")
     jid = c.post(f"/courses/python-basics/start", follow_redirects=False).headers["location"].rsplit("/", 1)[1]
     page = c.get(f"/learn/{jid}/lesson/m1-l1?mini=1&key=x").text
-    assert "data-mini-window" in page and "data-mw-back" in page and "data-ftimer" in page
+    assert "data-mini-window" in page and "data-mw-back" in page and "data-ftimer" in page and "data-mw-start" not in page
     assert c.post("/window/popout", data={"url": "/"}).json() == {"ok": False}   # no app window in the tests
     assert c.post("/window/popout", data={"url": "https://evil.example/"}).json() == {"ok": False}
     assert c.post("/window/popout/close").json() == {"ok": False}
@@ -113,3 +106,29 @@ def test_phone_notification_shows_the_plain_timer(tmp_path, monkeypatch):
     c.post("/timer/start", data={"minutes": "25"}, headers=J)
     t = c.get("/island/live.json").json()["trip"]
     assert t["title"] == "Focus timer" and t["url"] == "/" and t["ends_ms"]
+    assert t["actions"] is True and t["l_pause"] == "Pause" and t["l_stop"] == "Stop"   # buttons on the notification
+
+
+def test_videos_show_in_the_systems_media_controls():
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parent.parent / "inpace/static/app.js").read_text(encoding="utf-8")
+    assert "window.inpaceMediaSession = " in js and "new MediaMetadata" in js
+    for action in ("play", "pause", "seekbackward", "seekforward", "previoustrack", "nexttrack"):
+        assert f'set("{action}"' in js
+
+
+def test_island_trip_has_the_same_buttons_and_they_change_the_trip(tmp_path):
+    v, c = client(tmp_path, "Omar")
+    garden.set_on(v, True)
+    c.post("/timer/start", data={"minutes": "25", "plant": "1"}, headers=J)
+    page = c.get("/island/trip").text
+    assert 'action="/timer/pause"' in page and 'action="/timer/add"' in page and 'action="/island/rest"' in page
+    r = c.post("/timer/pause", headers={"referer": "http://testserver/island/trip"}, follow_redirects=False)
+    assert r.headers["location"].startswith("/island/trip")
+    assert garden.active(v)["state"] == "paused"
+    c.post("/island/resume")                        # coming back to the screen doesn't undo your pause
+    assert garden.active(v)["state"] == "paused"
+    assert 'action="/timer/resume"' in c.get("/island/trip").text
+    c.post("/timer/resume", headers=J)
+    assert c.post("/timer/add", headers=J).json()["goal"] == 30 * 60   # +5 min: the plant grows for 30
+    assert garden.active(v)["goal"] == 30

@@ -2289,7 +2289,6 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 .ft-toggle { background: var(--sun); color: #111; }
 .ft-toggle .when-paused, .ftimer.paused .ft-toggle .when-run { display: none; }
 .ftimer.paused .ft-toggle .when-paused { display: inline; }
-.ftimer.trip .ft-plus { display: none; }
 
 .ft-pill { align-items: stretch; background: var(--surface); border: 3px solid var(--line); box-shadow: var(--hard-sm); }
 .ft-grip { display: flex; align-items: center; gap: .5rem; padding: 0 .8rem 0 .65rem; font-size: 1.3rem; font-weight: 800; background: var(--sun); color: #111; }
@@ -2396,7 +2395,7 @@ figure.mini-player .mini-bar { display: flex; align-items: center; border-top: 3
 }
 
 /* ---- The pop-out mini window (v1.30) ---- */
-body.mini-window { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+body.mini-window { margin: 0; height: 100vh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
 .mw-head { display: flex; align-items: stretch; border-bottom: 3px solid var(--line); background: var(--raised); flex: none; }
 .mw-brand { flex: 1; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; }
 .mw-brand b { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2407,12 +2406,18 @@ body.mini-window { margin: 0; min-height: 100vh; display: flex; flex-direction: 
 .mw-video > figure { margin: 0; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .mw-video > figure > :not(:has(video, iframe, [data-embed], .player)) { display: none; }
 .mw-video :is(.player, .yt-player, .frame-wrap, .embed-box) { margin: 0; border: 0; box-shadow: none; flex: 1; }
-body.mini-window .ftimer { position: static; transform: none; display: block; flex: none; border-top: 3px solid var(--line); }
-body.mini-window .ftimer .ft-size { display: none; }
-body.mini-window .ftimer > .ft-pill { display: flex; border: 0; box-shadow: none; }
+/* the running timer, if any: one bar under the video (hidden when no timer runs) */
+body.mini-window .ftimer:not([hidden]) { position: static !important; transform: none !important; display: block; flex: none; border-top: 3px solid var(--line); }
+body.mini-window .ftimer .ft-size { display: none !important; }
+body.mini-window .ftimer > .ft-pill { display: flex !important; border: 0; box-shadow: none; }
 body.mini-window .ftimer > .ft-pill .ft-grip { flex: 1; cursor: default; }
 body.mini-window .ftimer > .ft-card, body.mini-window .ftimer > .ft-ring { display: none !important; }
-.mw-start { margin: 0; padding: .4rem; border-top: 3px solid var(--line); text-align: center; flex: none; }
+body.mini-window .timer-sheet { display: none; }
+/* the video fills the whole window, whatever its size */
+.mw-video > figure > :has(video, iframe, [data-embed], .player) { flex: 1; min-height: 0; display: flex; }
+.mw-video :is(.player, .yt-player) { height: 100%; width: 100%; aspect-ratio: auto !important; max-height: none !important; }
+.mw-video .player video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.mw-video .yt-player iframe { width: 100%; height: 100%; }
 
 /* ---- Android: floating over other apps (picture-in-picture) (v1.30) ----
    Only the playing video and the timer show, the timer in the look picked in Settings. */
@@ -2443,3 +2448,12 @@ h3.set-h { font-size: 1.25rem; }
 .side a.continue > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; flex-shrink: 0; }
 .side a.continue b, .side a.continue .muted { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .side a.continue .muted { -webkit-line-clamp: 1; }
+
+/* The island's focus trip: the same three timer buttons, big, on the trip screen (v1.30) */
+.trip-controls { display: inline-flex; margin: .4rem auto .6rem; border: 3px solid var(--line); box-shadow: var(--hard-sm); background: var(--surface); }
+.trip-controls form { display: contents; }
+.trip-controls button { display: flex; align-items: center; gap: .45rem; min-height: 52px; padding: 0 1.1rem; font: inherit; font-weight: 800; font-size: 1.05rem;
+  background: var(--surface); color: var(--ink); border: 0; border-inline-start: 3px solid var(--line); cursor: pointer; }
+.trip-controls > :first-child button, .trip-controls > button:first-child { border-inline-start: 0; }
+.trip-controls .tc-main { background: var(--sun); color: #111; }
+body:has(.trip:not([hidden])) .ftimer { display: none !important; }  /* the trip screen is the timer already */

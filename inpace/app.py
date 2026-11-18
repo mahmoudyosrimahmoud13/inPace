@@ -642,7 +642,6 @@ def create_app(vault: Vault) -> Starlette:
             except Exception:
                 base["timer_json"] = '{"on": false}'
             base["timer_look"] = focus.look(V)
-            base["timer_follow"] = focus.follows_video(V)
             base["timer_here"] = _timer_here(request.url.path)
             if os.environ.get("INPACE_MOBILE"):
                 try:
@@ -724,24 +723,17 @@ def create_app(vault: Vault) -> Starlette:
         """Start, pause, go on or stop the floating timer. Answers with the timer as it is now."""
         what = request.path_params["what"]
         form = await request.form()
-        by = "video" if form.get("by") == "video" else "you"
         if what == "start":
             try:
                 minutes = int(form.get("minutes") or 25)
             except ValueError:
                 minutes = 25
-            if form.get("follow") in ("on", "off"):
-                focus.set_follows_video(V, form.get("follow") == "on")
             focus.start(V, minutes, plant=form.get("plant") == "1", label=str(form.get("label", "")),
                         journey=str(form.get("journey", "")))
         elif what == "pause":
-            if by == "video" and not focus.follows_video(V):
-                return JSONResponse(_timer_live())
-            focus.pause(V, by)
+            focus.pause(V)
         elif what == "resume":
-            if by == "video" and not focus.follows_video(V):
-                return JSONResponse(_timer_live())
-            focus.resume(V, by)
+            focus.resume(V)
         elif what == "stop":
             focus.stop(V)
         elif what == "add":
@@ -771,8 +763,6 @@ def create_app(vault: Vault) -> Starlette:
         form = await request.form()
         if form.get("look"):
             focus.set_look(V, str(form.get("look")))
-        if form.get("follow") in ("on", "off"):
-            focus.set_follows_video(V, form.get("follow") == "on")
         if request.headers.get("x-inpace-fetch"):
             return Response(status_code=204)
         return go("/settings#timer", ok="Saved.")
@@ -4112,7 +4102,8 @@ def create_app(vault: Vault) -> Starlette:
                     "channel": say("Focus timer"), "title": say("Focus timer"),
                     "body": d.get("label") or say("Keep going. Tap to open inPace."),
                     "paused_title": say("Timer paused"), "paused_body": say("Tap to open inPace and go on."),
-                    "done_title": say("Time's up!"), "done_body": t("{n} minutes of focus. Take a short break.", n=round(d["goal"] / 60))}
+                    "done_title": say("Time's up!"), "done_body": t("{n} minutes of focus. Take a short break.", n=round(d["goal"] / 60)),
+                    **_timer_buttons()}
         CURRENT["lang"] = V._meta("lang", "en") or "en"
         plant = say(garden.PLANT_NAMES.get(trip["kind"], ""))
         left = max(0, trip["goal"] * 60 - garden.elapsed(trip))
@@ -4124,7 +4115,12 @@ def create_app(vault: Vault) -> Starlette:
                 "paused_title": t("Your {plant} sprout is waiting", plant=plant),
                 "paused_body": say("Phone down: the clock only counts while the trip screen is open. Come back to keep growing."),
                 "done_title": t("Your {plant} is ready!", plant=plant),
-                "done_body": say("Tempo finished the trip. Come and see it join the island.")}
+                "done_body": say("Tempo finished the trip. Come and see it join the island."),
+                **_timer_buttons()}
+
+    def _timer_buttons() -> dict:
+        """The words on the notification's buttons (the phone app makes Pause, Go on and Stop from them)."""
+        return {"actions": True, "l_pause": say("Pause"), "l_resume": say("Go on"), "l_stop": say("Stop")}
 
     _trip_timer: dict = {"key": None, "timer": None}
 
@@ -4454,7 +4450,11 @@ def create_app(vault: Vault) -> Starlette:
         return Response(status_code=204)
 
     async def island_resume(request: Request):
-        garden.resume(V)
+        # Coming back to the trip screen restarts a "phone down" trip that paused because you left it. A trip you
+        # paused yourself (the timer's Pause button) stays paused until you press Go on.
+        t0 = garden.active(V)
+        if t0 and t0["mode"] == "phone":
+            garden.resume(V)
         just = garden.check(V)
         trip = garden.active(V)
         _arm_trip_timer()

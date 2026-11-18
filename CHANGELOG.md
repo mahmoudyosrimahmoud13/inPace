@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.30.2
+
+- **The pop-out window shows the video, filling the whole window at any size.** The timer bar shows under it only while a timer is running, and there's no "Start a timer" button there any more.
+- **Lesson videos in your computer's media controls.** While a video plays, the media center (Windows, Linux) or Control Center (Mac) and the keyboard's media keys show the lesson and course, with play/pause, 10 seconds back and forward, and previous/next lesson.
+- **Phone: Pause, Go on and Stop on the timer's notification.**
+- **Tempo's island: the focus trip has the same Pause, +5 min and Stop buttons.** Every change is the trip's own: +5 min makes the plant grow for the longer time, Pause holds it until you press Go on (coming back to the screen no longer restarts a trip you paused), and Stop rests the sprout with every minute kept. The floating timer and the trip are the same timer.
+
+## v1.30.1
+
+- **The focus timer is its own thing.** Pausing a video no longer pauses the timer: only you pause or stop it. Its only link is the optional plant on Tempo's island. (The "pause with the video" option is gone.)
+- **YouTube videos show at once when you press play again.** inPace kept YouTube's still picture over the video for 2.5 seconds every time it started, to hide YouTube's title. That's only needed the very first time; after a pause the video now shows right away.
+
 ## v1.30.0
 
 - **Floating focus timer.** Press the new timer button at the top of any page and pick 10 to 90 minutes. The timer stays in a corner of every page, with three clear buttons: Pause or Go on, +5 min, and Stop.

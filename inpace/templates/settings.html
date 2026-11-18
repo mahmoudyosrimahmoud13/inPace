@@ -69,8 +69,6 @@
         <svg width="96" height="40" viewBox="0 0 96 40" aria-hidden="true"><circle cx="48" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="48" cy="20" r="12" fill="none" stroke="#FFD43B" stroke-width="5" stroke-dasharray="56 76" transform="rotate(-90 48 20)"/></svg>
         {% trans trimmed %}Ring{% endtrans %}<small>{% trans trimmed %}A round dial{% endtrans %}</small></label>
     </fieldset>
-    <input type="hidden" name="follow" value="off">
-    <label class="check"><input type="checkbox" name="follow" value="on" {{ 'checked' if timer_follow }} data-autosubmit><span>{% trans trimmed %}Pause the timer when the lesson video pauses{% endtrans %}</span></label>
     <noscript><button class="btn">{% trans trimmed %}Save{% endtrans %}</button></noscript>
   </form>
   <p class="small muted" style="margin:0">{% trans trimmed %}On a phone, the timer is a bar at the top while you're in inPace. Leave the app and it floats over your other apps in the look you picked here.{% endtrans %}</p>

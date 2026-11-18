@@ -17,8 +17,19 @@
   <p class="small muted trip-note">{% trans trimmed %}Study anywhere: in a book, another app, or a lesson. Come back when the time is up, or keep this open to watch it grow.{% endtrans %}</p>
   {% endif %}
   <p class="trip-paused note" data-paused hidden>{% trans trimmed %}Paused while you were away. It goes on now.{% endtrans %}</p>
+  {% if trip %}
+  {# The same three buttons as the floating timer: every change here is the trip's own (+5 min grows the plant longer). #}
+  <div class="trip-controls" role="group" aria-label="{{ _('Focus timer') }}">
+    {% if trip.state == 'running' %}
+    <form method="post" action="/timer/pause"><button class="tc-main">{{ icon('pause', 20) }}{{ _('Pause') }}</button></form>
+    {% else %}
+    <form method="post" action="/timer/resume"><button class="tc-main">{{ icon('play', 20) }}{{ _('Go on') }}</button></form>
+    {% endif %}
+    <form method="post" action="/timer/add"><button>+5 {{ _('min') }}</button></form>
+    <form method="post" action="/island/rest"><button title="{{ _('Resting keeps every minute. Your sprout waits for you.') }}">{{ icon('stop', 18) }}{{ _('Stop') }}</button></form>
+  </div>
+  {% endif %}
   <div class="row wrap trip-actions">
-    <form method="post" action="/island/rest" data-nav-form><button class="btn">{% trans trimmed %}Rest for now{% endtrans %}</button></form>
     <a class="btn ghost" href="/">{% trans trimmed %}Go study in inPace{% endtrans %}</a>
   </div>
   <p class="small muted">{% trans trimmed %}Resting keeps every minute. Your sprout waits for you.{% endtrans %}</p>

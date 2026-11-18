@@ -51,8 +51,6 @@
     {% if island_on %}
     <label class="check"><input type="checkbox" name="plant" value="1"><span>{% trans trimmed %}Also grow a plant on Tempo's island when it ends{% endtrans %}</span></label>
     {% endif %}
-    <input type="hidden" name="follow" value="off">
-    <label class="check"><input type="checkbox" name="follow" value="on" {{ 'checked' if timer_follow }}><span>{% trans trimmed %}Pause the timer when the lesson video pauses{% endtrans %}</span></label>
     <button class="btn primary big wide">{{ _('Start') }}</button>
     <p class="small muted">{% trans trimmed %}It stays in a corner of every page, with Pause, +5 min and Stop. Drag it anywhere. Change how it looks in Settings.{% endtrans %}</p>
   </form>
