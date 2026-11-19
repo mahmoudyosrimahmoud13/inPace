@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.10
+
+- **Android: the app starts again on phones where it stopped at "inPace could not start".** On some phones (a Nothing Phone, issue #2) it showed a Java error, ClassNotFoundException "Landroid/content/Context;". A part the app uses to find its own folder had moved to a new way of talking to Android that fails on those phones. The app now uses the earlier version of that part, which works everywhere. Thanks to pix3latedtr3 for the detailed report.
+
 ## v1.30.9
 
 - **Mac: the mouse wheel scrolls again.** On recent macOS, pages scrolled with the trackpad but not with a mouse wheel. A setting that stops phones from bouncing when you pull down a page also made Safari's engine (which the Mac app uses) ignore mouse wheels. It now only applies on touch screens. Thanks to k on Discord for reporting it.

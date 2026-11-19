@@ -270,3 +270,10 @@ def test_mouse_wheel_scrolls_on_macs():
     css = (pathlib.Path(__file__).resolve().parent.parent / "inpace/static/style.css").read_text(encoding="utf-8")
     bare = re.sub(r"@media \(pointer: coarse\) \{[^}]*\}\s*\}", "", css)
     assert not re.search(r"(^|[\s,}])(html|body)\s*\{[^}]*overscroll-behavior", bare)
+
+
+def test_android_keeps_path_provider_without_jni():
+    """Issue #2: path_provider_android 2.3 (JNI) can't find android.content.Context on some phones."""
+    import pathlib
+    pub = (pathlib.Path(__file__).resolve().parent.parent / "mobile/pubspec.yaml").read_text(encoding="utf-8")
+    assert 'path_provider_android: ">=2.2.0 <2.3.0"' in pub.split("dependency_overrides:")[1]

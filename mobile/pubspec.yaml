@@ -24,6 +24,12 @@ dependencies:
   flutter_local_notifications: ^21.0.0   # 21.x builds with Android SDK 36 (22+ wants newer build tools)
   timezone: ^0.11.0
 
+# path_provider_android 2.3 moved to Dart's JNI bridge, and on some phones (a Nothing Phone, issue #2) that bridge
+# can't find Android's own classes: the app stopped at "inPace could not start" with
+# ClassNotFoundException "Landroid/content/Context;". 2.2.x does the same job the older way and works everywhere.
+dependency_overrides:
+  path_provider_android: ">=2.2.0 <2.3.0"
+
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.1
