@@ -191,9 +191,18 @@ class Reminders {
       final r = raw as Map<String, dynamic>;
       final hm = (r['time'] as String).split(':');
       final days = (r['days'] as List).cast<int>(); // 0 = Monday
-      for (var i = 0; i < 28 && id < 400; i++) {
+      final every = (r['every'] as num?)?.toInt() ?? 1; // "Other": every few days from its first day
+      final start = DateTime.tryParse((r['start'] as String?) ?? '');
+      for (var i = 0; i < (every > 1 ? 62 : 28) && id < 400; i++) {
         final when = DateTime(now.year, now.month, now.day + i, int.parse(hm[0]), int.parse(hm[1]));
-        if (!when.isAfter(now) || !days.contains(when.weekday - 1)) continue;
+        if (!when.isAfter(now)) continue;
+        if (every > 1) {
+          if (start == null) continue;
+          final gap = DateTime.utc(when.year, when.month, when.day).difference(DateTime.utc(start.year, start.month, start.day)).inDays;
+          if (gap < 0 || gap % every != 0) continue;
+        } else if (!days.contains(when.weekday - 1)) {
+          continue;
+        }
         await _at(id++, when, r['title'] as String, r['body'] as String, r['kind'] as String, r['url'] as String,
             picture: (r['picture'] as String?) ?? '');
       }

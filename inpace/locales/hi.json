@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}” उनके माइलस्टोन की फ़ाइल से मेल नहीं खाता. इसे बदला गया है.",
  "“{name}” has a few problems": "“{name}” में कुछ दिक्कतें हैं",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ चुनने के लिए · Enter खोलने के लिए · Esc बंद करने के लिए",
- "✓ This record checks out": "✓ यह रिकॉर्ड सही निकला"
+ "✓ This record checks out": "✓ यह रिकॉर्ड सही निकला",
+ "Other…": "अन्य…",
+ "Every %s days": "हर %s दिन",
+ "from": "से",
+ "Every how many days?": "कितने दिनों में एक बार?",
+ "Starting on": "शुरू होने की तारीख",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "जैसे हल्की रफ़्तार के लिए हर 2 दिन, या साप्ताहिक दोहराव के लिए हर 7 दिन।",
+ "Pick days of the week instead": "इसके बजाय हफ़्ते के दिन चुनें",
+ "Choose how many days apart, from 2 to 60.": "दिनों का अंतर चुनें, 2 से 60 तक।"
 }

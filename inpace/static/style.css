@@ -1101,6 +1101,11 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 .rem-days { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .6rem; }
 .rem-days legend { font-weight: 600; font-size: .92rem; margin-block-end: .4rem; }
 .rem-day-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.rem-day-chips.rem-off { opacity: .4; }
+.rem-every { display: grid; gap: .6rem; padding: .8rem; border: 2px solid var(--line); border-radius: var(--r-sm); background: var(--raised); }
+.rem-every[hidden] { display: none; }
+.rem-every input[type=number] { max-width: 7rem; }
+.rem-every .btn { justify-self: start; }
 .chip-check { flex-direction: row; cursor: pointer; }
 .chip-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .chip-check span { display: inline-grid; place-items: center; min-width: 3.2rem; padding: .45rem .7rem; border: 2.5px solid var(--line);

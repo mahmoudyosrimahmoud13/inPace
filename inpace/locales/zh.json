@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}”和他们里程碑里的那个文件不一致。它被改过了。",
  "“{name}” has a few problems": "“{name}”有几处问题",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ 选择 · Enter 打开 · Esc 关闭",
- "✓ This record checks out": "✓ 这份记录没问题"
+ "✓ This record checks out": "✓ 这份记录没问题",
+ "Other…": "其他…",
+ "Every %s days": "每 %s 天",
+ "from": "从",
+ "Every how many days?": "每隔几天？",
+ "Starting on": "开始日期",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "例如每 2 天一次，节奏更轻松；或每 7 天一次，做每周复习。",
+ "Pick days of the week instead": "改为选择星期几",
+ "Choose how many days apart, from 2 to 60.": "选择间隔天数，2 到 60 天。"
 }

@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "«{a}» не совпадает с файлом из его отметок. Файл изменили.",
  "“{name}” has a few problems": "С «{name}» есть несколько проблем",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ выбрать · Enter открыть · Esc закрыть",
- "✓ This record checks out": "✓ Запись в порядке"
+ "✓ This record checks out": "✓ Запись в порядке",
+ "Other…": "Другое…",
+ "Every %s days": "Каждые %s дн.",
+ "from": "с",
+ "Every how many days?": "Раз в сколько дней?",
+ "Starting on": "Начиная с",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Например, каждые 2 дня для спокойного темпа или каждые 7 дней для еженедельного повторения.",
+ "Pick days of the week instead": "Выбрать дни недели",
+ "Choose how many days apart, from 2 to 60.": "Выберите интервал в днях, от 2 до 60."
 }

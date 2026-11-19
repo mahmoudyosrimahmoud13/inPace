@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _('Reminders and alarms') }}{% endblock %}
 {% set DAYS = [_('Mon'), _('Tue'), _('Wed'), _('Thu'), _('Fri'), _('Sat'), _('Sun')] %}
-{% macro days_text(days) %}{% if days|length == 7 %}{{ _('Every day') }}{% elif days == [0, 1, 2, 3, 4] %}{{ _('Weekdays') }}{% elif days == [5, 6] %}{{ _('Weekends') }}{% else %}{% for d in days %}{{ DAYS[d] }}{{ '، ' if lang == 'ar' and not loop.last else ', ' if not loop.last }}{% endfor %}{% endif %}{% endmacro %}
+{% macro days_text(days, every=1, start='') %}{% if every and every > 1 %}{{ _('Every %s days')|format(every) }} · {{ _('from') }} <span dir="ltr">{{ start }}</span>{% elif days|length == 7 %}{{ _('Every day') }}{% elif days == [0, 1, 2, 3, 4] %}{{ _('Weekdays') }}{% elif days == [5, 6] %}{{ _('Weekends') }}{% else %}{% for d in days %}{{ DAYS[d] }}{{ '، ' if lang == 'ar' and not loop.last else ', ' if not loop.last }}{% endfor %}{% endif %}{% endmacro %}
 {% block main %}
 <div class="page-head">
   <p class="eyebrow"><a href="/settings">{% trans trimmed %}Settings{% endtrans %}</a></p>
@@ -29,7 +29,7 @@
     <div class="grow">
       <p class="rem-time" dir="ltr">{{ x.time }}</p>
       <p class="rem-what"><b dir="auto">{{ x.label or _('Time to study') }}</b></p>
-      <p class="small muted">{{ days_text(x.days) }} · {{ _('Alarm') if x.kind == 'alarm' else _('Notification') }}{% if not x.on %} · {{ _('Off') }}{% endif %}</p>
+      <p class="small muted">{{ days_text(x.days, x.every, x.start) }} · {{ _('Alarm') if x.kind == 'alarm' else _('Notification') }}{% if not x.on %} · {{ _('Off') }}{% endif %}</p>
     </div>
     <form method="post"><input type="hidden" name="id" value="{{ x.id }}">
       <button class="btn {{ '' if x.on else 'primary' }}" name="action" value="toggle">{{ _('Turn off') if x.on else _('Turn on') }}</button>
@@ -55,6 +55,16 @@
       <button type="button" class="btn" data-days="0,1,2,3,4,5,6">{{ _('Every day') }}</button>
       <button type="button" class="btn" data-days="0,1,2,3,4">{{ _('Weekdays') }}</button>
       <button type="button" class="btn" data-days="5,6">{{ _('Weekends') }}</button>
+      <button type="button" class="btn" data-rem-other aria-expanded="false">{{ _('Other…') }}</button>
+    </div>
+    <input type="hidden" name="repeat" value="days" data-rem-repeat>
+    <div class="rem-every" data-rem-every hidden>
+      <label>{% trans trimmed %}Every how many days?{% endtrans %}
+        <input type="number" name="every" min="2" max="60" value="2" inputmode="numeric" disabled></label>
+      <label>{% trans trimmed %}Starting on{% endtrans %}
+        <input type="date" name="start" value="{{ today }}" min="{{ today }}" disabled></label>
+      <p class="small muted" style="margin:0">{% trans trimmed %}For example every 2 days for a lighter pace, or every 7 days for a weekly review.{% endtrans %}</p>
+      <button type="button" class="btn small" data-rem-weekdays>{{ _('Pick days of the week instead') }}</button>
     </div>
   </fieldset>
   <fieldset class="source-pick">

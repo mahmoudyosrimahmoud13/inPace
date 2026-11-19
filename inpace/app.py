@@ -14,7 +14,7 @@ import subprocess
 import sys
 import threading
 import time as _time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -2593,10 +2593,21 @@ def create_app(vault: Vault) -> Starlette:
             action = str(form.get("action", ""))
             if action == "add":
                 days = [int(d) for d in form.getlist("days") if str(d).isdigit() and int(d) in range(7)]
+                every, start = 1, None
+                if form.get("repeat") == "every":  # "Other": every few days, from a day you pick
+                    try:
+                        every = int(form.get("every") or 0)
+                    except ValueError:
+                        every = 0
+                    if not 2 <= every <= reminders.MAX_EVERY:
+                        return go("/reminders", err="Choose how many days apart, from 2 to 60.")
+                    start = reminders._date(form.get("start")) or date.today()
+                    days = list(range(7))
                 if not days:
                     return go("/reminders", err="Choose at least one day.")
                 r = reminders.add(V, str(form.get("time", "")), days,
-                                  "alarm" if form.get("kind") == "alarm" else "notify", str(form.get("label", "")))
+                                  "alarm" if form.get("kind") == "alarm" else "notify", str(form.get("label", "")),
+                                  every=every, start=start)
                 if not r:
                     return go("/reminders", err="Choose a time for the reminder.")
                 msg = "Reminder added."
@@ -2615,6 +2626,7 @@ def create_app(vault: Vault) -> Starlette:
             return go("/reminders", ok=msg)
         d = reminders.load(V)
         return page("reminders.html", request, r=d, status=_scheduler_status(), detail=V._meta("scheduler_status", "") or "",
+                    today=date.today().isoformat(),
                     test_msg=reminders.reminder_message(V, {"label": say("Test: this is how a reminder looks")}))
 
     async def reminders_plan(request: Request):

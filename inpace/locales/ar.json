@@ -2401,5 +2401,13 @@
  "Dark mode looks": "شكل الوضع الداكن",
  "Warm dark": "داكن دافئ",
  "AMOLED black": "أسود AMOLED",
- "AMOLED black makes the background fully black: easier on the eyes at night, and it saves battery on phones with OLED screens.": "أسود AMOLED يجعل الخلفية سوداء تمامًا: أريح للعين ليلًا، ويوفّر البطارية في الهواتف ذات شاشات OLED."
+ "AMOLED black makes the background fully black: easier on the eyes at night, and it saves battery on phones with OLED screens.": "أسود AMOLED يجعل الخلفية سوداء تمامًا: أريح للعين ليلًا، ويوفّر البطارية في الهواتف ذات شاشات OLED.",
+ "Other…": "غير ذلك…",
+ "Every %s days": "كل %s أيام",
+ "from": "من",
+ "Every how many days?": "كل كم يومًا؟",
+ "Starting on": "بدءًا من",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "مثلًا كل يومين لوتيرة أخف، أو كل 7 أيام لمراجعة أسبوعية.",
+ "Pick days of the week instead": "اختر أيام الأسبوع بدلًا من ذلك",
+ "Choose how many days apart, from 2 to 60.": "اختر عدد الأيام بين كل تذكير والتالي، من 2 إلى 60."
 }

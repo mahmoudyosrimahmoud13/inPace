@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.30.12
+
+- **Videos follow one clear set of rules, so they can't get mixed up.** Before, if a lesson video was in the mini player and you opened another course and played its video, both videos stayed loaded: the new one didn't shrink when you left its lesson, and on Android the floating window showed a black screen (it was showing the old, hidden video). Now:
+  1. One video plays at a time. Starting a video pauses the one that was playing.
+  2. Videos only play in the main page. Pressing play on a lesson you opened while the mini player was showing closes the mini player, opens that lesson as the main page and starts its video there. So it shrinks into the mini player and floats over other apps like any lesson video.
+  3. The mini player, Android's floating window and the system's media controls all follow that one video.
+  4. The mini player never covers a menu, sheet or dialog.
+- **Reminders: "Other…" for your own schedule.** Next to Every day, Weekdays and Weekends, "Other…" lets a reminder repeat every 2 to 60 days, starting on a day you pick. For example every 2 days for a lighter pace, or every 7 days for a weekly review. It works on computers and on Android.
+
 ## v1.30.11
 
 - **The mini player goes away when you start another video.** On phones, starting a video from another lesson or course paused the one in the mini player but left it on screen. Now it closes as soon as you press play on the new video.

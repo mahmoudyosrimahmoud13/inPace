@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "「{a}」は、マイルストーンのファイルと合いません。変更されています。",
  "“{name}” has a few problems": "「{name}」にはいくつか問題があります",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ で選ぶ・Enterで開く・Escで閉じる",
- "✓ This record checks out": "✓ この記録は確認できました"
+ "✓ This record checks out": "✓ この記録は確認できました",
+ "Other…": "その他…",
+ "Every %s days": "%s日ごと",
+ "from": "開始",
+ "Every how many days?": "何日ごと？",
+ "Starting on": "開始日",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "たとえば、ゆるいペースなら2日ごと、毎週の復習なら7日ごと。",
+ "Pick days of the week instead": "曜日で選ぶ",
+ "Choose how many days apart, from 2 to 60.": "間隔を2〜60日で選んでください。"
 }

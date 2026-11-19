@@ -2251,5 +2251,13 @@
   "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}” não bate com o arquivo dos marcos dessa pessoa. Ele foi mudado.",
   "“{name}” has a few problems": "“{name}” tem alguns problemas",
   "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ para escolher · Enter para abrir · Esc para fechar",
-  "✓ This record checks out": "✓ Este histórico está certo"
+  "✓ This record checks out": "✓ Este histórico está certo",
+  "Other…": "Outro…",
+  "Every %s days": "A cada %s dias",
+  "from": "a partir de",
+  "Every how many days?": "A cada quantos dias?",
+  "Starting on": "A partir de",
+  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Por exemplo, a cada 2 dias para um ritmo mais leve, ou a cada 7 dias para uma revisão semanal.",
+  "Pick days of the week instead": "Escolher dias da semana",
+  "Choose how many days apart, from 2 to 60.": "Escolha o intervalo em dias, de 2 a 60."
 }

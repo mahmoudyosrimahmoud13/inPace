@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "« {a} » ne correspond pas au fichier de ses jalons. Il a été modifié.",
  "“{name}” has a few problems": "« {name} » a quelques problèmes",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer",
- "✓ This record checks out": "✓ Ce parcours est vérifié"
+ "✓ This record checks out": "✓ Ce parcours est vérifié",
+ "Other…": "Autre…",
+ "Every %s days": "Tous les %s jours",
+ "from": "à partir du",
+ "Every how many days?": "Tous les combien de jours ?",
+ "Starting on": "À partir du",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Par exemple tous les 2 jours pour un rythme plus léger, ou tous les 7 jours pour une révision hebdomadaire.",
+ "Pick days of the week instead": "Choisir plutôt des jours de la semaine",
+ "Choose how many days apart, from 2 to 60.": "Choisis l’écart en jours, de 2 à 60."
 }

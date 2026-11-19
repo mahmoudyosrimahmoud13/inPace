@@ -215,3 +215,25 @@ def test_cli_job_never_starts_the_app(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["inpace", "--home", str(tmp_path / "x"), "--check-reminders"])
     main_mod.main()
     assert calls == [("ab12cd34", False), (None, True)]
+
+
+def test_other_every_few_days(tmp_path):
+    """v1.30.11: "Other…" makes a reminder ring every N days from a start day."""
+    from datetime import date
+    v, c = client(tmp_path, "Layla")
+    page = html.unescape(c.get("/reminders").text)
+    assert "Other…" in page and 'name="every"' in page
+    r = c.post("/reminders", data={"action": "add", "time": "08:00", "repeat": "every", "every": "3",
+                                   "start": "2026-11-20", "kind": "notify"}, follow_redirects=True)
+    page = html.unescape(r.text)
+    assert "Reminder added." in page and "Every 3 days" in page and "2026-11-20" in page
+    x = reminders.load(v)["items"][0]
+    assert x["every"] == 3 and x["start"] == "2026-11-20" and x["days"] == list(range(7))
+    assert [reminders.due_on(x, date(2026, 11, d)) for d in (19, 20, 21, 22, 23, 26)] == [False, True, False, False, True, True]
+    assert reminders.plan(v)["reminders"][0]["every"] == 3
+    # The computer's scheduler runs it every day; the job decides.
+    assert notifier.entries(v)[0]["days"] == list(range(7))
+    bad = c.post("/reminders", data={"action": "add", "time": "08:00", "repeat": "every", "every": "1"}, follow_redirects=True)
+    assert "from 2 to 60" in html.unescape(bad.text)
+    # Days-of-the-week reminders work as before.
+    assert reminders.due_on({"days": [0]}, date(2026, 11, 23)) and not reminders.due_on({"days": [0]}, date(2026, 11, 24))

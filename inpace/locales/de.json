@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "„{a}“ passt nicht zur Datei in seinen Meilensteinen. Sie wurde geändert.",
  "“{name}” has a few problems": "„{name}“ hat ein paar Probleme",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ wählen · Enter öffnen · Esc schließen",
- "✓ This record checks out": "✓ Dieser Nachweis ist in Ordnung"
+ "✓ This record checks out": "✓ Dieser Nachweis ist in Ordnung",
+ "Other…": "Andere…",
+ "Every %s days": "Alle %s Tage",
+ "from": "ab",
+ "Every how many days?": "Alle wie viele Tage?",
+ "Starting on": "Ab dem",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Zum Beispiel alle 2 Tage für ein leichteres Tempo oder alle 7 Tage für eine Wochenwiederholung.",
+ "Pick days of the week instead": "Stattdessen Wochentage wählen",
+ "Choose how many days apart, from 2 to 60.": "Wähle den Abstand in Tagen, von 2 bis 60."
 }

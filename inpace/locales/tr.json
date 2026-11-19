@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}”, onun kilometre taşlarındaki dosyayla uyuşmuyor. Değiştirilmiş.",
  "“{name}” has a few problems": "“{name}” ile ilgili birkaç sorun var",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ seçmek için · Enter açmak için · Esc kapatmak için",
- "✓ This record checks out": "✓ Bu kayıt doğrulandı"
+ "✓ This record checks out": "✓ Bu kayıt doğrulandı",
+ "Other…": "Diğer…",
+ "Every %s days": "Her %s günde bir",
+ "from": "başlangıç",
+ "Every how many days?": "Kaç günde bir?",
+ "Starting on": "Başlangıç tarihi",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Örneğin daha hafif bir tempo için 2 günde bir, haftalık tekrar için 7 günde bir.",
+ "Pick days of the week instead": "Bunun yerine haftanın günlerini seç",
+ "Choose how many days apart, from 2 to 60.": "Kaç gün arayla olacağını seç, 2 ile 60 arası."
 }

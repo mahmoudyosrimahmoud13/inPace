@@ -1457,9 +1457,11 @@ document.querySelectorAll("[data-recorder]").forEach((box) => {
     // The mini player follows whichever video is playing. (The focus timer is its own thing: videos never touch it.)
     for (const ev of ["play", "pause", "ratechange", "seeked", "ended"]) v.addEventListener(ev, () => window.inpaceMediaChanged && window.inpaceMediaChanged());
     v.addEventListener("play", () => {
+      if (window.inpaceFramePlay && window.inpaceFramePlay(box)) { v.pause(); return; }  // rule 2 (see "Videos: the rules")
+      const was = window.inpaceNowPlaying;  // rule 1: one video at a time
+      if (was && was.v !== v && !was.v.paused) { try { was.v.pause(); } catch (e) { /* gone */ } }
       window.inpaceNowPlaying = { box, v };
       if (window.inpaceMediaSession) inpaceMediaSession(box, v);
-      try { if (window.parent !== window && parent.inpaceMini) parent.inpaceMini.stop(); } catch (e) { /* not ours */ }
     });
     const lo = parseFloat(L.start || "0") || 0, hiSet = parseFloat(L.end || "0") || 0;
     const hi = () => hiSet || v.duration || 0;
@@ -2418,12 +2420,29 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   sheet.addEventListener("click", (e) => { if (e.target === sheet) close(); });  // tap outside
 })();
 
-// Reminders: "Every day", "Weekdays" and "Weekends" tick the right days.
+// Reminders: "Every day", "Weekdays" and "Weekends" tick the right days. "Other…" swaps the days for
+// "every N days, starting on a day you pick"; "Pick days of the week instead" swaps back.
 document.querySelectorAll("[data-days]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const on = btn.dataset.days.split(",");
-    btn.closest("form").querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
+    const form = btn.closest("form");
+    form.querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
+    if (form._remOther) form._remOther(false);
   });
+});
+document.querySelectorAll("[data-rem-other]").forEach((btn) => {
+  const form = btn.closest("form"), box = form.querySelector("[data-rem-every]");
+  const set = (on) => {
+    box.hidden = !on; btn.setAttribute("aria-expanded", String(on)); btn.classList.toggle("primary", on);
+    form.querySelector("[data-rem-repeat]").value = on ? "every" : "days";
+    box.querySelectorAll("input").forEach((i) => { i.disabled = !on; });
+    form.querySelectorAll(".rem-day-chips input").forEach((i) => { i.disabled = on; });
+    form.querySelector(".rem-day-chips").classList.toggle("rem-off", on);
+    if (on) box.querySelector('input[name="every"]').focus();
+  };
+  form._remOther = set;
+  btn.addEventListener("click", () => set(box.hidden));
+  box.querySelector("[data-rem-weekdays]").addEventListener("click", () => set(false));
 });
 
 // Moving inside a course (next lesson, previous, module tasks, next module, a quiz) replaces the page
@@ -3266,6 +3285,17 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
   document.querySelector("[data-mw-close]").addEventListener("click", () => { const v = media(); if (v) v.pause(); shut(); });
 })();
 
+// ---- Videos: the rules (v1.30.11) ------------------------------------------------------------------------------
+// Every video feature (the mini player, Android's floating window, the system's media controls, the pop-out
+// window) follows these rules, so they can't disagree about which video is "the" video:
+//   1. One video at a time. Starting a video pauses whichever one was playing.
+//   2. Videos only play in the main page. The mini player's frame (the page you opened while a lesson video
+//      played) never plays one: pressing play there stops the mini player's video, opens that page as the main
+//      page, and starts its video there.
+//   3. window.inpaceNowPlaying (in the main page) is the one video. The mini player, the floating window and
+//      the media controls all read it, and nothing else.
+//   4. The mini player never covers anything: it hides while a menu, sheet or dialog is open, and closes when
+//      its video stops for another one.
 // ---- The mini player (v1.30) ---------------------------------------------------------------------------------
 // Leave a lesson while its video plays, and the video shrinks into a corner and keeps playing, like YouTube.
 // How: the lesson page stays loaded underneath; the page you went to opens in a full-window frame on top of
@@ -3281,11 +3311,23 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     }, true);
     html.classList.add("in-mini-host");
     const mini = () => { try { return parent.inpaceMini || null; } catch (x) { return null; } };
-    // Pressing play on a video here: the lesson's video in the mini player stops and goes away right away
-    // (not only once the new video reports it's playing).
+    // Rule 2 (see "Videos: the rules"): no video plays in this frame. Pressing play here opens this page as the
+    // main page and starts the video there, so there's never a second video hidden behind the mini player.
+    const START = ".yt-cover, .yt-choice, .embed-box .play, .pl-big, .pl-play, [data-player] video";
     document.addEventListener("click", (e) => {
-      if (e.target.closest(".yt-cover, .yt-choice, .embed-box .play, .pl-big, .pl-play, [data-player] video")) { const m = mini(); m && m.stop(); }
+      const hit = e.target.closest(START), m = mini();
+      if (!hit || !m || !m.promote) return;
+      const figs = [...document.querySelectorAll("figure.media")], fig = hit.closest("figure.media");
+      e.preventDefault(); e.stopImmediatePropagation();
+      m.promote(location.href, fig ? figs.indexOf(fig) : -1, hit.matches("[data-yt-noads]") ? "noads" : "");
     }, true);
+    window.inpaceFramePlay = (box) => {  // a video started here anyway (keyboard, a script): same rule 2
+      const m = mini();
+      if (!m || !m.promote) return false;
+      const figs = [...document.querySelectorAll("figure.media")], fig = box.closest("figure.media");
+      m.promote(location.href, fig ? figs.indexOf(fig) : -1, "");
+      return true;
+    };
     // A menu, sheet or dialog open on this page (More, search, a course's menu, the tour): the mini player
     // hides so it never covers it, and comes back when it closes.
     const open = () => !!document.querySelector("dialog[open], details.menu[open], .search-pop, .tour-shade, .iv[style*=flex], .diagram-box.is-full");
@@ -3379,6 +3421,12 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
       if (cur) { cur.v.pause(); figOf(cur).classList.add("mini-gone"); }
     },
     under(on) { html.classList.toggle("mini-under", !!on); },  // the frame has a menu or sheet open
+    promote(url, fig, choice) {  // play was pressed on a video in the frame: that page becomes the main page
+      if (cur) cur.v.pause();
+      if (window.inpaceNowPlaying) { try { window.inpaceNowPlaying.v.pause(); } catch (e) { /* gone */ } }
+      try { sessionStorage.setItem("inpace-autoplay", JSON.stringify({ url, fig, choice, at: Date.now() })); } catch (e) { /* private */ }
+      location.href = url;
+    },
     close() {  // stop the video and stay on the page you're on now
       if (cur) cur.v.pause();
       let to = null;
@@ -3399,6 +3447,22 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     if (/^\/(files|media|yt-stream|pdf|outbox|static)\//.test(u.pathname)) return;  // files open as before
     if (api.enter(u.href)) { e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
+  // Arriving from the frame after pressing play there: start that video here.
+  let want = null;
+  try { want = JSON.parse(sessionStorage.getItem("inpace-autoplay") || "null"); sessionStorage.removeItem("inpace-autoplay"); } catch (e) { want = null; }
+  if (want && Date.now() - want.at < 20000 && new URL(want.url, location.href).pathname === location.pathname) {
+    const start = () => {
+      const figs = [...document.querySelectorAll("figure.media")];
+      const fig = figs[want.fig] || figs[0];
+      if (!fig) return;
+      fig.scrollIntoView({ block: "center" });
+      const b = (want.choice === "noads" && fig.querySelector(".yt-choice[data-yt-noads]"))
+        || fig.querySelector(".yt-choice.play, .embed-box .play, .pl-big");
+      if (b) b.click();
+      else { const v = fig.querySelector("video"); if (v) v.play().catch(() => {}); }
+    };
+    if (document.readyState === "complete") setTimeout(start, 50); else addEventListener("load", () => setTimeout(start, 50), { once: true });
+  }
 })();
 
 

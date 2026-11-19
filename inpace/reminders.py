@@ -53,7 +53,28 @@ def _valid(r: dict) -> bool:
     return (isinstance(r, dict) and isinstance(r.get("id"), str) and re.fullmatch(r"[0-9a-f]{8}", r["id"]) is not None
             and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", str(r.get("time", ""))) is not None
             and isinstance(r.get("days"), list) and bool(r["days"]) and all(d in range(7) for d in r["days"])
-            and r.get("kind") in ("notify", "alarm"))
+            and r.get("kind") in ("notify", "alarm")
+            and (int(r.get("every") or 1) == 1 or (isinstance(r.get("every"), int) and 2 <= r["every"] <= MAX_EVERY
+                                                     and _date(r.get("start")) is not None)))
+
+
+MAX_EVERY = 60  # "Other": every 2 to 60 days
+
+
+def _date(s) -> date | None:
+    try:
+        return date.fromisoformat(str(s))
+    except (TypeError, ValueError):
+        return None
+
+
+def due_on(r: dict, day: date) -> bool:
+    """Does this reminder ring on that day? Days of the week, or every few days from its first day."""
+    every = int(r.get("every") or 1)
+    if every > 1:
+        start = _date(r.get("start"))
+        return start is not None and day >= start and (day - start).days % every == 0
+    return day.weekday() in r["days"]
 
 
 def load(v: Vault) -> dict:
@@ -75,9 +96,13 @@ def save(v: Vault, d: dict) -> None:
     v._set_meta("reminders", json.dumps({"items": d["items"], "auto": d["auto"], "miss_days": d["miss_days"]}))
 
 
-def add(v: Vault, time: str, days: list[int], kind: str, label: str = "") -> dict | None:
+def add(v: Vault, time: str, days: list[int], kind: str, label: str = "", every: int = 1,
+        start: date | None = None) -> dict | None:
+    """every > 1: every that many days from `start` (the computer's scheduler runs it daily and it checks)."""
     r = {"id": secrets.token_hex(4), "time": time, "days": sorted(set(days)), "kind": kind,
          "label": label.strip()[:80], "on": True}
+    if every > 1:
+        r.update(days=list(range(7)), every=int(every), start=(start or date.today()).isoformat())
     if not _valid(r):
         return None
     d = load(v)
@@ -369,7 +394,8 @@ def plan(v: Vault, now: datetime | None = None) -> dict:
     for r in d["items"]:
         if r["on"]:
             msg = reminder_message(v, r)
-            reminders.append({"id": r["id"], "time": r["time"], "days": r["days"], "kind": r["kind"], **msg})
+            reminders.append({"id": r["id"], "time": r["time"], "days": r["days"], "kind": r["kind"],
+                              "every": int(r.get("every") or 1), "start": r.get("start") or "", **msg})
     auto = []
     if d["auto"]["miss"]:
         last = _parse(v._meta("last_seen", "") or "") or now
@@ -420,7 +446,7 @@ def run_job(v: Vault, remind: str | None, check: bool) -> None:
             r = {"label": say("Test: this is how a reminder looks"), "kind": "alarm" if remind == "test-alarm" else "notify"}
         else:
             r = find(v, remind)
-            if not r or not r["on"] or datetime.now().weekday() not in r["days"]:
+            if not r or not r["on"] or not due_on(r, datetime.now().date()):
                 return
         msg = reminder_message(v, r)
         if r["kind"] == "alarm":

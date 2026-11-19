@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}” không khớp với tệp trong các mốc của họ. Nó đã bị sửa.",
  "“{name}” has a few problems": "“{name}” có vài vấn đề",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ để chọn · Enter để mở · Esc để đóng",
- "✓ This record checks out": "✓ Thành tích này đúng"
+ "✓ This record checks out": "✓ Thành tích này đúng",
+ "Other…": "Khác…",
+ "Every %s days": "Mỗi %s ngày",
+ "from": "từ",
+ "Every how many days?": "Bao nhiêu ngày một lần?",
+ "Starting on": "Bắt đầu từ",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Ví dụ mỗi 2 ngày cho nhịp nhẹ hơn, hoặc mỗi 7 ngày để ôn tập hằng tuần.",
+ "Pick days of the week instead": "Chọn các ngày trong tuần",
+ "Choose how many days apart, from 2 to 60.": "Chọn khoảng cách theo ngày, từ 2 đến 60."
 }

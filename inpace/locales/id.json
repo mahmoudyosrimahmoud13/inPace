@@ -2251,5 +2251,13 @@
  "“{a}” doesn't match the file in their milestones. It was changed.": "“{a}” tidak cocok dengan berkas di milestone mereka. Berkasnya diubah.",
  "“{name}” has a few problems": "“{name}” punya beberapa masalah",
  "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ untuk memilih · Enter untuk membuka · Esc untuk menutup",
- "✓ This record checks out": "✓ Catatan ini sah"
+ "✓ This record checks out": "✓ Catatan ini sah",
+ "Other…": "Lainnya…",
+ "Every %s days": "Setiap %s hari",
+ "from": "mulai",
+ "Every how many days?": "Setiap berapa hari?",
+ "Starting on": "Mulai tanggal",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Misalnya setiap 2 hari untuk ritme yang lebih ringan, atau setiap 7 hari untuk ulasan mingguan.",
+ "Pick days of the week instead": "Pilih hari dalam seminggu saja",
+ "Choose how many days apart, from 2 to 60.": "Pilih jarak harinya, dari 2 sampai 60."
 }

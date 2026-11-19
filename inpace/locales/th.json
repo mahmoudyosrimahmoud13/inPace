@@ -677,5 +677,13 @@
  "{s} shells for finishing {course}. The trophy is on your island.": "{s} เปลือกหอย จากการเรียนจบ {course} ถ้วยรางวัลอยู่บนเกาะของคุณ",
  "{s} shells for reaching {n}% of {course}.": "{s} เปลือกหอย จากการไปถึง {n}% ของ {course}",
  "· inPace": "· inPace",
- "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ เลือก · Enter เปิด · Esc ปิด"
+ "↑ ↓ to choose · Enter to open · Esc to close": "↑ ↓ เลือก · Enter เปิด · Esc ปิด",
+ "Other…": "อื่น ๆ…",
+ "Every %s days": "ทุก %s วัน",
+ "from": "เริ่ม",
+ "Every how many days?": "ทุกกี่วัน?",
+ "Starting on": "เริ่มวันที่",
+ "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "เช่น ทุก 2 วันเพื่อจังหวะที่เบาลง หรือทุก 7 วันสำหรับทบทวนรายสัปดาห์",
+ "Pick days of the week instead": "เลือกวันในสัปดาห์แทน",
+ "Choose how many days apart, from 2 to 60.": "เลือกระยะห่างเป็นวัน ตั้งแต่ 2 ถึง 60"
 }
