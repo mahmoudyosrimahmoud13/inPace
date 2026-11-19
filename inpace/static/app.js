@@ -660,7 +660,13 @@ class YouTubeMedia extends EventTarget {
     addEventListener("message", (ev) => this._hear(ev));
     this.addEventListener("timeupdate", () => this._drawSub());
     const hello = () => { try { frame.contentWindow.postMessage(JSON.stringify({ event: "listening", id: "inpace", channel: "widget" }), "*"); } catch (e) {} };
-    frame.addEventListener("load", () => { hello(); setTimeout(hello, 800); setTimeout(hello, 2500);
+    // Say hello until YouTube answers: on a busy phone (another video still loaded, a page in the mini player's
+    // frame) its player can take longer than a few seconds to start listening, and without an answer inPace
+    // would switch to YouTube's own player and buttons.
+    this.addEventListener("ythello", () => { this._heard = true; }, { once: true });
+    frame.addEventListener("load", () => {
+      hello(); let n = 0;
+      clearInterval(this._hi); this._hi = setInterval(() => { if (this._heard || ++n > 30 || !frame.isConnected) clearInterval(this._hi); else hello(); }, 700);
       setTimeout(() => { this._cmd("addEventListener", ["onError"]); this._cmd("addEventListener", ["onStateChange"]); }, 300); });
   }
   _cmd(func, args) { try { this.frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: args || [] }), "*"); } catch (e) {} }
@@ -3274,6 +3280,19 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
       try { if (a && parent.inpaceMini && parent.inpaceMini.isLesson(a.href)) { e.preventDefault(); e.stopImmediatePropagation(); parent.inpaceMini.expand(); } } catch (x) { /* not ours */ }
     }, true);
     html.classList.add("in-mini-host");
+    const mini = () => { try { return parent.inpaceMini || null; } catch (x) { return null; } };
+    // Pressing play on a video here: the lesson's video in the mini player stops and goes away right away
+    // (not only once the new video reports it's playing).
+    document.addEventListener("click", (e) => {
+      if (e.target.closest(".yt-cover, .yt-choice, .embed-box .play, .pl-big, .pl-play, [data-player] video")) { const m = mini(); m && m.stop(); }
+    }, true);
+    // A menu, sheet or dialog open on this page (More, search, a course's menu, the tour): the mini player
+    // hides so it never covers it, and comes back when it closes.
+    const open = () => !!document.querySelector("dialog[open], details.menu[open], .search-pop, .tour-shade, .iv[style*=flex], .diagram-box.is-full");
+    let was = false;
+    const check = () => { const now = open(); if (now !== was) { was = now; const m = mini(); m && m.under(now); } };
+    new MutationObserver(check).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["open", "class", "style"] });
+    addEventListener("pagehide", () => { const m = mini(); m && m.under(false); });
     return;
   }
   let host = null, cur = null;
@@ -3351,7 +3370,7 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     expand() {
       if (!host) return;
       host.remove(); host = null;
-      html.classList.remove("mini-on");
+      html.classList.remove("mini-on", "mini-under");
       document.querySelectorAll(".mini-player").forEach((f) => f.classList.remove("mini-player", "mini-gone"));
       document.title = document.title;  // the frame's title went with it
       if (history.state && history.state.inpaceMini) history.replaceState(null, "", location.href);
@@ -3359,6 +3378,7 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     stop() {  // another video started in the frame: this one stops and its mini player goes away
       if (cur) { cur.v.pause(); figOf(cur).classList.add("mini-gone"); }
     },
+    under(on) { html.classList.toggle("mini-under", !!on); },  // the frame has a menu or sheet open
     close() {  // stop the video and stay on the page you're on now
       if (cur) cur.v.pause();
       let to = null;

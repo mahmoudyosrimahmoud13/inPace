@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.30.11
+
+- **The mini player goes away when you start another video.** On phones, starting a video from another lesson or course paused the one in the mini player but left it on screen. Now it closes as soon as you press play on the new video.
+- **The mini player no longer covers menus.** On phones it sat on top of the More sheet and other menus and dialogs. It now hides while one is open and comes back when you close it.
+- **YouTube videos keep inPace's player.** On a busy phone (for example with the mini player open) a new video's YouTube player could take a few seconds too long to answer, so inPace switched to YouTube's own player with its title, buttons and chapter bar. inPace now keeps asking until YouTube answers.
+- **Scrollbars match inPace's colors.** They're thin and quiet in light, dark and AMOLED black. On Linux this also removes the white bar at the window's edge (on the left in Arabic), which was the system's light scrollbar.
+
 ## v1.30.10
 
 - **Android: the app starts again on phones where it stopped at "inPace could not start".** On some phones (a Nothing Phone, issue #2) it showed a Java error, ClassNotFoundException "Landroid/content/Context;". A part the app uses to find its own folder had moved to a new way of talking to Android that fails on those phones. The app now uses the earlier version of that part, which works everywhere. Thanks to pix3latedtr3 for the detailed report.
