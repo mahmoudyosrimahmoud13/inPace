@@ -6,11 +6,13 @@ name: website
 on:
   push:
     branches: [main, master]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "packaging/site_ar.py", "packaging/download_count.py", ".github/workflows/pages.yml"]
   workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6 hours: save the download counts (they only ever go up)
 
 permissions:
-  contents: read
+  contents: write   # to save site/downloads.json
   pages: write
   id-token: write
 
@@ -27,9 +29,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Every release's download count, saved so the website's counter never goes back (deleted or old releases
+      # keep their downloads). Saved back to the repo only when a number changed.
+      - name: Download counter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 packaging/download_count.py site/downloads.json || echo "GitHub didn't answer; keeping the saved counts"
+          if ! git diff --quiet site/downloads.json; then
+            git config user.name "inPace bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add site/downloads.json
+            git commit -m "Website: download counts"
+            git pull --rebase -q && git push -q || echo "Couldn't save the counts this time; next run will"
+          fi
+      # The Arabic home page (/inPace/ar/) is made from the English one, so search engines list both languages.
+      - name: Arabic home page
+        run: python3 packaging/site_ar.py site
       # Give style.css and lang.js a new ?v= on every publish, so browsers drop their old copy and the change shows.
       - name: Fresh links to the style and script files
-        run: sed -i -E "s/(style\.css|lang\.js)\?v=[0-9A-Za-z]+/\1?v=${GITHUB_SHA::10}/g" site/*.html
+        run: sed -i -E "s/(style\.css|lang\.js)\?v=[0-9A-Za-z]+/\1?v=${GITHUB_SHA::10}/g" site/*.html site/ar/*.html
       # A new name for each attempt, so "Re-run jobs" doesn't trip over the copy from the last attempt.
       - uses: actions/upload-pages-artifact@v3
         with:

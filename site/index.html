@@ -3,11 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>inPace · Free open-source learning app with free courses in English and Arabic</title>
+<title>inPace · Free open-source learning app with free courses</title>
 <meta name="description" content="inPace is a free, open-source learning app for Windows, Mac, Linux and Android. Free courses and roadmaps, videos and code, quizzes, AI course maker, and signed milestones. No account, works offline.">
 <meta property="og:title" content="inPace · Learn at your pace. Prove you kept it.">
 <meta property="og:description" content="A free, open-source learning app with a library of free courses made by learners. Windows, Mac, Linux and Android.">
 <link rel="canonical" href="https://mahmoudyosrimahmoud13.github.io/inPace/">
+<link rel="alternate" hreflang="en" href="https://mahmoudyosrimahmoud13.github.io/inPace/">
+<link rel="alternate" hreflang="ar" href="https://mahmoudyosrimahmoud13.github.io/inPace/ar/">
+<link rel="alternate" hreflang="x-default" href="https://mahmoudyosrimahmoud13.github.io/inPace/">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ar_AR">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="inPace">
 <meta property="og:url" content="https://mahmoudyosrimahmoud13.github.io/inPace/">
@@ -20,6 +25,11 @@
 <meta name="twitter:image" content="https://mahmoudyosrimahmoud13.github.io/inPace/assets/og.jpg">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "inPace", "url": "https://mahmoudyosrimahmoud13.github.io/inPace/", "description": "A free, open-source learning app that runs on your own computer or phone. Follow courses with videos, code and quizzes, use free roadmaps, make your own courses with AI, and save signed milestones someone you trust can check.", "applicationCategory": "EducationalApplication", "operatingSystem": "Windows, macOS, Linux, Android", "offers": {"@type": "Offer", "price": 0, "priceCurrency": "USD"}, "downloadUrl": "https://mahmoudyosrimahmoud13.github.io/inPace/#download", "image": "https://mahmoudyosrimahmoud13.github.io/inPace/assets/og.jpg", "license": "https://opensource.org/licenses/MIT", "isAccessibleForFree": true, "inLanguage": ["en", "ar"], "sameAs": ["https://github.com/mahmoudyosrimahmoud13/inpace", "https://mahmoudyosrimahmoud13.github.io/inpace-library/"], "author": {"@type": "Person", "name": "Mahmoud Saad Mahmoud Yosri"}}</script>
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-48.png" type="image/png" sizes="48x48">
+<link rel="icon" href="assets/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#FFD43B">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "name": "inPace", "alternateName": ["inPace app", "inPace learning app"], "url": "https://mahmoudyosrimahmoud13.github.io/inPace/", "inLanguage": ["en", "ar"]}</script>
 <link rel="stylesheet" href="style.css?v=8">
 <script>
   // Pick Arabic for Arabic-speaking visitors, or whatever they chose last time.
@@ -540,14 +550,20 @@
       return out;
     }
     function show(rels) {
+      // Downloads never go back: downloads.json keeps every release's count (even releases that were deleted, or
+      // too old for GitHub's list), and each release counts whichever number is bigger, saved or live.
+      var per = {};
+      Object.keys(SAVED).forEach(function (t) { per[t] = SAVED[t] || 0; });
+      rels.forEach(function (r) { var n = 0; (r.assets || []).forEach(function (a) { n += a.download_count || 0; });
+        per[r.tag_name] = Math.max(per[r.tag_name] || 0, n); });
+      var total = 0;
+      Object.keys(per).forEach(function (t) { total += per[t]; });
+      if (total > 0) { var d = document.getElementById("st-dl"); d.querySelector("b").textContent = total.toLocaleString(); d.hidden = false; }
       var latest = rels.filter(function (r) { return !r.draft && !r.prerelease; })[0];
       if (!latest) return;
-      var total = 0;
-      rels.forEach(function (r) { (r.assets || []).forEach(function (a) { total += a.download_count || 0; }); });
       var ver = latest.tag_name, lang = document.documentElement.lang === "ar" ? "ar" : "en";
       var date = new Date(latest.published_at).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-US", {year: "numeric", month: "long", day: "numeric"});
       var v = document.getElementById("st-ver"); v.querySelector("b").textContent = ver; v.hidden = false;
-      var d = document.getElementById("st-dl"); d.querySelector("b").textContent = total.toLocaleString(); d.hidden = false;
       document.getElementById("dl-ver").textContent = "· " + ver;
       // The Android app is new: until a release carries it, say it's coming instead of linking to a missing file.
       var hasApk = (latest.assets || []).some(function (a) { return /^inPace-android/.test(a.name || ""); });
@@ -572,14 +588,17 @@
     // Saved for 5 minutes, so a new release shows up quickly. (The name changes when this changes, so old saved copies are skipped.)
     var KEY = "inpace-releases3", c = null;
     try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
-    if (c && Date.now() - c.at < 5 * 60e3) { show(c.data); return; }
-    fetch(API, {headers: {Accept: "application/vnd.github+json"}}).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    var SAVED = {};
+    var saved = fetch("https://mahmoudyosrimahmoud13.github.io/inPace/downloads.json", {cache: "no-cache"})
+      .then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { SAVED = (j && j.releases) || {}; }).catch(function () {});
+    if (c && Date.now() - c.at < 5 * 60e3) { saved.then(function () { show(c.data); }); return; }
+    saved.then(function () { return fetch(API, {headers: {Accept: "application/vnd.github+json"}}).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function (data) {
         var slim = data.map(function (r) { return {tag_name: r.tag_name, draft: r.draft, prerelease: r.prerelease, published_at: r.published_at,
           html_url: r.html_url, body: r.body, assets: (r.assets || []).map(function (a) { return {name: a.name, download_count: a.download_count}; })}; });
         try { localStorage.setItem(KEY, JSON.stringify({at: Date.now(), data: slim})); } catch (e) {}
         show(slim);
-      }).catch(function () { if (c) show(c.data); });  // GitHub busy or offline: show the last saved copy
+      }); }).catch(function () { if (c) show(c.data); else show([]); });  // GitHub busy or offline: the last saved copy
   })();
   // How many courses the library has, read from the library's own website, so it updates by itself when a course is added.
   (function () {

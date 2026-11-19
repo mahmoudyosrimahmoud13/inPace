@@ -9,6 +9,14 @@
     picker.value = document.documentElement.lang;
     picker.addEventListener("change", function () {
       var next = picker.value;
+      // English and Arabic each have their own address (so search engines list both). Picking the other one
+      // goes there; the other languages are translated on the English page.
+      var alt = document.querySelector('link[rel=alternate][hreflang="' + (next === "ar" ? "ar" : "en") + '"]');
+      if (alt && alt.href !== location.href.split("#")[0]) {
+        try { localStorage.setItem("inpace-site-lang", next); } catch (e) {}
+        location.href = alt.href + location.hash;
+        return;
+      }
       document.documentElement.lang = next;
       document.documentElement.dir = next === "ar" ? "rtl" : "ltr";
       try { localStorage.setItem("inpace-site-lang", next); } catch (e) {}
