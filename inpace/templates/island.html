@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set live_page = "buttons" %}
 {% block title %}{{ _("Tempo's island") }}{% endblock %}
 {% macro goal_text(g) %}{% if g %}{{ T(g[2], n=g[1]) }}{% endif %}{% endmacro %}
 {% block main %}

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.30.13
+
+- **Buttons don't reload the page anymore.** Turning a reminder on or off, adding or deleting one, saving a setting, and the buttons on My courses, the island, roadmaps, modules, races and People now update only the part of the page that changed. You stay exactly where you were, nothing flashes, and the message ("Saved.") shows as a small notice at the bottom. If a change touches something that can't be updated in place (a new language or theme, a video, a part with its own buttons), the page loads as before, so nothing can break.
+- **Smoother on phones.** Diagrams were the biggest freeze: every lesson with a diagram loaded a 3 MB drawing tool and drew everything again, which locked a phone for a second or more. Now a diagram is kept on the device once drawn and shows instantly next time, and a new one is only drawn when you scroll near it. inPace also prepares every page in the background a few seconds after it starts, so the first visit to each page doesn't wait.
+
 ## v1.30.12
 
 - **Videos follow one clear set of rules, so they can't get mixed up.** Before, if a lesson video was in the mini player and you opened another course and played its video, both videos stayed loaded: the new one didn't shrink when you left its lesson, and on Android the floating window showed a black screen (it was showing the old, hidden video). Now:

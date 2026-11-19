@@ -117,7 +117,7 @@
       {% endif %}
       {% if msg %}<div class="note ok" role="status">{{ msg }}</div>{% endif %}
       {% if err %}<div class="note bad" role="alert">{{ err }}</div>{% endif %}
-      {% if live_page is defined and live_page %}<div id="live-page" data-live class="live-page">{% endif %}
+      {% if live_page is defined and live_page %}<div id="live-page" data-live class="live-page"{% if live_page == 'buttons' %} data-live-buttons{% endif %}>{% endif %}
       {% block main %}{% endblock %}
       {% if live_page is defined and live_page %}</div>{% endif %}
       {% if island_news %}

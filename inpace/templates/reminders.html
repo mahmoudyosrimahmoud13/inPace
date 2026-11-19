@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set live_page = "buttons" %}
 {% block title %}{{ _('Reminders and alarms') }}{% endblock %}
 {% set DAYS = [_('Mon'), _('Tue'), _('Wed'), _('Thu'), _('Fri'), _('Sat'), _('Sun')] %}
 {% macro days_text(days, every=1, start='') %}{% if every and every > 1 %}{{ _('Every %s days')|format(every) }} · {{ _('from') }} <span dir="ltr">{{ start }}</span>{% elif days|length == 7 %}{{ _('Every day') }}{% elif days == [0, 1, 2, 3, 4] %}{{ _('Weekdays') }}{% elif days == [5, 6] %}{{ _('Weekends') }}{% else %}{% for d in days %}{{ DAYS[d] }}{{ '، ' if lang == 'ar' and not loop.last else ', ' if not loop.last }}{% endfor %}{% endif %}{% endmacro %}

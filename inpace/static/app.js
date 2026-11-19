@@ -1,3 +1,8 @@
+// The live parts of the page exactly as Python drew them, before any script here changes them. Updating a part
+// in place compares against this, so a part a script has changed is never overwritten (see "Fresh without
+// reloading" below).
+const inpacePristine = new Map([...document.querySelectorAll("[data-live][id]")].map((el) => [el.id, el.cloneNode(true)]));
+
 // Send a form the same way pressing its button would, so [data-nav-form] forms replace the page.
 function sendForm(form) {
   if (form.requestSubmit) form.requestSubmit(); else form.submit();
@@ -177,34 +182,81 @@ function diagramBox(svgText) {
   return box;
 }
 
-// Diagrams: code blocks marked "mermaid" are drawn as pictures. The drawing code (static/mermaid) is big,
-// so it only loads on pages that have a diagram. A diagram with a mistake shows its text and a note.
+// Diagrams: code blocks marked "mermaid" are drawn as pictures. The drawing code (static/mermaid) is big (3 MB),
+// and on a phone loading it and drawing froze the lesson for a second or more on every visit. So (v1.30.12):
+//   - a diagram, once drawn, is kept on this device (by its text, light or dark, and the font) and shows
+//     instantly next time, without loading the drawing code at all;
+//   - a diagram that isn't kept yet is drawn only when you scroll near it, one at a time.
+// A diagram with a mistake shows its text and a note.
 (() => {
   const blocks = [...document.querySelectorAll("pre.mermaid")];
   if (!blocks.length) return;
-  const s = document.createElement("script");
-  s.src = "/static/mermaid/mermaid.min.js?v=10.9.8";
-  s.onload = async () => {
-    const root = document.documentElement;
-    const dark = root.dataset.theme === "dark" || (root.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-    window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default",
-      fontFamily: getComputedStyle(document.body).fontFamily });
-    for (const [i, pre] of blocks.entries()) {
-      const text = pre.textContent;
+  const VER = "10.9.8";
+  const root = document.documentElement;
+  const dark = root.dataset.theme === "dark" || (root.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const font = getComputedStyle(document.body).fontFamily;
+  const hash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+  const IDX = "inpace-dg-index", LIMIT = 2500000;  // about 2.5 MB of diagrams kept; the oldest go first
+  const store = {
+    get(k) { try { return localStorage.getItem("inpace-dg:" + k); } catch (e) { return null; } },
+    put(k, svg) {
       try {
-        await window.mermaid.parse(text);
-        const { svg } = await window.mermaid.render(`diagram-${i}`, text);
-        pre.replaceWith(diagramBox(svg));
-      } catch (e) {
-        pre.classList.add("diagram-error");
-        const note = document.createElement("span");
-        note.className = "diagram-note";
-        note.textContent = root.lang === "ar" ? "هذا الرسم فيه خطأ، فيظهر نصه بدلًا منه." : "This diagram has a mistake, so its text shows instead.";
-        pre.appendChild(note);
-      }
-    }
+        let idx = JSON.parse(localStorage.getItem(IDX) || "[]").filter((x) => x.k !== k);
+        idx.push({ k, n: svg.length });
+        let total = idx.reduce((a, x) => a + x.n, 0);
+        while (idx.length > 1 && total > LIMIT) { const old = idx.shift(); total -= old.n; localStorage.removeItem("inpace-dg:" + old.k); }
+        for (;;) {
+          try { localStorage.setItem("inpace-dg:" + k, svg); break; } catch (e) {  // full: make room, else give up
+            if (idx.length <= 1) return;
+            localStorage.removeItem("inpace-dg:" + idx.shift().k);
+          }
+        }
+        localStorage.setItem(IDX, JSON.stringify(idx));
+      } catch (e) { /* private window: draw every time, as before */ }
+    },
   };
-  document.head.appendChild(s);
+  const keyOf = (text) => hash(`${VER}|${dark ? "d" : "l"}|${font}|${text}`);
+  const failed = (pre) => {
+    pre.classList.add("diagram-error");
+    const note = document.createElement("span");
+    note.className = "diagram-note";
+    note.textContent = root.lang === "ar" ? "هذا الرسم فيه خطأ، فيظهر نصه بدلًا منه." : "This diagram has a mistake, so its text shows instead.";
+    pre.appendChild(note);
+  };
+  const todo = [];
+  for (const pre of blocks) {
+    const k = keyOf(pre.textContent), svg = store.get(k);
+    if (svg) pre.replaceWith(diagramBox(svg)); else todo.push({ pre, k });
+  }
+  if (!todo.length) return;
+  let ready = null, queue = Promise.resolve();
+  const load = () => ready || (ready = new Promise((ok, no) => {
+    const s = document.createElement("script");
+    s.src = "/static/mermaid/mermaid.min.js?v=" + VER;
+    s.onload = () => {
+      window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default", fontFamily: font });
+      ok(window.mermaid);
+    };
+    s.onerror = no;
+    document.head.appendChild(s);
+  }));
+  const draw = ({ pre, k }) => { queue = queue.then(async () => {
+    if (!pre.isConnected) return;
+    try {
+      const m = await load();
+      const text = pre.textContent;
+      await m.parse(text);
+      const { svg } = await m.render("dg-" + k, text);  // the id comes from the text, so kept diagrams never clash
+      pre.replaceWith(diagramBox(svg));
+      store.put(k, svg);
+    } catch (e) { failed(pre); }
+    await new Promise((r) => setTimeout(r, 30));  // let the page breathe between diagrams
+  }); };
+  if (!("IntersectionObserver" in window)) { todo.forEach(draw); return; }
+  const io = new IntersectionObserver((seen) => {
+    for (const e of seen) if (e.isIntersecting) { io.unobserve(e.target); draw(todo.find((x) => x.pre === e.target)); }
+  }, { rootMargin: "900px 0px" });
+  todo.forEach((x) => io.observe(x.pre));
 })();
 
 // Pictures in a lesson open in a viewer: fit to the screen, zoom with the buttons, the mouse wheel, + and −, or two
@@ -2484,7 +2536,12 @@ document.querySelectorAll("[data-rem-other]").forEach((btn) => {
       const type = r.headers.get("content-type") || "";
       if (type.includes("application/json")) {
         const data = await r.json();
-        if (data && data.go) { goFresh(data.go); return; }
+        if (data && data.go) {
+          // Back to this same page: update only what changed (see "Buttons update in place").
+          const clean = () => { delete f.dataset.sending; f.querySelectorAll("button").forEach((b) => { b.disabled = false; }); };
+          if (window.inpaceSoftGo && await window.inpaceSoftGo(data.go, clean)) { if (f.isConnected) f.reset(); return; }
+          goFresh(data.go); return;
+        }
       }
       if (type.includes("text/html")) {  // a page with a message (for example, a mistake in the form)
         const html = await r.text();
@@ -2769,6 +2826,7 @@ document.addEventListener("click", (ev) => {
   const hint = (kind) => { try { sessionStorage.setItem("inpace-nav", kind); } catch (e) { /* private window */ } };
   const busy = () => { clearTimeout(busy.t); busy.t = setTimeout(() => document.documentElement.classList.add("nav-busy"), 180); };
   const idle = () => { clearTimeout(busy.t); document.documentElement.classList.remove("nav-busy"); };
+  window.inpaceIdle = idle;
   window.addEventListener("pageshow", idle);
   window.addEventListener("pagehide", idle);
 
@@ -2844,31 +2902,59 @@ document.addEventListener("click", (ev) => {
 // place on the page stays, and open sections stay open. If a changed part needs its script again (a player, a
 // folder picker), the page is simply loaded again.
 (() => {
-  const SCRIPTED = "[data-pick-folder], [data-busy], [data-autosubmit], [data-player], [data-embed], [data-offline], " +
-    "[data-yt-save], [data-confetti], [data-search], [data-days], [data-theme-toggle], [data-more-open], script, " +
-    "input, textarea, select, video, audio, iframe, canvas";
-  const scripted = (n) => n.nodeType === 1 && (n.matches(SCRIPTED) || n.querySelector(SCRIPTED));
+  // Never swapped: parts with a script on them (any data- hook, except ones handled for the whole page, or a
+  // video, a frame, a text box). If one of them would have to be swapped, the page loads normally instead.
+  const TAGS = "script, input:not([type=hidden]), textarea, select, video, audio, iframe, canvas, dialog";
+  const DELEGATED = new Set(["data-live", "data-up", "data-replace", "data-nav-form", "data-confetti", "data-l", "data-tip"]);
+  const hooked = (n) => n.nodeType === 1 && (n.matches(TAGS)
+    || [...n.attributes].some((at) => at.name.startsWith("data-") && !DELEGATED.has(at.name)));
+  const scripted = (n) => n.nodeType === 1 && (hooked(n) || [...n.querySelectorAll("*")].some(hooked));
   class NeedsReload extends Error {}
 
-  const patch = (a, b) => {
-    if (a.isEqualNode(b)) return;
-    const same = a.nodeType === 1 && b.nodeType === 1 && a.tagName === b.tagName && a.childNodes.length === b.childNodes.length;
+  // a: the part on screen; b: the same part, freshly drawn by Python; p: how a looked when the page loaded.
+  // Only what Python changed is changed here; what a script changed (an open section, a picture drawn from a
+  // diagram, a button's busy label) is left alone, or, if it can't be, the page loads again.
+  const patch = (a, b, p) => {
+    if (p && p.isEqualNode(b)) return;  // Python drew the same thing: nothing to do
+    if (!p && a.isEqualNode(b)) return;
+    const same = a.nodeType === 1 && b.nodeType === 1 && a.tagName === b.tagName && a.childNodes.length === b.childNodes.length
+      && (!p || (p.nodeType === 1 && p.childNodes.length === a.childNodes.length));
     if (!same) {
-      if (scripted(a) || scripted(b)) throw new NeedsReload();
+      if ((p && !a.isEqualNode(p)) || scripted(a) || scripted(b)) throw new NeedsReload();
       a.replaceWith(document.importNode(b, true));
       return;
     }
-    for (const at of [...a.attributes]) {
+    const was = (name) => (p ? p.getAttribute(name) : a.getAttribute(name));
+    for (const at of [...(p || a).attributes]) {
       if (!b.hasAttribute(at.name) && !(a.tagName === "DETAILS" && at.name === "open")) a.removeAttribute(at.name);
     }
-    for (const at of [...b.attributes]) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
-    const mine = [...a.childNodes], theirs = [...b.childNodes];
-    for (let i = 0; i < mine.length; i++) patch(mine[i], theirs[i]);
+    for (const at of [...b.attributes]) if (was(at.name) !== at.value) a.setAttribute(at.name, at.value);
+    const mine = [...a.childNodes], theirs = [...b.childNodes], before = p ? [...p.childNodes] : [];
+    for (let i = 0; i < mine.length; i++) patch(mine[i], theirs[i], p ? before[i] : null);
+  };
+  // Patch every live part from a freshly drawn page. Throws NeedsReload when it can't be done safely.
+  const apply = (doc) => {
+    const root = document.documentElement, fresh = doc.documentElement;
+    for (const k of ["lang", "dir"]) if (root.getAttribute(k) !== fresh.getAttribute(k)) throw new NeedsReload();
+    for (const k of ["accent", "theme", "black"]) if (root.dataset[k] !== fresh.dataset[k]) throw new NeedsReload();
+    const live = [...document.querySelectorAll("[data-live][id]")];
+    // Check every part first (on copies), so a page is never left half changed.
+    for (const part of live) {
+      const next = doc.getElementById(part.id);
+      if (next) patch(part.cloneNode(true), next, inpacePristine.get(part.id));
+    }
+    for (const part of live) {
+      const next = doc.getElementById(part.id);
+      if (!next) continue;
+      patch(part, next, inpacePristine.get(part.id));
+      inpacePristine.set(part.id, next.cloneNode(true));
+    }
   };
 
   let running = false, last = Date.now();
   const refresh = async () => {
-    const live = [...document.querySelectorAll("[data-live][id]")];
+    // Pages marked [data-live-buttons] only update after their buttons, not on their own.
+    const live = [...document.querySelectorAll("[data-live][id]:not([data-live-buttons])")];
     if (!live.length || running || document.hidden) return;
     if (document.querySelector("dialog[open], [data-offline-job]:not([hidden])")) return;  // don't change what's being used
     const el = document.activeElement;
@@ -2877,13 +2963,7 @@ document.addEventListener("click", (ev) => {
     try {
       const r = await fetch(location.pathname + location.search, { cache: "no-store", headers: { "X-InPace-Soft": "1" } });
       if (!r.ok || new URL(r.url).pathname !== location.pathname) return;
-      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
-      const root = document.documentElement, fresh = doc.documentElement;
-      if (root.lang !== fresh.lang || root.dataset.accent !== fresh.dataset.accent) { location.reload(); return; }
-      for (const part of live) {
-        const next = doc.getElementById(part.id);
-        if (next) patch(part, next);
-      }
+      apply(new DOMParser().parseFromString(await r.text(), "text/html"));
       last = Date.now();
     } catch (e) {
       if (e instanceof NeedsReload) location.reload();  // a part that needs its script changed: load the page again
@@ -2892,6 +2972,96 @@ document.addEventListener("click", (ev) => {
     }
   };
   window.inpaceRefresh = refresh;
+
+  // Buttons update in place (v1.30.12). A button in a live part of the page (turn a reminder off, mark something,
+  // save a setting) is sent in the background. If Python's answer is this same page, only the parts that changed
+  // are updated: no reload, no flash, you stay where you are, and its message shows as a small notice. Anything
+  // else (another page, a part with a script that would have to be redrawn, an error) loads the page as before.
+  const strip = (u) => { const x = new URL(u, location.href); ["ok", "err", "yay"].forEach((k) => x.searchParams.delete(k)); return x; };
+  const notice = (doc) => {
+    const ok = doc.querySelector("main .page > .note.ok"), bad = doc.querySelector("main .page > .note.bad");
+    if (ok && window.inpaceToast) inpaceToast(ok.textContent.trim());
+    if (bad && window.inpaceToast) { inpaceToast(bad.textContent.trim()); const t = document.querySelector(".mini-toast:last-of-type"); t && t.classList.add("bad"); }
+    const page = document.querySelector("main .page");
+    for (const y of doc.querySelectorAll("main .page > .yay")) {
+      const el = document.importNode(y, true);
+      page.appendChild(el);
+      const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
+      el.querySelector(".yay-close").addEventListener("click", close);
+      setTimeout(close, 7000);
+      if (el.hasAttribute("data-confetti") && typeof burstConfetti === "function") burstConfetti();
+    }
+  };
+  // A form sent its own way says "go to this page": if it's this page, update it in place. Says if it did.
+  window.inpaceSoftGo = async (url, before) => {
+    const to = strip(url), here = strip(location.href);
+    if (running || to.pathname !== here.pathname || to.search !== here.search) return false;
+    if (!document.querySelector("[data-live][id]")) return false;  // a #section is ignored: you're already there
+    running = true;
+    try {
+      const r = await fetch(new URL(url, location.href).href, { cache: "no-store", headers: { "X-InPace-Soft": "1" } });
+      if (!r.ok || strip(r.url).pathname !== here.pathname) return false;
+      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+      if (before) before();
+      apply(doc);
+      if (location.href !== to.href) history.replaceState(history.state, "", to.href);
+      notice(doc);
+      last = Date.now();
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      running = false;
+    }
+  };
+  addEventListener("submit", async (e) => {  // on window: after every form's own handler has had its say
+    const f = e.target;
+    if (e.defaultPrevented || !(f instanceof HTMLFormElement) || running) return;
+    if ((f.getAttribute("method") || "get").toLowerCase() !== "post" || f.target || f.hasAttribute("data-nav-form")) return;
+    if (!f.closest("[data-live][id]") || f.querySelector("input[type=file], [data-busy]") || f.enctype === "text/plain") return;
+    const action = new URL(f.getAttribute("action") || location.href, location.href);
+    if (action.origin !== location.origin) return;
+    e.preventDefault();
+    if (window.inpaceIdle) inpaceIdle();
+    const body = new FormData(f);
+    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+    const btns = [...f.querySelectorAll("button, [type=submit]")];
+    btns.forEach((b) => { b.disabled = true; });
+    running = true;
+    let r = null;
+    try {
+      r = await fetch(action.href, { method: "POST", body, headers: { "X-InPace-Soft": "1" } });
+    } catch (err) {
+      running = false;
+      btns.forEach((b) => { b.disabled = false; });
+      if (window.inpaceToast) inpaceToast(document.documentElement.lang === "ar" ? "تعذّر الإرسال. حاول مرة أخرى." : "Couldn't send it. Try again.");
+      return;
+    }
+    try {
+      const type = r.headers.get("content-type") || "";
+      const to = strip(r.url), here = strip(location.href);
+      if (!r.ok || !type.includes("text/html")) {  // an error page, or a file: show it as the browser would
+        if (type.includes("text/html")) { const html = await r.text(); document.open(); document.write(html); document.close(); }
+        else location.assign(r.url);
+        return;
+      }
+      if (to.pathname !== here.pathname || to.search !== here.search) { location.assign(r.url); return; }
+      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+      btns.forEach((b) => { b.disabled = false; });  // back as Python drew them, so the page compares clean
+      try {
+        apply(doc);
+      } catch (err) {
+        location.replace(r.url);  // the change is saved; this only shows it
+        return;
+      }
+      if (f.isConnected) f.reset();
+      if (location.href !== to.href) history.replaceState(history.state, "", to.href);
+      notice(doc);
+      last = Date.now();
+    } finally {
+      running = false;
+    }
+  });
   // Coming back to the app or the window after a while: bring the page up to date, quietly.
   const back = () => { if (Date.now() - last > 20000) refresh(); };
   document.addEventListener("visibilitychange", () => { if (!document.hidden) back(); });

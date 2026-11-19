@@ -614,6 +614,20 @@ def create_app(vault: Vault) -> Starlette:
     except OSError:
         env.bytecode_cache = None  # a read-only folder: compile in memory, like before
 
+    # Warm up (v1.30.12): a few seconds after the start, read every page's template in the background, slowly,
+    # so the first visit to a page doesn't wait for it. On a phone that wait was up to a second per page.
+    def _warm_templates():
+        import time as _t
+        _t.sleep(3)
+        for name in env.list_templates(filter_func=lambda n: n.endswith(".html")):
+            try:
+                env.get_template(name)
+            except Exception:
+                pass
+            _t.sleep(0.02)  # stay out of the way of a page being drawn
+    if not os.environ.get("INPACE_NO_WARMUP"):
+        threading.Thread(target=_warm_templates, name="inpace-warm", daemon=True).start()
+
     # ---- helpers -------------------------------------------------------------
     def page(name: str, request: Request, **ctx) -> HTMLResponse:
         if V.is_set_up:
