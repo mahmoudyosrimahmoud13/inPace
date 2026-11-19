@@ -262,3 +262,11 @@ def test_amoled_black_and_phone_landscape_layout(tmp_path):
     assert ":root[data-black][data-theme=dark]" in css
     # 761-860px wide (a phone on its side): the side menu is hidden, so the page must not keep its column
     assert "@media (min-width: 861px) { .shell { grid-template-columns: 228px" in css
+
+
+def test_mouse_wheel_scrolls_on_macs():
+    """WebKit (the Mac app's window, Safari) ignores a mouse wheel when html or body has overscroll-behavior."""
+    import pathlib, re
+    css = (pathlib.Path(__file__).resolve().parent.parent / "inpace/static/style.css").read_text(encoding="utf-8")
+    bare = re.sub(r"@media \(pointer: coarse\) \{[^}]*\}\s*\}", "", css)
+    assert not re.search(r"(^|[\s,}])(html|body)\s*\{[^}]*overscroll-behavior", bare)

@@ -1695,8 +1695,10 @@ article.card + .outline { margin-block-start: 1.2rem; }
 /* ---- Feels like an app (v1.23) ---------------------------------------------------------------------------------
    Same look, different manners: the things you press behave like buttons in an app, not like parts of a web page. */
 .live-page { display: contents; }
-html { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-body { overscroll-behavior-y: none; }
+html { -webkit-tap-highlight-color: transparent; }
+/* No pull-to-refresh bounce on phones. Only on touch screens: on Macs, Safari's engine (the Mac app's window too)
+   stops scrolling with a mouse wheel when the page has this (trackpads still work). WebKit bug 281300. */
+@media (pointer: coarse) { html, body { overscroll-behavior-y: none; } }
 /* Buttons, menus, tabs and labels aren't text: a long press or a drag doesn't select them or pop up a web menu.
    What you read or type (lessons, notes, fields, code) still selects as always. */
 header.top, nav.side, nav.tabbar, .more-sheet, .btn, .chip, .tile, summary, .stone, .nav-btn, .jump-links, .yay, .big-foot,

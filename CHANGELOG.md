@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.9
+
+- **Mac: the mouse wheel scrolls again.** On recent macOS, pages scrolled with the trackpad but not with a mouse wheel. A setting that stops phones from bouncing when you pull down a page also made Safari's engine (which the Mac app uses) ignore mouse wheels. It now only applies on touch screens. Thanks to k on Discord for reporting it.
+
 ## v1.30.8
 
 - **The quality and subtitle menus fit small video players.** On phones the quality list was taller than the video, so the top of it was cut off. Now the sizes sit in two columns under Auto, the note only shows when there's room (otherwise it's the menu's tooltip), and a long subtitle list scrolls inside the video instead of being cut.
