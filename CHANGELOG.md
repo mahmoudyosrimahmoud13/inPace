@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.16
+
+- **Backups never fail because of a busy file.** On Windows, making a backup could stop with "Permission denied" when inPace happened to be preparing a page in the background at that moment (that file is locked while it's written). Backups now leave out inPace's cache (it's made again by itself) and any half-written file, and skip a file that's locked instead of failing. Everything that matters (your progress, courses, milestones) is in the backup as before.
+
 ## v1.30.15
 
 - **New: Downloads, in the menu.** Every video download in one place, like a download manager:

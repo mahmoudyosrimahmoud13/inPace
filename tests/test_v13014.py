@@ -68,3 +68,15 @@ def test_a_library_course_reports_its_progress(monkeypatch):
     x = library.PROGRESS["tok"]
     assert x["got"] == x["size"] == len(data) and x["title"] == "FastAPI" and x["of"] == 2
     library.PROGRESS.clear()
+
+
+def test_backup_leaves_out_the_cache_and_half_written_files(tmp_path):
+    """The Windows test machine: a template being saved in the background was locked and broke the backup."""
+    from inpace import pace
+    v, c = app(tmp_path)
+    (v.home / "cache" / "templates").mkdir(parents=True, exist_ok=True)
+    (v.home / "cache" / "templates" / "x.cachej3b9udnt.tmp").write_bytes(b"half")
+    (v.home / "notes.part").write_bytes(b"half")
+    z = pace.open_backup(pace.make_backup(v, "longpassword"), "longpassword")
+    names = z.namelist()
+    assert "vault.db" in names and not any(n.startswith("cache/") or n.endswith((".tmp", ".part")) for n in names)

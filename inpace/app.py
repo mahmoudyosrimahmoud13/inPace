@@ -625,7 +625,7 @@ def create_app(vault: Vault) -> Starlette:
             except Exception:
                 pass
             _t.sleep(0.02)  # stay out of the way of a page being drawn
-    if not os.environ.get("INPACE_NO_WARMUP"):
+    if not os.environ.get("INPACE_NO_WARMUP") and "pytest" not in sys.modules:  # tests make many short-lived apps
         threading.Thread(target=_warm_templates, name="inpace-warm", daemon=True).start()
 
     # ---- helpers -------------------------------------------------------------

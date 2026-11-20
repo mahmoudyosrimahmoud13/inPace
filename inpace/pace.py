@@ -153,6 +153,8 @@ def _belongs_in_backup(p, rel: str) -> bool:
     parts = rel.split("/")
     if parts[0] == "tools" or (len(parts) >= 3 and parts[0] == "media" and parts[2] == "videos"):
         return False
+    if parts[0] == "cache" or rel.endswith((".tmp", ".part")):  # made again when needed (and may be half written)
+        return False
     try:
         return p.stat().st_size <= BACKUP_FILE_LIMIT
     except OSError:
@@ -177,7 +179,11 @@ def make_backup(v: Vault, password: str) -> bytes:
         for p in v.home.rglob("*"):
             rel = p.relative_to(v.home).as_posix()
             if p.is_file() and not rel.startswith(("vault.db", "inpace.log")) and _belongs_in_backup(p, rel):
-                zf.write(p, rel)
+                try:  # a file another part of inPace is writing right now (locked on Windows) is skipped
+                    data = p.read_bytes()
+                except OSError:
+                    continue
+                zf.writestr(rel, data)
         zf.writestr("backup.json", json.dumps({"made": _now().isoformat(), "name": v.me["name"]}))
     salt = nacl.utils.random(nacl.pwhash.argon2id.SALTBYTES)
     box = nacl.secret.SecretBox(_key(password, salt))
