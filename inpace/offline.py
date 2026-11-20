@@ -325,6 +325,8 @@ _WHY = (
      "No internet connection, or YouTube can't be reached right now. Try again when you're online."),
     (("Video unavailable", "Private video", "has been removed", "is not available", "account associated with this video"),
      "YouTube says this video isn't available anymore."),
+    (("No module named", "zipimport"),
+     "yt-dlp, the tool that downloads YouTube videos, couldn't be started. Update it in Settings → Videos, then try again."),
     (("Sign in to confirm", "not a bot"),
      "YouTube asked to check that you're not a robot. Try again later, or update yt-dlp in Settings."),
 )
@@ -500,11 +502,12 @@ class ToolProblem(Exception):
     pass
 
 
-def update_tool(home: Path, fetch=_get) -> tuple[bool, str]:
+def update_tool(home: Path, fetch=_get, first_time: bool = False) -> tuple[bool, str]:
     """Get the newest yt-dlp if it's newer than ours. Returns (changed, version).
-    The download is checked against yt-dlp's published SHA-256 checksums before it replaces the old copy."""
+    The download is checked against yt-dlp's published SHA-256 checksums before it replaces the old copy.
+    first_time: a download needs it now and there's no copy yet, so nothing is using it: no need to wait."""
     with _LOCK:
-        if any(j.get("state") == "running" for j in JOBS.values()):
+        if not first_time and tool_path(home).is_file() and any(j.get("state") == "running" for j in JOBS.values()):
             raise ToolProblem("Wait until the video downloads finish, then update.")
         try:
             sums = fetch(RELEASE + "SHA2-256SUMS", 30).decode("utf-8", "replace")
@@ -531,6 +534,50 @@ def update_tool(home: Path, fetch=_get) -> tuple[bool, str]:
             sys.path.remove(str(zp))
         _purge(zp)  # the next download uses the new copy
         return True, version(home)
+
+
+NEED_TOOL = ("inPace downloads YouTube videos with yt-dlp, a free tool (about 3 MB). It isn't on this device yet, "
+             "and inPace couldn't get it. ")
+
+
+def tool_ready(home: Path) -> bool:
+    """Is yt-dlp here and loadable (inPace's own copy, or one installed with pip)?"""
+    try:
+        return load(home) is not None
+    except Exception:
+        return False
+
+
+def ensure_tool(home: Path, fetch=_get):
+    """yt-dlp, ready to use. The first time, inPace gets it (checked against its published checksum). Raises
+    ToolProblem with what went wrong and what to do, in plain words, instead of a bare error."""
+    try:
+        mod = load(home)
+    except Exception:  # a damaged copy: get a fresh one
+        try:
+            tool_path(home).unlink()
+        except OSError:
+            pass
+        _purge(tool_path(home))
+        mod = None
+    if mod is not None:
+        return mod
+    with _FETCHING:
+        if not tool_ready(home):
+            try:
+                update_tool(home, fetch, first_time=True)
+            except ToolProblem as e:
+                raise ToolProblem(NEED_TOOL + str(e))
+            except Exception as e:
+                raise ToolProblem(NEED_TOOL + (plain_why(_short(e)) or "Try again in a moment."))
+    try:
+        mod = load(home)
+    except Exception:
+        mod = None
+    if mod is None:
+        raise ToolProblem("inPace got yt-dlp, but it couldn't be started on this device. Try again, or update it in "
+                          "Settings → Videos.")
+    return mod
 
 
 def auto_update(vault) -> None:
@@ -631,17 +678,15 @@ def stream(home: Path, vid: str, load_fn=None, hls: bool = False, quality: str =
     hit = _STREAMS.get(key)
     if hit and time.time() - hit[0] < 4 * 3600:
         return hit[1]
-    loader = load_fn or load
-    yt_dlp = loader(home)
-    if yt_dlp is None and load_fn is None:
-        with _FETCHING:
-            try:
-                update_tool(home)
-            except Exception as e:
-                return {"why": str(e) or "inPace couldn't get yt-dlp. Check your internet and try again."}
-        yt_dlp = loader(home)
+    if load_fn is None:
+        try:
+            yt_dlp = ensure_tool(home)
+        except ToolProblem as e:
+            return {"why": str(e)}
+    else:
+        yt_dlp = load_fn(home)
     if yt_dlp is None:
-        return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
+        return {"why": NEED_TOOL + "Check your internet and try again."}
     spec = (TWO_FILES.format(q=q) + "/" + ONE_FILE) if sized else (ONE_FILE + "/" + TWO_FILES.format(q=q))
     spec += ("/" + PHONE_STREAM) if hls else ""
     why = ""
@@ -680,16 +725,15 @@ def subtitles(home: Path, vid: str, ui_lang: str = "en", load_fn=None) -> dict:
     hit = _SUBS.get(key)
     if hit and time.time() - hit[0] < 4 * 3600:
         return hit[1]
-    yt_dlp = (load_fn or load)(home)
-    if yt_dlp is None and load_fn is None:
-        with _FETCHING:
-            try:
-                update_tool(home)
-            except Exception:
-                pass
-        yt_dlp = load(home)
+    if load_fn is None:
+        try:
+            yt_dlp = ensure_tool(home)
+        except ToolProblem as e:
+            return {"why": str(e)}
+    else:
+        yt_dlp = load_fn(home)
     if yt_dlp is None:
-        return {"why": "inPace couldn't get yt-dlp. Check your internet and try again."}
+        return {"why": NEED_TOOL + "Check your internet and try again."}
     info, why = None, ""
     for clients in OTHER_CLIENTS:
         opts = {"quiet": True, "no_warnings": True, "skip_download": True, "noplaylist": True, "socket_timeout": 15,
@@ -804,12 +848,10 @@ def _run(opener, course, job) -> None:
     v = opener()  # its own database connection: this runs next to the app
     out_dir = None
     try:
-        if not tool_path(v.home).is_file() and load(v.home) is None:
-            job["title"] = "Getting yt-dlp…"
-            update_tool(v.home)
-        yt_dlp = load(v.home)
-        if yt_dlp is None:
-            raise ToolProblem("yt-dlp couldn't be loaded.")
+        if not tool_ready(v.home):
+            job["title"] = "Getting yt-dlp, the free tool that downloads YouTube videos (first time only)…"
+        yt_dlp = ensure_tool(v.home)
+        job["title"] = ""
         quality = job.get("quality") or v._meta("ytdlp_quality", "720") or "720"
         fmt, merge = _format(quality)
         out_dir = download_folder(v, course)

@@ -45,8 +45,11 @@
         {% for q in qualities %}<option value="{{ q }}" {{ 'selected' if q == quality }}>{{ _('Best') if q == 'best' else q ~ 'p' }}</option>{% endfor %}
       </select></label>
   </div>
+  <p class="small dl-tool">{% if tool %}{{ icon('check', 16) }} {{ T("yt-dlp {v} is ready. It's the free tool inPace uses to download YouTube videos.", v=tool) }}
+    {% else %}{{ icon('alert', 16) }} {% trans trimmed %}yt-dlp, the free tool inPace uses to download YouTube videos, isn't on this device yet. inPace gets it (about 3 MB) the first time you download a video, or now:{% endtrans %}{% endif %}</p>
   <p class="small muted" style="margin:0">{% trans trimmed %}The speed limit is for all downloads together, so the rest of your internet stays usable. Quality is for new downloads; a course can keep its own choice.{% endtrans %}</p>
-  <button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
+  <div class="row wrap"><button class="btn primary">{% trans trimmed %}Save{% endtrans %}</button>
+    <button class="btn" formaction="/settings/videos/update" name="back" value="downloads" formnovalidate data-tool-btn>{{ icon('download', 16) }}{% if tool %}{% trans trimmed %}Update yt-dlp{% endtrans %}{% else %}{% trans trimmed %}Get yt-dlp now{% endtrans %}{% endif %}</button></div>
 </form>
 
 <section class="section">

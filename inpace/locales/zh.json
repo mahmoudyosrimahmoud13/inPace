@@ -2288,5 +2288,7 @@
  "Stop all": "全部停止",
  "Saved": "已保存",
  "Stopped": "已停止",
- "Press again to delete": "再按一次删除"
+ "Press again to delete": "再按一次删除",
+ "Update yt-dlp": "更新 yt-dlp",
+ "Check your internet and try again.": "请检查网络后重试。"
 }

@@ -714,5 +714,7 @@
  "Stop all": "หยุดทั้งหมด",
  "Saved": "บันทึกแล้ว",
  "Stopped": "หยุดแล้ว",
- "Press again to delete": "กดอีกครั้งเพื่อลบ"
+ "Press again to delete": "กดอีกครั้งเพื่อลบ",
+ "Update yt-dlp": "อัปเดต yt-dlp",
+ "Check your internet and try again.": "ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง"
 }

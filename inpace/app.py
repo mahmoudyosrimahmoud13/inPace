@@ -1843,7 +1843,7 @@ def create_app(vault: Vault) -> Starlette:
             ask = f"vid={quote(vid)}" if vid else f"list={quote(plist)}"
             st = offline.video_state(V, c, vid, plist)
             if st.get("why"):
-                st["why"] = gettext(st["why"])
+                st["why"] = _tr_why(st["why"])
             return {"action": f"/courses/{quote(cid)}/offline/video", "status": f"/courses/{quote(cid)}/offline/status?{ask}",
                     "size": offline.nice_size(size) if size else "", **st}
         def subs(media: str) -> list:
@@ -1988,7 +1988,7 @@ def create_app(vault: Vault) -> Starlette:
             if as_json:
                 state = offline.video_state(V, c, vid, plist) if item else {"state": "none"}
                 if state.get("why"):
-                    state["why"] = gettext(state["why"])
+                    state["why"] = _tr_why(state["why"])
                 return JSONResponse({"ok": not err, "message": gettext(ok or err), **state})
             return go(back, ok=ok) if not err else go(back, err=err)
 
@@ -2049,13 +2049,20 @@ def create_app(vault: Vault) -> Starlette:
         return {"running": False, "title": gettext("Downloads finished"), "body": body, "saved": saved,
                 "channel": gettext("Downloads")}
 
+    def _tr_why(text: str) -> str:
+        """Translate a download problem; "couldn't get yt-dlp" messages are two sentences, each translated."""
+        text = text or ""
+        if text.startswith(offline.NEED_TOOL):
+            return gettext(offline.NEED_TOOL.strip()) + " " + gettext(text[len(offline.NEED_TOOL):])
+        return gettext(text)
+
     def _dl_json() -> dict:
         o = offline.overview()
         for c in o["courses"]:
             for f in c["failed"]:
-                f["why"] = gettext(offline.plain_why(f.get("why", "")))
+                f["why"] = _tr_why(offline.plain_why(f.get("why", "")))
             if c.get("error"):
-                c["error"] = gettext(c["error"])
+                c["error"] = _tr_why(c["error"])
             if c.get("note"):
                 c["note"] = gettext(c["note"])
         o["packs"] = {k: dict(x) for k, x in list(library.PROGRESS.items())}
@@ -2067,7 +2074,7 @@ def create_app(vault: Vault) -> Starlette:
                     parallel=offline.SETTINGS["parallel"], rate=offline.SETTINGS.get("rate_key", "0"),
                     rates=list(offline.RATES), nice_size=offline.nice_size,
                     quality=V._meta("ytdlp_quality", "720") or "720", qualities=offline.QUALITIES,
-                    is_android=updater.install_kind() == "android")
+                    is_android=updater.install_kind() == "android", tool=offline.version(V.home))
 
     async def downloads_json(request: Request):
         return JSONResponse(_dl_json(), headers={"Cache-Control": "no-store"})
@@ -2177,16 +2184,16 @@ def create_app(vault: Vault) -> Starlette:
             return JSONResponse({}, status_code=404)
         st = offline.status(V, c)
         job = {k: v for k, v in (st["job"] or {}).items() if k not in ("stop", "pending", "skip", "first", "titles", "completed")}
-        if job.get("title") in ("Getting yt-dlp…", "Reading the playlist…"):
+        if job.get("title"):
             job["title"] = gettext(job["title"])
         if job.get("error"):
-            job["error"] = gettext(job["error"])
+            job["error"] = _tr_why(job["error"])
         out = {"have": st["have"], "total": st["total"], "job": job}
         vid, plist = request.query_params.get("vid", ""), request.query_params.get("list", "")
         if vid or plist:  # one lesson's download button asks how its video is doing
             out["video"] = offline.video_state(V, c, vid, plist)
             if out["video"].get("why"):
-                out["video"]["why"] = gettext(out["video"]["why"])
+                out["video"]["why"] = _tr_why(out["video"]["why"])
         return JSONResponse(out)
 
     async def offline_match(request: Request):
@@ -2336,14 +2343,16 @@ def create_app(vault: Vault) -> Starlette:
 
     async def video_tool_update(request: Request):
         from starlette.concurrency import run_in_threadpool
+        form = await request.form()
+        back = "/downloads" if form.get("back") == "downloads" else "/settings#videos"
         try:
             changed, ver = await run_in_threadpool(offline.update_tool, V.home)
         except offline.ToolProblem as e:
-            return go("/settings#videos", err=str(e))
+            return go(back, err=str(e))
         V._set_meta("ytdlp_checked", str(_time.time()))
         if changed:
-            return go("/settings#videos", ok=gettext("yt-dlp {v} is ready.").format(v=ver))
-        return go("/settings#videos", ok=gettext("You already have the newest yt-dlp ({v}).").format(v=ver))
+            return go(back, ok=gettext("yt-dlp {v} is ready.").format(v=ver))
+        return go(back, ok=gettext("You already have the newest yt-dlp ({v}).").format(v=ver))
 
     async def pdf_reader(request: Request):
         """inPace's own PDF reader (pdf.js, bundled), so PDFs open in every app window, offline."""
@@ -4204,7 +4213,7 @@ def create_app(vault: Vault) -> Starlette:
         found = await run_in_threadpool(offline.stream, V.home, request.path_params["vid"], None,
                                         request.query_params.get("hls") == "1", "720" if q == "best" else q, bool(asked))
         if found.get("why"):
-            found["why"] = gettext(found["why"])
+            found["why"] = _tr_why(found["why"])
         return JSONResponse(found, headers={"Cache-Control": "no-store"})
 
     async def yt_subs(request: Request):
@@ -4216,7 +4225,7 @@ def create_app(vault: Vault) -> Starlette:
             found = await run_in_threadpool(offline.subtitles, V.home, vid, ui)
             tracks = [{"lang": x["lang"], "label": (x["name"] + " · " + say("made by YouTube")) if x["auto"] else x["name"],
                        "from": x.get("from", "")} for x in found.get("tracks", [])]
-            return JSONResponse({"tracks": tracks, "why": gettext(found["why"]) if found.get("why") else ""},
+            return JSONResponse({"tracks": tracks, "why": _tr_why(found["why"]) if found.get("why") else ""},
                                 headers={"Cache-Control": "no-store"})
         try:
             text = await run_in_threadpool(offline.subtitle_text, V.home, vid, lang, ui)

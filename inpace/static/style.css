@@ -2620,3 +2620,5 @@ html.in-pip .pip-video .yt-subs { bottom: .5rem; font-size: .9rem; }
   .dl-acts { justify-content: flex-end; }
   .dl-acts:empty { display: none; }
 }
+.dl-tool { display: flex; gap: .4rem; align-items: flex-start; margin: 0; }
+.dl-tool svg { flex: none; margin-top: .15rem; }

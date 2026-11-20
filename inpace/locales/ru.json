@@ -2288,5 +2288,7 @@
  "Stop all": "Остановить всё",
  "Saved": "Сохранено",
  "Stopped": "Остановлено",
- "Press again to delete": "Нажмите ещё раз, чтобы удалить"
+ "Press again to delete": "Нажмите ещё раз, чтобы удалить",
+ "Update yt-dlp": "Обновить yt-dlp",
+ "Check your internet and try again.": "Проверьте интернет и попробуйте снова."
 }

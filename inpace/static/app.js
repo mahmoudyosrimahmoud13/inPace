@@ -3842,9 +3842,14 @@ window.inpaceMediaSession = (box, v) => {
     const f = e.target;
     if (!(f instanceof HTMLFormElement) || !f.hasAttribute("data-dl-form") || e.defaultPrevented) return;
     e.preventDefault();
+    const sub = e.submitter;
+    const body = new FormData(f);
+    if (sub && sub.name) body.append(sub.name, sub.value);
+    if (sub && sub.hasAttribute("formaction")) sub.classList.add("is-busy");
     f.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     try {
-      const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "X-InPace-Soft": "1" } });
+      const r = await fetch(sub && sub.hasAttribute("formaction") ? sub.formAction : f.action, { method: "POST", body, headers: { "X-InPace-Soft": "1" } });
+      if (sub && sub.hasAttribute("formaction")) { location.href = r.url; return; }  // the page changes (yt-dlp is ready)
       const msg = new URL(r.url).searchParams.get("ok") || new URL(r.url).searchParams.get("err");
       if (msg && window.inpaceToast) inpaceToast(msg);
     } catch (x) { /* offline */ }

@@ -80,3 +80,28 @@ def test_backup_leaves_out_the_cache_and_half_written_files(tmp_path):
     z = pace.open_backup(pace.make_backup(v, "longpassword"), "longpassword")
     names = z.namelist()
     assert "vault.db" in names and not any(n.startswith("cache/") or n.endswith((".tmp", ".part")) for n in names)
+
+
+def test_missing_ytdlp_is_explained_and_fetched_first(tmp_path, home, monkeypatch):
+    """v1.30.17: no yt-dlp yet: inPace gets it before downloading, even while that download is running, and
+    when it can't, it says what yt-dlp is and what to do."""
+    import sys
+    monkeypatch.setattr(offline, "load", lambda h: None if not offline.tool_path(h).is_file() else sys)
+
+    def offline_net(url, timeout=0):
+        raise OSError("Network is unreachable")
+    try:
+        offline.ensure_tool(tmp_path, offline_net)
+        raise AssertionError("it should have failed")
+    except offline.ToolProblem as e:
+        assert str(e).startswith(offline.NEED_TOOL) and "internet" in str(e)
+    # a download running (this one) doesn't block getting it the first time
+    offline.JOBS["x"] = {"state": "running"}
+    data = fake_tool("2026.05.05")
+    fetch = lambda url, timeout=0: (f"{hashlib.sha256(data).hexdigest()}  yt-dlp\n".encode() if url.endswith("SUMS") else data)
+    assert offline.ensure_tool(tmp_path, fetch) is sys and offline.tool_path(tmp_path).is_file()
+    offline.JOBS.clear()
+    monkeypatch.setattr(offline, "version", lambda h: "")
+    v, c = app(tmp_path / "app")
+    page = html.unescape(c.get("/downloads").text)
+    assert "isn't on this device yet" in page and "Get yt-dlp now" in page

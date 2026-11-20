@@ -2288,5 +2288,7 @@
  "Stop all": "Tout arrêter",
  "Saved": "Enregistré",
  "Stopped": "Arrêté",
- "Press again to delete": "Appuie encore pour supprimer"
+ "Press again to delete": "Appuie encore pour supprimer",
+ "Update yt-dlp": "Mettre à jour yt-dlp",
+ "Check your internet and try again.": "Vérifie ta connexion et réessaie."
 }

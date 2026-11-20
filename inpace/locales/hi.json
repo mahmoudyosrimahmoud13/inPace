@@ -2288,5 +2288,7 @@
  "Stop all": "सब बंद करें",
  "Saved": "सहेजा",
  "Stopped": "रुका",
- "Press again to delete": "मिटाने के लिए फिर दबाएँ"
+ "Press again to delete": "मिटाने के लिए फिर दबाएँ",
+ "Update yt-dlp": "yt-dlp अपडेट करें",
+ "Check your internet and try again.": "अपना इंटरनेट जाँचें और फिर कोशिश करें।"
 }

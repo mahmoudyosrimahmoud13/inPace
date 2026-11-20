@@ -2288,5 +2288,7 @@
  "Stop all": "すべて停止",
  "Saved": "保存済み",
  "Stopped": "停止",
- "Press again to delete": "もう一度押すと削除"
+ "Press again to delete": "もう一度押すと削除",
+ "Update yt-dlp": "yt-dlpを更新",
+ "Check your internet and try again.": "インターネット接続を確認して、もう一度お試しください。"
 }

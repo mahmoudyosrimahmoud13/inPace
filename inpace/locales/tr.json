@@ -2288,5 +2288,7 @@
  "Stop all": "Hepsini durdur",
  "Saved": "Kaydedildi",
  "Stopped": "Durduruldu",
- "Press again to delete": "Silmek için tekrar bas"
+ "Press again to delete": "Silmek için tekrar bas",
+ "Update yt-dlp": "yt-dlp'yi güncelle",
+ "Check your internet and try again.": "İnternetini kontrol edip tekrar dene."
 }

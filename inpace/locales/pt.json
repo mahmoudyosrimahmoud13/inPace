@@ -2288,5 +2288,7 @@
   "Stop all": "Parar tudo",
   "Saved": "Salvo",
   "Stopped": "Parado",
-  "Press again to delete": "Toque de novo para apagar"
+  "Press again to delete": "Toque de novo para apagar",
+  "Update yt-dlp": "Atualizar yt-dlp",
+  "Check your internet and try again.": "Verifique sua internet e tente de novo."
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.30.17
+
+- **Downloading a video the first time works, and says what it's doing.** inPace downloads YouTube videos with yt-dlp, a free tool it gets the first time. That first download stopped with "Wait until the video downloads finish, then update" (it was waiting for itself). Now inPace checks that yt-dlp is here before every download and every "Play without ads": if it isn't, it gets it first ("Getting yt-dlp, the free tool that downloads YouTube videos (first time only)…"), and if it can't, it says so in plain words: what yt-dlp is, what went wrong (for example no internet) and what to do. A damaged copy is replaced by a fresh one by itself.
+- **The Downloads page shows yt-dlp's status**, with Get yt-dlp now (or Update yt-dlp) right there.
+
 ## v1.30.16
 
 - **Backups never fail because of a busy file.** On Windows, making a backup could stop with "Permission denied" when inPace happened to be preparing a page in the background at that moment (that file is locked while it's written). Backups now leave out inPace's cache (it's made again by itself) and any half-written file, and skip a file that's locked instead of failing. Everything that matters (your progress, courses, milestones) is in the backup as before.

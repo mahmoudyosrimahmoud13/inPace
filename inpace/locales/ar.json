@@ -2471,5 +2471,14 @@
  "Deleted. This lesson plays from YouTube again.": "حُذف. يعمل هذا الدرس من يوتيوب مرة أخرى.",
  "Show the {n} videos": "اعرض الفيديوهات ({n})",
  "Nothing to download.": "لا شيء للتنزيل.",
- "Press again to delete": "اضغط مرة أخرى للحذف"
+ "Press again to delete": "اضغط مرة أخرى للحذف",
+ "inPace downloads YouTube videos with yt-dlp, a free tool (about 3 MB). It isn't on this device yet, and inPace couldn't get it.": "يُنزّل inPace فيديوهات يوتيوب بأداة مجانية اسمها yt-dlp (حوالي 3 ميجابايت). ليست على هذا الجهاز بعد، ولم يتمكن inPace من جلبها.",
+ "Getting yt-dlp, the free tool that downloads YouTube videos (first time only)…": "جارٍ جلب yt-dlp، الأداة المجانية التي تنزّل فيديوهات يوتيوب (أول مرة فقط)…",
+ "inPace got yt-dlp, but it couldn't be started on this device. Try again, or update it in Settings → Videos.": "جلب inPace أداة yt-dlp، لكن تعذّر تشغيلها على هذا الجهاز. حاول مرة أخرى، أو حدّثها من الإعدادات ← الفيديوهات.",
+ "yt-dlp, the tool that downloads YouTube videos, couldn't be started. Update it in Settings → Videos, then try again.": "تعذّر تشغيل yt-dlp، الأداة التي تنزّل فيديوهات يوتيوب. حدّثها من الإعدادات ← الفيديوهات، ثم حاول مرة أخرى.",
+ "Check your internet and try again.": "تحقّق من الإنترنت وحاول مرة أخرى.",
+ "Try again in a moment.": "حاول مرة أخرى بعد قليل.",
+ "yt-dlp {v} is ready. It's the free tool inPace uses to download YouTube videos.": "yt-dlp {v} جاهزة. إنها الأداة المجانية التي يستخدمها inPace لتنزيل فيديوهات يوتيوب.",
+ "yt-dlp, the free tool inPace uses to download YouTube videos, isn't on this device yet. inPace gets it (about 3 MB) the first time you download a video, or now:": "أداة yt-dlp المجانية التي يستخدمها inPace لتنزيل فيديوهات يوتيوب ليست على هذا الجهاز بعد. يجلبها inPace (حوالي 3 ميجابايت) أول مرة تنزّل فيها فيديو، أو الآن:",
+ "Update yt-dlp": "حدّث yt-dlp"
 }

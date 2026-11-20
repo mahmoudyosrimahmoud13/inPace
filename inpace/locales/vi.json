@@ -2288,5 +2288,7 @@
  "Stop all": "Dừng tất cả",
  "Saved": "Đã lưu",
  "Stopped": "Đã dừng",
- "Press again to delete": "Nhấn lần nữa để xóa"
+ "Press again to delete": "Nhấn lần nữa để xóa",
+ "Update yt-dlp": "Cập nhật yt-dlp",
+ "Check your internet and try again.": "Kiểm tra internet rồi thử lại."
 }
