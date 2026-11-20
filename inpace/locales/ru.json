@@ -2259,5 +2259,11 @@
  "Starting on": "Начиная с",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Например, каждые 2 дня для спокойного темпа или каждые 7 дней для еженедельного повторения.",
  "Pick days of the week instead": "Выбрать дни недели",
- "Choose how many days apart, from 2 to 60.": "Выберите интервал в днях, от 2 до 60."
+ "Choose how many days apart, from 2 to 60.": "Выберите интервал в днях, от 2 до 60.",
+ "Downloading {n} courses…": "Загружаем курсы: {n}…",
+ "Download all {n} courses": "Скачать все курсы ({n})",
+ "Download the remaining {n} courses": "Скачать остальные курсы ({n})",
+ "Download the remaining course": "Скачать оставшийся курс",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "Одно нажатие: вы подписываетесь на маршрут, и все курсы появляются на этом устройстве, даже без интернета.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "Все курсы на этом устройстве, даже без интернета. Каждый вы начинаете, когда до него дойдёте."
 }

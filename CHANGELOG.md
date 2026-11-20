@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.30.14
+
+- **Download a whole roadmap with one click.** A roadmap from the library now has "Download all N courses" right under "Follow this roadmap": one click follows it and puts every course on your device, ready even offline. On a roadmap you already follow, the button sits at the top too, and offers the courses that aren't on your device yet ("Download the remaining 3 courses"), with their size. You still start each course when you get to it.
+
 ## v1.30.13
 
 - **Buttons don't reload the page anymore.** Turning a reminder on or off, adding or deleting one, saving a setting, and the buttons on My courses, the island, roadmaps, modules, races and People now update only the part of the page that changed. You stay exactly where you were, nothing flashes, and the message ("Saved.") shows as a small notice at the bottom. If a change touches something that can't be updated in place (a new language or theme, a video, a part with its own buttons), the page loads as before, so nothing can break.

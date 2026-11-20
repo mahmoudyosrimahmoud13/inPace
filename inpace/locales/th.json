@@ -685,5 +685,11 @@
  "Starting on": "เริ่มวันที่",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "เช่น ทุก 2 วันเพื่อจังหวะที่เบาลง หรือทุก 7 วันสำหรับทบทวนรายสัปดาห์",
  "Pick days of the week instead": "เลือกวันในสัปดาห์แทน",
- "Choose how many days apart, from 2 to 60.": "เลือกระยะห่างเป็นวัน ตั้งแต่ 2 ถึง 60"
+ "Choose how many days apart, from 2 to 60.": "เลือกระยะห่างเป็นวัน ตั้งแต่ 2 ถึง 60",
+ "Downloading {n} courses…": "กำลังดาวน์โหลด {n} คอร์ส…",
+ "Download all {n} courses": "ดาวน์โหลดทั้งหมด {n} คอร์ส",
+ "Download the remaining {n} courses": "ดาวน์โหลดอีก {n} คอร์สที่เหลือ",
+ "Download the remaining course": "ดาวน์โหลดคอร์สที่เหลือ",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "คลิกเดียว: ติดตามโรดแมปและนำทุกคอร์สมาไว้ในเครื่องนี้ พร้อมใช้แม้ออฟไลน์",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "ทุกคอร์สพร้อมในเครื่องนี้ แม้ออฟไลน์ คุณยังเริ่มแต่ละคอร์สเมื่อไปถึง"
 }

@@ -2259,5 +2259,11 @@
  "Starting on": "開始日",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "たとえば、ゆるいペースなら2日ごと、毎週の復習なら7日ごと。",
  "Pick days of the week instead": "曜日で選ぶ",
- "Choose how many days apart, from 2 to 60.": "間隔を2〜60日で選んでください。"
+ "Choose how many days apart, from 2 to 60.": "間隔を2〜60日で選んでください。",
+ "Downloading {n} courses…": "{n} コースをダウンロード中…",
+ "Download all {n} courses": "{n} コースをすべてダウンロード",
+ "Download the remaining {n} courses": "残りの {n} コースをダウンロード",
+ "Download the remaining course": "残りのコースをダウンロード",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "ワンクリックでロードマップをフォローし、すべてのコースをこの端末に入れます。オフラインでも使えます。",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "すべてのコースがこの端末に。オフラインでも使えます。各コースはそこに着いたときに始めます。"
 }

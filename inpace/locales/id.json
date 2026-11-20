@@ -2259,5 +2259,11 @@
  "Starting on": "Mulai tanggal",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Misalnya setiap 2 hari untuk ritme yang lebih ringan, atau setiap 7 hari untuk ulasan mingguan.",
  "Pick days of the week instead": "Pilih hari dalam seminggu saja",
- "Choose how many days apart, from 2 to 60.": "Pilih jarak harinya, dari 2 sampai 60."
+ "Choose how many days apart, from 2 to 60.": "Pilih jarak harinya, dari 2 sampai 60.",
+ "Downloading {n} courses…": "Mengunduh {n} kursus…",
+ "Download all {n} courses": "Unduh semua {n} kursus",
+ "Download the remaining {n} courses": "Unduh {n} kursus lainnya",
+ "Download the remaining course": "Unduh kursus yang tersisa",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "Satu klik: mengikuti roadmap dan menaruh setiap kursus di perangkat ini, siap bahkan saat offline.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "Setiap kursus siap di perangkat ini, bahkan offline. Kamu tetap memulai masing-masing saat sampai di sana."
 }

@@ -2259,5 +2259,11 @@
  "Starting on": "开始日期",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "例如每 2 天一次，节奏更轻松；或每 7 天一次，做每周复习。",
  "Pick days of the week instead": "改为选择星期几",
- "Choose how many days apart, from 2 to 60.": "选择间隔天数，2 到 60 天。"
+ "Choose how many days apart, from 2 to 60.": "选择间隔天数，2 到 60 天。",
+ "Downloading {n} courses…": "正在下载 {n} 门课程…",
+ "Download all {n} courses": "下载全部 {n} 门课程",
+ "Download the remaining {n} courses": "下载其余 {n} 门课程",
+ "Download the remaining course": "下载剩下的那门课程",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "一键：关注该路线图，并把每门课程放到这台设备上，离线也能用。",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "每门课程都已在这台设备上，离线也能用。你仍然在学到时再开始每一门。"
 }

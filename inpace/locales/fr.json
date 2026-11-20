@@ -2259,5 +2259,11 @@
  "Starting on": "À partir du",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Par exemple tous les 2 jours pour un rythme plus léger, ou tous les 7 jours pour une révision hebdomadaire.",
  "Pick days of the week instead": "Choisir plutôt des jours de la semaine",
- "Choose how many days apart, from 2 to 60.": "Choisis l’écart en jours, de 2 à 60."
+ "Choose how many days apart, from 2 to 60.": "Choisis l’écart en jours, de 2 à 60.",
+ "Downloading {n} courses…": "Téléchargement de {n} cours…",
+ "Download all {n} courses": "Télécharger les {n} cours",
+ "Download the remaining {n} courses": "Télécharger les {n} autres cours",
+ "Download the remaining course": "Télécharger le cours restant",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "En un clic : suit le parcours et met chaque cours sur cet appareil, prêt même hors ligne.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "Chaque cours prêt sur cet appareil, même hors ligne. Tu commences chacun quand tu y arrives."
 }

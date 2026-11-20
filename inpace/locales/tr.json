@@ -2259,5 +2259,11 @@
  "Starting on": "Başlangıç tarihi",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Örneğin daha hafif bir tempo için 2 günde bir, haftalık tekrar için 7 günde bir.",
  "Pick days of the week instead": "Bunun yerine haftanın günlerini seç",
- "Choose how many days apart, from 2 to 60.": "Kaç gün arayla olacağını seç, 2 ile 60 arası."
+ "Choose how many days apart, from 2 to 60.": "Kaç gün arayla olacağını seç, 2 ile 60 arası.",
+ "Downloading {n} courses…": "{n} kurs indiriliyor…",
+ "Download all {n} courses": "{n} kursun hepsini indir",
+ "Download the remaining {n} courses": "Kalan {n} kursu indir",
+ "Download the remaining course": "Kalan kursu indir",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "Tek tık: yol haritasını takip eder ve her kursu bu cihaza koyar, çevrimdışı da hazır.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "Her kurs bu cihazda hazır, çevrimdışı da. Her birine geldiğinde başlarsın."
 }

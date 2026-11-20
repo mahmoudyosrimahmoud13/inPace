@@ -2,6 +2,13 @@
 {% set live_page = "buttons" %}
 {% import "_roadmap.html" as R with context %}
 {% block title %}{{ rm.title }}{% endblock %}
+{% macro download_all() %}
+<form method="post" action="/roadmaps/{{ rm.id }}/add-all" class="rm-add-all">
+  <button class="btn {{ 'big' if where == 'library' else '' }}" data-busy="{{ T('Downloading {n} courses…', n=st.to_add|length) if st.to_add|length > 1 else _('Adding…') }}">{{ icon('download', 18) }}
+    {% if st.to_add|length == st.steps|length %}{{ T('Download all {n} courses', n=st.to_add|length) }}{% else %}{{ T('Download the remaining {n} courses', n=st.to_add|length) if st.to_add|length > 1 else _('Download the remaining course') }}{% endif %}{% if st.add_bytes %} · {{ (st.add_bytes / 1048576)|round(1) }} MB{% endif %}</button>
+  <span class="small muted">{% if where == 'library' %}{% trans trimmed %}One click: follows the roadmap and puts every course on this device, ready even offline.{% endtrans %}{% else %}{% trans trimmed %}Every course ready on this device, even offline. You still start each one when you get to it.{% endtrans %}{% endif %}</span>
+</form>
+{% endmacro %}
 {% block main %}
 {% set here = st.current %}
 <div class="page-head rm-head">
@@ -31,11 +38,13 @@
     <p class="note warn small">{{ T('Course {n}, “{name}”, comes from the course library. Connect to the internet, then check again.', n=here.n, name=here.title) }}
       <a class="btn small" href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check again{% endtrans %}</a></p>
     {% endif %}
+  {% if st.to_add %}{{ download_all() }}{% endif %}
   {% elif st.blocked %}<p class="small"><b>{% trans trimmed %}You've done every course you can get on this roadmap. The ones left aren't in the library.{% endtrans %}</b></p>
   {% elif st.finished %}<p><span class="chip good">{% trans trimmed %}Roadmap finished. Tempo reached the harbour!{% endtrans %}</span></p>{% endif %}
   {% elif where == 'library' %}
   <form method="post" action="/roadmaps/{{ rm.id }}/follow" class="rm-follow"><button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
     <span class="small muted">{% trans trimmed %}Its progress shows on Home, and Tempo sails it with you on the island. You add its courses one at a time, when you get to them.{% endtrans %}</span></form>
+  {% if st.to_add %}{{ download_all() }}{% endif %}
   {% elif where == 'shared' %}
   <form method="post" action="/roadmaps/shared" class="rm-follow"><input type="hidden" name="data" value="{{ shared_json }}">
     <button class="btn primary big">{{ icon('route', 20) }}{% trans trimmed %}Follow this roadmap{% endtrans %}</button>
@@ -89,12 +98,6 @@
 {% if where == 'mine' and st.unknown and not st.missing and not (here and here.state == 'unknown') %}
 <p class="note small">{% trans trimmed %}inPace couldn't look in the course library (you may be offline), so some courses show as not found yet.{% endtrans %}
   <a href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check again{% endtrans %}</a></p>
-{% endif %}
-{% if where == 'mine' and st.to_add|length > 1 %}
-<form method="post" action="/roadmaps/{{ rm.id }}/add-all" class="row wrap rm-add-all">
-  <p class="muted small grow">{{ T("{n} of its courses aren't on this device yet. Add each one when you get to it, or add them all now, for example before you go offline.", n=st.to_add|length) }}</p>
-  <button class="btn small" data-busy="{{ _('Adding…') }}">{{ icon('download', 16) }}{{ T('Add all {n}', n=st.to_add|length) }}{% if st.add_bytes %} · {{ (st.add_bytes / 1048576)|round(1) }} MB{% endif %}</button>
-</form>
 {% endif %}
 
 <figure class="card voyage-card">

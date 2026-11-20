@@ -2409,5 +2409,11 @@
  "Starting on": "بدءًا من",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "مثلًا كل يومين لوتيرة أخف، أو كل 7 أيام لمراجعة أسبوعية.",
  "Pick days of the week instead": "اختر أيام الأسبوع بدلًا من ذلك",
- "Choose how many days apart, from 2 to 60.": "اختر عدد الأيام بين كل تذكير والتالي، من 2 إلى 60."
+ "Choose how many days apart, from 2 to 60.": "اختر عدد الأيام بين كل تذكير والتالي، من 2 إلى 60.",
+ "Downloading {n} courses…": "جارٍ تنزيل {n} دورات…",
+ "Download all {n} courses": "نزّل كل الدورات ({n})",
+ "Download the remaining {n} courses": "نزّل الدورات الباقية ({n})",
+ "Download the remaining course": "نزّل الدورة الباقية",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "بضغطة واحدة: تتابع المسار وتنزّل كل دوراته على هذا الجهاز، جاهزة حتى دون إنترنت.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "كل الدورات جاهزة على هذا الجهاز حتى دون إنترنت. وتبدأ كل دورة حين تصل إليها."
 }

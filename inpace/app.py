@@ -1419,6 +1419,11 @@ def create_app(vault: Vault) -> Starlette:
         mine = roadmaps.get(V.home, rid)
         if mine and mine.get("source") == "mine":
             return go(f"/roadmaps/{rid}", err="You already have a roadmap with this name.")
+        _follow_library(lib_copy, mine, index)
+        return go(f"/roadmaps/{rid}", ok="Updated to the library's version." if mine else "You're following this roadmap. Add its first course to start.")
+
+    def _follow_library(lib_copy: dict, mine: dict | None, index: dict) -> dict:
+        """Keep a copy of a library roadmap here (following it)."""
         copy = {**lib_copy, "source": "library", "library_hash": lib_copy["hash"],
                 "followed_at": (mine or {}).get("followed_at") or now_utc()}
         for s in copy["steps"]:  # remember course names, for before the courses are added
@@ -1426,7 +1431,7 @@ def create_app(vault: Vault) -> Starlette:
             if e and not s.get("title"):
                 s["title"] = e.get("title", "")
         roadmaps.save(V.home, copy)
-        return go(f"/roadmaps/{rid}", ok="Updated to the library's version." if mine else "You're following this roadmap. Add its first course to start.")
+        return copy
 
     async def roadmap_follow_shared(request: Request):
         """Follow a roadmap someone sent you as a link (the whole roadmap is inside the link)."""
@@ -1480,12 +1485,15 @@ def create_app(vault: Vault) -> Starlette:
         from starlette.concurrency import run_in_threadpool
         rid = request.path_params["rid"]
         rm = roadmaps.get(V.home, rid)
-        if not rm:
-            return go("/roadmaps", err="Follow the roadmap first.")
         try:
             index = await run_in_threadpool(library.load_index, V.home)
         except library.LibraryProblem as e:
             return go(f"/roadmaps/{quote(rid)}", err=str(e))
+        if not rm:  # a library roadmap you don't follow yet: one click follows it and downloads everything (v1.30.14)
+            lib_copy = roadmaps.library_find(index, rid)
+            if not lib_copy:
+                return go("/roadmaps", err="That roadmap isn't in the library anymore.")
+            rm = _follow_library(lib_copy, None, index)
         added, failed = [], []
         for s in roadmaps.status(V, rm, index)["to_add"]:
             if V.get_course(s["course"]):

@@ -2259,5 +2259,11 @@
  "Starting on": "शुरू होने की तारीख",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "जैसे हल्की रफ़्तार के लिए हर 2 दिन, या साप्ताहिक दोहराव के लिए हर 7 दिन।",
  "Pick days of the week instead": "इसके बजाय हफ़्ते के दिन चुनें",
- "Choose how many days apart, from 2 to 60.": "दिनों का अंतर चुनें, 2 से 60 तक।"
+ "Choose how many days apart, from 2 to 60.": "दिनों का अंतर चुनें, 2 से 60 तक।",
+ "Downloading {n} courses…": "{n} कोर्स डाउनलोड हो रहे हैं…",
+ "Download all {n} courses": "सभी {n} कोर्स डाउनलोड करें",
+ "Download the remaining {n} courses": "बाकी {n} कोर्स डाउनलोड करें",
+ "Download the remaining course": "बचा हुआ कोर्स डाउनलोड करें",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "एक क्लिक: रोडमैप फ़ॉलो करता है और हर कोर्स इस डिवाइस पर रख देता है, ऑफ़लाइन भी तैयार।",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "हर कोर्स इस डिवाइस पर तैयार, ऑफ़लाइन भी। हर कोर्स आप तभी शुरू करें जब वहाँ पहुँचें।"
 }

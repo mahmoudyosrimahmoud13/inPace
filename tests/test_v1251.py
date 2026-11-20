@@ -63,7 +63,7 @@ def test_follow_adds_nothing_and_add_all_adds_every_course(app, monkeypatch):
     c.post("/roadmaps/python-web/follow")
     assert not v.get_course("python-basics") and not v.get_course("fastapi")  # following downloads nothing
     page = html.unescape(c.get("/roadmaps/python-web").text)
-    assert 'action="/roadmaps/python-web/add-all"' in page and "Add all 2" in page
+    assert 'action="/roadmaps/python-web/add-all"' in page and "Download all 2 courses" in page
     r = c.post("/roadmaps/python-web/add-all", follow_redirects=False)
     assert "Added 2 courses" in html.unescape(r.headers["location"].replace("%20", " "))
     assert v.get_course("python-basics") and v.get_course("fastapi")
@@ -82,3 +82,18 @@ def test_a_shared_roadmap_says_which_courses_cant_be_added_before_you_follow(app
     yml = b"title: X\nsteps:\n  - secret-course\n  - python-basics\n"
     page = html.unescape(c.post("/open", files={"file": ("x.roadmap.yaml", yml, "text/yaml")}).text)
     assert "Follow this roadmap" in page and "so you can’t add them from here" in page and "secret-course" in page
+
+
+def test_one_click_downloads_a_whole_library_roadmap(app, monkeypatch):
+    """v1.30.14: on a library roadmap you don't follow yet, one button follows it and downloads every course."""
+    v, c = app
+    monkeypatch.setattr(library, "load_index", lambda home, force=False: lib_index())
+    page = html.unescape(c.get("/roadmaps/python-web").text)
+    assert "Follow this roadmap" in page and "Download all 2 courses" in page and "One click" in page
+    r = c.post("/roadmaps/python-web/add-all", follow_redirects=False)
+    assert "Added 2 courses" in html.unescape(r.headers["location"].replace("%20", " "))
+    assert roadmaps.get(v.home, "python-web")["source"] == "library"
+    assert v.get_course("python-basics") and v.get_course("fastapi")
+    # with one course already here, the button offers the rest
+    v2_page = html.unescape(c.get("/roadmaps/python-web").text)
+    assert "add-all" not in v2_page

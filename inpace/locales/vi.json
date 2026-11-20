@@ -2259,5 +2259,11 @@
  "Starting on": "Bắt đầu từ",
  "For example every 2 days for a lighter pace, or every 7 days for a weekly review.": "Ví dụ mỗi 2 ngày cho nhịp nhẹ hơn, hoặc mỗi 7 ngày để ôn tập hằng tuần.",
  "Pick days of the week instead": "Chọn các ngày trong tuần",
- "Choose how many days apart, from 2 to 60.": "Chọn khoảng cách theo ngày, từ 2 đến 60."
+ "Choose how many days apart, from 2 to 60.": "Chọn khoảng cách theo ngày, từ 2 đến 60.",
+ "Downloading {n} courses…": "Đang tải {n} khóa học…",
+ "Download all {n} courses": "Tải cả {n} khóa học",
+ "Download the remaining {n} courses": "Tải {n} khóa học còn lại",
+ "Download the remaining course": "Tải khóa học còn lại",
+ "One click: follows the roadmap and puts every course on this device, ready even offline.": "Một chạm: theo dõi lộ trình và đưa mọi khóa học vào thiết bị này, dùng được cả khi offline.",
+ "Every course ready on this device, even offline. You still start each one when you get to it.": "Mọi khóa học sẵn sàng trên thiết bị này, cả khi offline. Bạn vẫn bắt đầu từng khóa khi đến lượt."
 }
