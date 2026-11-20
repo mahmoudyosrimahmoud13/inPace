@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ lang or 'en' }}" dir="{{ lang_dir(lang or 'en') }}"{% if theme %} data-theme="{{ theme }}"{% endif %}{% if black %} data-black{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
+<html lang="{{ lang or 'en' }}" dir="{{ lang_dir(lang or 'en') }}"{% if dl_now %} data-dl-now="{{ dl_now }}"{% endif %}{% if theme %} data-theme="{{ theme }}"{% endif %}{% if black %} data-black{% endif %}{% if accent %} data-accent="{{ accent }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -77,6 +77,7 @@
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
     <a href="/add" class="{{ 'on' if p.startswith('/add') or p.startswith('/ai') or p.startswith('/edit') }}">{{ icon('plus', 22) }}{{ _("Add a course") }}</a>
     <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}{% if lib_new %}<em class="badge" title="{{ _('New courses') }}">{{ lib_new }}</em>{% endif %}</a>
+    <a href="/downloads" data-dl-link class="{{ 'on' if p.startswith('/downloads') }}">{{ icon('download', 22) }}{{ _("Downloads") }}{% if dl_now %}<em class="badge">{{ dl_now }}</em>{% endif %}</a>
     <p class="side-h">{% trans trimmed %}People I check on{% endtrans %}</p>
     {% for x in checking %}
       <a href="/people#p-{{ x.id[:12] }}" class="person-link">{{ avatar(x, 24) }}<span>{{ display_name(x) }}</span>{% if x.waiting %}<em class="badge">{{ x.waiting }}</em>{% endif %}</a>
@@ -159,13 +160,13 @@
   {% if me %}
   {% set p = active_path %}
   {% set waiting = checking|sum(attribute='waiting') if checking else 0 %}
-  {% set more_on = p.startswith('/roadmaps') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') or p.startswith('/feedback') or p.startswith('/share') %}
+  {% set more_on = p.startswith('/roadmaps') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') or p.startswith('/feedback') or p.startswith('/share') or p.startswith('/downloads') %}
   <nav class="tabbar" aria-label="{{ _('Main') }}">
     <a href="/" class="{{ 'on' if p == '/' }}" {{ 'aria-current=page' if p == '/' }}>{{ icon('home', 22) }}<span>{{ _("Home") }}</span></a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}<span>{{ _("Courses") }}</span></a>
     <a href="/add" class="tab-add {{ 'on' if p.startswith('/add') or p.startswith('/ai') or p.startswith('/edit') }}">{{ icon('plus', 24) }}<span>{{ _("Add") }}</span></a>
     <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield', 22) }}<span>{{ _("Milestones") }}</span></a>
-    <button type="button" class="{{ 'on' if more_on }}" data-more-open aria-haspopup="dialog">{{ icon('more', 22) }}<span>{{ _("More") }}</span>{% set more_n = (waiting or 0) + (lib_new or 0) %}{% if more_n %}<em class="badge">{{ more_n }}</em>{% endif %}</button>
+    <button type="button" class="{{ 'on' if more_on }}" data-more-open aria-haspopup="dialog">{{ icon('more', 22) }}<span>{{ _("More") }}</span>{% set more_n = (waiting or 0) + (lib_new or 0) + (dl_now or 0) %}{% if more_n %}<em class="badge">{{ more_n }}</em>{% endif %}</button>
   </nav>
   <dialog class="more-sheet" data-more-sheet aria-label="{{ _('More') }}">
     <div class="sheet-head"><b>{{ _("More") }}</b><button type="button" class="btn icon-btn" data-more-close aria-label="{{ _('Close') }}">{{ icon('x', 20) }}</button></div>
@@ -174,6 +175,7 @@
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
     <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}{% if lib_new %}<em class="badge" title="{{ _('New courses') }}">{{ lib_new }}</em>{% endif %}</a>
     <a href="/people" class="{{ 'on' if p.startswith('/people') or p.startswith('/review') }}">{{ icon('users', 22) }}{{ _("People") }}{% if waiting %}<em class="badge">{{ waiting }}</em>{% endif %}</a>
+    <a href="/downloads" data-dl-link class="{{ 'on' if p.startswith('/downloads') }}">{{ icon('download', 22) }}{{ _("Downloads") }}{% if dl_now %}<em class="badge">{{ dl_now }}</em>{% endif %}</a>
     <a href="/open" class="{{ 'on' if p.startswith('/open') }}">{{ icon('open', 22) }}{{ _("Open a file") }}</a>
     <a href="/reminders" class="{{ 'on' if p.startswith('/reminders') }}">{{ icon('bell', 22) }}{{ _("Reminders") }}</a>
     <a href="/settings" class="{{ 'on' if p.startswith('/settings') }}">{{ icon('settings', 22) }}{{ _("Settings") }}</a>

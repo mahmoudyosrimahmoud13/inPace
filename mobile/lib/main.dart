@@ -52,6 +52,9 @@ class Reminders {
   static const testId = 899999;
   static const tripId = 850001; // the focus trip's countdown, shown while a trip runs
   static const tripDoneId = 850002; // "your plant is ready", at the trip's last second
+  static const downloadsId = 850010; // downloads in progress (a foreground service, so Android lets them finish)
+  static const downloadsDoneId = 850011; // "Downloads finished"
+  static void Function()? onDownloadsStop;
   static String _tripKey = '';
   static Map<String, dynamic> labels = {};
   static String? pendingPage; // a page to open, from a tapped notification
@@ -93,6 +96,10 @@ class Reminders {
     // Pause, Go on and Stop on the focus timer's notification: the app tells inPace, then the page updates it.
     if (r.actionId != null && r.actionId!.startsWith('timer_')) {
       onTimerAction?.call(r.actionId!.substring(6));
+      return;
+    }
+    if (r.actionId == 'dl_stop') {
+      onDownloadsStop?.call();
       return;
     }
     if (r.actionId == 'snooze') {
@@ -413,6 +420,12 @@ class _ShellState extends State<Shell> {
         // The page fetches the timer again and sends the notification its new state.
         await _web?.runJavaScript('window.inpaceTimer && window.inpaceTimer.refresh()');
       };
+      Reminders.onDownloadsStop = () async {
+        try {
+          await http.post(Uri.parse('${_base}downloads/stop'), headers: {'x-inpace-soft': '1'});
+        } catch (_) {}
+        _dlTick();
+      };
       _web!.loadRequest(Uri.parse(_base + (_pendingLink ?? '')));
       _pendingLink = null;
       // If the first page never says it's finished (a very slow phone, an error), don't keep the splash forever.
@@ -557,6 +570,8 @@ class _ShellState extends State<Shell> {
       case 'pip':
         // Float over other apps when you leave inPace while a video plays or a timer runs (MainActivity.kt).
         try { await _pip.invokeMethod('auto', msg['auto'] == true); } catch (_) {}
+      case 'downloads':
+        _watchDownloads();
       case 'notifyState':
         await _sendNotifyState();
       case 'notifyAllow':
@@ -565,6 +580,73 @@ class _ShellState extends State<Shell> {
       case 'notifyTest':
         await Reminders.test(msg['kind'] as String, Map<String, dynamic>.from(msg['message'] as Map),
             Map<String, dynamic>.from((msg['labels'] as Map?) ?? {}));
+    }
+  }
+
+  // ---- Downloads (v1.30.14): a notification with a progress bar while videos or courses download -------------
+  // The page says when something starts downloading; from then the app asks inPace how it's going every second
+  // and a half, also while you're in another app. While anything downloads, the notification belongs to a
+  // foreground service, so Android doesn't close inPace in the middle. When everything is done, it says so.
+  Timer? _dlTimer;
+  bool _dlForeground = false;
+  bool _dlBusy = false;
+
+  void _watchDownloads() {
+    if (_dlTimer != null) return;
+    _dlTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) => _dlTick());
+    _dlTick();
+  }
+
+  Future<void> _dlTick() async {
+    if (_dlBusy) return;
+    _dlBusy = true;
+    try {
+      final r = await http.get(Uri.parse('${_base}downloads.json')).timeout(const Duration(seconds: 6));
+      final o = jsonDecode(r.body) as Map<String, dynamic>;
+      final n = Map<String, dynamic>.from((o['notice'] as Map?) ?? {});
+      final channel = (n['channel'] as String?) ?? 'Downloads';
+      final payload = jsonEncode({'url': '/downloads'});
+      if (n['running'] == true) {
+        final pct = ((n['percent'] as num?) ?? 0).toInt().clamp(0, 100);
+        final stop = (n['stop'] as String?) ?? '';
+        final details = AndroidNotificationDetails('inpace_downloads', channel,
+            importance: Importance.low, priority: Priority.low, onlyAlertOnce: true, ongoing: true, autoCancel: false,
+            showProgress: true, maxProgress: 100, progress: pct, indeterminate: pct == 0,
+            category: AndroidNotificationCategory.progress,
+            actions: stop.isEmpty ? null : <AndroidNotificationAction>[
+              AndroidNotificationAction('dl_stop', stop, showsUserInterface: true, cancelNotification: false),
+            ]);
+        if (!_dlForeground) {
+          _dlForeground = true;
+          try {
+            await Reminders.android?.startForegroundService(id: Reminders.downloadsId, title: n['title'] as String?,
+                body: n['body'] as String?, notificationDetails: details, payload: payload,
+                foregroundServiceTypes: {AndroidServiceForegroundType.foregroundServiceTypeDataSync});
+          } catch (_) {}  // no foreground service on this phone: a plain notification still shows the progress
+        }
+        await Reminders.plugin.show(id: Reminders.downloadsId, title: n['title'] as String?, body: n['body'] as String?,
+            notificationDetails: NotificationDetails(android: details), payload: payload);
+      } else {
+        _dlTimer?.cancel();
+        _dlTimer = null;
+        if (_dlForeground) {
+          try { await Reminders.android?.stopForegroundService(); } catch (_) {}
+          _dlForeground = false;
+        }
+        await Reminders.plugin.cancel(id: Reminders.downloadsId);
+        if (((n['saved'] as num?) ?? 0) > 0) {
+          await Reminders.plugin.show(id: Reminders.downloadsDoneId, title: n['title'] as String?, body: n['body'] as String?,
+              payload: payload,
+              notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_downloads', channel,
+                  importance: Importance.defaultImportance, priority: Priority.defaultPriority,
+                  styleInformation: BigTextStyleInformation((n['body'] as String?) ?? ''),
+                  largeIcon: const DrawableResourceAndroidBitmap('tempo_cheer'))));
+        }
+      }
+    } catch (_) {
+      // inPace is busy or restarting: the next tick tries again
+    } finally {
+      _dlBusy = false;
     }
   }
 

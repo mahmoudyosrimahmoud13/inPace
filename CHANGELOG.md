@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.30.15
+
+- **New: Downloads, in the menu.** Every video download in one place, like a download manager:
+  - Tabs for All, Downloading, Waiting, Failed and Finished, with how many are in each.
+  - Each video shows its progress, size, speed and time left.
+  - Buttons for everything you'd expect: Pause and Resume (a course, or all), Cancel one video, Download next (moves a waiting video to the front), Retry (one video, or every failed one) and Clear finished. A failed video says why.
+  - "On this device" lists the videos you have, course by course, with their size and folder. Open the folder (on a computer), or delete one video or a whole course's videos (only files inPace downloaded; your own files are never touched).
+  - The Downloads item in the menu shows how many videos are left.
+- **Choose how videos download:** how many at the same time (1 to 5, 2 by default), a speed limit for all downloads together (so the rest of your internet stays usable), and the quality. Several videos now really download side by side.
+- **Progress in the notifications.** On Android, a notification shows the progress bar, the video and the speed, with Stop all, and Android lets the downloads finish while you're in another app. When they're done, it says how many videos are ready (and how many didn't download). On a computer, one notification says when everything is done.
+- **Adding a course or a whole roadmap shows its progress.** The button fills up as the course downloads ("Downloading 2/5 · 45% · 3.1 / 7 MB"), then says it's adding it, so the app never looks frozen. Course downloads show on the Downloads page and in the phone's notification too.
+- **Progress when sending files.** Opening a course file, adding videos or a book, or restoring a backup: the button fills up as the files go. Any other button that takes a moment shows a small spinner.
+
 ## v1.30.14
 
 - **Download a whole roadmap with one click.** A roadmap from the library now has "Download all N courses" right under "Follow this roadmap": one click follows it and puts every course on your device, ready even offline. On a roadmap you already follow, the button sits at the top too, and offers the courses that aren't on your device yet ("Download the remaining 3 courses"), with their size. You still start each course when you get to it.

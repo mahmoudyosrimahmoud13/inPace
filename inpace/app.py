@@ -642,6 +642,7 @@ def create_app(vault: Vault) -> Starlette:
                 "update": _update_info() if V.is_set_up else None,
                 "update_news": _update_news() if V.is_set_up else None,
                 "lib_new": (_look_for_courses() or len(_library_new())) if V.is_set_up else 0,
+                "dl_now": _downloads_now(),
                 "_yt": _yt_rules_later(),
                 "yay": encourage.CELEBRATE.get(request.query_params.get("yay", ""))}
         if V.is_set_up:
@@ -1320,11 +1321,16 @@ def create_app(vault: Vault) -> Starlette:
             entry = library.find(index, cid)
             if not entry:
                 return go("/library", err="That course isn't in the library anymore.")
-            data = await run_in_threadpool(library.download, entry)
+            token = str((await request.form()).get("progress", ""))[:40]
+            data = await run_in_threadpool(library.download_tracked, entry, token)
         except library.LibraryProblem as e:
             return go("/library", err=str(e))
         import io as _io
-        return _install_pack(request, _io.BytesIO(data), f"{cid}.zip")
+        library.track(token, state="installing")
+        try:
+            return _install_pack(request, _io.BytesIO(data), f"{cid}.zip")
+        finally:
+            library.track(token, state="done")
 
     # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
     async def _library_now(online: bool = True) -> dict:
@@ -1471,11 +1477,16 @@ def create_app(vault: Vault) -> Starlette:
             entry = library.find(index, cid)
             if not entry:
                 return go(f"/roadmaps/{rid}", err="That course isn't in the library anymore.")
-            data = await run_in_threadpool(library.download, entry)
+            token = str((await request.form()).get("progress", ""))[:40]
+            data = await run_in_threadpool(library.download_tracked, entry, token)
         except library.LibraryProblem as e:
             return go(f"/roadmaps/{rid}", err=str(e))
         import io as _io
-        return _install_pack(request, _io.BytesIO(data), f"{cid}.zip", then=f"/roadmaps/{rid}")
+        library.track(token, state="installing")
+        try:
+            return _install_pack(request, _io.BytesIO(data), f"{cid}.zip", then=f"/roadmaps/{rid}")
+        finally:
+            library.track(token, state="done")
 
     async def roadmap_add_all(request: Request):
         """Add every course of a roadmap that's in the library and not on this device yet, one after another. For
@@ -1495,11 +1506,12 @@ def create_app(vault: Vault) -> Starlette:
                 return go("/roadmaps", err="That roadmap isn't in the library anymore.")
             rm = _follow_library(lib_copy, None, index)
         added, failed = [], []
-        for s in roadmaps.status(V, rm, index)["to_add"]:
-            if V.get_course(s["course"]):
-                continue
+        token = str((await request.form()).get("progress", ""))[:40]
+        todo = [s for s in roadmaps.status(V, rm, index)["to_add"] if not V.get_course(s["course"])]
+        for n, s in enumerate(todo, 1):
             try:
-                data = await run_in_threadpool(library.download, s["entry"])
+                data = await run_in_threadpool(library.download_tracked, s["entry"], token, n, len(todo))
+                library.track(token, state="installing")
                 zf = zipfile.ZipFile(_io.BytesIO(data))
                 c = V.install_course(load_course(files_from_zip(_io.BytesIO(data))))
                 _unpack_media(c, zf, media_in_zip(zf))
@@ -1510,6 +1522,7 @@ def create_app(vault: Vault) -> Starlette:
                     break  # offline: the next ones would fail the same way
             except (zipfile.BadZipFile, CourseError):
                 failed.append(f"The library's file for “{s['title']}” couldn't be read.")
+        library.track(token, state="done")
         msg = {}
         if added:
             msg["ok"] = f"Added {len(added)} courses. Start each one when you get to it." if len(added) > 1 \
@@ -1992,6 +2005,168 @@ def create_app(vault: Vault) -> Starlette:
         offline.start_download(V, c, quality=quality, only=[item])
         return answer(ok="The video is downloading. You can keep learning while it does.")
 
+    # ---- Downloads (v1.30.14): every video download in one place -------------------------------------------
+    offline.TRANSLATE[0] = gettext
+    try:
+        offline.load_settings(V)
+    except Exception:
+        pass
+
+    def _downloads_now() -> int:
+        """How many videos are downloading or waiting (the badge on Downloads in the menu)."""
+        try:
+            o = offline.overview()
+            return (o["active"] + o["waiting"]) if o["running"] else 0
+        except Exception:
+            return 0
+
+    def _dl_notice(o: dict) -> dict:
+        """What the phone's notification says (in your language)."""
+        busy = [c for c in o["courses"] if c["state"] == "running"]
+        packs = [x for x in list(library.PROGRESS.values()) if x.get("state") in ("running", "installing")]
+        if packs and not busy:
+            x = packs[0]
+            pct = round(100 * x["got"] / x["size"]) if x.get("size") else 0
+            return {"running": True, "title": gettext("Downloading courses") if x.get("of", 1) > 1 else gettext("Downloading a course"),
+                    "body": f"{x.get('title', '')} · {pct}%" + (f" · {x['n']}/{x['of']}" if x.get("of", 1) > 1 else ""),
+                    "percent": pct, "stop": "", "channel": gettext("Downloads")}
+        if busy:
+            first = next((a for c in busy for a in c["active"]), None)
+            n = o["active"] + o["waiting"]
+            title = gettext("Downloading {n} videos").replace("{n}", str(n)) if n != 1 else gettext("Downloading 1 video")
+            body = (f"{first['title']} · {round(first.get('percent') or 0)}%" if first
+                    else gettext("Getting ready…"))
+            if o["speed"]:
+                body += f" · {offline.nice_size(o['speed']).replace(' MB', ' MB/s').replace(' GB', ' GB/s')}"
+            return {"running": True, "title": title, "body": body, "percent": round(o["percent"]),
+                    "stop": gettext("Stop all"), "channel": gettext("Downloads")}
+        saved = sum(c["saved"] for c in o["courses"])
+        failed = sum(len(c["failed"]) for c in o["courses"])
+        body = (gettext("{n} videos are ready to watch offline.").replace("{n}", str(saved)) if saved != 1
+                else gettext("1 video is ready to watch offline."))
+        if failed:
+            body += " " + gettext("{n} didn't download.").replace("{n}", str(failed))
+        return {"running": False, "title": gettext("Downloads finished"), "body": body, "saved": saved,
+                "channel": gettext("Downloads")}
+
+    def _dl_json() -> dict:
+        o = offline.overview()
+        for c in o["courses"]:
+            for f in c["failed"]:
+                f["why"] = gettext(offline.plain_why(f.get("why", "")))
+            if c.get("error"):
+                c["error"] = gettext(c["error"])
+            if c.get("note"):
+                c["note"] = gettext(c["note"])
+        o["packs"] = {k: dict(x) for k, x in list(library.PROGRESS.items())}
+        o["notice"] = _dl_notice(o)
+        return o
+
+    async def downloads_page(request: Request):
+        return page("downloads.html", request, data=_dl_json(), device=offline.on_device(V),
+                    parallel=offline.SETTINGS["parallel"], rate=offline.SETTINGS.get("rate_key", "0"),
+                    rates=list(offline.RATES), nice_size=offline.nice_size,
+                    quality=V._meta("ytdlp_quality", "720") or "720", qualities=offline.QUALITIES,
+                    is_android=updater.install_kind() == "android")
+
+    async def downloads_json(request: Request):
+        return JSONResponse(_dl_json(), headers={"Cache-Control": "no-store"})
+
+    async def downloads_settings(request: Request):
+        form = await request.form()
+        offline.save_settings(V, form.get("parallel"), form.get("rate"))
+        if str(form.get("quality", "")) in offline.QUALITIES:
+            V._set_meta("ytdlp_quality", str(form.get("quality")))
+        return go("/downloads", ok="Saved.")
+
+    async def downloads_action(request: Request):
+        """Stop, carry on, try the failed ones again, or clear finished ones from the list."""
+        form = await request.form()
+        action, cid = request.path_params["action"], str(form.get("course", ""))
+        jobs = {k: j for k, j in offline.JOBS.items() if not cid or k == cid}
+        if action == "stop":
+            for k in jobs:
+                offline.stop(k)
+            return go("/downloads", ok="Stopping. Videos that finished stay.")
+        if action == "clear":
+            for k, j in jobs.items():
+                if j.get("state") != "running":
+                    offline.JOBS.pop(k, None)
+            return go("/downloads")
+        vid = str(form.get("video", ""))
+        if action == "cancel" and cid and vid:
+            offline.cancel_video(cid, vid)
+            return go("/downloads", ok="Removed from the downloads.")
+        if action == "next" and cid and vid:
+            offline.download_next(cid, vid)
+            return go("/downloads", ok="It downloads next.")
+        if action == "retry" and cid and vid:
+            c, j = V.get_course(cid), offline.JOBS.get(cid) or {}
+            f = next((x for x in j.get("failed") or [] if x.get("id") == vid), None)
+            if c and f:
+                j["failed"] = [x for x in j["failed"] if x.get("id") != vid]
+                offline.start_download(V, c, quality=j.get("quality") or "",
+                                       only=[{"kind": "video", "id": vid, "title": f.get("title", ""), "lessons": [f.get("title", "")]}])
+            return go("/downloads", ok="Trying again.")
+        if action in ("resume", "retry"):
+            started = 0
+            for k, j in jobs.items():
+                c = V.get_course(k)
+                if not c or j.get("state") == "running":
+                    continue
+                items = offline.again_items(j, failed_only=action == "retry")
+                if items == []:
+                    continue
+                offline.start_download(V, c, quality=j.get("quality") or "", only=items)
+                started += 1
+            return go("/downloads", ok="Downloading again." if started else "Nothing to download.")
+        return go("/downloads")
+
+    async def downloads_delete(request: Request):
+        """Delete one course's downloaded videos (only files inPace downloaded itself)."""
+        c = V.get_course(request.path_params["cid"])
+        if not c:
+            return go("/downloads")
+        if (offline.JOBS.get(c.id) or {}).get("state") == "running":
+            return go("/downloads", err="Stop the downloads first.")
+        gone = offline.forget(V, c, delete_downloads=True)
+        return go("/downloads", ok=gettext("Deleted {n} downloaded videos. Lessons play from YouTube again.").format(n=gone)
+                  if gone else "Lessons play from YouTube again. Your files weren't touched.")
+
+    async def downloads_open(request: Request):
+        """Open the folder with a course's videos (on a computer)."""
+        c = V.get_course(request.path_params["cid"])
+        d = next((x for x in offline.on_device(V) if x["course"].id == request.path_params["cid"]), None) if c else None
+        if not d or updater.install_kind() == "android":
+            return go("/downloads")
+        try:
+            if sys.platform == "win32":
+                os.startfile(d["folder"])  # type: ignore[attr-defined]
+            else:
+                from .window import _clean_env
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", d["folder"]], env=_clean_env(),
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            return go("/downloads", err="inPace couldn't open the folder.")
+        return go("/downloads")
+
+    async def downloads_delete_file(request: Request):
+        """Delete one downloaded video (only a file inPace downloaded itself)."""
+        form = await request.form()
+        cid, vid = request.path_params["cid"], str(form.get("video", ""))
+        p = offline.local_file(V, cid, vid)
+        if p and (V._meta(f"ytdl:{cid}:{vid}", "") or "") == "1":
+            try:
+                p.unlink()
+            except OSError:
+                return go("/downloads", err="inPace couldn't delete the file.")
+            offline.set_local_file(V, cid, vid, None)
+            return go("/downloads", ok="Deleted. This lesson plays from YouTube again.")
+        if p:  # your own file: inPace only stops using it
+            offline.set_local_file(V, cid, vid, None)
+            return go("/downloads", ok="Lessons play from YouTube again. Your files weren't touched.")
+        return go("/downloads")
+
     async def offline_stop(request: Request):
         offline.stop(request.path_params["cid"])
         return go(_back_to_course(request.path_params["cid"]), ok="Stopping the downloads. Finished videos stay.")
@@ -2001,7 +2176,7 @@ def create_app(vault: Vault) -> Starlette:
         if not c:
             return JSONResponse({}, status_code=404)
         st = offline.status(V, c)
-        job = {k: v for k, v in (st["job"] or {}).items() if k not in ("stop", "pending")}
+        job = {k: v for k, v in (st["job"] or {}).items() if k not in ("stop", "pending", "skip", "first", "titles", "completed")}
         if job.get("title") in ("Getting yt-dlp…", "Reading the playlist…"):
             job["title"] = gettext(job["title"])
         if job.get("error"):
@@ -4820,6 +4995,13 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/open-media", needs_setup(open_media), methods=["POST"]),
         Route("/courses/{cid}/offline/download", needs_setup(offline_download), methods=["POST"]),
         Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
+        Route("/downloads", needs_setup(downloads_page)),
+        Route("/downloads.json", needs_setup(downloads_json)),
+        Route("/downloads/settings", needs_setup(downloads_settings), methods=["POST"]),
+        Route("/downloads/delete/{cid}", needs_setup(downloads_delete), methods=["POST"]),
+        Route("/downloads/delete-file/{cid}", needs_setup(downloads_delete_file), methods=["POST"]),
+        Route("/downloads/open/{cid}", needs_setup(downloads_open), methods=["POST"]),
+        Route("/downloads/{action}", needs_setup(downloads_action), methods=["POST"]),
         Route("/courses/{cid}/offline/video", needs_setup(offline_video), methods=["POST"]),
         Route("/courses/{cid}/offline/status", needs_setup(offline_status)),
         Route("/courses/{cid}/offline/match", needs_setup(offline_match), methods=["POST"]),

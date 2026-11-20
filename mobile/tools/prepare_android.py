@@ -304,6 +304,15 @@ receivers = """
 """
 if "ScheduledNotificationReceiver" not in m:
     m = m.replace("</application>", receivers + "    </application>", 1)
+# Downloads keep going when you leave the app: while videos or courses download, the progress notification
+# belongs to a foreground service (flutter_local_notifications' own), of the "data sync" kind.
+for p in ("android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_DATA_SYNC"):
+    if p not in m:
+        m = m.replace("<application", f'<uses-permission android:name="{p}"/>\n    <application', 1)
+if "flutterlocalnotifications.ForegroundService" not in m:
+    m = m.replace("</application>", """        <service android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
+            android:exported="false" android:stopWithTask="false" android:foregroundServiceType="dataSync"/>
+    </application>""", 1)
 if "showWhenLocked" not in m:
     m = re.sub(r'(<activity\b(?=[^>]*MainActivity))', r'\1 android:showWhenLocked="true" android:turnScreenOn="true"', m, count=1)
 manifest.write_text(m, encoding="utf-8")

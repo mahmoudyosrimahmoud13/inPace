@@ -2801,6 +2801,7 @@ document.addEventListener("click", (ev) => {
         btn.disabled = false;
         if (!d.ok) { note.textContent = d.message || f.dataset.lFailed; return; }
         if (show(f, d)) watch(f);
+        if (window.inpaceDownloadsPoke) inpaceDownloadsPoke();
       } catch (e) {
         btn.disabled = false;
         note.textContent = f.dataset.lOffline;
@@ -3694,3 +3695,256 @@ window.inpaceMediaSession = (box, v) => {
   }
   state();
 };
+
+
+// ---- Downloads (v1.30.14) --------------------------------------------------------------------------------------
+// Every video download in one place, like a download manager: what's downloading (with speed and time left),
+// what's waiting, what failed (with why, and Retry), and what finished. While anything downloads:
+//  * the Downloads item in the menu shows how many videos are left,
+//  * on Android, the app shows a notification with a progress bar (main.dart polls /downloads.json), and keeps
+//    downloading when you leave the app,
+//  * on a computer, one notification says when everything is done.
+(() => {
+  const root = document.documentElement;
+  const page = document.querySelector("[data-dl]");
+  const L = page ? page.dataset : {};
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const size = (n) => (n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB"
+    : Math.max(1, Math.round((n || 0) / 1024)) + " KB");
+  const time = (s) => (s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.max(1, Math.round(s))} s`);
+  const fill = (t, o) => Object.entries(o).reduce((a, [k, v]) => a.split("{" + k + "}").join(v), t || "");
+  let tab = "all";
+  try { tab = sessionStorage.getItem("inpace-dl-tab") || "all"; } catch (e) { /* private */ }
+
+  const badges = (o) => {
+    const n = o.running ? o.active + o.waiting : 0;
+    document.querySelectorAll("[data-dl-link]").forEach((a) => {
+      let b = a.querySelector(".badge");
+      if (!n) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement("em"); b.className = "badge"; a.appendChild(b); }
+      b.textContent = n;
+    });
+    root.classList.toggle("dl-busy", !!o.running);
+  };
+
+  const form = (action, course, video, label, cls) =>
+    `<form method="post" action="/downloads/${action}" data-dl-form>${course ? `<input type="hidden" name="course" value="${esc(course)}">` : ""}` +
+    `${video ? `<input type="hidden" name="video" value="${esc(video)}">` : ""}<button class="btn small ${cls || ""}">${label}</button></form>`;
+
+  const row = (kind, c, it) => {
+    const st = { downloading: L.lDownloading, waiting: L.lWaiting, failed: L.lFailed, done: L.lSaved }[kind];
+    let meta = "", bar = "", act = "";
+    if (kind === "downloading") {
+      const p = it.percent || 0;
+      bar = `<div class="bar dl-bar-row"><span style="width:${p}%"></span></div>`;
+      const bits = [`${Math.round(p)}%`];
+      if (it.size) bits.push(fill(L.lOf, { a: size(it.got || 0), b: size(it.size) }));
+      if (it.speed) bits.push(size(it.speed) + "/s");
+      if (it.eta) bits.push(fill(L.lLeft, { t: time(it.eta) }));
+      meta = bits.join(" · ");
+      act = form("cancel", c.course, it.id, L.lCancel);
+    } else if (kind === "waiting") {
+      meta = "";
+      act = it.id ? form("next", c.course, it.id, L.lNext) + form("cancel", c.course, it.id, L.lCancel) : "";
+    } else if (kind === "failed") {
+      meta = it.why || "";
+      act = form("retry", c.course, it.id, L.lRetry, "primary");
+    } else {
+      meta = it.size ? size(it.size) : "";
+    }
+    const title = it.id || kind !== "waiting" ? it.title : L.lRest;
+    return `<li class="dl-row ${kind}"><span class="dl-state">${esc(st)}</span><div class="grow"><b dir="auto">${esc(title)}</b>${bar}` +
+      `<span class="small muted">${esc(meta)}</span></div><div class="row dl-acts">${act}</div></li>`;
+  };
+
+  const draw = (o) => {
+    if (!page) return;
+    const rows = { downloading: [], waiting: [], failed: [], done: [] };
+    for (const c of o.courses) {
+      c.active.forEach((it) => rows.downloading.push([c, it]));
+      c.waiting_list.forEach((it) => rows.waiting.push([c, it]));
+      c.failed.forEach((it) => rows.failed.push([c, it]));
+      c.completed.slice().reverse().forEach((it) => rows.done.push([c, it]));
+    }
+    for (const [k, x] of Object.entries(o.packs || {})) {
+      if (x.state !== "running" && x.state !== "installing") continue;
+      const pct = x.size ? Math.round((100 * x.got) / x.size) : 0;
+      rows.downloading.push([{ course: "" }, { id: "", title: x.title + (x.of > 1 ? ` (${x.n}/${x.of})` : ""), percent: pct, got: x.got, size: x.size, pack: true }]);
+    }
+    const count = (k) => (k === "all" ? rows.downloading.length + rows.waiting.length + rows.failed.length + rows.done.length : rows[k].length);
+    page.querySelector("[data-dl-tabs]").innerHTML = ["all", "downloading", "waiting", "failed", "done"].map((k) =>
+      `<button type="button" role="tab" class="chip-tab ${k === tab ? "on" : ""}" aria-selected="${k === tab}" data-dl-tab="${k}">` +
+      `${esc({ all: L.lAll, downloading: L.lDownloading, waiting: L.lWaiting, failed: L.lFailed, done: L.lDone }[k])} <em>${count(k)}</em></button>`).join("");
+    const anyFailed = rows.failed.length, anyDone = o.courses.some((c) => c.state !== "running");
+    const paused = o.courses.filter((c) => c.state === "stopped" || c.state === "failed");
+    page.querySelector("[data-dl-all]").innerHTML =
+      (o.running ? form("stop", "", "", L.lPauseall) : "") +
+      (paused.length ? form("resume", "", "", L.lResumeall, "primary") : "") +
+      (anyFailed ? form("retry", "", "", L.lRetryall) : "") +
+      (anyDone ? form("clear", "", "", L.lClear) : "");
+    const kinds = tab === "all" ? ["downloading", "waiting", "failed", "done"] : [tab];
+    let html = "";
+    const packs = rows.downloading.filter(([, it]) => it.pack);
+    if (packs.length && (tab === "all" || tab === "downloading")) {
+      html += `<article class="card dl-course running"><h3>${esc(L.lCourses)}</h3><ul class="dl-rows">` +
+        packs.map(([c, it]) => row("downloading", c, it).replace(/<div class="row dl-acts">.*?<\/div><\/li>$/, "</li>")).join("") + "</ul></article>";
+    }
+    for (const c of o.courses) {
+      const items = kinds.flatMap((k) => (k === "downloading" ? c.active : k === "waiting" ? c.waiting_list : k === "failed" ? c.failed
+        : c.completed.slice().reverse()).map((it) => row(k, c, it)));
+      const stateLine = c.state === "running" ? (c.note || fill(L.lVideos, { a: c.done, b: c.total || "…" }))
+        : c.state === "stopped" ? L.lPaused : c.state === "failed" ? (c.error || L.lStopped) : fill(L.lVideos, { a: c.done, b: c.total });
+      if (!items.length && tab !== "all") continue;
+      const ctl = c.state === "running" ? form("stop", c.course, "", L.lPause)
+        : (c.state === "stopped" || c.state === "failed") ? form("resume", c.course, "", L.lResume, "primary") : "";
+      html += `<article class="card dl-course ${esc(c.state)}"><div class="row between wrap"><div class="grow">` +
+        `<h3 dir="auto"><a href="/courses/${encodeURIComponent(c.course)}">${esc(c.title)}</a></h3>` +
+        `<div class="row"><div class="bar grow"><span style="width:${c.percent}%"></span></div><b class="small">${Math.round(c.percent)}%</b></div>` +
+        `<p class="small muted">${esc(stateLine)}</p></div><div class="row wrap">${ctl}${c.failed.length ? form("retry", c.course, "", L.lRetryall) : ""}</div></div>` +
+        (items.length ? `<ul class="dl-rows">${items.join("")}</ul>` : "") + `</article>`;
+    }
+    page.querySelector("[data-dl-list]").innerHTML = html || `<p class="card muted dl-none">${esc(o.courses.length ? L.lEmpty : L.lNone)}</p>`;
+    const sum = document.querySelector("[data-dl-summary]");
+    if (sum && o.running) sum.textContent = fill(L.lNow, { a: o.active, b: o.waiting }) + (o.speed ? " · " + fill(L.lSpeed, { s: size(o.speed) + "/s" }) : "");
+  };
+
+  let timer = null, wasRunning = !!(+root.dataset.dlNow);
+  const poll = async () => {
+    clearTimeout(timer);
+    let o = null;
+    try { o = await (await fetch("/downloads.json", { cache: "no-store" })).json(); } catch (e) { /* offline server: try later */ }
+    if (o) {
+      badges(o);
+      draw(o);
+      if (o.running && window.InPaceAndroid) { try { InPaceAndroid.postMessage(JSON.stringify({ type: "downloads" })); } catch (e) { /* old app */ } }
+      if (wasRunning && !o.running && page) setTimeout(() => location.reload(), 600);  // "On this device" changed
+      wasRunning = o.running;
+    }
+    if (document.hidden && !page) return;
+    if (o && (o.running || page)) timer = setTimeout(poll, o.running ? 1000 : 5000);
+  };
+  window.inpaceDownloadsPoke = () => { wasRunning = true; poll(); };
+  if (page) {
+    try { const first = JSON.parse(page.querySelector("[data-dl-first]").textContent); badges(first); draw(first); wasRunning = first.running; } catch (e) { /* drawn by the poll */ }
+    page.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-dl-tab]");
+      if (!t) return;
+      tab = t.dataset.dlTab;
+      try { sessionStorage.setItem("inpace-dl-tab", tab); } catch (x) { /* private */ }
+      poll();
+    });
+  }
+  if (page || wasRunning) poll();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && (page || wasRunning)) poll(); });
+
+  // Buttons here are sent in the background, then the list is drawn again: no reload.
+  document.addEventListener("submit", async (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || !f.hasAttribute("data-dl-form") || e.defaultPrevented) return;
+    e.preventDefault();
+    f.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    try {
+      const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "X-InPace-Soft": "1" } });
+      const msg = new URL(r.url).searchParams.get("ok") || new URL(r.url).searchParams.get("err");
+      if (msg && window.inpaceToast) inpaceToast(msg);
+    } catch (x) { /* offline */ }
+    f.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+    wasRunning = true;
+    poll();
+  });
+  // Adding a course or a whole roadmap from the library: the button fills up as the files download, and says
+  // which course it's on, so the app never looks frozen. (The page waits for Python to finish, as before.)
+  const PACK = /^\/(library\/[^/]+\/add|roadmaps\/[^/]+\/(add\/[^/]+|add-all))$/;
+  const lang = root.lang === "ar";
+  const W = lang ? { dl: "جارٍ التنزيل", inst: "جارٍ الإضافة…", wait: "جارٍ الاتصال بالمكتبة…" }
+                 : { dl: "Downloading", inst: "Adding…", wait: "Reaching the library…" };
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.dataset.packOn) return;
+    let path = "";
+    try { path = new URL(f.action, location.href).pathname; } catch (x) { return; }
+    if (!PACK.test(path)) return;
+    f.dataset.packOn = "1";
+    const token = Math.random().toString(36).slice(2, 12);
+    const inp = document.createElement("input");
+    inp.type = "hidden"; inp.name = "progress"; inp.value = token;
+    f.appendChild(inp);
+    const btn = e.submitter || f.querySelector("button");
+    if (!btn) return;
+    btn.classList.add("btn-progress");
+    const show = (pct, text) => {
+      btn.style.setProperty("--p", pct + "%");
+      btn.setAttribute("aria-busy", "true");
+      btn.textContent = text;
+    };
+    setTimeout(() => { btn.disabled = true; }, 0);  // after the form is sent
+    show(0, W.wait);
+    if (window.InPaceAndroid) { try { InPaceAndroid.postMessage(JSON.stringify({ type: "downloads" })); } catch (x) { /* old app */ } }
+    const tick = async () => {
+      try {
+        const o = await (await fetch("/downloads.json", { cache: "no-store" })).json();
+        const x = (o.packs || {})[token];
+        if (x) {
+          const pct = x.size ? Math.min(100, Math.round((100 * x.got) / x.size)) : 0;
+          const part = x.of > 1 ? ` ${x.n}/${x.of}` : "";
+          if (x.state === "installing") show(100, W.inst + part);
+          else show(pct, `${W.dl}${part} · ${pct}%${x.size ? ` · ${size(x.got)} / ${size(x.size)}` : ""}`);
+        }
+      } catch (x) { /* the page is changing */ }
+      setTimeout(tick, 400);
+    };
+    setTimeout(tick, 300);
+  });
+
+  // Sending files (opening a course file, adding videos or a book, restoring a backup, a picture): the button
+  // fills up as the files go, then says it's working while inPace reads them.
+  const UP = lang ? { up: "جارٍ الرفع", work: "جارٍ التجهيز…" } : { up: "Uploading", work: "Working on it…" };
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.hasAttribute("data-nav-form") || f.target) return;
+    if ((f.getAttribute("enctype") || "") !== "multipart/form-data" || !window.XMLHttpRequest) return;
+    const files = [...f.querySelectorAll("input[type=file]")].reduce((a, i) => a + [...(i.files || [])].reduce((b, x) => b + x.size, 0), 0);
+    if (files < 2 * 1024 * 1024) return;  // small: it's sent in a blink, the usual way
+    e.preventDefault();
+    const body = new FormData(f);
+    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+    const btn = e.submitter || f.querySelector("button:not([type=button])");
+    const show = (pct, text) => { if (!btn) return; btn.classList.add("btn-progress"); btn.style.setProperty("--p", pct + "%"); btn.setAttribute("aria-busy", "true"); btn.disabled = true; btn.textContent = text; };
+    show(0, UP.up + " 0%");
+    const x = new XMLHttpRequest();
+    x.open("POST", f.action || location.href);
+    x.upload.onprogress = (ev) => { if (ev.lengthComputable) { const p = Math.round((100 * ev.loaded) / ev.total); show(p, p >= 100 ? UP.work : `${UP.up} ${p}% · ${size(ev.loaded)} / ${size(ev.total)}`); } };
+    x.upload.onload = () => show(100, UP.work);
+    x.onload = () => {
+      const action = new URL(f.action || location.href, location.href).href;
+      if (x.responseURL && x.responseURL !== action) { location.replace(x.responseURL); return; }
+      document.open(); document.write(x.responseText); document.close();
+    };
+    x.onerror = () => { f.submit(); };  // couldn't send it this way: the usual way
+    x.send(body);
+  });
+  // Any other button that takes a moment: a small spinner on it, so you know it's working.
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.target) return;
+    const btn = e.submitter || f.querySelector("button:not([type=button])");
+    if (!btn || btn.classList.contains("btn-progress")) return;
+    // Forms that update the page in place have their own feedback (and their buttons must stay as drawn).
+    if (f.closest("[data-live]") || f.matches("[data-nav-form], [data-dl-form], .yt-save, [data-timer-form]")) return;
+    const t = setTimeout(() => { if (btn.isConnected) btn.classList.add("is-busy"); }, 450);
+    addEventListener("pagehide", () => clearTimeout(t), { once: true });
+  });
+
+  // Deleting files: the first press asks, the second deletes.
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || !f.dataset.confirm || f.dataset.sure) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const b = f.querySelector("button");
+    const was = b.innerHTML;
+    f.dataset.sure = "1";
+    b.textContent = f.dataset.confirm;
+    setTimeout(() => { delete f.dataset.sure; b.innerHTML = was; }, 5000);
+  }, true);
+})();

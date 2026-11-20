@@ -2563,3 +2563,60 @@ html.in-pip .pip-video .yt-subs { bottom: .5rem; font-size: .9rem; }
   ::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hover); }
   html::-webkit-scrollbar { background: var(--bg); }
 }
+
+/* ---- Downloads page and progress on buttons (v1.30.14) ---- */
+.btn-progress { position: relative; background-image: linear-gradient(90deg, color-mix(in srgb, var(--sun) 70%, transparent) var(--p, 0%), transparent var(--p, 0%)) !important;
+  transition: background-size .3s; cursor: progress; font-variant-numeric: tabular-nums; }
+.btn-progress[disabled] { opacity: 1; }
+.is-busy { cursor: progress; }
+.is-busy::after { content: ""; display: inline-block; width: .9em; height: .9em; margin-inline-start: .5em; border: 2.5px solid currentColor;
+  border-inline-end-color: transparent; border-radius: 50%; animation: inpace-spin .8s linear infinite; vertical-align: -.12em; }
+@keyframes inpace-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .is-busy::after { animation-duration: 2.4s; } }
+.dl-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .6rem; margin-block: .4rem 1rem; }
+.dl-tabs { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip-tab { border: 2px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: .3rem .8rem;
+  font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer; }
+.chip-tab em { font-style: normal; font-variant-numeric: tabular-nums; opacity: .7; margin-inline-start: .2rem; }
+.chip-tab.on { background: var(--ink); color: var(--bg); }
+.chip-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.dl-all { gap: .4rem; }
+.dl-course { margin-block-end: 1rem; }
+.dl-course h3 { margin: 0 0 .4rem; font-size: 1.1rem; }
+.dl-course h3 a { color: inherit; }
+.dl-course p { margin: .3rem 0 0; }
+.dl-rows { list-style: none; margin: .8rem 0 0; padding: 0; display: grid; gap: .1rem; border-top: 1px solid var(--hair); }
+.dl-row { display: flex; align-items: center; gap: .7rem; padding: .55rem 0; border-bottom: 1px solid var(--hair); }
+.dl-row b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.dl-row .small { display: block; font-variant-numeric: tabular-nums; }
+.dl-state { flex: none; width: 6.5rem; font-size: .78rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; text-align: center;
+  background: var(--raised); color: var(--ink2); }
+.dl-row.downloading .dl-state { background: var(--sun); color: #111; }
+.dl-row.failed .dl-state { background: var(--bad-bg); color: var(--bad); }
+.dl-row.done .dl-state { background: var(--good-bg); color: var(--good); }
+.dl-bar-row { margin-block: .3rem; height: 8px; }
+.dl-acts { gap: .3rem; flex: none; }
+.dl-none { padding: 1.2rem; }
+.dl-settings { margin-block: 1.5rem; }
+.dl-seg { border: 0; padding: 0; margin: 0; }
+.dl-seg legend { font-weight: 600; margin-block-end: .4rem; }
+.seg { display: inline-flex; border: 2px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg span { display: grid; place-items: center; min-width: 3rem; min-height: 2.6rem; font-weight: 700; border-inline-start: 2px solid var(--line); }
+.seg label:first-child span { border-inline-start: 0; }
+.seg input:checked + span { background: var(--ink); color: var(--bg); }
+.seg input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: -4px; }
+.dl-pick { gap: 1rem; }
+.dl-pick label { display: grid; gap: .3rem; font-weight: 600; }
+.dl-have { margin-block-end: .8rem; }
+.dl-path { margin: .2rem 0 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: .78rem; }
+.dl-files summary { cursor: pointer; margin-block-start: .6rem; }
+.dl-files ul { list-style: none; padding: 0; margin: .4rem 0 0; }
+.dl-files li { display: flex; align-items: center; gap: .6rem; padding: .3rem 0; border-bottom: 1px solid var(--hair); }
+@media (max-width: 600px) {
+  .dl-row { flex-direction: column; align-items: stretch; gap: .35rem; }
+  .dl-state { width: auto; align-self: flex-start; }
+  .dl-acts { justify-content: flex-end; }
+  .dl-acts:empty { display: none; }
+}
