@@ -1,3 +1,7 @@
+// inPace's page script. Everything lives inside this one function, so the script can safely run again on the same
+// window (a page drawn by document.write after a form, for example) without "already declared" errors. What other
+// code needs (the app windows, the Android shell, other parts of this file) is put on window.inpace… on purpose.
+(function inpaceApp() {
 // The live parts of the page exactly as Python drew them, before any script here changes them. Updating a part
 // in place compares against this, so a part a script has changed is never overwritten (see "Fresh without
 // reloading" below).
@@ -23,11 +27,27 @@ function goFresh(url) {
 }
 
 // Small helpers only. The app works without JavaScript too.
-document.querySelectorAll("[data-autosubmit]").forEach((input) => {
-  input.addEventListener("change", () => {
-    if (input.tagName === "SELECT") return;  // handled below
-    if (input.type === "file" ? input.files.length : true) sendForm(input.form);
+// Page helpers listen on the whole document (not on each element), so parts of a page that are updated in place
+// keep working: a new button or field behaves exactly like the one it replaced.
+document.addEventListener("change", (e) => {
+  const input = e.target.closest && e.target.closest("[data-autosubmit]");
+  if (!input || !input.form) return;
+  if (input.tagName === "SELECT" ? input.value : input.type === "file" ? input.files.length : true) sendForm(input.form);
+});
+document.addEventListener("submit", (e) => {  // a button with data-busy says what's happening once its form is sent
+  e.target.querySelectorAll && e.target.querySelectorAll("[data-busy]").forEach((btn) => {
+    btn.disabled = true; btn.textContent = btn.dataset.busy;
   });
+}, true);
+document.addEventListener("click", (e) => {  // "Every day", "Weekdays" and "Weekends" on Reminders
+  const btn = e.target.closest && e.target.closest("[data-days]");
+  if (!btn) return;
+  const on = btn.dataset.days.split(",");
+  const form = btn.closest("form");
+  form.querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
+  if (form._remOther) form._remOther(false);
+});
+document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   const zone = input.closest(".drop-zone");
   if (!zone) return;
   ["dragenter", "dragover"].forEach((e) => zone.addEventListener(e, () => zone.classList.add("over")));
@@ -68,9 +88,6 @@ document.querySelectorAll("[data-wordcount]").forEach((box) => {
   update();
 });
 
-document.querySelectorAll("[data-busy]").forEach((btn) => {
-  btn.form.addEventListener("submit", () => { btn.disabled = true; btn.textContent = btn.dataset.busy; });
-});
 
 // A drawn diagram with zoom and full screen: − and + (or Ctrl + mouse wheel) zoom, drag to move around when
 // it's bigger than the box, "Fit" shows all of it, and full screen fills the screen (Escape or the button closes it).
@@ -605,10 +622,10 @@ function burstConfetti() {
   };
   requestAnimationFrame(frame);
 }
+const closeYay = (yay) => { if (!yay.isConnected) return; yay.classList.add("out"); setTimeout(() => yay.remove(), 300); };
+document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".yay-close"); if (b) closeYay(b.closest(".yay")); });
 document.querySelectorAll(".yay").forEach((yay, i) => {
-  const close = () => { yay.classList.add("out"); setTimeout(() => yay.remove(), 300); };
-  yay.querySelector(".yay-close").addEventListener("click", close);
-  setTimeout(close, 7000 + i * 1500);
+  setTimeout(() => closeYay(yay), 7000 + i * 1500);
   if (i === 0 && yay.hasAttribute("data-confetti")) burstConfetti();
 });
 
@@ -622,18 +639,6 @@ window.inpaceToast = (text) => {
   setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 300); }, 4000);
 };
 
-// Light / dark switch: changes right away, and inPace remembers it.
-document.querySelectorAll("[data-theme-toggle]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const root = document.documentElement;
-    const now = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = now === "dark" ? "light" : "dark";
-    root.dataset.theme = next;
-    const body = new FormData();
-    body.append("theme", next);
-    fetch("/theme", { method: "POST", body }).catch(() => {});
-  });
-});
 
 // Online videos load only when you press play (nothing reaches the internet before that).
 document.querySelectorAll(".embed-box").forEach((box) => {
@@ -1834,7 +1839,6 @@ document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
 });
 
 // "Move to…" and other selects that save on change.
-document.querySelectorAll("select[data-autosubmit]").forEach((s) => s.addEventListener("change", () => s.value && sendForm(s.form)));
 
 // Tempo's welcome tour: a spotlight on each part of inPace, with Tempo explaining it.
 (() => {
@@ -2474,14 +2478,6 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
 
 // Reminders: "Every day", "Weekdays" and "Weekends" tick the right days. "Other…" swaps the days for
 // "every N days, starting on a day you pick"; "Pick days of the week instead" swaps back.
-document.querySelectorAll("[data-days]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const on = btn.dataset.days.split(",");
-    const form = btn.closest("form");
-    form.querySelectorAll('input[name="days"]').forEach((box) => { box.checked = on.includes(box.value); });
-    if (form._remOther) form._remOther(false);
-  });
-});
 document.querySelectorAll("[data-rem-other]").forEach((btn) => {
   const form = btn.closest("form"), box = form.querySelector("[data-rem-every]");
   const set = (on) => {
@@ -2493,6 +2489,7 @@ document.querySelectorAll("[data-rem-other]").forEach((btn) => {
     if (on) box.querySelector('input[name="every"]').focus();
   };
   form._remOther = set;
+  form.addEventListener("reset", () => setTimeout(() => set(false)));  // after "Add": back to days of the week, all in step
   btn.addEventListener("click", () => set(box.hidden));
   box.querySelector("[data-rem-weekdays]").addEventListener("click", () => set(false));
 });
@@ -2906,7 +2903,11 @@ document.addEventListener("click", (ev) => {
   // Never swapped: parts with a script on them (any data- hook, except ones handled for the whole page, or a
   // video, a frame, a text box). If one of them would have to be swapped, the page loads normally instead.
   const TAGS = "script, input:not([type=hidden]), textarea, select, video, audio, iframe, canvas, dialog";
-  const DELEGATED = new Set(["data-live", "data-up", "data-replace", "data-nav-form", "data-confetti", "data-l", "data-tip"]);
+  // Hooks handled by listeners on the whole document, so a freshly drawn copy works by itself (v1.31.2).
+  const DELEGATED = new Set(["data-live", "data-live-buttons", "data-up", "data-replace", "data-nav-form", "data-confetti",
+    "data-l", "data-tip", "data-autosubmit", "data-busy", "data-days", "data-theme-toggle", "data-look", "data-progress",
+    "data-confirm", "data-dl-form", "data-dl-link", "data-codenote", "data-codenote-only", "data-course", "data-lesson",
+    "data-task"]);
   const hooked = (n) => n.nodeType === 1 && (n.matches(TAGS)
     || [...n.attributes].some((at) => at.name.startsWith("data-") && !DELEGATED.has(at.name)));
   const scripted = (n) => n.nodeType === 1 && (hooked(n) || [...n.querySelectorAll("*")].some(hooked));
@@ -2987,9 +2988,7 @@ document.addEventListener("click", (ev) => {
     for (const y of doc.querySelectorAll("main .page > .yay")) {
       const el = document.importNode(y, true);
       page.appendChild(el);
-      const close = () => { el.classList.add("out"); setTimeout(() => el.remove(), 300); };
-      el.querySelector(".yay-close").addEventListener("click", close);
-      setTimeout(close, 7000);
+      setTimeout(() => closeYay(el), 7000);  // its × works through the page-wide helper
       if (el.hasAttribute("data-confetti") && typeof burstConfetti === "function") burstConfetti();
     }
   };
@@ -3857,89 +3856,6 @@ window.inpaceMediaSession = (box, v) => {
     wasRunning = true;
     poll();
   });
-  // Adding a course or a whole roadmap from the library: the button fills up as the files download, and says
-  // which course it's on, so the app never looks frozen. (The page waits for Python to finish, as before.)
-  const PACK = /^\/(library\/[^/]+\/add|roadmaps\/[^/]+\/(add\/[^/]+|add-all))$/;
-  const lang = root.lang === "ar";
-  const W = lang ? { dl: "جارٍ التنزيل", inst: "جارٍ الإضافة…", wait: "جارٍ الاتصال بالمكتبة…" }
-                 : { dl: "Downloading", inst: "Adding…", wait: "Reaching the library…" };
-  document.addEventListener("submit", (e) => {
-    const f = e.target;
-    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.dataset.packOn) return;
-    let path = "";
-    try { path = new URL(f.action, location.href).pathname; } catch (x) { return; }
-    if (!PACK.test(path)) return;
-    f.dataset.packOn = "1";
-    const token = Math.random().toString(36).slice(2, 12);
-    const inp = document.createElement("input");
-    inp.type = "hidden"; inp.name = "progress"; inp.value = token;
-    f.appendChild(inp);
-    const btn = e.submitter || f.querySelector("button");
-    if (!btn) return;
-    btn.classList.add("btn-progress");
-    const show = (pct, text) => {
-      btn.style.setProperty("--p", pct + "%");
-      btn.setAttribute("aria-busy", "true");
-      btn.textContent = text;
-    };
-    setTimeout(() => { btn.disabled = true; }, 0);  // after the form is sent
-    show(0, W.wait);
-    if (window.InPaceAndroid) { try { InPaceAndroid.postMessage(JSON.stringify({ type: "downloads" })); } catch (x) { /* old app */ } }
-    const tick = async () => {
-      try {
-        const o = await (await fetch("/downloads.json", { cache: "no-store" })).json();
-        const x = (o.packs || {})[token];
-        if (x) {
-          const pct = x.size ? Math.min(100, Math.round((100 * x.got) / x.size)) : 0;
-          const part = x.of > 1 ? ` ${x.n}/${x.of}` : "";
-          if (x.state === "installing") show(100, W.inst + part);
-          else show(pct, `${W.dl}${part} · ${pct}%${x.size ? ` · ${size(x.got)} / ${size(x.size)}` : ""}`);
-        }
-      } catch (x) { /* the page is changing */ }
-      setTimeout(tick, 400);
-    };
-    setTimeout(tick, 300);
-  });
-
-  // Sending files (opening a course file, adding videos or a book, restoring a backup, a picture): the button
-  // fills up as the files go, then says it's working while inPace reads them.
-  const UP = lang ? { up: "جارٍ الرفع", work: "جارٍ التجهيز…" } : { up: "Uploading", work: "Working on it…" };
-  document.addEventListener("submit", (e) => {
-    const f = e.target;
-    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.hasAttribute("data-nav-form") || f.target) return;
-    if ((f.getAttribute("enctype") || "") !== "multipart/form-data" || !window.XMLHttpRequest) return;
-    const files = [...f.querySelectorAll("input[type=file]")].reduce((a, i) => a + [...(i.files || [])].reduce((b, x) => b + x.size, 0), 0);
-    if (files < 2 * 1024 * 1024) return;  // small: it's sent in a blink, the usual way
-    e.preventDefault();
-    const body = new FormData(f);
-    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
-    const btn = e.submitter || f.querySelector("button:not([type=button])");
-    const show = (pct, text) => { if (!btn) return; btn.classList.add("btn-progress"); btn.style.setProperty("--p", pct + "%"); btn.setAttribute("aria-busy", "true"); btn.disabled = true; btn.textContent = text; };
-    show(0, UP.up + " 0%");
-    const x = new XMLHttpRequest();
-    x.open("POST", f.action || location.href);
-    x.upload.onprogress = (ev) => { if (ev.lengthComputable) { const p = Math.round((100 * ev.loaded) / ev.total); show(p, p >= 100 ? UP.work : `${UP.up} ${p}% · ${size(ev.loaded)} / ${size(ev.total)}`); } };
-    x.upload.onload = () => show(100, UP.work);
-    x.onload = () => {
-      const action = new URL(f.action || location.href, location.href).href;
-      if (x.responseURL && x.responseURL !== action) { location.replace(x.responseURL); return; }
-      document.open(); document.write(x.responseText); document.close();
-    };
-    x.onerror = () => { f.submit(); };  // couldn't send it this way: the usual way
-    x.send(body);
-  });
-  // Any other button that takes a moment: a small spinner on it, so you know it's working.
-  document.addEventListener("submit", (e) => {
-    const f = e.target;
-    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.target) return;
-    const btn = e.submitter || f.querySelector("button:not([type=button])");
-    if (!btn || btn.classList.contains("btn-progress")) return;
-    // Forms that update the page in place have their own feedback (and their buttons must stay as drawn).
-    if (f.closest("[data-live]") || f.matches("[data-nav-form], [data-dl-form], .yt-save, [data-timer-form]")) return;
-    const t = setTimeout(() => { if (btn.isConnected) btn.classList.add("is-busy"); }, 450);
-    addEventListener("pagehide", () => clearTimeout(t), { once: true });
-  });
-
   // Deleting files: the first press asks, the second deletes.
   document.addEventListener("submit", (e) => {
     const f = e.target;
@@ -4029,4 +3945,183 @@ window.inpaceMediaSession = (box, v) => {
     } catch (x) { /* nothing opened: the button can be pressed again */ }
     setTimeout(() => { b.disabled = false; b.classList.remove("is-busy"); }, 1200);
   });
+})();
+
+
+// ---- Light, dark and colors (v1.31.2) -------------------------------------------------------------------------
+// One place for how inPace looks. The light/dark button at the top and the choices in Settings change the page right
+// away, keep every control on the page in step with what's showing (so picking a choice always works, the second
+// time too), and are saved in the background. No reload.
+(() => {
+  const root = document.documentElement;
+  const now = {
+    theme: () => root.dataset.theme || "",
+    dark_style: () => (root.hasAttribute("data-black") ? "black" : ""),
+    accent: () => root.dataset.accent || "",
+  };
+  const set = {
+    theme: (v) => { if (v === "light" || v === "dark") root.dataset.theme = v; else delete root.dataset.theme; },
+    dark_style: (v) => root.toggleAttribute("data-black", v === "black"),
+    accent: (v) => { if (v) root.dataset.accent = v; else delete root.dataset.accent; },
+  };
+  const sync = () => document.querySelectorAll("input[data-look]").forEach((i) => {
+    if (now[i.name]) i.checked = i.value === now[i.name]();
+  });
+  const save = async (url, body) => {
+    try {
+      const r = await fetch(url, { method: "POST", body, headers: { "X-InPace-Soft": "1" } });
+      const ok = new URL(r.url).searchParams.get("ok");
+      if (ok && window.inpaceToast && url !== "/theme") inpaceToast(ok);
+    } catch (e) { /* offline server: it's applied on this page, and saved next time */ }
+  };
+  document.addEventListener("change", (e) => {
+    const i = e.target.closest && e.target.closest("input[data-look]");
+    if (!i || !set[i.name]) return;
+    set[i.name](i.value);
+    sync();
+    save(i.form.action, new FormData(i.form));
+  });
+  document.addEventListener("click", (e) => {
+    if (!(e.target.closest && e.target.closest("[data-theme-toggle]"))) return;
+    const shown = now.theme() || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    set.theme(shown === "dark" ? "light" : "dark");
+    sync();
+    const body = new FormData();
+    body.append("theme", now.theme());
+    save("/theme", body);
+  });
+  sync();
+})();
+
+
+// ---- Long buttons: progress you can see (v1.31.2) -------------------------------------------------------------
+// The rules, for every page:
+//  1. A form marked [data-progress] (adding a course or a roadmap, updating inPace, getting yt-dlp) is sent in the
+//     background with a random token. Its button fills up and says what's happening (/progress.json, filled in by
+//     progress.py on the server), and the page stays usable. When the answer comes, the page goes where it says.
+//  2. A form that sends big files (2 MB or more) is sent the same way, and its button shows the upload.
+//  3. Any other button that takes more than half a second gets a small spinner.
+// Without JavaScript every form still works the plain way.
+(() => {
+  const W = document.body.dataset;
+  const size = (n) => (n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB"
+    : Math.max(1, Math.round((n || 0) / 1024)) + " KB");
+  const pressed = (form, e) => e.submitter || form.querySelector("button:not([type=button]), [type=submit]");
+  const show = (btn, pct, text) => {
+    if (!btn) return;
+    btn.classList.add("btn-progress");
+    btn.style.setProperty("--p", Math.max(0, Math.min(100, pct)) + "%");
+    btn.setAttribute("aria-busy", "true");
+    btn.disabled = true;
+    btn.textContent = text;
+  };
+  const restore = (btn, html) => {
+    if (!btn) return;
+    btn.classList.remove("btn-progress", "is-busy"); btn.style.removeProperty("--p"); btn.removeAttribute("data-indeterminate");
+    btn.removeAttribute("aria-busy"); btn.disabled = false; btn.innerHTML = html;
+  };
+  // Where to go with the server's answer: the page it redirected to, or the page it sent (an error, "Restarting…").
+  const follow = async (r, action) => {
+    const type = r.headers.get("content-type") || "";
+    if (r.redirected || (r.url && r.url !== action)) { goFresh(r.url); return; }
+    if (type.includes("text/html")) { const html = await r.text(); document.open(); document.write(html); document.close(); return; }
+    location.reload();
+  };
+  const text = (x) => {
+    const steps = x.of > 1 ? ` ${x.n}/${x.of}` : "";
+    if (x.state === "installing") return x.note === "install" ? W.wInstalling : W.wAdding + steps;
+    if (x.size) {
+      const pct = Math.round((100 * x.got) / x.size);
+      const what = x.note === "download" && x.title ? ` ${x.title}` : "";
+      return [`${W.wDownloading}${what}${steps}`, `${pct}%`, `${size(x.got)} / ${size(x.size)}`].join(" · ");
+    }
+    return x.note === "check" ? W.wChecking : x.got ? `${W.wDownloading}${steps} · ${size(x.got)}` : W.wConnecting;
+  };
+
+  // 1. [data-progress] forms
+  document.addEventListener("submit", async (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || !f.hasAttribute("data-progress")) return;
+    e.preventDefault();
+    if (f.dataset.sending) return;
+    f.dataset.sending = "1";
+    const btn = pressed(f, e), was = btn ? btn.innerHTML : "";
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(9)), (b) => (b % 36).toString(36)).join("");
+    const body = new FormData(f);
+    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+    body.set("progress", token);
+    const action = new URL(f.getAttribute("action") || location.href, location.href).href;
+    let running = true;
+    show(btn, 0, W.wConnecting);
+    if (window.InPaceAndroid) { try { InPaceAndroid.postMessage(JSON.stringify({ type: "downloads" })); } catch (x) { /* older app */ } }
+    let ticks = 0;
+    const tick = async () => {
+      if (!running) return;
+      ticks += 1;
+      try {
+        const x = await (await fetch("/progress.json?t=" + token, { cache: "no-store" })).json();
+        if (running && x && x.state) {
+          btn && btn.removeAttribute("data-indeterminate");
+          show(btn, x.state === "installing" ? 100 : x.size ? (100 * x.got) / x.size : 0, text(x));
+        } else if (running && ticks === 3 && btn) {  // work with no steps to count (an AI answer, say): it's busy
+          btn.setAttribute("data-indeterminate", "");
+          show(btn, 100, W.wWorking);
+        }
+      } catch (err) { /* busy: next time */ }
+      if (running) setTimeout(tick, 400);
+    };
+    setTimeout(tick, 250);
+    try {
+      const r = await fetch(action, { method: "POST", body });
+      running = false;
+      await follow(r, action);
+    } catch (err) {
+      running = false;
+      delete f.dataset.sending;
+      restore(btn, was);
+      if (window.inpaceToast) inpaceToast(W.wFailed);
+    }
+  });
+
+  // 2. Big files: the upload's own progress
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.hasAttribute("data-nav-form") || f.target) return;
+    if ((f.getAttribute("enctype") || "") !== "multipart/form-data") return;
+    const bytes = [...f.querySelectorAll("input[type=file]")].reduce((a, i) => a + [...(i.files || [])].reduce((b, x) => b + x.size, 0), 0);
+    if (bytes < 2 * 1024 * 1024) return;  // small: it's sent in a blink, the usual way
+    e.preventDefault();
+    const body = new FormData(f);
+    if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+    const btn = pressed(f, e);
+    const action = new URL(f.getAttribute("action") || location.href, location.href).href;
+    show(btn, 0, `${W.wUploading} 0%`);
+    const x = new XMLHttpRequest();
+    x.open("POST", action);
+    x.upload.onprogress = (ev) => {
+      if (!ev.lengthComputable) return;
+      const p = Math.round((100 * ev.loaded) / ev.total);
+      show(btn, p, p >= 100 ? W.wWorking : `${W.wUploading} ${p}% · ${size(ev.loaded)} / ${size(ev.total)}`);
+    };
+    x.upload.onload = () => show(btn, 100, W.wWorking);
+    x.onload = () => {
+      if (x.responseURL && x.responseURL !== action) { goFresh(x.responseURL); return; }
+      document.open(); document.write(x.responseText); document.close();
+    };
+    x.onerror = () => { HTMLFormElement.prototype.submit.call(f); };  // couldn't send it this way: the usual way
+    x.send(body);
+  });
+
+  // 3. Everything else that takes a moment: a small spinner on the button
+  document.addEventListener("submit", (e) => {
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement) || e.defaultPrevented || f.target) return;
+    const btn = pressed(f, e);
+    if (!btn || btn.classList.contains("btn-progress")) return;
+    // Forms that update the page in place have their own feedback (and their buttons must stay as drawn).
+    if (f.closest("[data-live]") || f.matches("[data-nav-form], [data-dl-form], .yt-save, [data-timer-form]")) return;
+    const t = setTimeout(() => { if (btn.isConnected) btn.classList.add("is-busy"); }, 450);
+    addEventListener("pagehide", () => clearTimeout(t), { once: true });
+  });
+})();
 })();

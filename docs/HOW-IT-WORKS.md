@@ -227,6 +227,10 @@ Because of the link and the signature, nobody can change one milestone without b
 - **English and Arabic:** the whole app, right to left in Arabic.
 - **The welcome tour:** Tempo the turtle shows you around the first time. You can replay it from Settings.
 
+**Long buttons (v1.31.2, `progress.py`).** A form marked `data-progress` (adding a course or a roadmap, updating inPace, getting yt-dlp, AI) is sent in the background with a random token, and its button asks `/progress.json?t=<token>` a few times a second. The route doing the work reports what it's doing with `progress.report(token, ...)`, or runs the work inside `progress.within(token, info, fn)` so a download loop deep down (`library.download`, `updater._download`, `offline._get`) reports its bytes with `progress.bytes_done`. When the route answers, the page goes where it says. Big file uploads use `XMLHttpRequest` for their own progress, and other slow buttons get a spinner.
+
+**One place for the look (v1.31.2).** The light/dark button and the Settings choices for mode, dark look and colors (`input[data-look]`) are handled by one part of `app.js`: it changes `<html data-theme / data-black / data-accent>` right away, ticks the matching choices everywhere on the page, and saves in the background. Page helpers (`data-autosubmit`, `data-busy`, `data-days`, the × on notices) listen on the whole document, so parts of a page updated in place keep working. The whole page script sits inside one function, so it can run again on the same window.
+
 ## 8. Reminders and notifications
 
 <p align="center"><img src="../site/assets/shots/reminders.jpg" width="720" alt="The Reminders page: a weekend notification at 9:00 and a weekday alarm at 19:30."></p>

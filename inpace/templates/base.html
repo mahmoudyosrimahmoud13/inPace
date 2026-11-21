@@ -12,6 +12,10 @@
    If Back lands on one of them, go to the page it belongs to instead. If the browser brings back a
    page from its memory, load it again so it shows the colors and language you have now. */
 (function () {
+  /* The Linux window (GTK + WebKit) puts the page's scrollbar on the left in Arabic, as a wide gutter on some
+     systems. The styles read this class to keep it on the right, like in English (v1.31.2). */
+  var ua = navigator.userAgent;
+  if (/Linux/.test(ua) && /AppleWebKit/.test(ua) && !/Chrome|Chromium|Android|Edg\//.test(ua)) document.documentElement.classList.add("wk-gtk");
   var m = document.querySelector('meta[name="inpace-dispose"]');
   var nav = window.performance && performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
   if (m && nav && nav.type === "back_forward") location.replace(m.content);
@@ -40,7 +44,9 @@
 })();
 </script>
 </head>
-<body>
+<body data-w-downloading="{{ _('Downloading') }}" data-w-adding="{{ _('Adding…') }}" data-w-connecting="{{ _('Connecting…') }}"
+  data-w-checking="{{ _('Checking for updates…') }}" data-w-installing="{{ _('Installing… your computer may ask for your password') }}"
+  data-w-uploading="{{ _('Uploading') }}" data-w-working="{{ _('Working on it…') }}" data-w-failed="{{ _("That didn't work. Try again.") }}">
 <header class="top">
   <span class="nav-btns" role="group" aria-label="{{ _('Go back or forward') }}">
     <button type="button" class="nav-btn" data-nav-back title="{{ _('Back (Alt+←)') }}" aria-label="{{ _('Back') }}">{{ icon('back', 20) }}</button>
@@ -58,7 +64,8 @@
     <span class="when-light">{{ icon('moon', 20) }}</span><span class="when-dark">{{ icon('sun', 20) }}</span>
   </button>
   {% if me %}
-  <a class="me" href="/settings" title="{{ _('Settings') }}">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
+  {# data-live: when a page updates in place (a new name or turtle in Settings), this updates with it #}
+  <a class="me" id="me-link" data-live data-live-buttons href="/settings" title="{{ _('Settings') }}">{{ avatar(me, 32) }}<span>{{ me.name }}</span></a>
   {% endif %}
 </header>
 <div class="shell {{ 'no-side' if not me }}">
@@ -110,7 +117,7 @@
           <button class="btn primary">{% trans trimmed %}Restart now{% endtrans %}</button>
         </form>
         {% elif update.status.state == 'ready' %}
-        <form class="update-bar" method="post" action="/updates/install">
+        <form class="update-bar" method="post" action="/updates/install" data-progress>
           <span>{% if update.kind == 'windows' %}{{ T('inPace {v} is ready. Installing takes a moment, then inPace opens again.', v=update.status.version) }}{% else %}{{ T('inPace {v} is ready. Your computer will ask for your password to install it.', v=update.status.version) }}{% endif %}</span>
           <button class="btn primary">{% trans trimmed %}Install and restart{% endtrans %}</button>
         </form>
@@ -197,7 +204,7 @@
     {% elif update_news.kind == 'source' %}
     <p class="small"><b>{% trans trimmed %}This copy runs from its code folder. To update, run this in the inPace folder:{% endtrans %}</b> <code>git pull</code></p>
     {% else %}
-    <form method="post" action="/updates/check"><button class="btn primary" data-busy="{{ _('Updating…') }}">{{ icon('download', 18) }}{% trans trimmed %}Update now{% endtrans %}</button></form>
+    <form method="post" action="/updates/check" data-progress><button class="btn primary">{{ icon('download', 18) }}{% trans trimmed %}Update now{% endtrans %}</button></form>
     {% endif %}
     {% if update_news.page %}<a class="btn" href="{{ update_news.page }}" target="_blank" rel="noopener">{% trans trimmed %}What's new{% endtrans %}</a>{% endif %}
     <form method="post" action="/updates/later" data-news-later><button class="btn ghost">{% trans trimmed %}Later{% endtrans %}</button></form>

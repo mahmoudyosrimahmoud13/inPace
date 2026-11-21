@@ -64,10 +64,11 @@ def test_a_library_course_reports_its_progress(monkeypatch):
         def __exit__(self, *a): return False
     monkeypatch.setattr(library, "_get", lambda url, timeout=0: R(data))
     entry = {"pack": library.SITE + "x.zip", "sha256": hashlib.sha256(data).hexdigest(), "title": "FastAPI"}
-    assert library.download_tracked(entry, "tok", 1, 2) == data
-    x = library.PROGRESS["tok"]
+    from inpace import progress
+    assert progress.within("tok", {"title": "FastAPI", "n": 1, "of": 2}, library.download, entry) == data
+    x = progress.get("tok")
     assert x["got"] == x["size"] == len(data) and x["title"] == "FastAPI" and x["of"] == 2
-    library.PROGRESS.clear()
+    progress.PROGRESS.clear()
 
 
 def test_backup_leaves_out_the_cache_and_half_written_files(tmp_path):

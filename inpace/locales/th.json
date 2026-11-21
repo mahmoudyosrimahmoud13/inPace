@@ -719,5 +719,12 @@
  "Check your internet and try again.": "ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง",
  "Practice in CodeNote": "ฝึกใน CodeNote",
  "Did it in CodeNote? Use Export for inPace and attach the file.": "ทำใน CodeNote แล้ว? ใช้ Export for inPace แล้วแนบไฟล์",
- "Preview": "ดูตัวอย่าง"
+ "Preview": "ดูตัวอย่าง",
+ "Connecting…": "กำลังเชื่อมต่อ…",
+ "Checking for updates…": "กำลังตรวจหาอัปเดต…",
+ "Installing… your computer may ask for your password": "กำลังติดตั้ง… เครื่องอาจขอรหัสผ่าน",
+ "Uploading": "กำลังอัปโหลด",
+ "Working on it…": "กำลังดำเนินการ…",
+ "That didn't work. Try again.": "ไม่สำเร็จ ลองอีกครั้ง",
+ "Courses, updates and tools": "คอร์ส อัปเดต และเครื่องมือ"
 }

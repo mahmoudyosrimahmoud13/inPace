@@ -95,7 +95,7 @@
       {% if e.downloads %}<span class="chip warn">{{ T('Extra downloads{size}', size=(' · ' ~ e.downloads[0].size) if e.downloads[0].size else '') }}</span>{% endif %}</p>
     <div class="lib-actions">
       {% if e.state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
-      {% else %}<form method="post" action="/library/{{ e.id }}/add"><button class="btn primary">{{ _('Update') if e.state == 'update' else _('Add') }}</button></form>{% endif %}
+      {% else %}<form method="post" action="/library/{{ e.id }}/add" data-progress><button class="btn primary">{{ _('Update') if e.state == 'update' else _('Add') }}</button></form>{% endif %}
       <a class="btn" href="/library/{{ e.id }}">{% trans trimmed %}See what's inside{% endtrans %}</a>
     </div>
   </div>

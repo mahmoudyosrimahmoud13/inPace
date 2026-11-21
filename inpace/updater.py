@@ -88,8 +88,24 @@ def check() -> dict | None:
 
 
 def _download(url: str, dest: Path) -> None:
+    """Download to a file. When a page is watching (progress.py), it sees how many megabytes are done."""
+    from . import progress
     with _get(url, timeout=60) as r, open(dest, "wb") as out:
-        shutil.copyfileobj(r, out, 1024 * 1024)
+        if not progress.watched():
+            shutil.copyfileobj(r, out, 1024 * 1024)
+            return
+        try:
+            total = int(r.headers.get("Content-Length") or 0)
+        except (AttributeError, TypeError, ValueError):
+            total = 0
+        got = 0
+        while True:
+            block = r.read(256 * 1024)
+            if not block:
+                break
+            out.write(block)
+            got += len(block)
+            progress.bytes_done(got, total)
 
 
 def _sha256(path: Path) -> str:
@@ -316,11 +332,14 @@ def run(vault, force: bool = False) -> dict:
     if not force and time.time() - last < CHECK_EVERY:
         return json.loads(vault._meta("update_status", "{}") or "{}") or status
     vault._set_meta("update_checked", str(int(time.time())))
+    from . import progress
     try:
         rel = check()
         if not rel:
             status = {"state": "current", "checked": int(time.time())}
         else:
+            if progress.watched():
+                progress.report(progress._NOW.token, title=f"inPace {rel['version']}", note="download")
             file = download(rel, kind, vault.home / "updates")
             if kind in ("deb", "deb-full", "windows"):  # installed by its installer, when you press "Install and restart"
                 status = {"state": "ready", "version": rel["version"], "file": str(file)}

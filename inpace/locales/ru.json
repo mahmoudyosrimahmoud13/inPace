@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "Обновить yt-dlp",
  "Check your internet and try again.": "Проверьте интернет и попробуйте снова.",
  "Practice in CodeNote": "Практика в CodeNote",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "Сделали в CodeNote? Используйте Export for inPace и прикрепите файл."
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Сделали в CodeNote? Используйте Export for inPace и прикрепите файл.",
+ "Connecting…": "Подключение…",
+ "Checking for updates…": "Ищем обновления…",
+ "Installing… your computer may ask for your password": "Установка… компьютер может спросить пароль",
+ "Uploading": "Отправка",
+ "Working on it…": "Работаем…",
+ "That didn't work. Try again.": "Не получилось. Попробуйте ещё раз.",
+ "Courses, updates and tools": "Курсы, обновления и инструменты"
 }

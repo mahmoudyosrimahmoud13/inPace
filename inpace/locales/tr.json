@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "yt-dlp'yi güncelle",
  "Check your internet and try again.": "İnternetini kontrol edip tekrar dene.",
  "Practice in CodeNote": "CodeNote'ta pratik yap",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "CodeNote'ta mı yaptın? Export for inPace'i kullanıp dosyayı ekle."
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "CodeNote'ta mı yaptın? Export for inPace'i kullanıp dosyayı ekle.",
+ "Connecting…": "Bağlanıyor…",
+ "Checking for updates…": "Güncellemeler aranıyor…",
+ "Installing… your computer may ask for your password": "Kuruluyor… bilgisayarın şifre isteyebilir",
+ "Uploading": "Yükleniyor",
+ "Working on it…": "Üzerinde çalışılıyor…",
+ "That didn't work. Try again.": "Olmadı. Tekrar dene.",
+ "Courses, updates and tools": "Kurslar, güncellemeler ve araçlar"
 }

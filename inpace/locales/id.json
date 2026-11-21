@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "Perbarui yt-dlp",
  "Check your internet and try again.": "Periksa internet lalu coba lagi.",
  "Practice in CodeNote": "Latihan di CodeNote",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "Mengerjakannya di CodeNote? Pakai Export for inPace lalu lampirkan filenya."
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Mengerjakannya di CodeNote? Pakai Export for inPace lalu lampirkan filenya.",
+ "Connecting…": "Menghubungkan…",
+ "Checking for updates…": "Mencari pembaruan…",
+ "Installing… your computer may ask for your password": "Memasang… komputer mungkin meminta kata sandi",
+ "Uploading": "Mengunggah",
+ "Working on it…": "Sedang dikerjakan…",
+ "That didn't work. Try again.": "Tidak berhasil. Coba lagi.",
+ "Courses, updates and tools": "Kursus, pembaruan, dan alat"
 }

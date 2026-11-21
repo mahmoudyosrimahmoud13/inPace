@@ -103,10 +103,10 @@
 </section>
 {% if ai_error %}<div class="note bad">{{ ai_error }}</div>{% endif %}
 {% if ai.provider %}
-<form method="post" class="card soft row between">
+<form method="post" class="card soft row between" data-progress>
   <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>{{ src_fields() }}
   <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. {{ _('This can take a few minutes.') }}</span></span>
-  <button class="btn primary" data-busy="Making your course...">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
+  <button class="btn primary">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
 </form>
 {% endif %}
 <form method="post" class="card stack">

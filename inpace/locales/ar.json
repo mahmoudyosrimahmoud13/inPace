@@ -2489,5 +2489,12 @@
  "That lesson isn't in “{title}” anymore.": "هذا الدرس لم يعد في «{title}».",
  "Start “{title}” first: the lesson is in that course.": "ابدأ «{title}» أولًا: الدرس في هذه الدورة.",
  "That course isn't on this device yet. You can add it from the library.": "هذه الدورة ليست على هذا الجهاز بعد. يمكنك إضافتها من المكتبة.",
- "That lesson's course isn't on this device. Ask for the course file, then open the link again.": "دورة هذا الدرس ليست على هذا الجهاز. اطلب ملف الدورة، ثم افتح الرابط مرة أخرى."
+ "That lesson's course isn't on this device. Ask for the course file, then open the link again.": "دورة هذا الدرس ليست على هذا الجهاز. اطلب ملف الدورة، ثم افتح الرابط مرة أخرى.",
+ "Connecting…": "جارٍ الاتصال…",
+ "Checking for updates…": "جارٍ البحث عن تحديثات…",
+ "Installing… your computer may ask for your password": "جارٍ التثبيت… قد يطلب جهازك كلمة المرور",
+ "Uploading": "جارٍ الرفع",
+ "Working on it…": "جارٍ العمل عليه…",
+ "That didn't work. Try again.": "لم ينجح ذلك. حاول مرة أخرى.",
+ "Courses, updates and tools": "دورات وتحديثات وأدوات"
 }

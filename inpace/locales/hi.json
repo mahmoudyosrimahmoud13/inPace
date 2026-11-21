@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "yt-dlp अपडेट करें",
  "Check your internet and try again.": "अपना इंटरनेट जाँचें और फिर कोशिश करें।",
  "Practice in CodeNote": "CodeNote में अभ्यास करें",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "CodeNote में किया? Export for inPace इस्तेमाल करें और फ़ाइल जोड़ें।"
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "CodeNote में किया? Export for inPace इस्तेमाल करें और फ़ाइल जोड़ें।",
+ "Connecting…": "जुड़ रहा है…",
+ "Checking for updates…": "अपडेट देख रहा है…",
+ "Installing… your computer may ask for your password": "इंस्टॉल हो रहा है… आपका कंप्यूटर पासवर्ड माँग सकता है",
+ "Uploading": "अपलोड हो रहा है",
+ "Working on it…": "काम चल रहा है…",
+ "That didn't work. Try again.": "यह नहीं हुआ। फिर कोशिश करें।",
+ "Courses, updates and tools": "कोर्स, अपडेट और टूल"
 }

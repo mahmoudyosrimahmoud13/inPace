@@ -139,6 +139,7 @@ def _pywebview(url: str) -> bool:
 
 LINUX_HELPER = r'''
 import os, sys
+os.environ.pop("GTK_OVERLAY_SCROLLING", None)  # see "thin scrollbars" below
 try:
     import gi
     gi.require_version("Gtk", "3.0")
@@ -155,6 +156,12 @@ url, parent = sys.argv[1], int(sys.argv[2])
 splash = sys.argv[3] if len(sys.argv) > 3 else ""
 mode = sys.argv[4] if len(sys.argv) > 4 else "safe"   # gpu, safe or soft (see _linux_gtk)
 GLib.set_prgname("inpace"); GLib.set_application_name("inPace")
+# Thin scrollbars that show while you scroll, whatever the system's setting: with the classic kind, WebKit draws a
+# wide light gutter with a border line, which looked like a white bar at the window's edge (v1.31.2).
+try:
+    Gtk.Settings.get_default().set_property("gtk-overlay-scrolling", True)
+except Exception:
+    pass
 
 win = Gtk.Window(title="inPace")
 win.set_default_size(1280, 860)

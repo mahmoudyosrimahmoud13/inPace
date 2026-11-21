@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import io
 import json
-import threading
 import time
 import zipfile
 from pathlib import Path
@@ -169,35 +168,6 @@ def find(index: dict, course_id: str) -> dict | None:
     return next((c for c in index.get("courses", []) if c.get("id") == course_id), None)
 
 
-# Course downloads in progress (v1.30.14), so the page can show a progress bar while a course or a whole roadmap
-# downloads, and the Downloads page and the phone's notification can show them too.
-#   token -> {"title", "got", "size", "n", "of", "state": running | installing | done | failed, "at"}
-PROGRESS: dict[str, dict] = {}
-_NOW = threading.local()
-
-
-def track(token: str, **info) -> None:
-    """Start or update one course download's progress (no token: nothing is tracked)."""
-    if not token:
-        return
-    for k in [k for k, x in PROGRESS.items() if x.get("state") in ("done", "failed") and time.time() - x.get("at", 0) > 120]:
-        PROGRESS.pop(k, None)
-    PROGRESS.setdefault(token, {"title": "", "got": 0, "size": 0, "n": 1, "of": 1, "state": "running"}).update(info, at=time.time())
-
-
-def download_tracked(entry: dict, token: str = "", n: int = 1, of: int = 1) -> bytes:
-    """download(), reporting how far it got under `token`."""
-    track(token, title=entry.get("title", ""), got=0, size=int(entry.get("size") or 0), n=n, of=of, state="running")
-    _NOW.cb = (lambda got, size: track(token, got=got, size=size or int(entry.get("size") or 0))) if token else None
-    try:
-        return download(entry)
-    except Exception:
-        track(token, state="failed")
-        raise
-    finally:
-        _NOW.cb = None
-
-
 def download(entry: dict) -> bytes:
     """Download a course from the library and make sure it's exactly the file the library lists."""
     url = str(entry.get("pack", ""))
@@ -205,8 +175,8 @@ def download(entry: dict) -> bytes:
         raise LibraryProblem("That course's link doesn't point to the inPace library.")
     try:
         with _get(url, timeout=60) as r:
-            cb = getattr(_NOW, "cb", None)
-            if cb is None:
+            from . import progress
+            if not progress.watched():
                 data = r.read(MAX_COURSE_BYTES + 1)
             else:  # in pieces, so the progress bar moves
                 try:
@@ -220,7 +190,7 @@ def download(entry: dict) -> bytes:
                         break
                     parts.append(chunk)
                     got += len(chunk)
-                    cb(got, total)
+                    progress.bytes_done(got, total or int(entry.get("size") or 0))
                 data = b"".join(parts)
     except Exception as e:
         raise LibraryProblem("The course couldn't be downloaded. Check your internet connection.") from e

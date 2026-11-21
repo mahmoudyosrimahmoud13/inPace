@@ -3,8 +3,8 @@
 {% import "_roadmap.html" as R with context %}
 {% block title %}{{ rm.title }}{% endblock %}
 {% macro download_all() %}
-<form method="post" action="/roadmaps/{{ rm.id }}/add-all" class="rm-add-all">
-  <button class="btn {{ 'big' if where == 'library' else '' }}" data-busy="{{ T('Downloading {n} courses…', n=st.to_add|length) if st.to_add|length > 1 else _('Adding…') }}">{{ icon('download', 18) }}
+<form method="post" action="/roadmaps/{{ rm.id }}/add-all" class="rm-add-all" data-progress>
+  <button class="btn {{ 'big' if where == 'library' else '' }}">{{ icon('download', 18) }}
     {% if st.to_add|length == st.steps|length %}{{ T('Download all {n} courses', n=st.to_add|length) }}{% else %}{{ T('Download the remaining {n} courses', n=st.to_add|length) if st.to_add|length > 1 else _('Download the remaining course') }}{% endif %}{% if st.add_bytes %} · {{ (st.add_bytes / 1048576)|round(1) }} MB{% endif %}</button>
   <span class="small muted">{% if where == 'library' %}{% trans trimmed %}One click: follows the roadmap and puts every course on this device, ready even offline.{% endtrans %}{% else %}{% trans trimmed %}Every course ready on this device, even offline. You still start each one when you get to it.{% endtrans %}{% endif %}</span>
 </form>
@@ -33,7 +33,7 @@
     {% elif here.state == 'start' %}
     <form method="post" action="/roadmaps/{{ rm.id }}/start/{{ here.course }}"><button class="btn primary big continue-btn"><span><span class="small">{{ T('Start course {n}', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('arrow', 18) }}</button></form>
     {% elif here.state == 'add' %}
-    <form method="post" action="/roadmaps/{{ rm.id }}/add/{{ here.course }}"><button class="btn primary big continue-btn" data-busy="{{ _('Adding…') }}"><span><span class="small">{{ T('Add course {n} from the library', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('download', 18) }}</button></form>
+    <form method="post" action="/roadmaps/{{ rm.id }}/add/{{ here.course }}" data-progress><button class="btn primary big continue-btn"><span><span class="small">{{ T('Add course {n} from the library', n=here.n) }}</span><b dir="auto">{{ here.title }}</b></span>{{ icon('download', 18) }}</button></form>
     {% elif here.state == 'unknown' %}
     <p class="note warn small">{{ T('Course {n}, “{name}”, comes from the course library. Connect to the internet, then check again.', n=here.n, name=here.title) }}
       <a class="btn small" href="/roadmaps/{{ rm.id }}?fresh=1">{% trans trimmed %}Check again{% endtrans %}</a></p>
@@ -124,7 +124,7 @@
       {% if s.state == 'done' %}<a class="btn small" href="/learn/{{ s.journey }}">{% trans trimmed %}Open{% endtrans %}</a>
       {% elif s.state == 'active' %}<a class="btn small {{ 'primary' if here and s.n == here.n }}" href="/learn/{{ s.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
       {% elif s.state == 'start' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/start/{{ s.course }}"><button class="btn small">{% trans trimmed %}Start{% endtrans %}</button></form>{% endif %}
-      {% elif s.state == 'add' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/add/{{ s.course }}"><button class="btn small" data-busy="{{ _('Adding…') }}">{{ icon('download', 16) }}{% trans trimmed %}Add{% endtrans %}</button></form>{% else %}<a class="btn small" href="/library/{{ s.course }}">{% trans trimmed %}See it{% endtrans %}</a>{% endif %}
+      {% elif s.state == 'add' %}{% if where != 'shared' %}<form method="post" action="/roadmaps/{{ rm.id }}/add/{{ s.course }}" data-progress><button class="btn small">{{ icon('download', 16) }}{% trans trimmed %}Add{% endtrans %}</button></form>{% else %}<a class="btn small" href="/library/{{ s.course }}">{% trans trimmed %}See it{% endtrans %}</a>{% endif %}
       {% elif s.state == 'unknown' %}<span class="small muted">{% trans trimmed %}Needs the internet{% endtrans %}</span>
       {% else %}<span class="small muted">{% trans trimmed %}Not in the library{% endtrans %}</span>{% endif %}
     </div>

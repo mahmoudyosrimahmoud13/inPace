@@ -27,7 +27,7 @@
     <span><span class="small muted">{% trans trimmed %}Next port{% endtrans %}</span><br><b dir="auto">{{ here.n }}. {{ here.title }}</b></span>
     {% if here.state == 'active' %}<a class="btn primary" href="/learn/{{ here.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
     {% elif here.state == 'start' %}<form method="post" action="/roadmaps/{{ v.rm.id }}/start/{{ here.course }}"><button class="btn primary">{% trans trimmed %}Start{% endtrans %}</button></form>
-    {% elif here.state == 'add' %}<form method="post" action="/roadmaps/{{ v.rm.id }}/add/{{ here.course }}"><button class="btn primary" data-busy="{{ _('Adding…') }}">{% trans trimmed %}Add the course{% endtrans %}</button></form>
+    {% elif here.state == 'add' %}<form method="post" action="/roadmaps/{{ v.rm.id }}/add/{{ here.course }}" data-progress><button class="btn primary">{% trans trimmed %}Add the course{% endtrans %}</button></form>
     {% else %}<a class="btn" href="/roadmaps/{{ v.rm.id }}">{% trans trimmed %}See the roadmap{% endtrans %}</a>{% endif %}
   </div>
   {% endif %}

@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "Cập nhật yt-dlp",
  "Check your internet and try again.": "Kiểm tra internet rồi thử lại.",
  "Practice in CodeNote": "Thực hành trong CodeNote",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "Làm trong CodeNote? Dùng Export for inPace rồi đính kèm tệp."
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Làm trong CodeNote? Dùng Export for inPace rồi đính kèm tệp.",
+ "Connecting…": "Đang kết nối…",
+ "Checking for updates…": "Đang tìm bản cập nhật…",
+ "Installing… your computer may ask for your password": "Đang cài đặt… máy có thể hỏi mật khẩu",
+ "Uploading": "Đang tải lên",
+ "Working on it…": "Đang xử lý…",
+ "That didn't work. Try again.": "Không được. Hãy thử lại.",
+ "Courses, updates and tools": "Khóa học, bản cập nhật và công cụ"
 }

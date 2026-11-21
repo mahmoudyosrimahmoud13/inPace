@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "更新 yt-dlp",
  "Check your internet and try again.": "请检查网络后重试。",
  "Practice in CodeNote": "在 CodeNote 中练习",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "在 CodeNote 里完成的？用 Export for inPace 导出并附上文件。"
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "在 CodeNote 里完成的？用 Export for inPace 导出并附上文件。",
+ "Connecting…": "正在连接…",
+ "Checking for updates…": "正在检查更新…",
+ "Installing… your computer may ask for your password": "正在安装… 电脑可能会要求输入密码",
+ "Uploading": "正在上传",
+ "Working on it…": "正在处理…",
+ "That didn't work. Try again.": "没有成功，请再试一次。",
+ "Courses, updates and tools": "课程、更新和工具"
 }

@@ -47,13 +47,13 @@
     <fieldset class="look-pick">
       <legend class="muted small">{% trans trimmed %}Mode{% endtrans %}</legend>
       {% for val, name in (('', _('Like my device')), ('light', _('Light')), ('dark', _('Dark'))) %}
-      <label><input type="radio" name="theme" value="{{ val }}" {{ 'checked' if (theme or '') == val }} data-autosubmit><span>{{ name }}</span></label>
+      <label><input type="radio" name="theme" value="{{ val }}" {{ 'checked' if (theme or '') == val }} data-look><span>{{ name }}</span></label>
       {% endfor %}
     </fieldset>
     <fieldset class="look-pick">
       <legend class="muted small">{% trans trimmed %}Dark mode looks{% endtrans %}</legend>
-      <label><input type="radio" name="dark_style" value="" {{ 'checked' if not black }} data-autosubmit><span class="dark-chip">{{ _('Warm dark') }}</span></label>
-      <label><input type="radio" name="dark_style" value="black" {{ 'checked' if black }} data-autosubmit><span class="dark-chip black">{{ _('AMOLED black') }}</span></label>
+      <label><input type="radio" name="dark_style" value="" {{ 'checked' if not black }} data-look><span class="dark-chip">{{ _('Warm dark') }}</span></label>
+      <label><input type="radio" name="dark_style" value="black" {{ 'checked' if black }} data-look><span class="dark-chip black">{{ _('AMOLED black') }}</span></label>
     </fieldset>
     <p class="muted small">{% trans trimmed %}AMOLED black makes the background fully black: easier on the eyes at night, and it saves battery on phones with OLED screens.{% endtrans %}</p>
     <noscript><button class="btn">{{ _('Save') }}</button></noscript>
@@ -64,7 +64,7 @@
   <p class="muted small">{% trans trimmed %}Pick the colors for the whole app. They work in light and dark mode.{% endtrans %}</p>
   <form method="post" action="/settings/colors" class="swatches" data-nav-form>
     {% for key, (name, main, second) in ACCENTS.items() %}
-    <label class="swatch-card"><input type="radio" name="accent" value="{{ key }}" {{ 'checked' if (accent or '') == key }} data-autosubmit>
+    <label class="swatch-card"><input type="radio" name="accent" value="{{ key }}" {{ 'checked' if (accent or '') == key }} data-look>
       <span class="chips"><i style="background: {{ main }}"></i><i style="background: {{ second }}"></i><i style="background: #111"></i></span>
       <span>{{ _(name) }}</span></label>
     {% endfor %}
@@ -120,7 +120,7 @@
   <h3 class="set-h">{% trans trimmed %}Video downloads{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}For watching YouTube lessons offline. inPace uses yt-dlp, a free open-source downloader, kept in your inPace folder.{% endtrans %}</p>
   <p>{% if videos.version %}<span class="chip good plain">{{ T('yt-dlp {v}', v=videos.version) }}</span>{% else %}<span class="chip muted plain">{% trans trimmed %}Not downloaded yet{% endtrans %}</span>{% endif %}</p>
-  <form method="post" action="/settings/videos/update"><button class="btn" data-busy="{{ _('Checking…') }}">{% if videos.version %}{% trans trimmed %}Update now{% endtrans %}{% else %}{% trans trimmed %}Get yt-dlp now{% endtrans %}{% endif %}</button></form>
+  <form method="post" action="/settings/videos/update" data-progress><button class="btn">{% if videos.version %}{% trans trimmed %}Update now{% endtrans %}{% else %}{% trans trimmed %}Get yt-dlp now{% endtrans %}{% endif %}</button></form>
   <form method="post" action="/settings/videos" class="stack" data-nav-form style="margin-block-start:.8rem">
     <fieldset class="stack" style="border:0;padding:0;margin:0">
       <legend class="small"><b>{% trans trimmed %}Keep yt-dlp up to date{% endtrans %}</b></legend>
@@ -221,7 +221,7 @@
         <button class="btn primary" name="choice" value="auto">{% trans trimmed %}Turn on{% endtrans %}</button>
       {% endif %}
     </form>
-    <form method="post" action="/updates/check" style="margin-block-start:.6rem"><button class="btn" data-busy="{{ _('Checking…') }}">{% trans trimmed %}Check now{% endtrans %}</button></form>
+    <form method="post" action="/updates/check" style="margin-block-start:.6rem" data-progress><button class="btn">{% trans trimmed %}Check now{% endtrans %}</button></form>
     {% if update.status.state == 'waiting' %}<p class="small muted">{% trans trimmed %}A new version is being published right now. inPace looks again in an hour.{% endtrans %}</p>{% endif %}
     {% if update.status.state == 'failed' %}<p class="small muted">{{ T('Last check didn’t work: {why}', why=_(update.status.error or '')) }}</p>{% endif %}
     <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>

@@ -493,9 +493,24 @@ def version(home: Path) -> str:
 
 def _get(url: str, timeout: float = 60) -> bytes:
     import urllib.request
+    from . import progress
     from .net import urlopen
     with urlopen(urllib.request.Request(url, headers={"User-Agent": "inPace"}), timeout=timeout) as r:
-        return r.read()
+        if not progress.watched():
+            return r.read()
+        try:
+            total = int(r.headers.get("Content-Length") or 0)
+        except (AttributeError, TypeError, ValueError):
+            total = 0
+        parts, got = [], 0
+        while True:
+            block = r.read(128 * 1024)
+            if not block:
+                break
+            parts.append(block)
+            got += len(block)
+            progress.bytes_done(got, total)
+        return b"".join(parts)
 
 
 class ToolProblem(Exception):

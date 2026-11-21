@@ -27,7 +27,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, codenote, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, codenote, progress, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -1321,16 +1321,17 @@ def create_app(vault: Vault) -> Starlette:
             entry = library.find(index, cid)
             if not entry:
                 return go("/library", err="That course isn't in the library anymore.")
-            token = str((await request.form()).get("progress", ""))[:40]
-            data = await run_in_threadpool(library.download_tracked, entry, token)
+            token = _progress_token(await request.form())
+            data = await run_in_threadpool(progress.within, token, {"title": entry.get("title", ""),
+                                           "size": int(entry.get("size") or 0)}, library.download, entry)
         except library.LibraryProblem as e:
             return go("/library", err=str(e))
         import io as _io
-        library.track(token, state="installing")
+        progress.report(token, state="installing")
         try:
             return _install_pack(request, _io.BytesIO(data), f"{cid}.zip")
         finally:
-            library.track(token, state="done")
+            progress.report(token, state="done")
 
     # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
     async def _library_now(online: bool = True) -> dict:
@@ -1477,16 +1478,17 @@ def create_app(vault: Vault) -> Starlette:
             entry = library.find(index, cid)
             if not entry:
                 return go(f"/roadmaps/{rid}", err="That course isn't in the library anymore.")
-            token = str((await request.form()).get("progress", ""))[:40]
-            data = await run_in_threadpool(library.download_tracked, entry, token)
+            token = _progress_token(await request.form())
+            data = await run_in_threadpool(progress.within, token, {"title": entry.get("title", ""),
+                                           "size": int(entry.get("size") or 0)}, library.download, entry)
         except library.LibraryProblem as e:
             return go(f"/roadmaps/{rid}", err=str(e))
         import io as _io
-        library.track(token, state="installing")
+        progress.report(token, state="installing")
         try:
             return _install_pack(request, _io.BytesIO(data), f"{cid}.zip", then=f"/roadmaps/{rid}")
         finally:
-            library.track(token, state="done")
+            progress.report(token, state="done")
 
     async def roadmap_add_all(request: Request):
         """Add every course of a roadmap that's in the library and not on this device yet, one after another. For
@@ -1506,12 +1508,13 @@ def create_app(vault: Vault) -> Starlette:
                 return go("/roadmaps", err="That roadmap isn't in the library anymore.")
             rm = _follow_library(lib_copy, None, index)
         added, failed = [], []
-        token = str((await request.form()).get("progress", ""))[:40]
+        token = _progress_token(await request.form())
         todo = [s for s in roadmaps.status(V, rm, index)["to_add"] if not V.get_course(s["course"])]
         for n, s in enumerate(todo, 1):
             try:
-                data = await run_in_threadpool(library.download_tracked, s["entry"], token, n, len(todo))
-                library.track(token, state="installing")
+                info = {"title": s["entry"].get("title", ""), "size": int(s["entry"].get("size") or 0), "n": n, "of": len(todo)}
+                data = await run_in_threadpool(progress.within, token, info, library.download, s["entry"])
+                progress.report(token, state="installing")
                 zf = zipfile.ZipFile(_io.BytesIO(data))
                 c = V.install_course(load_course(files_from_zip(_io.BytesIO(data))))
                 _unpack_media(c, zf, media_in_zip(zf))
@@ -1522,7 +1525,7 @@ def create_app(vault: Vault) -> Starlette:
                     break  # offline: the next ones would fail the same way
             except (zipfile.BadZipFile, CourseError):
                 failed.append(f"The library's file for “{s['title']}” couldn't be read.")
-        library.track(token, state="done")
+        progress.report(token, state="done")
         msg = {}
         if added:
             msg["ok"] = f"Added {len(added)} courses. Start each one when you get to it." if len(added) > 1 \
@@ -2023,7 +2026,7 @@ def create_app(vault: Vault) -> Starlette:
     def _dl_notice(o: dict) -> dict:
         """What the phone's notification says (in your language)."""
         busy = [c for c in o["courses"] if c["state"] == "running"]
-        packs = [x for x in list(library.PROGRESS.values()) if x.get("state") in ("running", "installing")]
+        packs = progress.running()
         if packs and not busy:
             x = packs[0]
             pct = round(100 * x["got"] / x["size"]) if x.get("size") else 0
@@ -2065,7 +2068,7 @@ def create_app(vault: Vault) -> Starlette:
                 c["error"] = _tr_why(c["error"])
             if c.get("note"):
                 c["note"] = gettext(c["note"])
-        o["packs"] = {k: dict(x) for k, x in list(library.PROGRESS.items())}
+        o["packs"] = {k: dict(x) for k, x in list(progress.PROGRESS.items())}
         o["notice"] = _dl_notice(o)
         return o
 
@@ -2345,10 +2348,14 @@ def create_app(vault: Vault) -> Starlette:
         from starlette.concurrency import run_in_threadpool
         form = await request.form()
         back = "/downloads" if form.get("back") == "downloads" else "/settings#videos"
+        token = _progress_token(form)
         try:
-            changed, ver = await run_in_threadpool(offline.update_tool, V.home)
+            changed, ver = await run_in_threadpool(progress.within, token, {"title": "yt-dlp", "note": "download"},
+                                                   offline.update_tool, V.home)
         except offline.ToolProblem as e:
             return go(back, err=str(e))
+        finally:
+            progress.report(token, state="done")
         V._set_meta("ytdlp_checked", str(_time.time()))
         if changed:
             return go(back, ok=gettext("yt-dlp {v} is ready.").format(v=ver))
@@ -3157,6 +3164,14 @@ def create_app(vault: Vault) -> Starlette:
                     next_id=nxt, prev_id=prv, notes=V.notes(course.id, les["id"]),
                     has_answers=course.has_answers, prog=prog,
                     codenote=_codenote_state() if codenote.has_code(les.get("content") or "") else None)
+
+    # ---- Progress for long buttons (v1.31.2, progress.py) ---------------------------------------------------------
+    def _progress_token(form) -> str:
+        t = str(form.get("progress", "") or "")
+        return t if re.fullmatch(r"[A-Za-z0-9]{6,40}", t) else ""
+
+    async def progress_json(request: Request):
+        return JSONResponse(progress.get(str(request.query_params.get("t", ""))), headers={"Cache-Control": "no-store"})
 
     # ---- Works with CodeNote (v1.31): "Practice in CodeNote" ------------------------------------------------------
     def _codenote_state() -> dict:
@@ -4966,7 +4981,10 @@ def create_app(vault: Vault) -> Starlette:
 
     async def update_check(request: Request):
         import anyio
-        status = await anyio.to_thread.run_sync(lambda: updater.run(V, force=True))
+        token = _progress_token(await request.form())
+        status = await anyio.to_thread.run_sync(lambda: progress.within(token, {"title": "inPace", "note": "check"},
+                                                                         updater.run, V, force=True))
+        progress.report(token, state="done")
         msg = {"current": ("ok", "You have the newest version."),
                "installed": ("ok", "The new version is installed. Restart inPace to use it."),
                "ready": ("ok", "The new version is downloaded and ready to install."),
@@ -4987,10 +5005,14 @@ def create_app(vault: Vault) -> Starlette:
                                 '<body style="font-family:system-ui;padding:3rem;background:#F7F3EA;color:#111">'
                                 f'<h1>{html_escape(say("Updating inPace…"))}</h1>'
                                 f'<p>{html_escape(say("It closes, installs the new version, and opens again in a moment."))}</p>')
+        token = _progress_token(await request.form())
+        progress.report(token, title=f"inPace {status.get('version', '')}", state="installing", note="install")
         try:
             await anyio.to_thread.run_sync(lambda: updater.install("deb", Path(status["file"])))
         except Exception as e:
+            progress.report(token, state="failed")
             return go(_back(request), err=str(e))
+        progress.report(token, state="done")
         V._set_meta("update_status", json.dumps({"state": "installed", "version": status.get("version", "")}))
         return _restarting()
 
@@ -5099,6 +5121,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
         Route("/downloads", needs_setup(downloads_page)),
         Route("/codenote.json", needs_setup(codenote_status)),
+        Route("/progress.json", needs_setup(progress_json)),
         Route("/codenote/open", needs_setup(codenote_open), methods=["POST"]),
         Route("/codenote/lesson.md", needs_setup(codenote_file)),
         Route("/downloads.json", needs_setup(downloads_json)),

@@ -59,7 +59,8 @@ def test_pages_that_update_in_place_are_marked(tmp_path):
         page = html.unescape(c.get(url).text)
         assert page.count('id="live-page" data-live') == 1
     # v1.30.12: pages with many buttons update in place after a button, but don't refresh on their own
-    assert 'data-live-buttons' in c.get("/settings").text and 'data-live-buttons' not in c.get("/").text
+    mark = 'id="live-page" data-live class="live-page" data-live-buttons'
+    assert mark in c.get("/settings").text and mark not in c.get("/").text
     script = (ROOT / "inpace" / "static" / "app.js").read_text(encoding="utf-8")
     assert "window.inpaceBack" in script and "window.inpaceRefresh" in script
     assert "pagereveal" in (ROOT / "inpace" / "templates" / "base.html").read_text(encoding="utf-8")

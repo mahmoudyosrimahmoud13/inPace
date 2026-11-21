@@ -2565,8 +2565,12 @@ html.in-pip .pip-video .yt-subs { bottom: .5rem; font-size: .9rem; }
 }
 
 /* ---- Downloads page and progress on buttons (v1.30.14) ---- */
-.btn-progress { position: relative; background-image: linear-gradient(90deg, color-mix(in srgb, var(--sun) 70%, transparent) var(--p, 0%), transparent var(--p, 0%)) !important;
-  transition: background-size .3s; cursor: progress; font-variant-numeric: tabular-nums; }
+/* A button doing something long fills up from the start like a progress bar: the done part in the accent color,
+   the rest a light tint of it (the same on primary and plain buttons, light and dark). */
+.btn-progress { position: relative; color: #111 !important; cursor: progress; font-variant-numeric: tabular-nums;
+  background-color: color-mix(in srgb, var(--sun) 38%, var(--surface)) !important;
+  background-image: linear-gradient(90deg, var(--sun) var(--p, 0%), transparent var(--p, 0%)) !important; }
+[dir="rtl"] .btn-progress { background-image: linear-gradient(270deg, var(--sun) var(--p, 0%), transparent var(--p, 0%)) !important; }
 .btn-progress[disabled] { opacity: 1; }
 .is-busy { cursor: progress; }
 .is-busy::after { content: ""; display: inline-block; width: .9em; height: .9em; margin-inline-start: .5em; border: 2.5px solid currentColor;
@@ -2637,3 +2641,19 @@ html.in-pip .pip-video .yt-subs { bottom: .5rem; font-size: .9rem; }
 .code-bar .code-cn[hidden] { display: none; }
 .code-cn .cn-short { display: none; }
 @media (max-width: 480px) { .code-cn .cn-long { display: none; } .code-cn .cn-short { display: inline; } }
+
+/* ---- The Linux window in Arabic: the page's scrollbar stays on the right (v1.31.2) ----
+   WebKitGTK places the window's scrollbar by the page's direction, and on the left it's drawn as a wide gutter on
+   some systems. The page box stays left-to-right (only for the scrollbar's side); everything in it is right-to-left. */
+html.wk-gtk[dir="rtl"] { direction: ltr; }
+html.wk-gtk[dir="rtl"] body { direction: rtl; }
+
+/* A busy button whose work has no steps to count: stripes move across it (v1.31.2) */
+.btn-progress[data-indeterminate], [dir="rtl"] .btn-progress[data-indeterminate] {
+  background-image: repeating-linear-gradient(-45deg, var(--sun) 0 12px, transparent 12px 24px) !important;
+  background-size: 34px 34px; animation: inpace-stripes 1s linear infinite; }
+@keyframes inpace-stripes { to { background-position: 34px 0; } }
+@media (prefers-reduced-motion: reduce) { .btn-progress[data-indeterminate] { animation: none; } }
+/* In dark mode the not-yet-done part is a brighter tint, so the dark text on the button stays easy to read. */
+:root[data-theme=dark] .btn-progress { background-color: color-mix(in srgb, var(--sun) 62%, var(--surface)) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .btn-progress { background-color: color-mix(in srgb, var(--sun) 62%, var(--surface)) !important; } }

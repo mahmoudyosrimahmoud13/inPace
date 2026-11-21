@@ -22,7 +22,7 @@
     <div class="lib-actions">
       {% if state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
         <a class="btn primary" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
-      {% else %}<form method="post" action="/library/{{ e.id }}/add"><button class="btn primary big">{{ _('Update') if state == 'update' else _('Add this course') }}</button></form>{% endif %}
+      {% else %}<form method="post" action="/library/{{ e.id }}/add" data-progress><button class="btn primary big">{{ _('Update') if state == 'update' else _('Add this course') }}</button></form>{% endif %}
       <a class="btn ghost small" href="{{ report_url }}?title={{ ('Report: ' ~ e.title)|urlencode }}&labels=report" target="_blank" rel="noopener">{% trans trimmed %}Report{% endtrans %}</a>
     </div>
   </div>

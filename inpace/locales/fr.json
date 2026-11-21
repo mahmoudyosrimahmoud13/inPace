@@ -2292,5 +2292,12 @@
  "Update yt-dlp": "Mettre à jour yt-dlp",
  "Check your internet and try again.": "Vérifie ta connexion et réessaie.",
  "Practice in CodeNote": "S’exercer dans CodeNote",
- "Did it in CodeNote? Use Export for inPace and attach the file.": "Fait dans CodeNote ? Utilise « Export for inPace » et joins le fichier."
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Fait dans CodeNote ? Utilise « Export for inPace » et joins le fichier.",
+ "Connecting…": "Connexion…",
+ "Checking for updates…": "Recherche de mises à jour…",
+ "Installing… your computer may ask for your password": "Installation… ton ordinateur peut demander ton mot de passe",
+ "Uploading": "Envoi",
+ "Working on it…": "En cours…",
+ "That didn't work. Try again.": "Ça n’a pas marché. Réessaie.",
+ "Courses, updates and tools": "Cours, mises à jour et outils"
 }

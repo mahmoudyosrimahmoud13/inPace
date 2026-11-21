@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.31.2
+
+- **Long buttons show their progress, and the app stays usable.** Updating inPace, adding a course or a whole roadmap, getting or updating yt-dlp, and "Make it for me" with AI used to hold the whole page until they finished, with no sign of life (on Linux part of the page could even turn white). Now they run in the background and their button fills up and says what's happening: "Downloading inPace 1.31.2 · 45% · 40 / 90 MB", "Downloading 2/5 · 45%", "Installing… your computer may ask for your password". Work with no steps to count shows moving stripes. Sending big files (a course file, videos, a backup) shows the upload the same way, and any other button that takes a moment shows a small spinner.
+- **Light, dark and colors always respond.** After using the light/dark button at the top, picking the same mode in Settings did nothing the second time, because the choices on the page still showed the old mode. Now the button and every choice in Settings stay in step, change the page right away and save in the background, with no reload. The same goes for AMOLED black and the colors.
+- **Parts of a page that update in place keep working.** Buttons and fields in a part of the page that was just updated (after saving something) now always respond, and your name and turtle at the top update with them.
+- **No more white bar in Arabic on Linux.** The Linux window put the page's scrollbar on the left in Arabic, drawn as a wide light gutter on some systems. It now stays on the right like in English, and scrollbars are thin and only show while you scroll.
+- Under the hood: one shared way to report progress (`progress.py`), page helpers that listen once for the whole page, and a page script that can safely run again.
+
 ## v1.31.1
 
 - **"Open a file" has its own icon.** It used the same arrow as Download, so the two looked alike in the menu. It's an open folder now.
