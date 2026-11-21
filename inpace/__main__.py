@@ -165,8 +165,11 @@ def main() -> None:
         threading.Thread(target=server.run, daemon=True).start()
         if not sys.platform.startswith("linux"):
             _wait_until_up(port)  # on Linux the window opens at once with "Opening inPace..." and waits itself
+        from . import codenote
+        codenote.SHELL["kind"] = "window"  # inPace's own window: it can offer "Practice in CodeNote"
         if open_window(url, vault.home):
             os._exit(0)  # window closed: stop everything
+        codenote.SHELL["kind"] = ""  # a plain browser tab from here on
         print("No app window available here; opening your browser instead.")
 
     print(f"\n  inPace is running at {url}")

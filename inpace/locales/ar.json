@@ -2480,5 +2480,14 @@
  "Try again in a moment.": "حاول مرة أخرى بعد قليل.",
  "yt-dlp {v} is ready. It's the free tool inPace uses to download YouTube videos.": "yt-dlp {v} جاهزة. إنها الأداة المجانية التي يستخدمها inPace لتنزيل فيديوهات يوتيوب.",
  "yt-dlp, the free tool inPace uses to download YouTube videos, isn't on this device yet. inPace gets it (about 3 MB) the first time you download a video, or now:": "أداة yt-dlp المجانية التي يستخدمها inPace لتنزيل فيديوهات يوتيوب ليست على هذا الجهاز بعد. يجلبها inPace (حوالي 3 ميجابايت) أول مرة تنزّل فيها فيديو، أو الآن:",
- "Update yt-dlp": "حدّث yt-dlp"
+ "Update yt-dlp": "حدّث yt-dlp",
+ "Practice in CodeNote": "تدرّب في CodeNote",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "أنجزته في CodeNote؟ استخدم «تصدير إلى inPace» وأرفق الملف.",
+ "Run this lesson’s code in CodeNote": "شغّل كود هذا الدرس في CodeNote",
+ "This lesson is long, so it comes as a file: open it in CodeNote.": "هذا الدرس طويل، لذا يأتي كملف: افتحه في CodeNote.",
+ "inPace couldn't open CodeNote.": "تعذّر على inPace فتح CodeNote.",
+ "That lesson isn't in “{title}” anymore.": "هذا الدرس لم يعد في «{title}».",
+ "Start “{title}” first: the lesson is in that course.": "ابدأ «{title}» أولًا: الدرس في هذه الدورة.",
+ "That course isn't on this device yet. You can add it from the library.": "هذه الدورة ليست على هذا الجهاز بعد. يمكنك إضافتها من المكتبة.",
+ "That lesson's course isn't on this device. Ask for the course file, then open the link again.": "دورة هذا الدرس ليست على هذا الجهاز. اطلب ملف الدورة، ثم افتح الرابط مرة أخرى."
 }

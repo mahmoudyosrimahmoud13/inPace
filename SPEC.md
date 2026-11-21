@@ -313,3 +313,34 @@ it, and the learner follows it and adds each course from the library.
 Apps must still accept and show such a roadmap, never treat that course as the next step, and let the learner take
 it off (making the roadmap their own). With no library list at all (offline, never opened), apps must not call a
 course missing. Following a roadmap never downloads courses by itself.
+
+## 14. Lesson links and CodeNote
+
+inPace 1.31 and newer.
+
+**Lesson links** (§11). `{inpace: "lesson", course, lesson}` opens that lesson. If the course is on the device and
+started, the app opens the lesson; if it's there but not started, it says to start the course first; if the lesson
+isn't in the course anymore, it opens the course and says so. If the course isn't on the device, the app opens it in
+the Course library when the library lists it, and otherwise says plainly that the course isn't on this device.
+Older apps answer that the link is from a newer version.
+
+**Practice in CodeNote.** inPace can send a lesson that has at least one ``` code fence, or a practical task, to
+[CodeNote](https://mahmoudyosrimahmoud13.github.io/code_note/), a separate code notebook app. The link is
+`codenote://open/BODY` (web fallback `https://mahmoudyosrimahmoud13.github.io/code_note/open#BODY`), with BODY made
+exactly like §11. The payload is `{codenote: "lesson", v: 1, title, language, markdown, task: {id, prompt},
+source: {app: "inpace", course, course_title, module, lesson, lesson_title, back}}`: `markdown` is the lesson's
+Markdown as stored, `language` the first fence's language (else `python`), `task` only for a practical task, and
+`back` a lesson link (above) as `inpace://open/BODY`. A practical task goes with its module's last lesson that has a
+code fence (else the module's last lesson). Links over 30,000 characters are sent as a `.md` file instead: YAML front
+matter with `codenote: lesson`, `v: 1` and the same `title`, `language`, `task` and `source` (each value written as
+JSON, which is also YAML), then the lesson Markdown. The button only shows when CodeNote is found on the device.
+
+**CodeNote work as proof.** Files CodeNote exports (`.html` report, `.ipynb`, `.codenote`) are evidence like any
+other file (§3, §10). Apps show `.html` evidence only in a frame with `sandbox=""` (no scripts) and serve it with a
+`Content-Security-Policy: sandbox` header.
+
+## Version notes
+
+- **1.31:** lesson links (`inpace: "lesson"`) and CodeNote (§14). Nothing else changed: older files and courses read
+  the same.
+

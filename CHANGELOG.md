@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.31.0
+
+### Works with CodeNote
+
+inPace teaches; [CodeNote](https://mahmoudyosrimahmoud13.github.io/code_note/), a free code notebook app, is the lab. They stay two separate apps.
+
+- **Practice in CodeNote.** On a lesson with code, and on a practical task, a button on each code block (next to Copy) sends the lesson to CodeNote (with the task, for a practical task), so you can run its code and do the task there. It only shows when CodeNote is on your device (CodeNote 1.10 or newer). Installed CodeNote while inPace is open? Come back to the window and the button is there. A very long lesson goes as a .md file instead, which CodeNote opens.
+- **Your CodeNote work as proof.** In CodeNote, **Export for inPace** makes a file (an .html report, an .ipynb notebook or a .codenote file). Attach it to the practical task like any other file. HTML reports can be previewed right on the task, and on your checker's review page, safely: nothing in them runs.
+- **Back to inPace.** CodeNote's "Back to inPace" opens the same lesson in inPace. If the course isn't on your device, inPace opens it in the course library, or says plainly that it isn't installed.
+- Old courses, milestones and progress files work as before. People on an older inPace can still read your progress; CodeNote files show as normal files for them.
+
 ## v1.30.17
 
 - **Downloading a video the first time works, and says what it's doing.** inPace downloads YouTube videos with yt-dlp, a free tool it gets the first time. That first download stopped with "Wait until the video downloads finish, then update" (it was waiting for itself). Now inPace checks that yt-dlp is here before every download and every "Play without ads": if it isn't, it gets it first ("Getting yt-dlp, the free tool that downloads YouTube videos (first time only)…"), and if it can't, it says so in plain words: what yt-dlp is, what went wrong (for example no internet) and what to do. A damaged copy is replaced by a fresh one by itself.

@@ -303,6 +303,8 @@ Friend invites, progress, replies, race invites and race updates can all travel 
 
 ---
 
+**Works with CodeNote (v1.31, `codenote.py`).** CodeNote is a separate, free code notebook app. On a lesson with a ``` code fence (the button sits on each code block's bar, next to Copy), and on a practical task, **Practice in CodeNote** sends the lesson there (and the task's prompt), so you can run the code and do the task; then **Export for inPace** in CodeNote gives a file (`.html`, `.ipynb` or `.codenote`) you attach to the task as proof. The button only shows when CodeNote is on the device: on a computer, inPace's server checks (the Windows registry, `xdg-mime` on Linux, LaunchServices or `mdfind` on Mac), caches the answer for 5 minutes, checks again when you come back to the window, and counts any error or a check over 1 second as "not installed"; it also only shows in inPace's own window, not in a browser tab. Pressing it makes a `codenote://open/...` link (made like inPace's own links) and the server asks the system to open it (on a computer) or the Android app opens it with an intent, with CodeNote's web page as the fallback. A lesson too long for a link (over 30,000 characters) comes as a `.md` file instead. CodeNote's "Back to inPace" uses a lesson link, `{"inpace": "lesson", ...}` (SPEC §14). HTML proof shows in a sealed frame (`sandbox=""`, no scripts) on the task and on the checker's review page. The formats are shared with the CodeNote side in the bridge spec.
+
 ## 10. The course library
 
 The [course library](https://github.com/mahmoudyosrimahmoud13/inpace-library) is a separate public GitHub repository. GitHub stores the courses, checks them and

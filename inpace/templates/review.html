@@ -120,6 +120,8 @@
       {% set low = f.name|lower %}
       {% if sha in have_files and low.endswith(('.webm', '.ogg', '.mp3', '.m4a', '.wav', '.opus', '.aac')) %}<audio controls preload="none" src="/files/{{ sha }}?play=1"></audio>
       {% elif sha in have_files and low.endswith(('.mp4', '.mov', '.m4v')) %}<video controls preload="metadata" class="small-video" src="/files/{{ sha }}?play=1"></video>
+      {% elif sha in have_files and low.endswith(('.html', '.htm')) %}<details class="html-proof"><summary>{{ _('Preview') }}</summary>
+        <iframe sandbox="" loading="lazy" title="{{ f.name }}" data-src="/files/{{ sha }}?view=1"></iframe></details>
       {% endif %}
       {% if sha in have_files %}<a class="btn" href="/files/{{ sha }}">{{ icon('file', 16) }}{{ _("Open") }}</a>
       {% elif not reply_file %}<label class="check"><input type="checkbox" name="request" value="{{ sha }}|{{ f.name }}" form="decide"> {% trans trimmed %}Ask for it{% endtrans %}</label>

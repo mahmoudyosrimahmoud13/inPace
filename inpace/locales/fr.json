@@ -2290,5 +2290,7 @@
  "Stopped": "Arrêté",
  "Press again to delete": "Appuie encore pour supprimer",
  "Update yt-dlp": "Mettre à jour yt-dlp",
- "Check your internet and try again.": "Vérifie ta connexion et réessaie."
+ "Check your internet and try again.": "Vérifie ta connexion et réessaie.",
+ "Practice in CodeNote": "S’exercer dans CodeNote",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Fait dans CodeNote ? Utilise « Export for inPace » et joins le fichier."
 }

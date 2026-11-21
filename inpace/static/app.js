@@ -2155,7 +2155,7 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   if (!bridge) return;
   document.documentElement.classList.add("android");
   const send = (msg) => bridge.postMessage(JSON.stringify(msg));
-  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$)/;
+  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$|evidence\/[0-9a-f]{64}$|codenote\/lesson\.md$)/;
 
   // Downloads: the app saves or shares the file.
   document.addEventListener("click", (e) => {
@@ -3952,4 +3952,81 @@ window.inpaceMediaSession = (box, v) => {
     b.textContent = f.dataset.confirm;
     setTimeout(() => { delete f.dataset.sure; b.innerHTML = was; }, 5000);
   }, true);
+})();
+
+
+// ---- Works with CodeNote (v1.31) ------------------------------------------------------------------------------
+// "Practice in CodeNote" sends a lesson (or a practical task) to CodeNote, the free code notebook app. It only shows
+// when CodeNote is on this device: on a computer inPace's server checks (and checks again when you come back to
+// the window, so installing CodeNote while inPace is open is enough); on Android the app checks. HTML work files
+// (CodeNote's "Export for inPace") can be previewed in a sealed frame: no scripts, no internet.
+(() => {
+  document.addEventListener("toggle", (e) => {
+    const d = e.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("html-proof") || !d.open) return;
+    const f = d.querySelector("iframe[data-src]");
+    if (f && !f.src) f.src = f.dataset.src;
+  }, true);
+
+  // On a lesson: the button lives on each code block's bar, next to Copy (made here, from [data-codenote-lesson]).
+  const src = document.querySelector("[data-codenote-lesson]");
+  if (src) {
+    const svg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>';
+    document.querySelectorAll(".prose .code-wrap > .code-bar").forEach((bar) => {
+      const copy = bar.querySelector("button");
+      const acts = document.createElement("span");
+      acts.className = "code-acts";
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "code-cn";
+      b.dataset.codenote = ""; b.dataset.codenoteOnly = "";
+      b.dataset.course = src.dataset.course; b.dataset.lesson = src.dataset.lesson;
+      b.title = src.dataset.title;
+      b.setAttribute("aria-label", src.dataset.label);
+      b.innerHTML = `${svg}<span class="cn-long">${src.dataset.label.replace(/[&<>"]/g, "")}</span><span class="cn-short">CodeNote</span>`;
+      b.hidden = src.dataset.on !== "1";
+      acts.appendChild(b);
+      if (copy) acts.appendChild(copy);
+      bar.appendChild(acts);
+    });
+  }
+  const only = () => document.querySelectorAll("[data-codenote-only]");
+  if (!only().length) return;
+  const bridge = window.InPaceAndroid;
+  const show = (on) => only().forEach((el) => { el.hidden = !on; });
+  window.inpaceCodeNote = (on) => show(!!on);  // the Android app answers here
+  const ask = async (fresh) => {
+    if (bridge) { try { bridge.postMessage(JSON.stringify({ type: "codenoteCheck" })); } catch (x) { /* old app: stays hidden */ } return; }
+    try {
+      const d = await (await fetch("/codenote.json" + (fresh ? "?fresh=1" : ""), { cache: "no-store" })).json();
+      show(!!d.available);
+    } catch (x) { /* keep what the page showed */ }
+  };
+  ask(false);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) ask(true); });
+  addEventListener("focus", () => ask(true));
+
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-codenote]");
+    if (!b || b.disabled) return;
+    const body = new FormData();
+    body.append("course", b.dataset.course || "");
+    if (b.dataset.lesson) body.append("lesson", b.dataset.lesson);
+    if (b.dataset.task) body.append("task", b.dataset.task);
+    b.disabled = true;
+    b.classList.add("is-busy");
+    try {
+      const d = await (await fetch("/codenote/open", { method: "POST", body, headers: { Accept: "application/json" } })).json();
+      if (d.file) {  // too long for a link: the lesson as a .md file, which CodeNote opens
+        if (d.message && window.inpaceToast) inpaceToast(d.message);
+        if (bridge) bridge.postMessage(JSON.stringify({ type: "download", url: new URL(d.file, location.href).href }));
+        else location.href = d.file;
+      } else if (d.link && bridge) {
+        bridge.postMessage(JSON.stringify({ type: "codenote", link: d.link, web: d.web }));
+      } else if (!d.ok && d.message && window.inpaceToast) {
+        inpaceToast(d.message);
+      }
+    } catch (x) { /* nothing opened: the button can be pressed again */ }
+    setTimeout(() => { b.disabled = false; b.classList.remove("is-busy"); }, 1200);
+  });
 })();

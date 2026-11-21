@@ -2290,5 +2290,7 @@
  "Stopped": "已停止",
  "Press again to delete": "再按一次删除",
  "Update yt-dlp": "更新 yt-dlp",
- "Check your internet and try again.": "请检查网络后重试。"
+ "Check your internet and try again.": "请检查网络后重试。",
+ "Practice in CodeNote": "在 CodeNote 中练习",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "在 CodeNote 里完成的？用 Export for inPace 导出并附上文件。"
 }

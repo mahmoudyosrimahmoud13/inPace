@@ -2290,5 +2290,7 @@
  "Stopped": "Durduruldu",
  "Press again to delete": "Silmek için tekrar bas",
  "Update yt-dlp": "yt-dlp'yi güncelle",
- "Check your internet and try again.": "İnternetini kontrol edip tekrar dene."
+ "Check your internet and try again.": "İnternetini kontrol edip tekrar dene.",
+ "Practice in CodeNote": "CodeNote'ta pratik yap",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "CodeNote'ta mı yaptın? Export for inPace'i kullanıp dosyayı ekle."
 }

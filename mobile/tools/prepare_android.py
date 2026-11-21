@@ -276,7 +276,11 @@ if 'android:scheme="inpace"' not in m:
 wanted = """        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https"/></intent>
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="mailto"/></intent>
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="tg"/></intent>
+        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="codenote"/></intent>
 """
+if 'android:scheme="codenote"' not in m and "</queries>" in m and 'android:scheme="mailto"' in m:
+    # Works with CodeNote (inPace 1.31): see whether CodeNote is installed (Android 11+ needs this to look).
+    m = m.replace("</queries>", '        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="codenote"/></intent>\n    </queries>', 1)
 if 'android:scheme="mailto"' not in m:
     if "</queries>" in m:
         m = m.replace("</queries>", wanted + "    </queries>", 1)

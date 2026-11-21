@@ -572,6 +572,22 @@ class _ShellState extends State<Shell> {
         try { await _pip.invokeMethod('auto', msg['auto'] == true); } catch (_) {}
       case 'downloads':
         _watchDownloads();
+      case 'codenoteCheck':
+        // Works with CodeNote: is an app there for codenote:// links? (Needs the <queries> entry in the manifest.)
+        {
+          bool has = false;
+          try { has = await canLaunchUrl(Uri.parse('codenote://open/x')); } catch (_) {}
+          await _web?.runJavaScript('window.inpaceCodeNote && window.inpaceCodeNote(${has ? 'true' : 'false'})');
+        }
+      case 'codenote':
+        // Open the lesson in CodeNote (an ACTION_VIEW intent). No app for it after all: the web page instead.
+        {
+          bool opened = false;
+          try { opened = await launchUrl(Uri.parse(msg['link'] as String), mode: LaunchMode.externalNonBrowserApplication); } catch (_) {}
+          if (!opened) {
+            try { await launchUrl(Uri.parse(msg['web'] as String), mode: LaunchMode.externalApplication); } catch (_) {}
+          }
+        }
       case 'notifyState':
         await _sendNotifyState();
       case 'notifyAllow':

@@ -2622,3 +2622,18 @@ html.in-pip .pip-video .yt-subs { bottom: .5rem; font-size: .9rem; }
 }
 .dl-tool { display: flex; gap: .4rem; align-items: flex-start; margin: 0; }
 .dl-tool svg { flex: none; margin-top: .15rem; }
+
+/* ---- Works with CodeNote (v1.31) ---- */
+.codenote-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin-block: .6rem; }
+.codenote-row[hidden], [data-codenote][hidden] { display: none !important; }
+.html-proof { flex-basis: 100%; }
+.html-proof > summary { cursor: pointer; }
+.html-proof iframe { display: block; width: 100%; height: min(70vh, 520px); margin-block: .5rem; border: 2px solid var(--line);
+  border-radius: var(--r-sm); background: #fff; }
+.ev .html-proof { order: 3; }
+.code-acts { display: inline-flex; gap: .35rem; align-items: center; }
+.code-bar .code-cn { display: inline-flex; align-items: center; gap: .35rem; color: #FFD43B; border-color: rgba(255, 212, 59, .35); }
+.code-bar .code-cn:hover { background: rgba(255, 212, 59, .14); }
+.code-bar .code-cn[hidden] { display: none; }
+.code-cn .cn-short { display: none; }
+@media (max-width: 480px) { .code-cn .cn-long { display: none; } .code-cn .cn-short { display: inline; } }

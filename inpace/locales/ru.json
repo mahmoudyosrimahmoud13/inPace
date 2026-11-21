@@ -2290,5 +2290,7 @@
  "Stopped": "Остановлено",
  "Press again to delete": "Нажмите ещё раз, чтобы удалить",
  "Update yt-dlp": "Обновить yt-dlp",
- "Check your internet and try again.": "Проверьте интернет и попробуйте снова."
+ "Check your internet and try again.": "Проверьте интернет и попробуйте снова.",
+ "Practice in CodeNote": "Практика в CodeNote",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "Сделали в CodeNote? Используйте Export for inPace и прикрепите файл."
 }

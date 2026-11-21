@@ -16,7 +16,7 @@ import threading
 import time as _time
 from datetime import date, datetime
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 from jinja2 import Environment, FileSystemBytecodeCache, FileSystemLoader, select_autoescape
 from markupsafe import Markup
@@ -27,7 +27,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, codenote, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -3155,7 +3155,69 @@ def create_app(vault: Vault) -> Starlette:
                     lstate=lstate, html=media_mod.lesson_html(course.id, les, md.render(_drop_title(les["content"], les["title"])),
                                                        _course_files_view(course.id), gettext),
                     next_id=nxt, prev_id=prv, notes=V.notes(course.id, les["id"]),
-                    has_answers=course.has_answers, prog=prog)
+                    has_answers=course.has_answers, prog=prog,
+                    codenote=_codenote_state() if codenote.has_code(les.get("content") or "") else None)
+
+    # ---- Works with CodeNote (v1.31): "Practice in CodeNote" ------------------------------------------------------
+    def _codenote_state() -> dict:
+        """Whether to show the button now. On Android the app shell checks, so the button starts hidden and the
+        page's script shows it when the shell says CodeNote is there (spec §8)."""
+        android = updater.install_kind() == "android"
+        return {"on": (not android) and codenote.available_now(), "shell": "android" if android else
+                ("window" if codenote.SHELL["kind"] == "window" else "")}
+
+    async def codenote_status(request: Request):
+        from starlette.concurrency import run_in_threadpool
+        if updater.install_kind() == "android":
+            return JSONResponse({"available": None, "shell": "android"})
+        fresh = request.query_params.get("fresh") == "1"
+        on = await run_in_threadpool(codenote.available, fresh)
+        return JSONResponse({"available": on, "shell": codenote.SHELL["kind"]}, headers={"Cache-Control": "no-store"})
+
+    def _codenote_payload(form) -> dict | None:
+        c = V.get_course(str(form.get("course", "")))
+        if not c:
+            return None
+        task = None
+        if form.get("task"):
+            found = c.find_requirement(str(form.get("task")))
+            if not found or found[1]["type"] != "practical":
+                return None
+            module, task = found
+            les = codenote.task_lesson(module)
+        else:
+            found = c.find_lesson(str(form.get("lesson", "")))
+            if not found:
+                return None
+            module, les = found
+        return codenote.payload(c, module, les, task) if les else None
+
+    async def codenote_open(request: Request):
+        """Practice in CodeNote: make the link (spec §1-2). On a computer inPace opens it here; on Android the
+        app shell does. A lesson too long for a link comes as a .md file instead (spec §3)."""
+        form = await request.form()
+        data = _codenote_payload(form)
+        if not data:
+            return JSONResponse({"ok": False, "message": gettext("That lesson wasn't found.")}, status_code=404)
+        link = codenote.link(data)
+        if len(link) > codenote.LINK_LIMIT:
+            q = urlencode({k: str(form.get(k, "")) for k in ("course", "lesson", "task") if form.get(k)})
+            return JSONResponse({"ok": True, "file": f"/codenote/lesson.md?{q}",
+                                 "message": gettext("This lesson is long, so it comes as a file: open it in CodeNote.")})
+        web = codenote.web_link(data)
+        if updater.install_kind() == "android":
+            return JSONResponse({"ok": True, "link": link, "web": web})
+        from starlette.concurrency import run_in_threadpool
+        how = await run_in_threadpool(codenote.open_on_computer, link, web)
+        return JSONResponse({"ok": bool(how), "opened": how,
+                             "message": "" if how else gettext("inPace couldn't open CodeNote.")})
+
+    async def codenote_file(request: Request):
+        data = _codenote_payload(request.query_params)
+        if not data:
+            return Response("Not found", status_code=404)
+        name = re.sub(r"[^\w .()-]+", "", data["title"], flags=re.UNICODE).strip()[:80] or "lesson"
+        return download(codenote.lesson_file(data).encode("utf-8"), f"{name}.md", "text/markdown; charset=utf-8")
 
     async def module_page(request: Request):
         j = journey_or_404(request.path_params["jid"])
@@ -3182,7 +3244,8 @@ def create_app(vault: Vault) -> Starlette:
                          "url": f"/learn/{j['id']}/lesson/{left['id']}" if left else f"/learn/{j['id']}/module/{m['id']}"}
                 break
         return page("module.html", request, j=j, course=course, module=module, mstate=mstate,
-                    has_answers=course.has_answers, exams=exams, after=after, finished=prog["finished"])
+                    has_answers=course.has_answers, exams=exams, after=after, finished=prog["finished"],
+                    codenote=_codenote_state() if codenote.task_lesson(module) else None)
 
     async def take_exam(request: Request):
         j = journey_or_404(request.path_params["jid"])
@@ -3867,6 +3930,22 @@ def create_app(vault: Vault) -> Starlette:
         V._set_meta("pending_link", "")
         return page("link.html", request, code="inpace:" + body)
 
+    def _open_lesson_link(cid: str, lid: str):
+        """A lesson link: the lesson if its course is here (and started), else the course in the library, else a
+        plain message."""
+        c = V.get_course(cid)
+        if c:
+            jid = V.journey_for_course(cid)
+            if not c.find_lesson(lid):
+                return go(f"/learn/{jid}" if jid else "/courses",
+                          err=gettext("That lesson isn't in “{title}” anymore.").format(title=c.title))
+            if jid:
+                return go(f"/learn/{jid}/lesson/{quote(lid)}")
+            return go("/courses", err=gettext("Start “{title}” first: the lesson is in that course.").format(title=c.title))
+        if library.find(library.cached_index(V.home), cid):
+            return go(f"/library/{quote(cid)}", err="That course isn't on this device yet. You can add it from the library.")
+        return go("/courses", err="That lesson's course isn't on this device. Ask for the course file, then open the link again.")
+
     async def open_file(request: Request):
         if request.method == "GET":
             return page("open.html", request)
@@ -3956,6 +4035,8 @@ def create_app(vault: Vault) -> Starlette:
                 V.store_received(data)
                 V.update_person_extras(learner, _their_turtle(data["learner"]), _their_island(data))
                 return go(f"/review/{learner}/{data['journey']['id']}")
+            if kind == "lesson":  # SPEC §14: open one lesson (CodeNote's "Back to inPace")
+                return _open_lesson_link(str(data.get("course", "")), str(data.get("lesson", "")))
             if kind == "library-course":
                 return go("/library?show=" + quote(str(data.get("id", ""))))
             if kind == "library-roadmap":
@@ -4144,16 +4225,28 @@ def create_app(vault: Vault) -> Starlette:
         if not p.exists():
             return Response("Not found", status_code=404)
         name = Path(request.query_params.get("name") or "file").name
+        if request.query_params.get("view") == "1" and name.lower().endswith((".html", ".htm")):
+            return _sealed_html(p.read_bytes())
         import mimetypes
         mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
         if not mime.startswith(("audio/", "video/", "image/")):
             return download(p.read_bytes(), name)
         return FileResponse(p, media_type=mime, headers={"X-Content-Type-Options": "nosniff"})
 
+    def _sealed_html(data: bytes) -> Response:
+        """An HTML work file (a CodeNote report, say) to look at inside inPace: shown in a frame with sandbox="" on
+        the page, and sealed here too, so no script runs and it can't reach anything."""
+        return Response(data, media_type="text/html; charset=utf-8", headers={
+            "Content-Security-Policy": "sandbox; default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; "
+                                       "font-src data:; media-src data: blob:",
+            "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store"})
+
     async def received_file(request: Request):
         got = checks.received_file(V, request.path_params["sha"])
         if not got:
             return go("/people", err="That file isn't here.")
+        if request.query_params.get("view") == "1" and got[1].lower().endswith((".html", ".htm")):
+            return _sealed_html(got[0])
         if request.query_params.get("play") == "1":
             import mimetypes
             mime = mimetypes.guess_type(got[1])[0] or ""
@@ -5005,6 +5098,9 @@ def create_app(vault: Vault) -> Starlette:
         Route("/courses/{cid}/offline/download", needs_setup(offline_download), methods=["POST"]),
         Route("/courses/{cid}/offline/stop", needs_setup(offline_stop), methods=["POST"]),
         Route("/downloads", needs_setup(downloads_page)),
+        Route("/codenote.json", needs_setup(codenote_status)),
+        Route("/codenote/open", needs_setup(codenote_open), methods=["POST"]),
+        Route("/codenote/lesson.md", needs_setup(codenote_file)),
         Route("/downloads.json", needs_setup(downloads_json)),
         Route("/downloads/settings", needs_setup(downloads_settings), methods=["POST"]),
         Route("/downloads/delete/{cid}", needs_setup(downloads_delete), methods=["POST"]),

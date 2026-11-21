@@ -69,8 +69,19 @@
           <figure class="media audio small-media"><audio controls preload="none" src="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}"></audio><figcaption>{{ e.name }}</figcaption></figure>
         {% elif low.endswith(('.mp4', '.mov', '.m4v')) %}
           <figure class="media video small-media"><video controls preload="metadata" src="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}"></video><figcaption>{{ e.name }}</figcaption></figure>
+        {% elif low.endswith(('.html', '.htm')) %}
+          <details class="html-proof"><summary class="file">{{ icon('doc', 16) }}{{ e.name }} <span class="small muted">· {{ _('Preview') }}</span></summary>
+            <iframe sandbox="" loading="lazy" title="{{ e.name }}" data-src="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}&view=1"></iframe>
+            <a class="btn small" href="/evidence/{{ e.sha256 }}?name={{ e.name|urlencode }}">{{ _('Open') }}</a></details>
+        {% elif low.endswith(('.ipynb', '.codenote')) %}<span class="file">{{ icon('code', 16) }}{{ e.name }}</span>
         {% else %}<span class="file">{{ icon('file', 16) }}{{ e.name }}</span>{% endif %}
       {% endfor %}</div>
+      {% if codenote %}
+      <div class="codenote-row" data-codenote-only{% if not codenote.on %} hidden{% endif %}>
+        <button type="button" class="btn small" data-codenote data-course="{{ course.id }}" data-task="{{ r.id }}">{{ icon('code', 16) }}{{ _('Practice in CodeNote') }}</button>
+        <span class="small muted">{% trans trimmed %}Did it in CodeNote? Use Export for inPace and attach the file.{% endtrans %}</span>
+      </div>
+      {% endif %}
       <div class="recorder" data-recorder data-upload="/learn/{{ j.id }}/task/{{ r.id }}/evidence"
            data-l-start="{{ _('Record a voice note') }}" data-l-stop="{{ _('Stop and save') }}" data-l-saving="{{ _('Saving…') }}"
            data-l-nomic="{{ _('inPace can not use a microphone here. You can record on your phone and add the file instead.') }}">

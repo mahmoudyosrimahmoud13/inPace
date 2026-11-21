@@ -18,6 +18,10 @@
   {% set treq = mstate.requires|rejectattr('optional')|list %}{% set tdone = treq|selectattr('done')|list|length %}
   <a class="btn" data-replace href="/learn/{{ j.id }}/module/{{ module.id }}">{{ _('Module tasks') }} · {{ tdone }}/{{ treq|length }}</a>
 </div>
+{# Works with CodeNote: app.js puts a "Practice in CodeNote" button on each code block's bar, next to Copy, only when
+   CodeNote is on this device (data-on is the last answer; the script asks again). #}
+{% if codenote %}<span hidden data-codenote-lesson data-course="{{ course.id }}" data-lesson="{{ lesson.id }}" data-on="{{ 1 if codenote.on else 0 }}"
+  data-label="{{ _('Practice in CodeNote') }}" data-title="{{ _('Run this lesson’s code in CodeNote') }}"></span>{% endif %}
 
 
 

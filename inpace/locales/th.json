@@ -716,5 +716,8 @@
  "Stopped": "หยุดแล้ว",
  "Press again to delete": "กดอีกครั้งเพื่อลบ",
  "Update yt-dlp": "อัปเดต yt-dlp",
- "Check your internet and try again.": "ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง"
+ "Check your internet and try again.": "ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง",
+ "Practice in CodeNote": "ฝึกใน CodeNote",
+ "Did it in CodeNote? Use Export for inPace and attach the file.": "ทำใน CodeNote แล้ว? ใช้ Export for inPace แล้วแนบไฟล์",
+ "Preview": "ดูตัวอย่าง"
 }
