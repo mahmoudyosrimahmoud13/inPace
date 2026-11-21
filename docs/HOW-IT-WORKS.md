@@ -231,6 +231,8 @@ Because of the link and the signature, nobody can change one milestone without b
 
 **One place for the look (v1.31.2).** The light/dark button and the Settings choices for mode, dark look and colors (`input[data-look]`) are handled by one part of `app.js`: it changes `<html data-theme / data-black / data-accent>` right away, ticks the matching choices everywhere on the page, and saves in the background. Page helpers (`data-autosubmit`, `data-busy`, `data-days`, the × on notices) listen on the whole document, so parts of a page updated in place keep working. The whole page script sits inside one function, so it can run again on the same window.
 
+**Colors that read, and the window behind the page (v1.31.3).** In `style.css`, every background token that carries text has a text token made for it, set for light, dark, AMOLED and each accent: `--sky` / `--sky-ink` and `--sky-muted`, `--pink` / `--pink-ink`, `--black` / `--black-ink`, `--good` / `--good-ink`, `--bad` / `--bad-ink`. A rule that paints one of those backgrounds uses its pair, never a fixed `#111` or `#fff`; `tests/test_v1313.py` checks every such rule in every look and accent. The app window's own background (shown between pages and where a long page isn't drawn yet) follows the page: `app.js` sends the page color to the window it's in (`bg:#rrggbb` to the Linux GTK window, a console line to the Qt window, `pywebview.api.background` on Windows and Mac, a `bg` message to the Android app), and `window.start_background` picks the color a new window opens with from your settings.
+
 ## 8. Reminders and notifications
 
 <p align="center"><img src="../site/assets/shots/reminders.jpg" width="720" alt="The Reminders page: a weekend notification at 9:00 and a weekday alarm at 19:30."></p>

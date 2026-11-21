@@ -111,7 +111,7 @@
 <li class="rm-step {{ s.state }}{{ ' here' if here and s.n == here.n }}{{ ' opt' if s.optional }}" id="step-{{ s.n }}">
   <span class="rm-num">{% if s.state == 'done' %}{{ icon('check', 22) }}{% else %}{{ '%02d'|format(s.n) }}{% endif %}</span>
   <div class="card rm-step-card">
-    <span class="rm-cover">{% if s.course_obj %}{{ cover(s.course_obj) }}{% elif s.cover %}<img class="cover" src="{{ s.cover }}" alt="" loading="lazy">{% else %}<span class="cover blank" style="--hue:{{ (s.course|length * 47) % 360 }}" aria-hidden="true">{{ (s.title or '?')[:1]|upper }}</span>{% endif %}</span>
+    <span class="rm-cover">{% if s.course_obj %}{{ cover(s.course_obj) }}{% elif s.cover %}<img class="cover" src="{{ s.cover }}" alt="" loading="lazy" decoding="async">{% else %}<span class="cover blank" style="--hue:{{ (s.course|length * 47) % 360 }}" aria-hidden="true">{{ (s.title or '?')[:1]|upper }}</span>{% endif %}</span>
     <div class="grow rm-step-body">
       <p class="small muted rm-step-kicker">{{ T('Course {n}', n=s.n) }}{% if s.optional %} · <span class="chip plain">{% trans trimmed %}Optional{% endtrans %}</span>{% endif %}
         {% if s.state == 'done' %} · <b>{% trans trimmed %}Finished{% endtrans %}</b>{% endif %}</p>

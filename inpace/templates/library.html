@@ -80,7 +80,7 @@
 {% for e in g.entries %}
 <article class="lib-card{{ ' picked' if show and e.id == show }}" id="lib-{{ e.id }}" data-course-search="{{ e.search }}" data-search-title="{{ e.search_title }}" data-level="{{ e.level }}" data-lang="{{ e.language }}" data-section="{{ g.id }}" data-tags="{{ (e.tags or [])|map('lower')|join('|') }}">
   <a class="lib-cover" href="/library/{{ e.id }}" tabindex="-1" aria-hidden="true">
-    {% if e.cover %}<img src="{{ e.cover }}" alt="" loading="lazy">{% else %}<span class="blank" style="--hue:{{ (e.id|length * 47) % 360 }}">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
+    {% if e.cover %}<img src="{{ e.cover }}" alt="" loading="lazy" decoding="async">{% else %}<span class="blank" style="--hue:{{ (e.id|length * 47) % 360 }}">{{ (e.title or '?')[:1]|upper }}</span>{% endif %}
   </a>
   <div class="lib-body">
     {% if e.new %}<span class="lib-new-tag">{% trans trimmed %}New{% endtrans %}</span>{% endif %}

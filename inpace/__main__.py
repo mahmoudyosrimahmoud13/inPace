@@ -161,13 +161,18 @@ def main() -> None:
         return
 
     if not args.browser:
-        from .window import open_window
+        from .window import open_window, start_background
         threading.Thread(target=server.run, daemon=True).start()
         if not sys.platform.startswith("linux"):
             _wait_until_up(port)  # on Linux the window opens at once with "Opening inPace..." and waits itself
         from . import codenote
         codenote.SHELL["kind"] = "window"  # inPace's own window: it can offer "Practice in CodeNote"
-        if open_window(url, vault.home):
+        bg = ""
+        try:  # the window starts in your page color: no light flash before a dark inPace (v1.31.3)
+            bg = start_background(vault._meta("theme", "") or "", vault._meta("dark_style", "") == "black")
+        except Exception:
+            pass
+        if open_window(url, vault.home, bg):
             os._exit(0)  # window closed: stop everything
         codenote.SHELL["kind"] = ""  # a plain browser tab from here on
         print("No app window available here; opening your browser instead.")

@@ -26,6 +26,49 @@ _children: list[subprocess.Popen] = []
 _active: dict = {"kind": None, "proc": None, "webview": None, "main": None, "pop": None}
 
 
+# ---------- The window's own background (v1.31.3) ----------
+# Every kind of app window has a background of its own under the page. It shows for a moment between two pages,
+# and wherever the page isn't drawn yet while you scroll fast (a long page with many pictures, like the library).
+# It was white, so dark mode flashed white. Now the window starts with your page color, and the page tells the
+# window whenever its color changes (app.js, "The app window's background"), so they always match.
+LIGHT_BG, DARK_BG, BLACK_BG = "#F7F3EA", "#12110E", "#000000"
+
+
+def _hex_ok(color: str) -> bool:
+    return len(color or "") == 7 and color[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in color[1:])
+
+
+def device_dark() -> bool:
+    """Is the computer itself set to dark? (For "Light or dark: like the device".) Never slow: 1 second at most."""
+    try:
+        if sys.platform == "win32":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as k:
+                return winreg.QueryValueEx(k, "AppsUseLightTheme")[0] == 0
+        if sys.platform == "darwin":
+            r = subprocess.run(["defaults", "read", "-g", "AppleInterfaceStyle"], capture_output=True, text=True, timeout=1)
+            return r.stdout.strip().lower() == "dark"
+        if shutil.which("gsettings"):
+            r = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                               capture_output=True, text=True, timeout=1)
+            if "dark" in r.stdout:
+                return True
+            r = subprocess.run(["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
+                               capture_output=True, text=True, timeout=1)
+            return "dark" in r.stdout.lower()
+    except Exception:
+        pass
+    return False
+
+
+def start_background(theme: str, black: bool = False) -> str:
+    """The page color a new window starts with: from Settings → Light or dark (theme "light", "dark" or "" for
+    like the device) and AMOLED black."""
+    dark = theme == "dark" or (theme != "light" and device_dark())
+    return (BLACK_BG if black else DARK_BG) if dark else LIGHT_BG
+
+
 def popout(url: str) -> bool:
     """Open (or reuse) the pop-out mini window: small, above your other apps, showing url.
     False when this kind of app window can't make one; the page then uses the browser's own way."""
@@ -104,7 +147,56 @@ def _clean_env() -> dict:
 
 # ---------- 1. pywebview ----------
 
-def _pywebview(url: str) -> bool:
+class _ShellApi:
+    """What the page may ask the pywebview window (window.pywebview.api in app.js). Only the background color."""
+    def __init__(self):
+        self.win = None
+
+    def background(self, color: str) -> bool:
+        if not _hex_ok(color) or self.win is None:
+            return False
+        try:
+            return _native_background(self.win, color)
+        except Exception:
+            return False
+
+
+def _native_background(win, color: str) -> bool:
+    """Change the color under the page in a running pywebview window (best effort: pywebview has no call for it)."""
+    r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
+    native = getattr(win, "native", None)
+    if native is None:
+        return False
+    if sys.platform == "win32":
+        from System import Action  # type: ignore  # pythonnet, which the Windows window already uses
+        from System.Drawing import Color  # type: ignore
+        c = Color.FromArgb(255, r, g, b)
+
+        def apply():
+            native.BackColor = c
+            web = getattr(getattr(native, "browser", None), "webview", None)  # Edge's WebView2
+            if web is not None:
+                web.DefaultBackgroundColor = c
+        native.Invoke(Action(apply))
+        return True
+    if sys.platform == "darwin":
+        from AppKit import NSColor  # type: ignore
+        from PyObjCTools import AppHelper  # type: ignore
+        col = NSColor.colorWithSRGBRed_green_blue_alpha_(r / 255, g / 255, b / 255, 1.0)
+
+        def apply_mac():
+            w = getattr(native, "window", None)
+            if w is not None:
+                w.setBackgroundColor_(col)
+            web = getattr(native, "webview", None)
+            if web is not None and hasattr(web, "setUnderPageBackgroundColor_"):
+                web.setUnderPageBackgroundColor_(col)
+        AppHelper.callAfter(apply_mac)
+        return True
+    return False
+
+
+def _pywebview(url: str, bg: str = LIGHT_BG) -> bool:
     try:
         import webview  # type: ignore
     except Exception:
@@ -117,7 +209,10 @@ def _pywebview(url: str) -> bool:
             webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
         except Exception:
             pass
-        win = webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600))
+        api = _ShellApi()
+        win = webview.create_window("inPace", url, width=1280, height=860, min_size=(420, 600),
+                                    background_color=bg if _hex_ok(bg) else LIGHT_BG, js_api=api)
+        api.win = win
         _active.update(kind="pywebview", webview=webview, main=win)
         if sys.platform == "darwin":
             # Mac sends inpace:// links to the running app; show them in this window.
@@ -151,10 +246,15 @@ try:
     from gi.repository import Gtk, GLib, WebKit2
 except Exception as e:
     print("NOGTK", e, flush=True); sys.exit(3)
+try:
+    from gi.repository import Gdk
+except Exception:
+    Gdk = None
 
 url, parent = sys.argv[1], int(sys.argv[2])
 splash = sys.argv[3] if len(sys.argv) > 3 else ""
 mode = sys.argv[4] if len(sys.argv) > 4 else "safe"   # gpu, safe or soft (see _linux_gtk)
+start_bg = sys.argv[5] if len(sys.argv) > 5 else ""   # the page color to start with (see start_background)
 GLib.set_prgname("inpace"); GLib.set_application_name("inPace")
 # Thin scrollbars that show while you scroll, whatever the system's setting: with the classic kind, WebKit draws a
 # wide light gutter with a border line, which looked like a white bar at the window's edge (v1.31.2).
@@ -174,6 +274,24 @@ else:
 
 view = WebKit2.WebView()
 s = view.get_settings()
+
+# The view's own background shows for a moment between two pages, and wherever WebKit hasn't drawn the page yet
+# while you scroll fast. It was white, which flashed in dark mode. It starts with your page color and follows the
+# page from then on: app.js sends "bg:#rrggbb" whenever the page's color changes (v1.31.3).
+def set_bg(color, views=None):
+    if Gdk is None or not (len(color) == 7 and color.startswith("#")):
+        return
+    rgba = Gdk.RGBA()
+    if not rgba.parse(color):
+        return
+    for v in views or [view] + ([pop["view"]] if pop.get("view") else []):
+        try:
+            v.set_background_color(rgba)
+        except Exception:
+            pass
+
+pop = {"win": None}
+set_bg(start_bg)
 s.set_enable_developer_extras(False)
 s.set_javascript_can_access_clipboard(True)
 for _name in ("set_enable_media_stream", "set_enable_mediasource", "set_enable_encrypted_media",
@@ -194,7 +312,18 @@ painted_signal = False
 try:
     _ucm = view.get_user_content_manager()
     _ucm.register_script_message_handler("inpace")
-    _ucm.connect("script-message-received::inpace", lambda *a: on_painted())
+
+    def on_message(_m, result):
+        try:
+            value = result.get_js_value() if hasattr(result, "get_js_value") else result
+            text = value.to_string() if value is not None else ""
+        except Exception:
+            text = ""
+        if text.startswith("bg:"):
+            set_bg(text[3:].strip())
+        else:  # "painted": the loading screen has drawn its first frame
+            on_painted()
+    _ucm.connect("script-message-received::inpace", on_message)
     painted_signal = True
 except Exception:
     pass
@@ -342,7 +471,6 @@ def on_failed(v, event, uri, error):
     return False
 
 # The pop-out mini window: inPace's parent process asks for it on stdin ("POPOUT <url>", "CLOSEPOP").
-pop = {"win": None}
 
 def open_pop(uri):
     if pop["win"]:
@@ -356,6 +484,10 @@ def open_pop(uri):
         pass
     pv = WebKit2.WebView.new_with_related_view(view)
     pv.set_settings(view.get_settings())
+    try:
+        pv.set_background_color(view.get_background_color())
+    except Exception:
+        pass
     pv.connect("decide-policy", on_policy)
     pv.load_uri(uri)
     pw.add(pv)
@@ -405,8 +537,9 @@ def _log(home: Path | None, line: str) -> None:
             pass
 
 
-def splash_html() -> str:
-    """What the window shows while inPace's first page loads: Tempo, a moving bar, in both languages."""
+def splash_html(bg: str = "") -> str:
+    """What the window shows while inPace's first page loads: Tempo, a moving bar, in both languages.
+    bg: the page color it starts with (start_background), so a dark inPace doesn't open on a light screen."""
     try:
         from .mascot import mascot
         tempo = str(mascot("read", 150, "Tempo"))
@@ -414,7 +547,8 @@ def splash_html() -> str:
         tempo = ""
     return ("<!doctype html><html><head><meta charset='utf-8'><style>"
             "html,body{margin:0;height:100%;background:#F7F3EA;color:#111;font:600 18px system-ui,sans-serif}"
-            "@media (prefers-color-scheme:dark){html,body{background:#12110E;color:#F2EDE2}}"
+            + ("@media (prefers-color-scheme:dark){html,body{background:#12110E;color:#F2EDE2}}" if not _hex_ok(bg) else
+               "html,body{background:%s;color:%s}" % (bg, "#111" if bg == LIGHT_BG else "#F2EDE2")) +
             "body{display:grid;place-items:center}.b{display:flex;flex-direction:column;align-items:center;gap:14px}"
             ".bar{width:220px;height:10px;border:2.5px solid currentColor;overflow:hidden}"
             ".bar i{display:block;width:40%;height:100%;background:#FFD43B;animation:m 1.1s ease-in-out infinite}"
@@ -534,15 +668,15 @@ def _run_helper(cmd: list[str], env: dict, home: Path | None, name: str, on_read
     return why
 
 
-def _linux_gtk(url: str, home: Path | None = None) -> bool:
+def _linux_gtk(url: str, home: Path | None = None, bg: str = "") -> bool:
     if not sys.platform.startswith("linux"):
         return False
     py = shutil.which("python3", path="/usr/bin:/bin") or "/usr/bin/python3"
     if not os.path.exists(py):
         return False
-    splash = splash_html()
+    splash = splash_html(bg)
     for mode in _order(GTK_MODES, home):
-        why = _run_helper([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid()), splash, mode],
+        why = _run_helper([py, "-I", "-c", LINUX_HELPER, url, str(os.getpid()), splash, mode, bg if _hex_ok(bg) else ""],
                           _mode_env(mode), home, f"gtk-{mode}", on_ready=lambda m=mode: remember(home, m))
         if why == "closed":
             return True
@@ -563,16 +697,16 @@ def _qt_cmd() -> list[str]:
     return [sys.executable, "-m", "inpace", "--qt-window"]
 
 
-def _linux_qt(url: str, home: Path | None = None) -> bool:
+def _linux_qt(url: str, home: Path | None = None, bg: str = "") -> bool:
     if not sys.platform.startswith("linux"):
         return False
     from .qtwindow import available, prepare_env
     if not available():
         return False
-    splash = splash_html()
+    splash = splash_html(bg)
     for mode in _order(QT_MODES, home):
         env = prepare_env(os.environ.copy(), mode)  # the bundled engine wants the bundle's own libraries
-        why = _run_helper(_qt_cmd() + [url, str(os.getpid()), splash, mode], env, home, mode,
+        why = _run_helper(_qt_cmd() + [url, str(os.getpid()), splash, mode, bg if _hex_ok(bg) else ""], env, home, mode,
                           on_ready=lambda m=mode: remember(home, m))
         if why == "closed":
             return True
@@ -660,8 +794,9 @@ def which() -> str:
     return "browser tab"
 
 
-def open_window(url: str, home: Path) -> bool:
-    """Show inPace in a window and wait until it's closed. False means: use a browser tab."""
+def open_window(url: str, home: Path, bg: str = "") -> bool:
+    """Show inPace in a window and wait until it's closed. False means: use a browser tab.
+    bg: the page color the window starts with (start_background)."""
     choice = os.environ.get("INPACE_WINDOW", "").lower()  # qt, gtk, app, pywebview, browser or reset
     if choice == "reset":  # forget what worked before and try every way again
         forget(home)
@@ -671,11 +806,11 @@ def open_window(url: str, home: Path) -> bool:
     if choice == "app":
         return _app_mode(url, home)
     if choice == "gtk":
-        return _linux_gtk(url, home) or _app_mode(url, home)
+        return _linux_gtk(url, home, bg) or _app_mode(url, home)
     if choice == "qt":
-        return _linux_qt(url, home) or _app_mode(url, home)
+        return _linux_qt(url, home, bg) or _app_mode(url, home)
     if not sys.platform.startswith("linux"):
-        return _pywebview(url) or _app_mode(url, home)
+        return _pywebview(url, bg or LIGHT_BG) or _app_mode(url, home)
 
     # Linux. If no app window worked last time, go straight to the browser window: no waiting at every start.
     # After an update inPace tries its own window again, since the update may have fixed it.
@@ -683,7 +818,7 @@ def open_window(url: str, home: Path) -> bool:
     last = remembered(home)
     if last.get("way") == "app" and last.get("version") == __version__ and _app_mode(url, home):
         return True
-    if _linux_qt(url, home) or _linux_gtk(url, home):
+    if _linux_qt(url, home, bg) or _linux_gtk(url, home, bg):
         return True
     if _app_mode(url, home):
         if _app_mode_browsers():

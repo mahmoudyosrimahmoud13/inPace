@@ -51,10 +51,11 @@ def main(argv: list[str]) -> None:
     url, parent = argv[0], int(argv[1])
     splash = argv[2] if len(argv) > 2 else ""
     mode = argv[3] if len(argv) > 3 else "qt"
+    start_bg = argv[4] if len(argv) > 4 else ""  # the page color to start with (window.start_background)
     prepare_env(os.environ, mode)  # type: ignore[arg-type]
     try:
         from PySide6.QtCore import QTimer, QUrl
-        from PySide6.QtGui import QDesktopServices, QIcon
+        from PySide6.QtGui import QColor, QDesktopServices, QIcon
         from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
         from PySide6.QtWebEngineWidgets import QWebEngineView
         from PySide6.QtWidgets import QApplication
@@ -93,6 +94,18 @@ def main(argv: list[str]) -> None:
         def featurePermissionRequested(self, origin, feature):  # noqa: N802  microphone for voice notes
             self.setFeaturePermission(origin, feature, QWebEnginePage.PermissionPolicy.PermissionGrantedByUser)
 
+        def javaScriptConsoleMessage(self, level, message, line, source):  # noqa: N802
+            # The page tells the window its color (app.js): the background under the page follows it (v1.31.3).
+            if isinstance(message, str) and message.startswith("inpace-shell bg:"):
+                set_bg(message[16:].strip())
+
+    def set_bg(color: str) -> None:
+        if len(color) == 7 and color.startswith("#") and all(c in "0123456789abcdefABCDEF" for c in color[1:]):
+            try:
+                page.setBackgroundColor(QColor(color))
+            except Exception:
+                pass
+
     profile = QWebEngineProfile.defaultProfile()
 
     def on_download(item):
@@ -116,6 +129,7 @@ def main(argv: list[str]) -> None:
     view = QWebEngineView()
     page = Page(profile, view)
     view.setPage(page)
+    set_bg(start_bg)
     st = page.settings()
     st.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
     st.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)

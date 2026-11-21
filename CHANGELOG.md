@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.31.3
+
+- **No more white flashes, on every device.** Every app window (Linux, Windows, Mac and Android) has its own color under the page. It was white (cream on Android), and it showed for a moment between pages and wherever a long page wasn't drawn yet while you scrolled fast, so in dark mode the course library could turn white. Now the window starts in your page's color and follows the page whenever the look changes: the light/dark button, Settings, AMOLED black, or your device switching to dark. The loading screen opens in the same color, and on Android the status bar icons stay readable on a dark page.
+- **The course library scrolls smoothly.** It has about a hundred cards with big cover pictures. Cards out of view aren't drawn until you scroll near them, and pictures are prepared off the main thread.
+- **Text you couldn't read is readable again.** Some labels had a fixed dark color on a background that turns dark in dark mode, so they disappeared: the roadmap chip next to a course ("Course 1 of 2 on …"), the roadmap strip on Home, "Practical task" tags and "On these roadmaps" in the library, the Voyages tab, and with some accent colors, badges, "Problem" chips, flags and the recording button. Every colored background now comes with a text color made for it, in light, dark and AMOLED and with every accent. Checked on every page in all of them.
+- Locked parts of the course map and the lesson outline look locked through their stones and color, without fading the words, so you can still read what's coming. The Telegram button is a shade deeper so its white text reads.
+- Going to another page is a clean fade: the new page appears once the old one is gone, instead of the two showing on top of each other for a moment on slower computers.
+
 ## v1.31.2
 
 - **Long buttons show their progress, and the app stays usable.** Updating inPace, adding a course or a whole roadmap, getting or updating yt-dlp, and "Make it for me" with AI used to hold the whole page until they finished, with no sign of life (on Linux part of the page could even turn white). Now they run in the background and their button fills up and says what's happening: "Downloading inPace 1.31.2 · 45% · 40 / 90 MB", "Downloading 2/5 · 45%", "Installing… your computer may ask for your password". Work with no steps to count shows moving stripes. Sending big files (a course file, videos, a backup) shows the upload the same way, and any other button that takes a moment shows a small spinner.

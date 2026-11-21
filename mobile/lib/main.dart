@@ -335,6 +335,10 @@ class _ShellState extends State<Shell> {
   StreamSubscription<Uri>? _links;
   Widget? _fullScreen; // a video playing full screen
   bool _inPip = false; // floating over other apps (picture-in-picture)
+  // The color under the page (and behind the status bar): the page's own color, so dark mode never flashes cream
+  // between pages or while a long page scrolls. The page sends it (app.js); the last one is kept for next time.
+  Color _bg = const Color(0xFFF7F3EA);
+  File? _bgFile;
   final GlobalKey _webKey = GlobalKey(); // the page's view is never rebuilt from scratch
 
   String get _base => 'http://127.0.0.1:$_port/';
@@ -386,6 +390,10 @@ class _ShellState extends State<Shell> {
       _port = await _freePort();
       // If Python fails while starting, main.py writes why to this file, and the error screen shows it.
       _errorFile = File('${data.path}/inPace/start-error.txt');
+      _bgFile = File('${data.path}/inPace/window-bg.txt');
+      try {
+        if (await _bgFile!.exists()) _setBg((await _bgFile!.readAsString()).trim(), save: false);
+      } catch (_) {}
       try {
         if (await _errorFile!.exists()) await _errorFile!.delete();
       } catch (_) {}
@@ -503,7 +511,7 @@ class _ShellState extends State<Shell> {
     final params = const PlatformWebViewControllerCreationParams();
     final controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF7F3EA))
+      ..setBackgroundColor(_bg)
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) {
           if (_shown || !_ready || !mounted) return;
@@ -549,6 +557,22 @@ class _ShellState extends State<Shell> {
   }
 
   // ---- Messages from the page (see app.js, "Android app") -------------------------------------------
+  // "#12110E" from the page: the web view, the screen behind it and the status bar take that color.
+  void _setBg(String hex, {bool save = true}) {
+    if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(hex)) return;
+    final color = Color(int.parse('FF${hex.substring(1)}', radix: 16));
+    if (color == _bg) return;
+    if (mounted) {
+      setState(() => _bg = color);
+    } else {
+      _bg = color;
+    }
+    _web?.setBackgroundColor(color);
+    if (save) {
+      _bgFile?.writeAsString(hex).catchError((_) => _bgFile!);
+    }
+  }
+
   Future<void> _fromPage(String raw) async {
     final Map<String, dynamic> msg = jsonDecode(raw);
     switch (msg['type']) {
@@ -572,6 +596,8 @@ class _ShellState extends State<Shell> {
         try { await _pip.invokeMethod('auto', msg['auto'] == true); } catch (_) {}
       case 'downloads':
         _watchDownloads();
+      case 'bg':
+        _setBg(msg['color'] as String? ?? '');
       case 'codenoteCheck':
         // Works with CodeNote: is an app there for codenote:// links? (Needs the <queries> entry in the manifest.)
         {
@@ -831,14 +857,22 @@ class _ShellState extends State<Shell> {
       );
     }
     final web = _web!;
-    return PopScope(
+    // Light status bar icons on a dark page, dark ones on a light page, so the clock and battery stay readable.
+    final dark = _bg.computeLuminance() < 0.4;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: _bg,
+        systemNavigationBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+      ),
+      child: PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (await _goBack()) SystemNavigator.pop();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7F3EA),
+        backgroundColor: _bg,
         body: Stack(fit: StackFit.expand, children: [
           // The page's view keeps the same place in the layout when the floating window opens and closes (only
           // the edges change). Swapping its parent made Android take the page off the screen and put it back,
@@ -846,7 +880,7 @@ class _ShellState extends State<Shell> {
           _fullScreen != null
               ? ColoredBox(color: Colors.black, child: _fullScreen!)
               : ColoredBox(
-                  color: _inPip ? Colors.black : const Color(0xFFF7F3EA),
+                  color: _inPip ? Colors.black : _bg,
                   child: SafeArea(
                     top: !_inPip, bottom: !_inPip, left: !_inPip, right: !_inPip, // floating: edge to edge
                     child: WebViewWidget(key: _webKey, controller: web),
@@ -867,6 +901,7 @@ class _ShellState extends State<Shell> {
               ),
             ),
         ]),
+      ),
       ),
     );
   }

@@ -557,7 +557,7 @@ def roadmap_thumb(rm: dict, pics: dict, big: bool = False) -> Markup:
     for i, s in enumerate(steps[:3]):
         p = pics.get(s["course"])
         if p and p[0] == "img":
-            inner = Markup('<img src="{}" alt="" loading="lazy">').format(p[1])
+            inner = Markup('<img src="{}" alt="" loading="lazy" decoding="async">').format(p[1])
         else:
             letter = (p[1] if p else (str(s.get("title") or s["course"])[:1] or "?")).upper()
             hue = p[2] if p else sum(ord(ch) for ch in s["course"]) % 360

@@ -3994,6 +3994,33 @@ window.inpaceMediaSession = (box, v) => {
 })();
 
 
+// ---- The app window's background (v1.31.3) ---------------------------------------------------------------------
+// Every kind of app window (Linux, Windows, Mac, Android) has a background of its own under the page. It shows for a
+// moment between pages, and where the page isn't drawn yet while you scroll fast. It used to be white (cream on
+// Android), so dark mode flashed. Here the page tells the window its color: when it opens, and whenever the look
+// changes (the light/dark button, Settings, or the device switching to dark). A plain browser tab ignores it.
+(() => {
+  let last = "";
+  const tell = () => {
+    const m = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
+    if (!m || m.length < 3) return;
+    const hex = "#" + m.slice(0, 3).map((n) => Math.round(+n).toString(16).padStart(2, "0")).join("").toUpperCase();
+    if (hex === last) return;
+    last = hex;
+    try { window.webkit.messageHandlers.inpace.postMessage("bg:" + hex); } catch (e) { /* not the Linux window */ }
+    try { if (window.InPaceAndroid) InPaceAndroid.postMessage(JSON.stringify({ type: "bg", color: hex })); } catch (e) { /* older app */ }
+    try { if (window.pywebview && pywebview.api && pywebview.api.background) pywebview.api.background(hex); } catch (e) { /* not ready */ }
+    if (/QtWebEngine/.test(navigator.userAgent)) console.info("inpace-shell bg:" + hex);  // the Qt window reads this
+  };
+  // After the styles apply (the theme attributes change first, the colors a frame later).
+  const soon = () => requestAnimationFrame(() => requestAnimationFrame(tell));
+  new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-black", "data-accent"] });
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", soon); } catch (e) { /* old engine */ }
+  window.addEventListener("pywebviewready", () => { last = ""; tell(); });
+  window.addEventListener("pageshow", (e) => { if (e.persisted) { last = ""; soon(); } });  // back from the page cache
+  tell();
+})();
+
 // ---- Long buttons: progress you can see (v1.31.2) -------------------------------------------------------------
 // The rules, for every page:
 //  1. A form marked [data-progress] (adding a course or a roadmap, updating inPace, getting yt-dlp) is sent in the
