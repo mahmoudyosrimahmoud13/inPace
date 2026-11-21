@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.31.1
+
+- **"Open a file" has its own icon.** It used the same arrow as Download, so the two looked alike in the menu. It's an open folder now.
+
 ## v1.31.0
 
 ### Works with CodeNote
