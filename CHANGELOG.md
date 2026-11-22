@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.32.0
+
+### A PDF reader like GNOME's (Evince), and highlights saved in the PDF itself
+
+- **Highlight, underline, strike out and comment.** Select text in a PDF and a small bar appears: four highlight colors, underline, strike out, a wavy underline, a highlight with a comment, and Copy. **Add a note** puts a sticky note anywhere on a page. Click any mark to read or change its comment and color, or delete it. Ctrl+Z undoes the last mark.
+- **Saved inside the PDF, the way Evince saves.** Marks are standard PDF annotations (with your name, the date and their own drawing), added to the end of the file like Evince does, so the rest of the file stays exactly as it was. The same file shows your marks in Evince, Okular, Adobe Reader or a browser, and marks you made in those readers show in inPace, where you can edit them too. **Open in your PDF app** (in the ⋯ menu, on computers) opens the same file in your usual reader. Saving a mark takes under half a second, even in a 700-page book. inPace also keeps its own copy of your marks, so a course update that replaces a PDF doesn't lose them.
+- **Side panel (F9):** the book's table of contents, page thumbnails, all your highlights and notes, and bookmarks (Ctrl+D) for pages you come back to.
+- **Find (Ctrl+F):** searches every page as you type, highlights the results on the page, and steps through them with Enter and Shift+Enter, with Match case and Whole words.
+- **Select and copy text**, and **links inside the PDF work**: a table of contents entry or a reference jumps to its page, and web links open in your browser. **Alt+← and Alt+→** go back and forward after a jump, like a browser.
+- **Page layouts:** continuous or one page at a time, two pages side by side (odd pages on the left or right), rotate left or right, and **presentation mode (F5)**: one page fills the screen, and a click, the arrows or Space turn the pages.
+- **Properties** (title, author, dates, PDF version, page size, file size), **Print** (Ctrl+P, pages from and to) and **Save a copy** (Ctrl+S), with your marks.
+- **Evince's keyboard shortcuts**, where they exist: F9, Ctrl+F, F3, Ctrl+L, Ctrl+D, Ctrl+I (night mode), Ctrl+P, Ctrl+S, F5, F11, W and F to fit, C and D for the layouts, Ctrl+← and Ctrl+→ to rotate. Press ? for the list.
+- A lesson that shows part of a book keeps everything inside its pages: search, contents and links stay within them.
+- Marks can only be written to course files, and only by inPace's own page (other websites can't send them).
+
+### Fixes
+
+- **The Downloads page no longer opens a black page.** Clicking a course there while its download was still running opened a page that doesn't exist, and the app window showed a black screen you couldn't leave. It now opens the course, and any page that doesn't exist takes you home.
+
 ## v1.31.3
 
 - **No more white flashes, on every device.** Every app window (Linux, Windows, Mac and Android) has its own color under the page. It was white (cream on Android), and it showed for a moment between pages and wherever a long page wasn't drawn yet while you scrolled fast, so in dark mode the course library could turn white. Now the window starts in your page's color and follows the page whenever the look changes: the light/dark button, Settings, AMOLED black, or your device switching to dark. The loading screen opens in the same color, and on Android the status bar icons stay readable on a dark page.

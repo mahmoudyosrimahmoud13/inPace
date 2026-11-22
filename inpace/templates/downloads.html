@@ -63,7 +63,7 @@
         <p class="small muted dl-path" dir="ltr">{{ d.folder }}</p>
       </div>
       <div class="row wrap">
-        <a class="btn small" href="/courses/{{ d.course.id }}">{% trans trimmed %}Open the course{% endtrans %}</a>
+        <a class="btn small" href="/courses/{{ d.course.id }}/go">{% trans trimmed %}Open the course{% endtrans %}</a>
         {% if not is_android %}<form method="post" action="/downloads/open/{{ d.course.id }}"><button class="btn small">{{ icon('folder', 16) }}{% trans trimmed %}Open the folder{% endtrans %}</button></form>{% endif %}
         {% if d.downloaded %}<form method="post" action="/downloads/delete/{{ d.course.id }}" data-confirm="{{ _('Press again to delete') }}"><button class="btn small danger">{{ icon('x', 16) }}{% trans trimmed %}Delete the videos{% endtrans %}</button></form>{% endif %}
       </div>

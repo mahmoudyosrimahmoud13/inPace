@@ -9,40 +9,154 @@
   html, body { height: 100%; margin: 0; }
   body { display: flex; flex-direction: column; background: var(--raised); }
   .pdf-bar { display: flex; align-items: center; gap: .35rem .6rem; flex-wrap: wrap; padding: .4rem .55rem; background: var(--cream);
-    border-bottom: 3px solid var(--line); direction: ltr; position: sticky; top: 0; z-index: 2; }
+    border-bottom: 3px solid var(--line); direction: ltr; position: relative; z-index: 4; }
   .pdf-group { display: inline-flex; align-items: center; gap: .25rem; }
-  .pdf-bar .btn { padding: .3rem .45rem; min-width: 2.15rem; min-height: 2.15rem; box-shadow: 2px 2px 0 var(--line); justify-content: center; }
-  .pdf-bar .btn[aria-pressed="true"] { background: var(--sun); color: #111; }
-  .pdf-bar .btn:disabled { opacity: .4; box-shadow: none; }
+  .pdf-bar .btn, .pdf-find .btn { padding: .3rem .45rem; min-width: 2.15rem; min-height: 2.15rem; box-shadow: 2px 2px 0 var(--line); justify-content: center; }
+  .pdf-bar .btn[aria-pressed="true"], .pdf-find .btn[aria-pressed="true"] { background: var(--sun); color: #111; }
+  .pdf-bar .btn:disabled, .pdf-find .btn:disabled { opacity: .4; box-shadow: none; }
   .pdf-bar input { width: 3.4rem; padding: .25rem .3rem; text-align: center; }
   .pdf-bar select { padding: .25rem .3rem; font: inherit; font-weight: 700; min-width: 6.4rem; }
   .pdf-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .pdf-name { font-weight: 700; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Find bar (Ctrl+F) */
+  .pdf-find { display: flex; align-items: center; gap: .35rem .5rem; flex-wrap: wrap; padding: .35rem .55rem; background: var(--cream);
+    border-bottom: 3px solid var(--line); position: relative; z-index: 3; }
+  .pdf-find[hidden] { display: none; }
+  .pdf-find input[type=search] { flex: 1 1 12rem; min-width: 8rem; padding: .3rem .45rem; }
+  .pdf-find label { display: inline-flex; flex-direction: row; align-items: center; gap: .3rem; font-size: .88rem; white-space: nowrap; margin: 0; }
+  .pdf-find label input { width: auto; min-width: 0; margin: 0; flex: none; }
+  .pdf-find .pdf-hits { font-size: .88rem; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 5rem; }
+  /* The sidebar and the pages, side by side */
+  .pdf-main { flex: 1; display: flex; min-height: 0; position: relative; }
+  .pdf-side { width: 16.5rem; flex: none; display: flex; flex-direction: column; background: var(--cream); border-inline-end: 3px solid var(--line); min-height: 0; }
+  .pdf-side[hidden] { display: none; }
+  .pdf-tabs { display: flex; gap: .2rem; padding: .35rem; border-bottom: 2px solid var(--line); flex-wrap: wrap; }
+  .pdf-tabs button { flex: 1 1 auto; font: inherit; font-size: .82rem; font-weight: 700; padding: .3rem .35rem; border: 2px solid var(--line);
+    background: var(--raised); color: inherit; cursor: pointer; }
+  .pdf-tabs button[aria-selected="true"] { background: var(--sun); color: #111; }
+  .pdf-panel { flex: 1; overflow: auto; padding: .45rem; min-height: 0; }
+  .pdf-panel[hidden] { display: none; }
+  .pdf-outline, .pdf-outline ul { list-style: none; margin: 0; padding: 0; }
+  .pdf-outline ul { padding-inline-start: .9rem; }
+  .pdf-outline a, .pdf-list a { display: block; padding: .22rem .3rem; color: inherit; text-decoration: none; border-radius: 4px; font-size: .9rem; line-height: 1.3; }
+  .pdf-outline a:hover, .pdf-list a:hover, .pdf-outline a:focus-visible, .pdf-list a:focus-visible { background: var(--raised); }
+  .pdf-outline a[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+  .pdf-outline details > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: .15rem; }
+  .pdf-outline details > summary::before { content: "▸"; font-size: .75rem; width: .8rem; flex: none; }
+  .pdf-outline details[open] > summary::before { content: "▾"; }
+  .pdf-outline details > summary::-webkit-details-marker { display: none; }
+  .pdf-outline .leaf { padding-inline-start: .8rem; }
+  .pdf-thumbs { display: grid; grid-template-columns: 1fr; gap: .6rem; justify-items: center; }
+  .pdf-thumb { display: flex; flex-direction: column; align-items: center; gap: .2rem; cursor: pointer; border: 0; background: none; color: inherit; font: inherit; font-size: .8rem; padding: .2rem; }
+  .pdf-thumb .box { width: 7.5rem; background: #fff; border: 2px solid var(--line); min-height: 4rem; }
+  .pdf-thumb .box canvas { display: block; width: 100%; }
+  .pdf-thumb[aria-current="true"] .box { outline: 3px solid var(--sun); outline-offset: 1px; }
+  .pdf-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+  .pdf-list li { display: flex; align-items: center; gap: .3rem; }
+  .pdf-list li a { flex: 1; min-width: 0; }
+  .pdf-list .swatch { width: .8rem; height: .8rem; border: 1.5px solid var(--line); flex: none; display: inline-block; vertical-align: middle; margin-inline-end: .35rem; }
+  .pdf-list small { opacity: .7; }
+  .pdf-empty { font-size: .88rem; opacity: .75; padding: .3rem; }
   .pdf-pages { position: relative; flex: 1; overflow: auto; padding: 1rem; display: flex; flex-direction: column; align-items: center;
     gap: 1rem; touch-action: pan-x pan-y; }
+  .pdf-pages.dual { flex-direction: row; flex-wrap: wrap; justify-content: center; align-content: flex-start; }
+  .pdf-pages .spacer { flex: none; visibility: hidden; }
+  .pdf-pages .pdf-page.off, .pdf-pages .spacer.off { display: none; }
   @media (pointer: coarse) { .pdf-pages { overscroll-behavior: contain; } }  /* not on Macs: it stops the mouse wheel there */
   .pdf-pages:focus { outline: none; }  /* a scrolling area: the toolbar buttons show their own focus */
-  .pdf-page { flex: none; background: #fff; box-shadow: 4px 4px 0 var(--line); border: 2px solid var(--line); position: relative; }
+  .pdf-page { flex: none; background: #fff; box-shadow: 4px 4px 0 var(--line); border: 2px solid var(--line); position: relative;
+    --scale-round-x: 1px; --scale-round-y: 1px; }
   .pdf-page canvas { display: block; width: 100%; height: 100%; }
-  .pdf-page .pdf-num { position: absolute; inset-block-end: .35rem; inset-inline-end: .5rem; font-size: .72rem; color: #8a8478; }
+  .pdf-page .pdf-num { position: absolute; inset-block-end: .35rem; inset-inline-end: .5rem; font-size: .72rem; color: #8a8478; z-index: 3; pointer-events: none; }
+  body.noting .pdf-page { cursor: crosshair; }
+  body.noting .textLayer :is(span, br) { cursor: crosshair; }
+  /* The text layer: invisible text on top of the drawing, so you can select, copy and search it (from pdf.js) */
+  .textLayer { position: absolute; text-align: initial; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-size-adjust: none;
+    -webkit-text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; z-index: 1;
+    --min-font-size: 1; --text-scale-factor: calc(var(--scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+  .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+  .textLayer > :not(.markedContent), .textLayer .markedContent span:not(.markedContent) { z-index: 1; }
+  .textLayer span.markedContent { top: 0; height: 0; }
+  .textLayer ::selection { background: rgba(0, 102, 255, .28); }
+  .textLayer br::selection { background: transparent; }
+  .textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+  .textLayer.selecting .endOfContent { top: 0; }
+  [data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+  [data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+  [data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
+  /* Links, notes and search hits, above the text */
+  .pdf-over { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .pdf-over a.pdf-link { position: absolute; pointer-events: auto; }
+  .pdf-over a.pdf-link:hover { background: rgba(0, 102, 255, .12); outline: 1px solid rgba(0, 102, 255, .45); }
+  .pdf-over .pdf-noteicon { position: absolute; pointer-events: auto; cursor: pointer; border: 1.5px solid #333; border-radius: 3px; display: flex;
+    align-items: center; justify-content: center; color: #222; box-shadow: 1px 1px 0 rgba(0,0,0,.35); padding: 0; }
+  .pdf-over .pdf-hit { position: absolute; background: rgba(255, 170, 0, .38); outline: 1px solid rgba(200, 120, 0, .7); }
+  .pdf-over .pdf-hit.now { background: rgba(255, 90, 0, .5); outline: 2px solid #c44f00; }
+  .pdf-over .pdf-flash { position: absolute; outline: 3px solid var(--sun); animation: pdfflash 1.2s ease-out 1 forwards; }
+  @keyframes pdfflash { from { opacity: 1; } to { opacity: 0; } }
   body.night .pdf-pages { background: #1b1a17; }
   body.night .pdf-page { background: #111; border-color: #333; box-shadow: 4px 4px 0 #000; }
-  body.night .pdf-page canvas { filter: invert(1) hue-rotate(180deg); }
+  body.night .pdf-page canvas, body.night .pdf-thumb .box canvas { filter: invert(1) hue-rotate(180deg); }
+  /* Presentation (F5): one page at a time, nothing else */
+  body.present .pdf-bar, body.present .pdf-find, body.present .pdf-side { display: none !important; }
+  body.present .pdf-pages { background: #000; padding: 0; gap: 0; justify-content: center; cursor: none; }
+  body.present .pdf-page { border: 0; box-shadow: none; margin: auto; }
+  body.present .pdf-num { display: none; }
   .pdf-msg { margin: 3rem auto; text-align: center; max-width: 30rem; }
   .pdf-toast { position: fixed; inset-block-end: 1rem; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: .35rem .8rem;
-    font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 3; }
+    font-weight: 700; font-variant-numeric: tabular-nums; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 30; max-width: 90vw; text-align: center; }
   .pdf-toast.on { opacity: .92; }
+  /* The little bar over selected text, the mark editor, the menu */
+  .pdf-float { position: fixed; z-index: 20; background: var(--cream); border: 2px solid var(--line); box-shadow: 4px 4px 0 var(--line); padding: .35rem; }
+  .pdf-float[hidden] { display: none; }
+  .pdf-selbar { display: flex; gap: .25rem; align-items: center; flex-wrap: wrap; max-width: 92vw; }
+  .pdf-selbar button, .pdf-pop button.chip, .pdf-menu button { font: inherit; font-size: .85rem; font-weight: 700; border: 2px solid var(--line);
+    background: var(--raised); color: inherit; padding: .25rem .45rem; cursor: pointer; min-height: 2rem; display: inline-flex; align-items: center; gap: .3rem; }
+  .pdf-selbar button.color, .pdf-pop button.color { width: 1.7rem; min-width: 1.7rem; padding: 0; }
+  .pdf-selbar button.color[aria-pressed="true"], .pdf-pop button.color[aria-pressed="true"] { outline: 3px solid var(--ink, #111); outline-offset: 1px; }
+  .pdf-selbar .sep { width: 2px; align-self: stretch; background: var(--line); margin: 0 .1rem; }
+  .pdf-pop { width: min(21rem, 92vw); display: grid; gap: .45rem; }
+  .pdf-pop textarea { width: 100%; min-height: 5.5rem; box-sizing: border-box; font: inherit; padding: .35rem; resize: vertical; }
+  .pdf-pop .who { font-size: .8rem; opacity: .75; }
+  .pdf-pop .row { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+  .pdf-pop .row .grow { flex: 1; }
+  .pdf-menu { display: grid; gap: .15rem; min-width: 15rem; max-height: 80vh; overflow: auto; }
+  .pdf-menu button { justify-content: flex-start; border-color: transparent; background: none; width: 100%; text-align: start; }
+  .pdf-menu button:hover, .pdf-menu button:focus-visible { background: var(--raised); border-color: var(--line); }
+  .pdf-menu button[aria-checked]::before { content: ""; width: 1rem; display: inline-block; }
+  .pdf-menu button[aria-checked="true"]::before { content: "✓"; }
+  .pdf-menu hr { border: 0; border-top: 2px solid var(--line); margin: .2rem 0; width: 100%; }
+  .pdf-menu kbd, .pdf-keys kbd { font-size: .75rem; opacity: .7; margin-inline-start: auto; font-family: inherit; }
+  dialog.pdf-dlg { border: 3px solid var(--line); box-shadow: 6px 6px 0 var(--line); background: var(--cream); color: inherit; max-width: min(34rem, 94vw); padding: 1rem 1.1rem; }
+  dialog.pdf-dlg::backdrop { background: rgba(0,0,0,.35); }
+  dialog.pdf-dlg h2 { margin: 0 0 .6rem; font-size: 1.15rem; }
+  dialog.pdf-dlg table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  dialog.pdf-dlg th { text-align: start; padding: .2rem .6rem .2rem 0; white-space: nowrap; vertical-align: top; opacity: .8; }
+  dialog.pdf-dlg td { padding: .2rem 0; word-break: break-word; }
+  dialog.pdf-dlg .row { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .8rem; flex-wrap: wrap; }
+  .pdf-keys { columns: 2 14rem; font-size: .88rem; }
+  .pdf-keys div { display: flex; gap: .6rem; break-inside: avoid; padding: .12rem 0; }
+  .pdf-keys kbd { opacity: 1; font-weight: 700; margin: 0; min-width: 6.5rem; }
+  #printbox { display: none; }
+  @media print {
+    body > *:not(#printbox) { display: none !important; }
+    #printbox { display: block; }
+    #printbox img { display: block; width: 100%; page-break-after: always; break-after: page; }
+    body { background: #fff; }
+  }
+  @media (max-width: 760px) { .pdf-side { position: absolute; inset-block: 0; inset-inline-start: 0; z-index: 5; box-shadow: 4px 0 0 var(--line); } }
   @media (max-width: 560px) { .pdf-name, .pdf-wide { display: none; } .pdf-bar { justify-content: center; } }
-  @media (prefers-reduced-motion: reduce) { .pdf-toast { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .pdf-toast { transition: none; } .pdf-over .pdf-flash { animation: none; } }
 </style>
 </head>
 <body>
 <div class="pdf-bar" role="toolbar" aria-label="{{ _('PDF reader') }}">
   {% if standalone %}<button type="button" class="btn" onclick="history.length > 1 ? history.back() : window.close()" title="{{ _('Back') }}" aria-label="{{ _('Back') }}">{{ icon('back', 18) }}</button>{% endif %}
+  <button type="button" class="btn" id="sidebtn" title="{{ _('Side panel') }} (F9)" aria-label="{{ _('Side panel') }}" aria-pressed="false" aria-controls="side">{{ icon('sidebar', 18) }}</button>
   <span class="pdf-name" title="{{ file_name }}">{{ file_name }}</span>
   <span class="pdf-group">
     <button type="button" class="btn" id="prev" title="{{ _('Previous page') }} (←)" aria-label="{{ _('Previous page') }}">{{ icon('back', 18) }}</button>
-    <span class="pdf-count"><input id="num" type="number" min="1" value="1" inputmode="numeric" aria-label="{{ _('Page') }}"> / <span id="count">…</span></span>
+    <span class="pdf-count"><input id="num" type="number" min="1" value="1" inputmode="numeric" aria-label="{{ _('Page') }}" title="{{ _('Go to page') }} (Ctrl+L)"> / <span id="count">…</span></span>
     <button type="button" class="btn" id="next" title="{{ _('Next page') }} (→)" aria-label="{{ _('Next page') }}">{{ icon('forward', 18) }}</button>
   </span>
   <span class="pdf-group">
@@ -58,20 +172,149 @@
     <button type="button" class="btn" id="in" title="{{ _('Zoom in') }} (+)" aria-label="{{ _('Zoom in') }}">{{ icon('zoom-in', 18) }}</button>
   </span>
   <span class="pdf-group">
-    <button type="button" class="btn pdf-wide" id="fitw" title="{{ _('Fit to width') }} (0)" aria-label="{{ _('Fit to width') }}">{{ icon('fit-width', 18) }}</button>
-    <button type="button" class="btn pdf-wide" id="fitp" title="{{ _('Fit to page') }}" aria-label="{{ _('Fit to page') }}">{{ icon('fit-page', 18) }}</button>
-    <button type="button" class="btn" id="rot" title="{{ _('Rotate') }}" aria-label="{{ _('Rotate') }}">{{ icon('rotate', 18) }}</button>
-    <button type="button" class="btn" id="night" title="{{ _('Night mode: dark pages') }}" aria-label="{{ _('Night mode: dark pages') }}" aria-pressed="false">{{ icon('moon', 18) }}</button>
-    <button type="button" class="btn" id="full" title="{{ _('Full screen') }}" aria-label="{{ _('Full screen') }}">{{ icon('expand', 18) }}</button>
-    {% if standalone %}<a class="btn" href="{{ src }}" download title="{{ _('Download') }}" aria-label="{{ _('Download') }}">{{ icon('download', 18) }}</a>{% endif %}
+    <button type="button" class="btn" id="findbtn" title="{{ _('Find') }} (Ctrl+F)" aria-label="{{ _('Find') }}" aria-pressed="false" aria-controls="find">{{ icon('search', 18) }}</button>
+    {% if can_mark %}<button type="button" class="btn" id="notebtn" title="{{ _('Add a note: click where it goes') }}" aria-label="{{ _('Add a note') }}" aria-pressed="false">{{ icon('note', 18) }}</button>{% endif %}
+    <button type="button" class="btn pdf-wide" id="fitw" title="{{ _('Fit to width') }} (W)" aria-label="{{ _('Fit to width') }}">{{ icon('fit-width', 18) }}</button>
+    <button type="button" class="btn pdf-wide" id="fitp" title="{{ _('Fit to page') }} (F)" aria-label="{{ _('Fit to page') }}">{{ icon('fit-page', 18) }}</button>
+    <button type="button" class="btn" id="night" title="{{ _('Night mode: dark pages') }} (Ctrl+I)" aria-label="{{ _('Night mode: dark pages') }}" aria-pressed="false">{{ icon('moon', 18) }}</button>
+    <button type="button" class="btn" id="menubtn" title="{{ _('More') }}" aria-label="{{ _('More') }}" aria-haspopup="menu" aria-expanded="false" aria-controls="menu">{{ icon('more', 18) }}</button>
   </span>
 </div>
-<div class="pdf-pages" id="pages" tabindex="0" aria-label="{{ file_name }}"><p class="pdf-msg">{{ _('Opening the PDF…') }}</p></div>
+<div class="pdf-find" id="find" role="search" hidden>
+  <input type="search" id="q" placeholder="{{ _('Find in the document') }}" aria-label="{{ _('Find in the document') }}" autocomplete="off" spellcheck="false">
+  <button type="button" class="btn" id="qprev" title="{{ _('Previous result') }} (Shift+Enter)" aria-label="{{ _('Previous result') }}">{{ icon('up', 18) }}</button>
+  <button type="button" class="btn" id="qnext" title="{{ _('Next result') }} (Enter)" aria-label="{{ _('Next result') }}">{{ icon('down', 18) }}</button>
+  <span class="pdf-hits" id="hits" role="status" aria-live="polite"></span>
+  <label><input type="checkbox" id="qcase"> {{ _('Match case') }}</label>
+  <label><input type="checkbox" id="qword"> {{ _('Whole words') }}</label>
+  <button type="button" class="btn" id="qclose" title="{{ _('Close') }} (Esc)" aria-label="{{ _('Close') }}">{{ icon('x', 18) }}</button>
+</div>
+<div class="pdf-main">
+  <aside class="pdf-side" id="side" hidden aria-label="{{ _('Side panel') }}">
+    <div class="pdf-tabs" role="tablist">
+      <button type="button" role="tab" id="tab-outline" aria-controls="panel-outline" aria-selected="false">{{ _('Contents') }}</button>
+      <button type="button" role="tab" id="tab-thumbs" aria-controls="panel-thumbs" aria-selected="false">{{ _('Pages') }}</button>
+      <button type="button" role="tab" id="tab-marks" aria-controls="panel-marks" aria-selected="false">{{ _('Notes') }}</button>
+      <button type="button" role="tab" id="tab-bms" aria-controls="panel-bms" aria-selected="false">{{ _('Bookmarks') }}</button>
+    </div>
+    <div class="pdf-panel" id="panel-outline" role="tabpanel" aria-labelledby="tab-outline" hidden><p class="pdf-empty">{{ _('Opening the PDF…') }}</p></div>
+    <div class="pdf-panel" id="panel-thumbs" role="tabpanel" aria-labelledby="tab-thumbs" hidden><div class="pdf-thumbs" id="thumbs"></div></div>
+    <div class="pdf-panel" id="panel-marks" role="tabpanel" aria-labelledby="tab-marks" hidden><ul class="pdf-list" id="marklist"></ul></div>
+    <div class="pdf-panel" id="panel-bms" role="tabpanel" aria-labelledby="tab-bms" hidden>
+      <button type="button" class="btn" id="bmadd" style="margin-bottom:.5rem;font-size:.85rem;padding:.3rem .5rem;width:100%;justify-content:flex-start">{{ icon('plus', 16) }} {{ _('Bookmark this page') }}</button>
+      <ul class="pdf-list" id="bmlist"></ul>
+    </div>
+  </aside>
+  <div class="pdf-pages" id="pages" tabindex="0" aria-label="{{ file_name }}"><p class="pdf-msg">{{ _('Opening the PDF…') }}</p></div>
+</div>
+<div class="pdf-float pdf-menu" id="menu" role="menu" aria-labelledby="menubtn" hidden>
+  <button type="button" role="menuitemcheckbox" data-act="continuous" aria-checked="true">{{ _('Continuous') }} <kbd>C</kbd></button>
+  <button type="button" role="menuitemcheckbox" data-act="dual" aria-checked="false">{{ _('Two pages side by side') }} <kbd>D</kbd></button>
+  <button type="button" role="menuitemcheckbox" data-act="oddleft" aria-checked="true">{{ _('Odd pages on the left') }} <kbd>O</kbd></button>
+  <hr>
+  <button type="button" role="menuitem" data-act="rotl"><span style="display:inline-flex;transform:scaleX(-1)">{{ icon('rotate', 16) }}</span> {{ _('Rotate left') }} <kbd>Ctrl+←</kbd></button>
+  <button type="button" role="menuitem" data-act="rotr">{{ icon('rotate', 16) }} {{ _('Rotate right') }} <kbd>Ctrl+→</kbd></button>
+  <button type="button" role="menuitem" data-act="full">{{ icon('expand', 16) }} {{ _('Full screen') }} <kbd>F11</kbd></button>
+  <button type="button" role="menuitem" data-act="present">{{ icon('play', 16) }} {{ _('Presentation') }} <kbd>F5</kbd></button>
+  <hr>
+  <button type="button" role="menuitem" data-act="back">{{ icon('back', 16) }} {{ _('Go back') }} <kbd>Alt+←</kbd></button>
+  <button type="button" role="menuitem" data-act="forward">{{ icon('forward', 16) }} {{ _('Go forward') }} <kbd>Alt+→</kbd></button>
+  <button type="button" role="menuitem" data-act="bookmark">{{ icon('flag', 16) }} {{ _('Bookmark this page') }} <kbd>Ctrl+D</kbd></button>
+  <hr>
+  <button type="button" role="menuitem" data-act="print">{{ icon('print', 16) }} {{ _('Print…') }} <kbd>Ctrl+P</kbd></button>
+  <button type="button" role="menuitem" data-act="save">{{ icon('download', 16) }} {{ _('Save a copy') }} <kbd>Ctrl+S</kbd></button>
+  {% if outside %}<button type="button" role="menuitem" data-act="outside">{{ icon('popout', 16) }} {{ _('Open in your PDF app') }}</button>{% endif %}
+  <button type="button" role="menuitem" data-act="props">{{ icon('doc', 16) }} {{ _('Properties') }}</button>
+  <button type="button" role="menuitem" data-act="keys">{{ icon('settings', 16) }} {{ _('Keyboard shortcuts') }} <kbd>?</kbd></button>
+</div>
+<div class="pdf-float pdf-selbar" id="selbar" role="toolbar" aria-label="{{ _('Selected text') }}" hidden>
+  {% if can_mark %}
+  <button type="button" class="color" data-color="#ffd84d" style="background:#ffd84d" title="{{ _('Highlight') }}" aria-label="{{ _('Highlight') }}: {{ _('yellow') }}"></button>
+  <button type="button" class="color" data-color="#7ad151" style="background:#7ad151" title="{{ _('Highlight') }}" aria-label="{{ _('Highlight') }}: {{ _('green') }}"></button>
+  <button type="button" class="color" data-color="#6cb8ff" style="background:#6cb8ff" title="{{ _('Highlight') }}" aria-label="{{ _('Highlight') }}: {{ _('blue') }}"></button>
+  <button type="button" class="color" data-color="#ff8fc8" style="background:#ff8fc8" title="{{ _('Highlight') }}" aria-label="{{ _('Highlight') }}: {{ _('pink') }}"></button>
+  <span class="sep"></span>
+  <button type="button" data-kind="underline" title="{{ _('Underline') }}"><u>U</u></button>
+  <button type="button" data-kind="strike" title="{{ _('Strike out') }}"><s>S</s></button>
+  <button type="button" data-kind="squiggly" title="{{ _('Squiggly underline') }}" style="text-decoration: underline wavy">W</button>
+  <button type="button" data-kind="comment" title="{{ _('Highlight with a comment') }}">{{ icon('note', 16) }}</button>
+  <span class="sep"></span>
+  {% endif %}
+  <button type="button" data-kind="copy" title="{{ _('Copy') }} (Ctrl+C)">{{ _('Copy') }}</button>
+</div>
+<div class="pdf-float pdf-pop" id="pop" role="dialog" aria-label="{{ _('Note') }}" hidden>
+  <div class="who" id="popwho"></div>
+  <textarea id="poptext" aria-label="{{ _('Comment') }}" placeholder="{{ _('Write a comment…') }}" maxlength="20000"></textarea>
+  <div class="row" id="popcolors">
+    <button type="button" class="color" data-color="#ffd84d" style="background:#ffd84d" aria-label="{{ _('yellow') }}"></button>
+    <button type="button" class="color" data-color="#7ad151" style="background:#7ad151" aria-label="{{ _('green') }}"></button>
+    <button type="button" class="color" data-color="#6cb8ff" style="background:#6cb8ff" aria-label="{{ _('blue') }}"></button>
+    <button type="button" class="color" data-color="#ff8fc8" style="background:#ff8fc8" aria-label="{{ _('pink') }}"></button>
+    <button type="button" class="color" data-color="#ff6b5b" style="background:#ff6b5b" aria-label="{{ _('red') }}"></button>
+  </div>
+  <div class="row">
+    <button type="button" class="chip" id="popdel">{{ icon('x', 15) }} {{ _('Delete') }}</button>
+    <span class="grow"></span>
+    <button type="button" class="chip" id="popclose">{{ _('Close') }}</button>
+    <button type="button" class="chip" id="popsave" style="background:var(--sun);color:#111">{{ _('Save') }}</button>
+  </div>
+</div>
+<dialog class="pdf-dlg" id="props" aria-labelledby="props-h"><h2 id="props-h">{{ _('Properties') }}</h2><table id="propstable"></table>
+  <div class="row"><button type="button" class="btn" onclick="this.closest('dialog').close()">{{ _('Close') }}</button></div></dialog>
+<dialog class="pdf-dlg" id="keys" aria-labelledby="keys-h"><h2 id="keys-h">{{ _('Keyboard shortcuts') }}</h2>
+  <div class="pdf-keys">
+    <div><kbd>Ctrl+F</kbd> {{ _('Find') }}</div>
+    <div><kbd>Enter · F3</kbd> {{ _('Next result') }}</div>
+    <div><kbd>Shift+F3</kbd> {{ _('Previous result') }}</div>
+    <div><kbd>F9</kbd> {{ _('Side panel') }}</div>
+    <div><kbd>Ctrl+L</kbd> {{ _('Go to page') }}</div>
+    <div><kbd>← → · PgUp PgDn</kbd> {{ _('Previous / next page') }}</div>
+    <div><kbd>Home · End</kbd> {{ _('First / last page') }}</div>
+    <div><kbd>Alt+← · Alt+→</kbd> {{ _('Go back / forward') }}</div>
+    <div><kbd>+ · −</kbd> {{ _('Zoom in / out') }}</div>
+    <div><kbd>W · 0</kbd> {{ _('Fit to width') }}</div>
+    <div><kbd>F</kbd> {{ _('Fit to page') }}</div>
+    <div><kbd>C</kbd> {{ _('Continuous') }}</div>
+    <div><kbd>D</kbd> {{ _('Two pages side by side') }}</div>
+    <div><kbd>Ctrl+← · Ctrl+→</kbd> {{ _('Rotate left / right') }}</div>
+    <div><kbd>Ctrl+I</kbd> {{ _('Night mode: dark pages') }}</div>
+    <div><kbd>F11</kbd> {{ _('Full screen') }}</div>
+    <div><kbd>F5</kbd> {{ _('Presentation') }}</div>
+    <div><kbd>Ctrl+D</kbd> {{ _('Bookmark this page') }}</div>
+    <div><kbd>Ctrl+P</kbd> {{ _('Print…') }}</div>
+    <div><kbd>Ctrl+S</kbd> {{ _('Save a copy') }}</div>
+    {% if can_mark %}<div><kbd>Ctrl+Z</kbd> {{ _('Undo the last mark') }}</div>{% endif %}
+    <div><kbd>Esc</kbd> {{ _('Close') }}</div>
+  </div>
+  <div class="row"><button type="button" class="btn" onclick="this.closest('dialog').close()">{{ _('Close') }}</button></div></dialog>
+<dialog class="pdf-dlg" id="printdlg" aria-labelledby="print-h"><h2 id="print-h">{{ _('Print…') }}</h2>
+  <p><label>{{ _('From page') }} <input type="number" id="pfrom" min="1" style="width:5rem"></label>
+     <label>{{ _('to') }} <input type="number" id="pto" min="1" style="width:5rem"></label></p>
+  <p class="pdf-empty">{{ _('Up to 300 pages at a time.') }}</p>
+  <div class="row"><button type="button" class="btn" onclick="this.closest('dialog').close()">{{ _('Cancel') }}</button>
+    <button type="button" class="btn" id="pgo" style="background:var(--sun);color:#111">{{ icon('print', 16) }} {{ _('Print') }}</button></div></dialog>
+<div id="printbox" aria-hidden="true"></div>
 <div class="pdf-toast" id="toast" aria-hidden="true"></div>
 <script type="module">
   import * as pdfjs from "/static/pdfjs/pdf.min.mjs";
   pdfjs.GlobalWorkerOptions.workerSrc = "/static/pdfjs/pdf.worker.min.mjs";
   const SRC = {{ src|tojson }}, KEY = {{ key|tojson }}, STANDALONE = {{ 'true' if standalone else 'false' }};
+  const CAN_MARK = {{ 'true' if can_mark else 'false' }}, AUTHOR = {{ (author or '')|tojson }}, FILE_NAME = {{ file_name|tojson }};
+  const T = {{ {
+    "saved": _("Saved in the PDF"), "deleted": _("Mark deleted"), "undone": _("Last mark undone"), "copied": _("Copied"),
+    "cantSave": _("This mark couldn't be saved in the PDF."), "noResults": _("No results"), "searching": _("Searching…"),
+    "of": _("{n} of {total}"), "results": _("{total} results"), "noOutline": _("This PDF has no table of contents."),
+    "noMarks": _("No highlights or notes yet. Select some text to highlight it."), "noMarksRO": _("No highlights or notes."),
+    "noBookmarks": _("No bookmarks yet."), "page": _("Page {n}"), "bookmarkName": _("Name of the bookmark"),
+    "bookmarked": _("Bookmarked"), "remove": _("Remove"), "highlight": _("Highlight"), "underline": _("Underline"),
+    "strike": _("Strike out"), "squiggly": _("Squiggly underline"), "note": _("Note"), "noteHere": _("Click where the note goes"),
+    "preparing": _("Preparing page {n} of {total}…"), "tooMany": _("Up to 300 pages at a time."), "opened": _("Opened in your PDF app"),
+    "title": _("Title"), "author": _("Author"), "subject": _("Subject"), "keywords": _("Keywords"), "creator": _("Made with"),
+    "producer": _("PDF made by"), "created": _("Created"), "modified": _("Changed"), "version": _("PDF version"),
+    "pages": _("Pages"), "size": _("Page size"), "file": _("File size"), "name": _("File"), "outsideRange": _("This lesson shows pages {a} to {b}."),
+    "readonly": _("This PDF can't be changed (it's read-only).")
+  }|tojson }};
+  const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (m, k) => (k in o ? o[k] : m));
   let startPage = {{ start }};
   // A lesson can show only part of a book (course file: "book.pdf#pages=19-35"). Page numbers stay the book's own.
   let FIRST = {{ first or 1 }}, LAST = {{ last or 0 }};
@@ -79,18 +322,20 @@
   const box = $("pages"), num = $("num"), count = $("count"), zoomSel = $("zoom"), zoomNow = $("zoom-now"), toast = $("toast");
   const MIN = 0.25, MAX = 5, MAX_PIXELS = 16e6, KEEP = 14;  // keep at most KEEP drawn pages; the rest are drawn again when needed
 
-  // What you chose last time for this file (zoom and turn), and night mode for every PDF.
-  const PREF = "inpace-pdf:" + (KEY || SRC);
+  // What you chose last time for this file (zoom, turn, layout), and night mode and the side panel for every PDF.
+  const PREF = "inpace-pdf:" + (KEY || SRC), BMS = "inpace-pdf-bm:" + (KEY || SRC);
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private window */ } };
   const pref = load(PREF, {}) || {};
   let mode = ["width", "page", "custom"].includes(pref.mode) ? pref.mode : "width";
   let scale = mode === "custom" && +pref.scale ? Math.max(MIN, Math.min(MAX, +pref.scale)) : 0;
   let rotation = [0, 90, 180, 270].includes(pref.rotation) ? pref.rotation : 0;
+  let continuous = pref.continuous !== false, dual = !!pref.dual, oddLeft = pref.oddLeft !== false;
   let night = !!load("inpace-pdf-night", false);
+  const savePref = () => store(PREF, { mode, scale, rotation, continuous, dual, oddLeft });
 
-  let pdf, pages = [], sizes = {}, current = 1, lastSaved = 0;
-  const visible = new Set(), drawn = [], tasks = new Map();
+  let pdf, pages = [], sizes = {}, current = 1, lastSaved = 0, spacer = null;
+  const visible = new Set(), drawn = [], tasks = new Map(), views = {}, annots = {}, texts = {};
 
   const save = (beacon) => {
     if (!KEY || !pdf || current === lastSaved) return;
@@ -100,7 +345,7 @@
     beacon && navigator.sendBeacon ? navigator.sendBeacon("/media-pos", body) : fetch("/media-pos", { method: "POST", body }).catch(() => {});
   };
   let toastTimer;
-  const say = (text) => { toast.textContent = text; toast.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("on"), 900); };
+  const say = (text, ms = 900) => { toast.textContent = text; toast.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("on"), ms); };
 
   // Page sizes at 100%, turned. Pages of one PDF can differ, so each page keeps its own size once it's known.
   async function sizeOf(n) {
@@ -113,7 +358,8 @@
   const room = () => ({ w: Math.max(80, box.clientWidth - 40), h: Math.max(80, box.clientHeight - 40) });
   async function fitScale(kind) {
     const s = await sizeOf(current >= FIRST ? current : FIRST), r = room();
-    const w = r.w / s.w;
+    const across = dual ? 2 : 1;
+    const w = (r.w - (across - 1) * 16) / (s.w * across);
     return Math.max(MIN, Math.min(MAX, kind === "page" ? Math.min(w, r.h / s.h) : w));
   }
 
@@ -131,12 +377,14 @@
   function showPage() {
     num.value = current;
     $("prev").disabled = current <= FIRST; $("next").disabled = current >= LAST;
+    document.querySelectorAll(".pdf-thumb").forEach((t) => t.setAttribute("aria-current", +t.dataset.n === current));
   }
 
   // Where you are, as a page and a point inside it, so zooming and turning keep it in place.
+  const shown = () => pages.filter((p) => !p.classList.contains("off"));
   function anchorAt(x, y) {
-    const top = box.scrollTop + y, left = box.scrollLeft + x;
-    const div = pages.find((p) => p.offsetTop + p.offsetHeight >= top) || pages[pages.length - 1];
+    const top = box.scrollTop + y, left = box.scrollLeft + x, list = shown();
+    const div = list.find((p) => p.offsetTop + p.offsetHeight >= top) || list[list.length - 1];
     return { div, fy: (top - div.offsetTop) / div.offsetHeight, fx: (left - div.offsetLeft) / div.offsetWidth, x, y };
   }
   function restore(a) {
@@ -147,6 +395,9 @@
   function build() {
     box.innerHTML = "";
     pages = [];
+    spacer = document.createElement("div");
+    spacer.className = "spacer";
+    box.appendChild(spacer);
     for (let i = FIRST; i <= LAST; i++) {
       const div = document.createElement("div");
       div.className = "pdf-page";
@@ -154,8 +405,24 @@
       box.appendChild(div);
       pages.push(div);
     }
+    layout();
     resize();
     pages.forEach((div) => io.observe(div));
+  }
+  // Two pages side by side: with "odd pages on the left" off, page 1 stands alone like a book's cover.
+  const spreadOf = (n) => {
+    if (!dual) return [n];
+    const shift = oddLeft ? 0 : 1, i = n - FIRST + shift, a = n - (i % 2);
+    return [a, a + 1].filter((p) => p >= FIRST && p <= LAST);
+  };
+  function layout() {
+    box.classList.toggle("dual", dual);
+    spacer.classList.toggle("off", !(dual && !oddLeft) || (!continuous && current !== FIRST));
+    const keep = new Set(continuous ? [] : spreadOf(current));
+    for (const div of pages) div.classList.toggle("off", !continuous && !keep.has(+div.dataset.n));
+    document.querySelectorAll('#menu [data-act="continuous"]').forEach((b) => b.setAttribute("aria-checked", continuous));
+    document.querySelectorAll('#menu [data-act="dual"]').forEach((b) => b.setAttribute("aria-checked", dual));
+    document.querySelectorAll('#menu [data-act="oddleft"]').forEach((b) => b.setAttribute("aria-checked", oddLeft));
   }
   // New sizes for every page at once. Drawn pages keep their old picture, stretched, until they're drawn again
   // (no blank flash while you zoom).
@@ -166,6 +433,7 @@
       div.style.width = Math.round(s.w * scale) + "px";
       div.style.height = Math.round(s.h * scale) + "px";
     }
+    if (spacer && fallback) { spacer.style.width = Math.round(fallback.w * scale) + "px"; spacer.style.height = Math.round(fallback.h * scale) + "px"; }
   }
   let redrawTimer;
   const redrawSoon = (ms = 120) => { clearTimeout(redrawTimer); redrawTimer = setTimeout(() => visible.forEach(draw), ms); };
@@ -179,18 +447,27 @@
     restore(a);
     showZoom();
     redrawSoon();
-    store(PREF, { mode, scale, rotation });
+    savePref();
   }
   const zoomBy = (f, at) => { setScale(scale * f, "custom", at); say(Math.round(scale * 100) + "%"); };
   const fit = async (kind) => setScale(await fitScale(kind), kind);
 
+  // ---- Drawing one page: the picture, the text layer (select, copy, find), and links and notes on top ----
+  async function annotsOf(n) {
+    if (!annots[n]) annots[n] = (await pdf.getPage(n)).getAnnotations({ intent: "display" }).catch(() => []);
+    return annots[n];
+  }
+  const MARK_TYPES = { Highlight: "highlight", Underline: "underline", StrikeOut: "strike", Squiggly: "squiggly", Text: "note" };
+  const hex = (c) => (c && c.length >= 3 ? "#" + [...c].slice(0, 3).map((v) => (+v).toString(16).padStart(2, "0")).join("") : "#ffd84d");
+
   async function draw(div) {
     const n = +div.dataset.n;
-    const want = `${scale}|${rotation}`;
+    const want = `${scale}|${rotation}|${docVersion}`;
     if (div.dataset.drawn === want) return;
     if (tasks.has(n)) { if (tasks.get(n).want === want) return; tasks.get(n).task.cancel(); tasks.delete(n); }
-    const page = await pdf.getPage(n);
-    if (`${scale}|${rotation}` !== want) return;
+    const doc = pdf;
+    const page = await doc.getPage(n);
+    if (`${scale}|${rotation}|${docVersion}` !== want) return;
     const vp = page.getViewport({ scale, rotation });
     if (!sizes[n] || Math.abs(sizes[n].w * scale - vp.width) > 1 || Math.abs(sizes[n].h * scale - vp.height) > 1) {
       sizes[n] = { w: vp.width / scale, h: vp.height / scale };
@@ -200,14 +477,22 @@
     const ratio = Math.min(window.devicePixelRatio || 1, Math.sqrt(MAX_PIXELS / (vp.width * vp.height)));
     const canvas = document.createElement("canvas");
     canvas.width = Math.floor(vp.width * ratio); canvas.height = Math.floor(vp.height * ratio);
-    const task = page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null });
+    const task = page.render({ canvasContext: canvas.getContext("2d"), viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null,
+                               annotationMode: pdfjs.AnnotationMode.ENABLE });
     tasks.set(n, { task, want });
     try { await task.promise; } catch (e) { return; } finally { if (tasks.get(n) && tasks.get(n).task === task) tasks.delete(n); }
-    if (`${scale}|${rotation}` !== want) return;  // zoomed again while drawing: the newer drawing wins
+    if (`${scale}|${rotation}|${docVersion}` !== want) return;  // zoomed again while drawing: the newer drawing wins
     const label = document.createElement("span");
     label.className = "pdf-num"; label.textContent = n;
-    div.replaceChildren(canvas, label);
+    const tdiv = document.createElement("div");
+    tdiv.className = "textLayer";
+    const over = document.createElement("div");
+    over.className = "pdf-over";
+    div.style.setProperty("--scale-factor", vp.scale);
+    div.style.setProperty("--total-scale-factor", vp.scale);
+    div.replaceChildren(canvas, tdiv, over, label);
     div.dataset.drawn = want;
+    views[n] = vp;
     const i = drawn.indexOf(div); if (i >= 0) drawn.splice(i, 1);
     drawn.push(div);
     // Forget pages far from view, oldest first, so a long book at a big zoom doesn't fill the memory.
@@ -216,26 +501,95 @@
       old.replaceChildren(); delete old.dataset.drawn;
       drawn.splice(drawn.indexOf(old), 1);
     }
+    try {
+      const tl = new pdfjs.TextLayer({ textContentSource: page.streamTextContent({ includeMarkedContent: true }), container: tdiv, viewport: vp });
+      await tl.render();
+      const end = document.createElement("div"); end.className = "endOfContent"; tdiv.appendChild(end);
+    } catch (e) { /* a page without text (a scan): nothing to select */ }
+    paintOver(n, div, over, vp, page, doc);
   }
+
+  async function paintOver(n, div, over, vp, page, doc) {
+    const list = await annotsOf(n);
+    if (doc !== pdf || !over.isConnected) return;
+    for (const a of list) {
+      if (a.subtype === "Link" && a.rect) {
+        const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
+        const link = document.createElement("a");
+        link.className = "pdf-link";
+        Object.assign(link.style, { left: Math.min(x1, x2) + "px", top: Math.min(y1, y2) + "px", width: Math.abs(x2 - x1) + "px", height: Math.abs(y2 - y1) + "px" });
+        if (a.url || a.unsafeUrl) {
+          const url = a.url || a.unsafeUrl;
+          if (!/^(https?:|mailto:)/i.test(url)) continue;
+          link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.title = url;
+        } else if (a.dest) {
+          link.href = "#"; link.onclick = (e) => { e.preventDefault(); goDest(a.dest); };
+        } else continue;
+        over.appendChild(link);
+      } else if (a.subtype === "Text" && a.rect) {
+        const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
+        const size = Math.max(16, Math.min(28, 20 * scale));
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "pdf-noteicon";
+        b.title = (a.contentsObj && a.contentsObj.str) || T.note;
+        b.setAttribute("aria-label", T.note + ": " + b.title);
+        Object.assign(b.style, { left: Math.min(x1, x2) + "px", top: Math.min(y1, y2) + "px", width: size + "px", height: size + "px", background: hex(a.color) });
+        b.innerHTML = `{{ icon('note', 14) }}`;
+        b.onclick = (e) => { e.stopPropagation(); openPop({ n, a, x: e.clientX, y: e.clientY }); };
+        over.appendChild(b);
+      }
+    }
+    paintFind(n);
+  }
+
+  async function goDest(dest) {
+    try {
+      const d = typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+      if (!d) return;
+      const n = typeof d[0] === "object" && d[0] ? (await pdf.getPageIndex(d[0])) + 1 : (+d[0] + 1);
+      if (n < FIRST || n > LAST) { say(fmt(T.outsideRange, { a: FIRST, b: LAST }), 2200); return; }
+      remember();
+      go(n);
+    } catch (e) { /* a broken link inside the PDF */ }
+  }
+
   const io = new IntersectionObserver((entries) => entries.forEach((e) => {
     if (e.isIntersecting) { visible.add(e.target); draw(e.target); } else visible.delete(e.target);
   }), { root: box, rootMargin: "700px 300px" });
 
-  const go = (n) => {
+  const go = (n, then) => {
     n = Math.max(FIRST, Math.min(LAST, n || FIRST));
-    const jump = () => { box.scrollTop = pages[n - FIRST].offsetTop - 16; current = n; showPage(); };
-    jump(); requestAnimationFrame(jump);
+    current = n;
+    if (!continuous) { layout(); }
+    const jump = () => {
+      const div = pages[n - FIRST];
+      box.scrollTop = continuous ? div.offsetTop - 16 : 0;
+      current = n; showPage();
+    };
+    jump(); requestAnimationFrame(() => { jump(); if (then) then(); });
   };
   box.addEventListener("scroll", () => {
+    if (!continuous) return;
     const mid = box.scrollTop + box.clientHeight / 3;
     let n = FIRST;
     for (const p of pages) { if (p.offsetTop <= mid) n = +p.dataset.n; else break; }
     if (n !== current) { current = n; showPage(); }
   }, { passive: true });
+  const step = (dir) => {
+    if (!dual) return go(current + dir);
+    const s = spreadOf(current);
+    go(dir > 0 ? s[s.length - 1] + 1 : s[0] - 1);
+  };
 
-  // Buttons and the zoom list.
-  $("prev").onclick = () => go(current - 1);
-  $("next").onclick = () => go(current + 1);
+  // ---- History, like a browser's Back and Forward for jumps inside the document ----
+  const backStack = [], fwdStack = [];
+  const remember = () => { if (backStack[backStack.length - 1] !== current) backStack.push(current); if (backStack.length > 100) backStack.shift(); fwdStack.length = 0; };
+  const goBack = () => { if (backStack.length) { fwdStack.push(current); go(backStack.pop()); } };
+  const goForward = () => { if (fwdStack.length) { backStack.push(current); go(fwdStack.pop()); } };
+
+  // ---- Buttons and the zoom list ----
+  $("prev").onclick = () => step(-1);
+  $("next").onclick = () => step(1);
   $("in").onclick = () => zoomBy(1.25);
   $("out").onclick = () => zoomBy(1 / 1.25);
   $("fitw").onclick = () => fit("width");
@@ -246,9 +600,9 @@
     else if (v !== "custom") setScale(+v, "custom");
     box.focus({ preventScroll: true });
   };
-  $("rot").onclick = async () => {
+  async function rotate(by) {
     const keep = current;
-    rotation = (rotation + 90) % 360;
+    rotation = (rotation + by + 360) % 360;
     sizes = {};
     tasks.forEach((t) => t.task.cancel()); tasks.clear();
     for (const p of pages) { p.replaceChildren(); delete p.dataset.drawn; }
@@ -256,34 +610,694 @@
     await sizeOf(FIRST);
     if (mode !== "custom") scale = await fitScale(mode);
     resize(); go(keep); showZoom(); redrawSoon(0);
-    store(PREF, { mode, scale, rotation });
-  };
+    savePref();
+  }
+  async function relayout() {
+    const keep = current;
+    layout();
+    if (mode !== "custom") scale = await fitScale(mode);
+    resize(); showZoom(); go(keep); redrawSoon(0); savePref();
+  }
   const setNight = (on) => { night = on; document.body.classList.toggle("night", on); $("night").setAttribute("aria-pressed", on); store("inpace-pdf-night", on); };
   $("night").onclick = () => setNight(!night);
-  $("full").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
-  num.addEventListener("change", () => go(parseInt(num.value || "1", 10)));
+  const fullScreen = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}));
+  num.addEventListener("change", () => { remember(); go(parseInt(num.value || "1", 10)); });
   num.addEventListener("focus", () => num.select());
-  num.addEventListener("keydown", (e) => { if (e.key === "Enter") { go(parseInt(num.value || "1", 10)); box.focus({ preventScroll: true }); } });
+  num.addEventListener("keydown", (e) => { if (e.key === "Enter") { remember(); go(parseInt(num.value || "1", 10)); box.focus({ preventScroll: true }); } });
 
-  // Keys: + and − zoom (with or without Ctrl, so the browser's own zoom doesn't take over), 0 fits the width,
-  // ← and → turn pages (unless the page is wider than the window), Home and End go to the first and last page.
+  // ---- The More menu ----
+  const menu = $("menu"), menuBtn = $("menubtn");
+  const place = (el, x, y) => {
+    el.hidden = false;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(6, Math.min(x, innerWidth - w - 6)) + "px";
+    el.style.top = Math.max(6, Math.min(y, innerHeight - h - 6)) + "px";
+  };
+  const closeMenu = () => { menu.hidden = true; menuBtn.setAttribute("aria-expanded", "false"); };
+  menuBtn.onclick = () => {
+    if (!menu.hidden) return closeMenu();
+    const r = menuBtn.getBoundingClientRect();
+    place(menu, r.right - menu.offsetWidth, r.bottom + 6);
+    const w = menu.offsetWidth; menu.style.left = Math.max(6, Math.min(r.right - w, innerWidth - w - 6)) + "px";
+    menuBtn.setAttribute("aria-expanded", "true");
+    menu.querySelector('[data-act="back"]').disabled = !backStack.length;
+    menu.querySelector('[data-act="forward"]').disabled = !fwdStack.length;
+    menu.querySelector("button").focus();
+  };
+  menu.addEventListener("keydown", (e) => {
+    const items = [...menu.querySelectorAll("button:not(:disabled)")], i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Escape") { closeMenu(); menuBtn.focus(); }
+  });
+  const ACTIONS = {
+    continuous: () => { continuous = !continuous; relayout(); },
+    dual: () => { dual = !dual; relayout(); },
+    oddleft: () => { oddLeft = !oddLeft; relayout(); },
+    rotl: () => rotate(-90), rotr: () => rotate(90),
+    full: fullScreen, present: () => present(true),
+    back: goBack, forward: goForward, bookmark: addBookmark,
+    print: openPrint, save: saveCopy, outside: openOutside, props: showProps, keys: () => $("keys").showModal(),
+  };
+  menu.addEventListener("click", (e) => { const b = e.target.closest("button[data-act]"); if (!b) return; closeMenu(); ACTIONS[b.dataset.act](); });
+  document.addEventListener("pointerdown", (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) closeMenu();
+  });
+
+  function saveCopy() {
+    const a = document.createElement("a");
+    a.href = SRC; a.download = FILE_NAME.toLowerCase().endsWith(".pdf") ? FILE_NAME : FILE_NAME + ".pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  async function openOutside() {
+    const r = await fetch("/pdf/open-outside", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ src: SRC }) }).catch(() => null);
+    if (r && r.ok) say(T.opened, 1600);
+  }
+
+  // ---- Presentation (F5): full screen, one page fitted, click or arrows to move ----
+  let before = null;
+  async function present(on) {
+    if (on && !before) {
+      before = { mode, scale, continuous, dual };
+      document.body.classList.add("present");
+      continuous = false; dual = false;
+      await document.documentElement.requestFullscreen().catch(() => {});
+      await relayout(); await fit("page");
+    } else if (!on && before) {
+      document.body.classList.remove("present");
+      ({ mode, scale, continuous, dual } = before);
+      before = null;
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      relayout();
+    }
+  }
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && before) present(false); });
+  box.addEventListener("click", (e) => { if (before && !e.target.closest("a")) step(e.clientX < innerWidth / 4 ? -1 : 1); });
+
+  // ---- Side panel: contents (outline), page thumbnails, notes, bookmarks ----
+  const side = $("side"), sideBtn = $("sidebtn");
+  const tabs = ["outline", "thumbs", "marks", "bms"];
+  let sideTab = load("inpace-pdf-tab", "outline");
+  const showSide = (on) => {
+    side.hidden = !on; sideBtn.setAttribute("aria-pressed", on); store("inpace-pdf-side", on);
+    if (on) selectTab(sideTab);
+    setTimeout(async () => { if (pdf && pages.length && mode !== "custom") setScale(await fitScale(mode), mode); }, 30);
+  };
+  sideBtn.onclick = () => showSide(side.hidden);
+  function selectTab(t) {
+    sideTab = tabs.includes(t) ? t : "outline"; store("inpace-pdf-tab", sideTab);
+    for (const k of tabs) { $("tab-" + k).setAttribute("aria-selected", k === sideTab); $("panel-" + k).hidden = k !== sideTab; }
+    if (!pdf) return;
+    if (sideTab === "thumbs") buildThumbs();
+    if (sideTab === "marks") listMarks();
+    if (sideTab === "bms") listBookmarks();
+  }
+  tabs.forEach((k) => ($("tab-" + k).onclick = () => selectTab(k)));
+  $("side").querySelector(".pdf-tabs").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const i = tabs.indexOf(sideTab) + (e.key === "ArrowRight" ? 1 : -1);
+    selectTab(tabs[(i + tabs.length) % tabs.length]); $("tab-" + sideTab).focus();
+  });
+
+  async function buildOutline() {
+    const panel = $("panel-outline");
+    let outline = null;
+    try { outline = await pdf.getOutline(); } catch (e) { /* none */ }
+    if (!outline || !outline.length) { panel.innerHTML = `<p class="pdf-empty"></p>`; panel.firstChild.textContent = T.noOutline; return; }
+    const pageOf = async (dest) => {
+      try {
+        const d = typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+        if (!d) return 0;
+        return typeof d[0] === "object" && d[0] ? (await pdf.getPageIndex(d[0])) + 1 : (+d[0] + 1);
+      } catch (e) { return 0; }
+    };
+    const make = async (items, depth) => {
+      const ul = document.createElement("ul");
+      if (depth === 0) ul.className = "pdf-outline";
+      for (const it of items) {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = "#"; a.textContent = it.title || "…";
+        const n = it.dest ? await pageOf(it.dest) : 0;
+        if (n) { a.dataset.n = n; a.title = fmt(T.page, { n }); }
+        if (it.url) { a.href = it.url; a.target = "_blank"; a.rel = "noopener noreferrer"; }
+        else if (!n || n < FIRST || n > LAST) a.setAttribute("aria-disabled", "true");
+        else a.onclick = (e) => { e.preventDefault(); remember(); go(n); if (innerWidth < 760) showSide(false); };
+        if (it.items && it.items.length) {
+          const det = document.createElement("details");
+          det.open = depth < 1;
+          const sum = document.createElement("summary");
+          sum.appendChild(a);
+          det.append(sum, await make(it.items, depth + 1));
+          li.appendChild(det);
+        } else { a.classList.add("leaf"); li.appendChild(a); }
+        ul.appendChild(li);
+      }
+      return ul;
+    };
+    panel.replaceChildren(await make(outline, 0));
+  }
+
+  let thumbsBuilt = false;
+  const thumbIO = new IntersectionObserver((entries) => entries.forEach(async (e) => {
+    if (!e.isIntersecting || e.target.dataset.done) return;
+    e.target.dataset.done = "1";
+    const n = +e.target.dataset.n, page = await pdf.getPage(n);
+    const vp1 = page.getViewport({ scale: 1, rotation }), s = 240 / vp1.width;
+    const vp = page.getViewport({ scale: s, rotation });
+    const c = document.createElement("canvas"); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+    try { await page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise; } catch (err) { return; }
+    e.target.querySelector(".box").replaceChildren(c);
+  }), { root: $("panel-thumbs"), rootMargin: "400px 0px" });
+  function buildThumbs() {
+    if (thumbsBuilt) { const t = document.querySelector(`.pdf-thumb[data-n="${current}"]`); if (t) t.scrollIntoView({ block: "nearest" }); return; }
+    thumbsBuilt = true;
+    const grid = $("thumbs");
+    for (let n = FIRST; n <= LAST; n++) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "pdf-thumb"; b.dataset.n = n;
+      const s = sizes[n] || sizes[FIRST];
+      b.innerHTML = `<span class="box" style="aspect-ratio:${s.w} / ${s.h}"></span><span>${n}</span>`;
+      b.setAttribute("aria-label", fmt(T.page, { n }));
+      b.onclick = () => { remember(); go(n); if (innerWidth < 760) showSide(false); };
+      grid.appendChild(b);
+      thumbIO.observe(b);
+    }
+    showPage();
+  }
+
+  let listing = 0;
+  async function listMarks() {
+    const ul = $("marklist"), me = ++listing;
+    ul.innerHTML = "";
+    let found = 0;
+    for (let n = FIRST; n <= LAST; n++) {
+      const list = (await annotsOf(n)).filter((a) => MARK_TYPES[a.subtype]);
+      if (me !== listing) return;
+      for (const a of list) {
+        found++;
+        const li = document.createElement("li"), link = document.createElement("a");
+        link.href = "#";
+        const sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = hex(a.color);
+        const what = (a.contentsObj && a.contentsObj.str) || T[MARK_TYPES[a.subtype]];
+        const small = document.createElement("small"); small.textContent = " · " + fmt(T.page, { n });
+        link.append(sw, document.createTextNode(what.length > 90 ? what.slice(0, 90) + "…" : what), small);
+        link.onclick = (e) => { e.preventDefault(); remember(); go(n, () => flash(n, a.rect)); };
+        li.appendChild(link); ul.appendChild(li);
+      }
+    }
+    if (!found) { ul.innerHTML = `<li class="pdf-empty"></li>`; ul.firstChild.textContent = CAN_MARK ? T.noMarks : T.noMarksRO; }
+  }
+  function flash(n, rect) {
+    const div = pages[n - FIRST], vp = views[n], over = div && div.querySelector(".pdf-over");
+    if (!vp || !over || !rect) return;
+    const [x1, y1, x2, y2] = vp.convertToViewportRectangle(rect);
+    const f = document.createElement("div"); f.className = "pdf-flash";
+    Object.assign(f.style, { left: Math.min(x1, x2) - 3 + "px", top: Math.min(y1, y2) - 3 + "px", width: Math.abs(x2 - x1) + 6 + "px", height: Math.abs(y2 - y1) + 6 + "px" });
+    over.appendChild(f); setTimeout(() => f.remove(), 1400);
+    const top = div.offsetTop + Math.min(y1, y2) - box.clientHeight / 3;
+    if (continuous) box.scrollTop = Math.max(0, top);
+  }
+
+  // Bookmarks (kept in inPace, per file): a named page you come back to.
+  const bookmarks = () => load(BMS, []) || [];
+  function addBookmark() {
+    const list = bookmarks();
+    if (list.some((b) => b.n === current)) { say(T.bookmarked); return; }
+    const name = prompt(T.bookmarkName, fmt(T.page, { n: current }));
+    if (name === null) return;
+    list.push({ n: current, name: name.trim().slice(0, 120) || fmt(T.page, { n: current }) });
+    list.sort((a, b) => a.n - b.n);
+    store(BMS, list); say(T.bookmarked);
+    if (!side.hidden && sideTab === "bms") listBookmarks();
+  }
+  $("bmadd").onclick = addBookmark;
+  function listBookmarks() {
+    const ul = $("bmlist"), list = bookmarks();
+    ul.innerHTML = "";
+    if (!list.length) { ul.innerHTML = `<li class="pdf-empty"></li>`; ul.firstChild.textContent = T.noBookmarks; return; }
+    for (const b of list) {
+      const li = document.createElement("li"), a = document.createElement("a"), x = document.createElement("button");
+      a.href = "#"; a.textContent = b.name;
+      const small = document.createElement("small"); small.textContent = " · " + b.n; a.appendChild(small);
+      a.onclick = (e) => { e.preventDefault(); remember(); go(b.n); };
+      x.type = "button"; x.className = "btn"; x.innerHTML = `{{ icon('x', 14) }}`; x.title = T.remove; x.setAttribute("aria-label", T.remove + ": " + b.name);
+      x.onclick = () => { store(BMS, bookmarks().filter((o) => o.n !== b.n)); listBookmarks(); };
+      li.append(a, x); ul.appendChild(li);
+    }
+  }
+
+  // ---- Find (Ctrl+F): every page's text, searched as you type; results highlighted on the pages ----
+  const findBar = $("find"), q = $("q"), hitsEl = $("hits");
+  let results = [], at = -1, searchId = 0, searchTimer, searching = false;
+  const norm = (s, matchCase) => (matchCase ? s : s.toLocaleLowerCase());
+  // The page text, as the text layer shows it (each item's text in order), plus a version with a space where a
+  // line ends, so a phrase broken over two lines is still found. `map` turns a search position into a text position.
+  async function textOf(n) {
+    if (!texts[n]) {
+      texts[n] = (async () => {
+        const tc = await (await pdf.getPage(n)).getTextContent({ includeMarkedContent: false });
+        let plain = "", search = "", map = [];
+        for (const it of tc.items) {
+          if (!("str" in it)) continue;
+          for (const ch of it.str) { map.push(plain.length); search += ch; plain += ch; }
+          if (it.hasEOL && !/\s$/.test(search)) { map.push(plain.length); search += " "; }
+        }
+        // squeeze runs of white space to one space, keeping the map in step
+        let s2 = "", m2 = [];
+        for (let i = 0; i < search.length; i++) {
+          const sp = /\s/.test(search[i]);
+          if (sp && /\s$/.test(s2)) continue;
+          s2 += sp ? " " : search[i]; m2.push(map[i]);
+        }
+        return { plain, search: s2, map: m2 };
+      })();
+    }
+    return texts[n];
+  }
+  function findAll(hay, needle, words) {
+    const out = [];
+    if (!needle) return out;
+    let i = hay.indexOf(needle);
+    while (i >= 0) {
+      const ok = !words || ((i === 0 || !/[\p{L}\p{N}_]/u.test(hay[i - 1])) && (i + needle.length >= hay.length || !/[\p{L}\p{N}_]/u.test(hay[i + needle.length])));
+      if (ok) out.push(i);
+      i = hay.indexOf(needle, i + 1);
+    }
+    return out;
+  }
+  async function search() {
+    const me = ++searchId, matchCase = $("qcase").checked, words = $("qword").checked;
+    q.dataset.last = q.value + "|" + matchCase + "|" + words;
+    const needle = norm(q.value.replace(/\s+/g, " ").trim(), matchCase);
+    results = []; at = -1;
+    document.querySelectorAll(".pdf-hit").forEach((h) => h.remove());
+    if (!needle) { hitsEl.textContent = ""; return; }
+    hitsEl.textContent = T.searching;
+    searching = true;
+    let jumped = false;
+    for (let n = FIRST; n <= LAST; n++) {
+      const t = await textOf(n);
+      if (me !== searchId) return;
+      for (const i of findAll(norm(t.search, matchCase), needle, words)) {
+        const a = t.map[i], b = t.map[Math.min(i + needle.length - 1, t.map.length - 1)] + 1;
+        results.push({ n, a, b });
+      }
+      if (!jumped && results.length) {
+        // the first result at or after the current page comes first
+        const k = results.findIndex((r) => r.n >= current);
+        if (k >= 0) { jumped = true; at = k; showResult(); }
+      }
+      if (n % 25 === 0) hitsEl.textContent = results.length ? fmt(T.results, { total: results.length }) + " · " + T.searching : T.searching;
+    }
+    searching = false;
+    if (!jumped && results.length) { at = 0; showResult(); }
+    hitsEl.textContent = results.length ? fmt(T.of, { n: at + 1, total: results.length }) : T.noResults;
+    for (const n of new Set(results.map((r) => r.n))) paintFind(n);
+  }
+  function showResult() {
+    if (at < 0 || !results.length) return;
+    const r = results[at];
+    if (!searching) hitsEl.textContent = fmt(T.of, { n: at + 1, total: results.length });
+    remember();
+    go(r.n, () => { paintFind(r.n, true); });
+  }
+  // Find the text layer's characters a..b of page n, and draw a box on each line they cover.
+  function rangeIn(tdiv, a, b) {
+    const walker = document.createTreeWalker(tdiv, NodeFilter.SHOW_TEXT);
+    let pos = 0, node, range = document.createRange(), started = false;
+    while ((node = walker.nextNode())) {
+      const len = node.data.length;
+      if (!started && a < pos + len) { range.setStart(node, a - pos); started = true; }
+      if (started && b <= pos + len) { range.setEnd(node, b - pos); return range; }
+      pos += len;
+    }
+    return started ? (range.setEndAfter(tdiv.lastChild), range) : null;
+  }
+  function paintFind(n, scrollTo = false) {
+    const div = pages[n - FIRST];
+    if (!div) return;
+    const tdiv = div.querySelector(".textLayer"), over = div.querySelector(".pdf-over");
+    if (!tdiv || !over) return;
+    over.querySelectorAll(".pdf-hit").forEach((h) => h.remove());
+    if (findBar.hidden) return;
+    const base = div.getBoundingClientRect();
+    results.forEach((r, i) => {
+      if (r.n !== n) return;
+      const range = rangeIn(tdiv, r.a, r.b);
+      if (!range) return;
+      for (const rc of range.getClientRects()) {
+        if (rc.width < 1 || rc.height < 1) continue;
+        const h = document.createElement("div");
+        h.className = "pdf-hit" + (i === at ? " now" : "");
+        Object.assign(h.style, { left: rc.left - base.left + "px", top: rc.top - base.top + "px", width: rc.width + "px", height: rc.height + "px" });
+        over.appendChild(h);
+        if (i === at && scrollTo) {
+          const y = div.offsetTop + rc.top - base.top - box.clientHeight / 3;
+          if (continuous) box.scrollTop = Math.max(0, y);
+          const x = div.offsetLeft + rc.left - base.left - box.clientWidth / 2;
+          if (box.scrollWidth > box.clientWidth) box.scrollLeft = Math.max(0, x);
+          scrollTo = false;
+        }
+      }
+    });
+  }
+  const openFind = () => {
+    findBar.hidden = false; $("findbtn").setAttribute("aria-pressed", "true");
+    const sel = String(getSelection() || "").trim();
+    if (sel && sel.length < 120 && !sel.includes("\n")) { q.value = sel; search(); }
+    q.focus(); q.select();
+  };
+  const closeFind = () => {
+    findBar.hidden = true; $("findbtn").setAttribute("aria-pressed", "false"); searchId++; searching = false;
+    document.querySelectorAll(".pdf-hit").forEach((h) => h.remove()); box.focus({ preventScroll: true });
+  };
+  const nextResult = (dir) => { if (!results.length) return search(); at = (at + dir + results.length) % results.length; showResult(); };
+  $("findbtn").onclick = () => (findBar.hidden ? openFind() : closeFind());
+  $("qclose").onclick = closeFind;
+  $("qnext").onclick = () => nextResult(1);
+  $("qprev").onclick = () => nextResult(-1);
+  q.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(search, 250); });
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchTimer); const now = q.value + "|" + $("qcase").checked + "|" + $("qword").checked;
+      if (q.dataset.last !== now) search(); else nextResult(e.shiftKey ? -1 : 1); }
+    else if (e.key === "Escape") { e.preventDefault(); closeFind(); }
+  });
+  $("qcase").onchange = search; $("qword").onchange = search;
+
+  // ---- Selected text: highlight, underline, strike out, comment, copy ----
+  const selbar = $("selbar");
+  const pageOfNode = (node) => { const el = node && (node.nodeType === 1 ? node : node.parentElement); return el && el.closest(".pdf-page"); };
+  // The selection as lines of text on each page, in PDF points (what the PDF file stores as QuadPoints).
+  function selectionQuads() {
+    const sel = getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const byPage = new Map();
+    for (let r = 0; r < sel.rangeCount; r++) {
+      for (const rc of sel.getRangeAt(r).getClientRects()) {
+        if (rc.width < 1 || rc.height < 2) continue;
+        const el = document.elementFromPoint(rc.left + rc.width / 2, rc.top + rc.height / 2);
+        const div = (el && el.closest(".pdf-page")) || pages.find((p) => { const b = p.getBoundingClientRect(); return rc.top >= b.top - 2 && rc.bottom <= b.bottom + 2 && rc.left >= b.left - 2 && rc.right <= b.right + 2; });
+        if (!div || !div.dataset.drawn) continue;
+        const n = +div.dataset.n, b = div.getBoundingClientRect();
+        if (!byPage.has(n)) byPage.set(n, []);
+        byPage.get(n).push({ l: rc.left - b.left, t: rc.top - b.top, r: rc.right - b.left, b: rc.bottom - b.top });
+      }
+    }
+    const out = [];
+    for (const [n, boxes] of byPage) {
+      // join the pieces of one line (pdf.js gives a box per span)
+      boxes.sort((p, q2) => p.t - q2.t || p.l - q2.l);
+      const lines = [];
+      for (const bx of boxes) {
+        const line = lines.find((L) => Math.min(L.b, bx.b) - Math.max(L.t, bx.t) > 0.5 * Math.min(L.b - L.t, bx.b - bx.t));
+        if (line) { line.l = Math.min(line.l, bx.l); line.r = Math.max(line.r, bx.r); line.t = Math.min(line.t, bx.t); line.b = Math.max(line.b, bx.b); }
+        else lines.push({ ...bx });
+      }
+      const vp = views[n];
+      if (!vp) continue;
+      const quads = [];
+      for (const L of lines) {
+        const pts = [[L.l, L.t], [L.r, L.t], [L.l, L.b], [L.r, L.b]].map(([x, y]) => vp.convertToPdfPoint(x, y));
+        const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+        const x1 = Math.min(...xs), x2 = Math.max(...xs), y1 = Math.min(...ys), y2 = Math.max(...ys);
+        quads.push(x1, y2, x2, y2, x1, y1, x2, y1);
+      }
+      if (quads.length) out.push({ n, quads });
+    }
+    return out.length ? out : null;
+  }
+  let selTimer;
+  document.addEventListener("selectionchange", () => {
+    clearTimeout(selTimer);
+    selTimer = setTimeout(() => {
+      const sel = getSelection();
+      if (!sel || sel.isCollapsed || !String(sel).trim() || !pageOfNode(sel.anchorNode)) { selbar.hidden = true; return; }
+      const rects = [...sel.getRangeAt(sel.rangeCount - 1).getClientRects()].filter((r) => r.width > 0);
+      const last = rects[rects.length - 1] || sel.getRangeAt(0).getBoundingClientRect();
+      selbar.hidden = false;
+      place(selbar, last.left, last.bottom + 8);
+    }, 180);
+  });
+  async function post(url, body) {
+    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ src: SRC, ...body }) }).catch(() => null);
+    const data = r ? await r.json().catch(() => ({})) : {};
+    if (!r || !r.ok || !data.ok) { say(data.error || T.cantSave, 2600); return null; }
+    return data;
+  }
+  const undo = [];
+  async function markSelection(kind, color, text) {
+    const parts = selectionQuads();
+    if (!parts) return;
+    getSelection().removeAllRanges(); selbar.hidden = true;
+    for (const p of parts) {
+      const res = await post("/pdf/mark", { page: p.n, kind, quads: p.quads, color, text: text || "" });
+      if (!res) return;
+      undo.push({ page: p.n, id: res.mark.id });
+    }
+    say(T.saved);
+    await reload([...new Set(parts.map((p) => p.n))]);
+  }
+  selbar.addEventListener("mousedown", (e) => e.preventDefault());  // keep the selection while clicking the bar
+  selbar.addEventListener("click", async (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.kind === "copy") {
+      const text = String(getSelection() || "");
+      try { await navigator.clipboard.writeText(text); } catch (err) { document.execCommand("copy"); }
+      selbar.hidden = true; say(T.copied); return;
+    }
+    if (b.dataset.color) return markSelection("highlight", b.dataset.color);
+    if (b.dataset.kind === "comment") {
+      const parts = selectionQuads();
+      if (!parts) return;
+      const r = getSelection().getRangeAt(0).getBoundingClientRect();
+      openPop({ pending: { kind: "highlight", parts }, x: r.left, y: r.bottom + 8 });
+      return;
+    }
+    if (b.dataset.kind) markSelection(b.dataset.kind, b.dataset.kind === "strike" ? "#ff4040" : b.dataset.kind === "squiggly" ? "#e0457b" : "#2a7de1");
+  });
+
+  // ---- The mark editor: a note or a mark's comment and color, saved in the PDF ----
+  const pop = $("pop"), popText = $("poptext");
+  let editing = null, popColor = "#ffd84d";
+  const setPopColor = (c) => { popColor = c; pop.querySelectorAll("button.color").forEach((b) => b.setAttribute("aria-pressed", b.dataset.color === c)); };
+  pop.querySelectorAll("button.color").forEach((b) => (b.onclick = () => setPopColor(b.dataset.color)));
+  function openPop(info) {
+    editing = info;
+    const a = info.a;
+    const author = a ? (a.titleObj && a.titleObj.str) || "" : AUTHOR;
+    const when = a && a.modificationDate ? pdfjs.PDFDateString.toDateObject(a.modificationDate) : null;
+    $("popwho").textContent = [author, when ? when.toLocaleString() : "", a ? T[MARK_TYPES[a.subtype]] || "" : T.note].filter(Boolean).join(" · ");
+    popText.value = a ? (a.contentsObj && a.contentsObj.str) || "" : "";
+    setPopColor(a ? hex(a.color) : info.pending && info.pending.kind === "highlight" ? "#ffd84d" : "#ffd84d");
+    popText.readOnly = !CAN_MARK; $("popcolors").hidden = !CAN_MARK;
+    $("popsave").hidden = !CAN_MARK; $("popdel").hidden = !CAN_MARK || !a;
+    place(pop, info.x, info.y);
+    (CAN_MARK ? popText : $("popclose")).focus();
+  }
+  const closePop = () => { pop.hidden = true; editing = null; };
+  $("popclose").onclick = closePop;
+  pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closePop(); } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("popsave").click(); });
+  $("popsave").onclick = async () => {
+    if (!editing) return;
+    const info = editing, text = popText.value;
+    closePop();
+    if (info.a) {
+      const res = await post("/pdf/mark/edit", { page: info.n, id: info.a.id, text, color: popColor });
+      if (res) { say(T.saved); await reload([info.n]); }
+    } else if (info.pending && info.pending.kind === "note") {
+      const res = await post("/pdf/mark", { page: info.pending.n, kind: "note", point: info.pending.point, color: popColor, text });
+      if (res) { undo.push({ page: info.pending.n, id: res.mark.id }); say(T.saved); await reload([info.pending.n]); }
+    } else if (info.pending) {
+      getSelection().removeAllRanges(); selbar.hidden = true;
+      for (const p of info.pending.parts) {
+        const res = await post("/pdf/mark", { page: p.n, kind: "highlight", quads: p.quads, color: popColor, text });
+        if (!res) return;
+        undo.push({ page: p.n, id: res.mark.id });
+      }
+      say(T.saved); await reload([...new Set(info.pending.parts.map((p) => p.n))]);
+    }
+  };
+  $("popdel").onclick = async () => {
+    if (!editing || !editing.a) return;
+    const info = editing; closePop();
+    const res = await post("/pdf/mark/delete", { page: info.n, id: info.a.id });
+    if (res) { say(T.deleted); await reload([info.n]); }
+  };
+  async function undoLast() {
+    const last = undo.pop();
+    if (!last) return;
+    const res = await post("/pdf/mark/delete", { page: last.page, id: last.id });
+    if (res) { say(T.undone); await reload([last.page]); }
+  }
+
+  // Clicking a mark on the page opens its comment; with "Add a note" on, a click puts a note there.
+  const noteBtn = $("notebtn");
+  let noting = false;
+  const setNoting = (on) => { noting = on; document.body.classList.toggle("noting", on); if (noteBtn) noteBtn.setAttribute("aria-pressed", on); if (on) say(T.noteHere, 1600); };
+  if (noteBtn) noteBtn.onclick = () => setNoting(!noting);
+  box.addEventListener("click", async (e) => {
+    if (before || e.target.closest("a, button")) return;
+    const div = e.target.closest(".pdf-page");
+    if (!div || !div.dataset.drawn) return;
+    const n = +div.dataset.n, vp = views[n], b = div.getBoundingClientRect();
+    const [px, py] = vp.convertToPdfPoint(e.clientX - b.left, e.clientY - b.top);
+    if (noting) {
+      setNoting(false);
+      openPop({ pending: { kind: "note", n, point: [px - 10, py + 10] }, x: e.clientX, y: e.clientY + 12 });
+      return;
+    }
+    const sel = getSelection();
+    if (sel && !sel.isCollapsed) return;
+    const list = await annotsOf(n);
+    const hit = list.find((a) => {
+      if (!MARK_TYPES[a.subtype] || a.subtype === "Text") return false;
+      const q2 = a.quadPoints;
+      if (q2 && q2.length >= 8) {
+        for (let i = 0; i + 7 < q2.length; i += 8) {
+          const xs = [q2[i], q2[i + 2], q2[i + 4], q2[i + 6]], ys = [q2[i + 1], q2[i + 3], q2[i + 5], q2[i + 7]];
+          if (px >= Math.min(...xs) && px <= Math.max(...xs) && py >= Math.min(...ys) && py <= Math.max(...ys)) return true;
+        }
+        return false;
+      }
+      const [x1, y1, x2, y2] = a.rect;
+      return px >= Math.min(x1, x2) && px <= Math.max(x1, x2) && py >= Math.min(y1, y2) && py <= Math.max(y1, y2);
+    });
+    if (hit) openPop({ n, a: hit, x: e.clientX, y: e.clientY + 12 });
+  });
+
+  // After a change the PDF file is read again (it's the file itself that changed), keeping your place.
+  let docVersion = 0;
+  async function reload(changedPages) {
+    const old = pdf;
+    const sep = SRC.includes("?") ? "&" : "?";
+    try {
+      const next = await pdfjs.getDocument({ url: SRC + sep + "v=" + Date.now(), isEvalSupported: false }).promise;
+      pdf = next; docVersion++;
+      for (const n of changedPages || []) delete annots[n];
+      if (!changedPages) for (const k of Object.keys(annots)) delete annots[k];
+      tasks.forEach((t) => t.task.cancel()); tasks.clear();
+      for (const p of pages) delete p.dataset.drawn;
+      visible.forEach(draw);
+      old.destroy().catch(() => {});
+      if (!side.hidden && sideTab === "marks") listMarks();
+    } catch (e) { say(T.cantSave, 2400); }
+  }
+
+  // ---- Properties ----
+  async function showProps() {
+    const tb = $("propstable");
+    tb.innerHTML = "";
+    let info = {}, size = 0;
+    try { info = (await pdf.getMetadata()).info || {}; } catch (e) { /* none */ }
+    try { size = (await pdf.getDownloadInfo()).length; } catch (e) { /* unknown */ }
+    const s = await sizeOf(FIRST);
+    const date = (v) => { const d = v ? pdfjs.PDFDateString.toDateObject(v) : null; return d ? d.toLocaleString() : ""; };
+    const mm = (pt) => Math.round(pt / 72 * 25.4);
+    const rows = [[T.name, FILE_NAME], [T.title, info.Title], [T.author, info.Author], [T.subject, info.Subject], [T.keywords, info.Keywords],
+      [T.creator, info.Creator], [T.producer, info.Producer], [T.created, date(info.CreationDate)], [T.modified, date(info.ModDate)],
+      [T.version, info.PDFFormatVersion], [T.pages, pdf.numPages], [T.size, `${mm(s.w)} × ${mm(s.h)} mm`],
+      [T.file, size ? (size / 1048576).toFixed(1) + " MB" : ""]];
+    for (const [k, v] of rows) {
+      if (v === undefined || v === null || v === "") continue;
+      const tr = document.createElement("tr"), th = document.createElement("th"), td = document.createElement("td");
+      th.textContent = k; td.textContent = String(v); tr.append(th, td); tb.appendChild(tr);
+    }
+    $("props").showModal();
+  }
+
+  // ---- Print: the pages as pictures, then the system's print window ----
+  function openPrint() {
+    $("pfrom").min = $("pto").min = FIRST; $("pfrom").max = $("pto").max = LAST;
+    $("pfrom").value = FIRST; $("pto").value = Math.min(LAST, FIRST + 299);
+    $("printdlg").showModal();
+  }
+  $("pgo").onclick = async () => {
+    let a = Math.max(FIRST, +$("pfrom").value || FIRST), b = Math.min(LAST, +$("pto").value || LAST);
+    if (b < a) [a, b] = [b, a];
+    if (b - a + 1 > 300) { say(T.tooMany, 2400); return; }
+    $("printdlg").close();
+    const boxP = $("printbox");
+    boxP.innerHTML = "";
+    for (let n = a; n <= b; n++) {
+      say(fmt(T.preparing, { n: n - a + 1, total: b - a + 1 }), 4000);
+      const page = await pdf.getPage(n), vp = page.getViewport({ scale: 150 / 72 });
+      const c = document.createElement("canvas"); c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+      await page.render({ canvasContext: c.getContext("2d"), viewport: vp, intent: "print", annotationMode: pdfjs.AnnotationMode.ENABLE }).promise;
+      const img = new Image();
+      img.src = await new Promise((ok) => c.toBlob((bl) => ok(URL.createObjectURL(bl)), "image/jpeg", 0.92));
+      boxP.appendChild(img);
+    }
+    toast.classList.remove("on");
+    await Promise.all([...boxP.querySelectorAll("img")].map((im) => im.decode().catch(() => {})));
+    window.print();
+  };
+  addEventListener("afterprint", () => { const boxP = $("printbox"); boxP.querySelectorAll("img").forEach((im) => URL.revokeObjectURL(im.src)); boxP.innerHTML = ""; });
+
+  // ---- Keys, the same as GNOME's PDF reader where they exist ----
   document.addEventListener("keydown", (e) => {
-    if (e.target === num || e.target === zoomSel || e.altKey) return;
+    const typing = e.target.closest && e.target.closest("input, textarea, select, dialog");
+    const ctrl = e.ctrlKey || e.metaKey, k = e.key;
+    if (ctrl && (k === "f" || k === "F")) { e.preventDefault(); openFind(); return; }
+    if (k === "F3" || (ctrl && (k === "g" || k === "G"))) { e.preventDefault(); if (findBar.hidden) openFind(); else nextResult(e.shiftKey ? -1 : 1); return; }
+    if (k === "F9") { e.preventDefault(); showSide(side.hidden); return; }
+    if (k === "F11") { e.preventDefault(); fullScreen(); return; }
+    if (k === "F5") { e.preventDefault(); present(!before); return; }
+    if (ctrl && (k === "l" || k === "L")) { e.preventDefault(); num.focus(); num.select(); return; }
+    if (ctrl && (k === "p" || k === "P")) { e.preventDefault(); openPrint(); return; }
+    if (ctrl && (k === "s" || k === "S")) { e.preventDefault(); saveCopy(); return; }
+    if (ctrl && (k === "d" || k === "D")) { e.preventDefault(); addBookmark(); return; }
+    if (ctrl && (k === "i" || k === "I")) { e.preventDefault(); setNight(!night); return; }
+    if (k === "Escape") {
+      if (!pop.hidden) closePop(); else if (!menu.hidden) closeMenu(); else if (!findBar.hidden) closeFind();
+      else if (noting) setNoting(false); else if (!selbar.hidden) { getSelection().removeAllRanges(); selbar.hidden = true; }
+      return;
+    }
+    if (typing || e.target === zoomSel) return;
+    if (ctrl && (k === "z" || k === "Z") && CAN_MARK) { e.preventDefault(); undoLast(); return; }
+    if (e.altKey && (k === "ArrowLeft" || k === "p" || k === "P")) { e.preventDefault(); goBack(); return; }
+    if (e.altKey && (k === "ArrowRight" || k === "n" || k === "N")) { e.preventDefault(); goForward(); return; }
+    if (e.altKey) return;
     const wide = box.scrollWidth > box.clientWidth + 2;
-    if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(1.25); }
-    else if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1 / 1.25); }
-    else if (e.key === "0") { e.preventDefault(); fit("width"); }
-    else if (e.ctrlKey || e.metaKey) return;
-    else if (e.key === "ArrowRight" && !wide) { e.preventDefault(); go(current + 1); }
-    else if (e.key === "ArrowLeft" && !wide) { e.preventDefault(); go(current - 1); }
-    else if (e.key === "Home") { e.preventDefault(); go(FIRST); }
-    else if (e.key === "End") { e.preventDefault(); go(LAST); }
+    if (k === "+" || k === "=") { e.preventDefault(); zoomBy(1.25); }
+    else if (k === "-" || k === "_") { e.preventDefault(); zoomBy(1 / 1.25); }
+    else if (k === "0" && !ctrl) { e.preventDefault(); fit("width"); }
+    else if (ctrl && k === "0") { e.preventDefault(); fit("page"); }
+    else if (ctrl && k === "ArrowLeft") { e.preventDefault(); rotate(-90); }
+    else if (ctrl && k === "ArrowRight") { e.preventDefault(); rotate(90); }
+    else if (ctrl && (k === "c" || k === "C" || k === "a" || k === "A")) return;  // copy and select all, as usual
+    else if (ctrl) return;
+    else if (k === "w" || k === "W") { e.preventDefault(); fit("width"); }
+    else if (k === "f" || k === "F") { e.preventDefault(); fit("page"); }
+    else if (k === "c" || k === "C") { e.preventDefault(); ACTIONS.continuous(); }
+    else if (k === "d" || k === "D") { e.preventDefault(); ACTIONS.dual(); }
+    else if (k === "o" || k === "O") { e.preventDefault(); if (dual) ACTIONS.oddleft(); }
+    else if (k === "?") { e.preventDefault(); $("keys").showModal(); }
+    else if (k === "ArrowRight" && (!wide || before)) { e.preventDefault(); step(1); }
+    else if (k === "ArrowLeft" && (!wide || before)) { e.preventDefault(); step(-1); }
+    else if (k === "PageDown" || (k === " " && !e.shiftKey && (before || !continuous))) {
+      if (before || !continuous || box.scrollTop + box.clientHeight >= box.scrollHeight - 2) { e.preventDefault(); step(1); }
+    } else if (k === "PageUp" || (k === " " && e.shiftKey && (before || !continuous)) || (k === "Backspace" && before)) {
+      if (before || !continuous || box.scrollTop <= 0) { e.preventDefault(); step(-1); }
+    }
+    else if (k === "Home") { e.preventDefault(); remember(); go(FIRST); }
+    else if (k === "End") { e.preventDefault(); remember(); go(LAST); }
   });
 
   // Ctrl + mouse wheel, or a two-finger pinch on a touchpad, zooms around the pointer.
-  let wheelAt = null, wheelF = 1, wheelQueued = false;
+  // Without continuous scrolling, the wheel at the end of a page turns to the next one.
+  let wheelAt = null, wheelF = 1, wheelQueued = false, wheelTurn = 0;
   box.addEventListener("wheel", (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
+    if (!e.ctrlKey && !e.metaKey) {
+      if (continuous) return;
+      const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 2, atTop = box.scrollTop <= 0;
+      if ((e.deltaY > 0 && atEnd) || (e.deltaY < 0 && atTop)) {
+        const now = Date.now();
+        if (now - wheelTurn > 450) { wheelTurn = now; e.preventDefault(); step(e.deltaY > 0 ? 1 : -1); }
+      }
+      return;
+    }
     e.preventDefault();
     const r = box.getBoundingClientRect();
     wheelAt = { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -303,8 +1317,8 @@
     e.preventDefault();
     if (pinch.busy) return;
     pinch.busy = true;
-    const want = pinch.s * spread(e.touches) / pinch.d, at = middle(e.touches);
-    requestAnimationFrame(() => { setScale(want, "custom", at); if (pinch) pinch.busy = false; });
+    const want = pinch.s * spread(e.touches) / pinch.d, at2 = middle(e.touches);
+    requestAnimationFrame(() => { setScale(want, "custom", at2); if (pinch) pinch.busy = false; });
   }, { passive: false });
   box.addEventListener("touchend", (e) => { if (e.touches.length < 2 && pinch) { pinch = null; say(Math.round(scale * 100) + "%"); } }, { passive: true });
 
@@ -329,11 +1343,13 @@
     if (!scale) scale = await fitScale(mode === "custom" ? "width" : mode);
     build();
     showZoom(); showPage();
+    buildOutline();
+    if (load("inpace-pdf-side", false) && innerWidth >= 760) showSide(true);
     if (startPage > FIRST && startPage <= LAST) {
       // Continue on the page you stopped at (retry a few times while the pages settle, unless you scroll first).
       let touched = false;
       ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) => box.addEventListener(ev, () => (touched = true), { once: true }));
-      [0, 150, 400, 900].forEach((ms) => setTimeout(() => { if (!touched && box.scrollTop < 5) go(startPage); }, ms));
+      [0, 150, 400, 900].forEach((ms) => setTimeout(() => { if (!touched && (box.scrollTop < 5 || !continuous)) go(startPage); }, ms));
     }
     if (STANDALONE) box.focus({ preventScroll: true });  // inside a lesson, the lesson keeps the keyboard
   } catch (err) {

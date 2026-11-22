@@ -3797,7 +3797,7 @@ window.inpaceMediaSession = (box, v) => {
       const ctl = c.state === "running" ? form("stop", c.course, "", L.lPause)
         : (c.state === "stopped" || c.state === "failed") ? form("resume", c.course, "", L.lResume, "primary") : "";
       html += `<article class="card dl-course ${esc(c.state)}"><div class="row between wrap"><div class="grow">` +
-        `<h3 dir="auto"><a href="/courses/${encodeURIComponent(c.course)}">${esc(c.title)}</a></h3>` +
+        `<h3 dir="auto"><a href="/courses/${encodeURIComponent(c.course)}/go">${esc(c.title)}</a></h3>` +
         `<div class="row"><div class="bar grow"><span style="width:${c.percent}%"></span></div><b class="small">${Math.round(c.percent)}%</b></div>` +
         `<p class="small muted">${esc(stateLine)}</p></div><div class="row wrap">${ctl}${c.failed.length ? form("retry", c.course, "", L.lRetryall) : ""}</div></div>` +
         (items.length ? `<ul class="dl-rows">${items.join("")}</ul>` : "") + `</article>`;

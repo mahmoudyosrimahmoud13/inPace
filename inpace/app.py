@@ -23,11 +23,12 @@ from markupsafe import Markup
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, codenote, progress, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, codenote, progress, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, pdfnotes, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -353,6 +354,10 @@ _ICONS = {
     "plus": '<path d="M12 5v14M5 12h14"/>',
     "route": '<circle cx="6" cy="19" r="2.2"/><circle cx="18" cy="5" r="2.2"/><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"/>',
     "more": '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    "sidebar": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+    "marker": '<path d="m9 15 6.5-6.5 3 3L12 18H9z"/><path d="m14 10 3 3"/><path d="M4 21h8"/>',
+    "note": '<path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/><path d="M8 9h8M8 12h5"/>',
+    "print": '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="1.5"/><path d="M7 14h10v7H7z"/>',
     "grip": '<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>',
     "x": '<path d="M6 6l12 12M18 6 6 18"/>',
     "video": '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
@@ -2361,11 +2366,153 @@ def create_app(vault: Vault) -> Starlette:
             return go(back, ok=gettext("yt-dlp {v} is ready.").format(v=ver))
         return go(back, ok=gettext("You already have the newest yt-dlp ({v}).").format(v=ver))
 
+    # ---- Highlights and notes in a course PDF (v1.32.0) ----------------------------------------------------------
+    # They're saved inside the PDF itself as standard annotations, like GNOME's PDF reader (Evince) saves them, so
+    # the same file shows them in any reader (pdfnotes.py). Only course files (/m/…) can be marked: not files
+    # someone sent you. A copy of the marks is kept in inPace too ("pdfmarks:<src>"), in case a course update
+    # replaces the file.
+    def _pdf_file(src: str) -> Path | None:
+        from urllib.parse import unquote
+        m = re.fullmatch(r"/m/([^/?#]+)/([^?#]+)", src or "")
+        if not m:
+            return None
+        p = V.find_media(unquote(m.group(1)), unquote(m.group(2)))
+        return p if p and p.is_file() and p.suffix.lower() == ".pdf" else None
+
+    def _mark_key(m: dict) -> str:
+        if m.get("nm"):
+            return m["nm"]
+        shape = json.dumps([m.get("page"), m.get("kind"), m.get("quads") or m.get("point")])
+        return "auto-" + hashlib.sha1(shape.encode()).hexdigest()[:16]
+
+    def _sidecar(src: str) -> list[dict]:
+        try:
+            v = json.loads(V._meta(f"pdfmarks:{src}", "[]") or "[]")
+            return v if isinstance(v, list) else []
+        except ValueError:
+            return []
+
+    def _sync_marks(src: str, path: Path) -> None:
+        """On opening: if the file lost every mark inPace knows (a course update replaced it), write them back.
+        Otherwise remember what the file has now, marks from other readers included (so Evince's count too)."""
+        saved = _sidecar(src)
+        found = pdfnotes.marks(path)
+        have = {_mark_key(m) for m in found}
+        if saved and not any(_mark_key(m) in have for m in saved):
+            for m in saved:
+                m.setdefault("nm", _mark_key(m))
+            pdfnotes.restore(path, saved)
+            found = pdfnotes.marks(path)
+        keep = []
+        for m in found:
+            m = {k: v for k, v in m.items() if k != "id"}
+            m["nm"] = _mark_key(m)
+            keep.append(m)
+        if keep or saved:
+            V._set_meta(f"pdfmarks:{src}", json.dumps(keep))
+
+    async def _mark_request(request: Request):
+        """The JSON body of a mark request, and the PDF it's for. JSON only: other websites can't send it."""
+        if not request.headers.get("content-type", "").startswith("application/json"):
+            return None, None, JSONResponse({"ok": False}, status_code=415)
+        try:
+            data = await request.json()
+        except ValueError:
+            data = None
+        if not isinstance(data, dict):
+            return None, None, JSONResponse({"ok": False}, status_code=400)
+        path = _pdf_file(str(data.get("src", "")))
+        if not path:
+            return None, None, JSONResponse({"ok": False}, status_code=404)
+        if not os.access(path, os.W_OK):
+            return None, None, JSONResponse({"ok": False, "error": gettext("This PDF can't be changed (it's read-only).")}, status_code=403)
+        try:
+            data["page"] = int(data.get("page") or 0)
+        except (TypeError, ValueError):
+            return None, None, JSONResponse({"ok": False}, status_code=400)
+        return data, path, None
+
+    async def pdf_mark(request: Request):
+        data, path, bad = await _mark_request(request)
+        if bad:
+            return bad
+        mark = {k: data.get(k) for k in ("kind", "quads", "point", "color", "text")}
+        mark["author"] = V._meta("name", "Learner") or "Learner"
+        try:
+            saved = await run_in_threadpool(pdfnotes.add, path, data["page"], mark)
+        except pdfnotes.NoteError:
+            return JSONResponse({"ok": False, "error": gettext("This mark couldn't be saved in the PDF.")}, status_code=400)
+        except OSError:
+            return JSONResponse({"ok": False, "error": gettext("This PDF can't be changed (it's read-only).")}, status_code=403)
+        src = str(data["src"])
+        side = _sidecar(src)
+        side.append({k: v for k, v in saved.items() if k != "id"})
+        V._set_meta(f"pdfmarks:{src}", json.dumps(side))
+        return JSONResponse({"ok": True, "mark": saved})
+
+    async def pdf_mark_edit(request: Request):
+        data, path, bad = await _mark_request(request)
+        if bad:
+            return bad
+        text = data.get("text")
+        color = data.get("color")
+        try:
+            m = await run_in_threadpool(pdfnotes.edit, path, data["page"], str(data.get("id", "")),
+                                        None if text is None else str(text), None if color is None else str(color))
+        except pdfnotes.NoteError:
+            return JSONResponse({"ok": False, "error": gettext("This mark couldn't be saved in the PDF.")}, status_code=400)
+        except OSError:
+            return JSONResponse({"ok": False, "error": gettext("This PDF can't be changed (it's read-only).")}, status_code=403)
+        src = str(data["src"])
+        await run_in_threadpool(_sync_marks, src, path)
+        return JSONResponse({"ok": True, "mark": m})
+
+    async def pdf_mark_delete(request: Request):
+        data, path, bad = await _mark_request(request)
+        if bad:
+            return bad
+        try:
+            await run_in_threadpool(pdfnotes.remove, path, data["page"], str(data.get("id", "")))
+        except pdfnotes.NoteError:
+            return JSONResponse({"ok": False}, status_code=400)
+        except OSError:
+            return JSONResponse({"ok": False, "error": gettext("This PDF can't be changed (it's read-only).")}, status_code=403)
+        await run_in_threadpool(_sync_marks, str(data["src"]), path)
+        return JSONResponse({"ok": True})
+
+    async def pdf_open_outside(request: Request):
+        """"Open in your PDF app" (Evince on most Linux desktops): it opens the same file, marks and all."""
+        if not request.headers.get("content-type", "").startswith("application/json"):
+            return JSONResponse({"ok": False}, status_code=415)
+        try:
+            data = await request.json()
+        except ValueError:
+            data = {}
+        path = _pdf_file(str((data or {}).get("src", "")))
+        if not path or updater.install_kind() == "android":
+            return JSONResponse({"ok": False}, status_code=404)
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            else:
+                from .window import _clean_env
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)], env=_clean_env(),
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            return JSONResponse({"ok": False}, status_code=500)
+        return JSONResponse({"ok": True})
+
     async def pdf_reader(request: Request):
         """inPace's own PDF reader (pdf.js, bundled), so PDFs open in every app window, offline."""
         src = request.query_params.get("src", "")
         if not src.startswith(("/m/", "/evidence/", "/files/")):
             return Response("Not found", status_code=404)
+        mark_path = _pdf_file(src)
+        if mark_path:
+            try:
+                await run_in_threadpool(_sync_marks, src, mark_path)
+            except Exception:
+                pass  # a damaged or protected PDF: the reader says so itself
         key = request.query_params.get("key", "")[:600]
         try:
             start = int(float(V._meta(f"pos:{key}", "0") or 0)) if key else 0
@@ -2379,8 +2526,11 @@ def create_app(vault: Vault) -> Starlette:
         first, last = num("from"), num("to")
         if last and first > last:
             first, last = last, first
+        can_mark = bool(mark_path) and os.access(mark_path, os.W_OK)
         return page("pdf_viewer.html", request, src=src, key=key, start=max(start, 1), first=first or 1, last=last,
-                    file_name=request.query_params.get("name", "PDF")[:200], standalone=request.query_params.get("full") == "1")
+                    file_name=request.query_params.get("name", "PDF")[:200], standalone=request.query_params.get("full") == "1",
+                    can_mark=can_mark, author=V._meta("name", "Learner") or "Learner",
+                    outside=bool(mark_path) and updater.install_kind() != "android")
 
     async def media_position(request: Request):
         """The video player reports where you are every few seconds, so it can continue from there next time."""
@@ -5141,6 +5291,10 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/videos", needs_setup(video_settings), methods=["POST"]),
         Route("/settings/videos/update", needs_setup(video_tool_update), methods=["POST"]),
         Route("/pdf", needs_setup(pdf_reader)),
+        Route("/pdf/mark", needs_setup(pdf_mark), methods=["POST"]),
+        Route("/pdf/mark/edit", needs_setup(pdf_mark_edit), methods=["POST"]),
+        Route("/pdf/mark/delete", needs_setup(pdf_mark_delete), methods=["POST"]),
+        Route("/pdf/open-outside", needs_setup(pdf_open_outside), methods=["POST"]),
         Route("/nav.json", needs_setup(nav_index)),
         Route("/settings/colors", needs_setup(set_accent), methods=["POST"]),
         Route("/evidence/{sha}", needs_setup(my_evidence)),
@@ -5262,4 +5416,12 @@ def create_app(vault: Vault) -> Starlette:
                     pass
             return await self.app(scope, receive, send)
 
-    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware), Middleware(LangMiddleware)])
+    async def page_not_found(request: Request, exc):
+        """A link to a page that doesn't exist: in the app window, go home instead of a dead black page you can't
+        leave (the window has no browser Back button)."""
+        if request.method == "GET" and "text/html" in request.headers.get("accept", ""):
+            return RedirectResponse("/", status_code=303)
+        return Response("Not found", status_code=404)
+
+    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware), Middleware(LangMiddleware)],
+                     exception_handlers={404: page_not_found})
