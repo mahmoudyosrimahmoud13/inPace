@@ -21,11 +21,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publish:
+  # Two jobs, like GitHub's own Pages example: "build" makes and uploads the site, "deploy" publishes it.
+  # In one job, deploy-pages sometimes looked for the upload before GitHub had finished saving it and failed with
+  # "No artifacts named github-pages-1 were found" (runs #56 and #57, November 2026). A second job only starts
+  # once the first one, and its upload, are completely done.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
@@ -50,10 +51,18 @@ jobs:
       - name: Fresh links to the style and script files
         run: sed -i -E "s/(style\.css|lang\.js)\?v=[0-9A-Za-z]+/\1?v=${GITHUB_SHA::10}/g" site/*.html site/ar/*.html
       # A new name for each attempt, so "Re-run jobs" doesn't trip over the copy from the last attempt.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
           name: github-pages-${{ github.run_attempt }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
         with:
