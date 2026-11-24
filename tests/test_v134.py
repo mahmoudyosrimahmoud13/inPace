@@ -45,6 +45,7 @@ def test_accounts_are_checked_and_passwords_are_never_kept(tmp_path):
     assert not hosting.check_login(home, "sara", "tea and book") and not hosting.check_login(home, "nobody", "x")
     v = Vault(hosting.user_home(home, "sara"))  # their own inPace, set up and ready
     assert v.is_set_up and v.me["name"] == "Sara"
+    v.db.close()  # (Windows can't delete a database that is still open)
     hosting.set_password(home, "sara", "milk and books")
     assert hosting.check_login(home, "sara", "milk and books") and not hosting.check_login(home, "sara", "tea and books")
     hosting.remove_user(home, "sara")
@@ -263,3 +264,24 @@ def test_a_persons_inpace_stops_when_the_door_is_gone(tmp_path):
     finally:
         if proc.poll() is None:
             proc.kill()
+
+
+def test_a_folder_still_in_use_is_moved_aside_and_deleted_later(tmp_path, monkeypatch):
+    home = tmp_path / "me"
+    hosting.add_user(home, "sara", "Sara", "tea and books")
+    real = hosting.shutil.rmtree
+    calls = {"n": 0}
+
+    def locked(path, ignore_errors=False, **k):  # like Windows with a file still open
+        calls["n"] += 1
+        if calls["n"] <= 20:
+            return None
+        return real(path, ignore_errors=ignore_errors, **k)
+    monkeypatch.setattr(hosting.shutil, "rmtree", locked)
+    monkeypatch.setattr(hosting.time, "sleep", lambda s: None)
+    hosting.remove_user(home, "sara")
+    assert not hosting.user_home(home, "sara").exists() and "sara" not in hosting.load_users(home)
+    moved = list((home / "hosted" / "removed").iterdir())
+    assert len(moved) == 1
+    hosting.clean_removed(home)  # later, when nothing holds it
+    assert not any((home / "hosted" / "removed").iterdir())

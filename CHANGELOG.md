@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.34.1
+
+- **Removing an account on Windows deletes its folder.** Windows can't delete a file that's still open, so removing someone right after they used inPace could leave their folder behind. inPace now tries for a few seconds, and if a file is still in use, it moves the folder aside so the account is gone at once, then finishes deleting it the next time host mode starts or you make an account.
+
 ## v1.34.0
 
 ### Host mode: share inPace with people on your network

@@ -139,6 +139,7 @@ def add_user(home: Path, username: str, name: str, password: str) -> dict:
     name = re.sub(r"\s+", " ", name or "").strip()[:60]
     if not USER_RE.match(username):
         raise AccountProblem("A username has 3 to 32 small letters, digits, dots, dashes or underscores.")
+    clean_removed(home)
     users = load_users(home)
     if username in users:
         raise AccountProblem("There's already an account with that username.")
@@ -183,7 +184,32 @@ def remove_user(home: Path, username: str) -> None:
         DOOR.end_sessions(username)
     root = (_folder(home) / "homes").resolve()
     if h.exists() and h.resolve().parent == root:
-        shutil.rmtree(h, ignore_errors=True)
+        _delete_folder(h, _folder(home))
+
+
+def _delete_folder(folder: Path, hosted: Path) -> None:
+    """Delete a person's folder. On Windows a file that is still open (their inPace closing, a backup program)
+    can't be deleted yet: try for a few seconds, then move the folder aside so the account is gone at once, and
+    finish deleting it later (clean_removed)."""
+    for _ in range(20):
+        shutil.rmtree(folder, ignore_errors=True)
+        if not folder.exists():
+            return
+        time.sleep(0.25)
+    trash = hosted / "removed"
+    trash.mkdir(parents=True, exist_ok=True)
+    try:
+        folder.rename(trash / f"{folder.name}-{int(time.time())}")
+    except OSError:
+        pass
+
+
+def clean_removed(home: Path) -> None:
+    """Finish deleting folders of removed accounts that were still in use."""
+    trash = _folder(home) / "removed"
+    if trash.is_dir():
+        for p in trash.iterdir():
+            shutil.rmtree(p, ignore_errors=True)
 
 
 def check_login(home: Path, username: str, password: str) -> bool:
@@ -332,6 +358,7 @@ class Door:
         if self.running:
             return
         self.home, self.port, self.owner_name = Path(home), int(port), owner_name
+        clean_removed(self.home)
         self.token = secrets.token_urlsafe(32)
         self.error = ""
         config = uvicorn.Config(door_app(self), host="0.0.0.0", port=self.port, log_level="warning",
