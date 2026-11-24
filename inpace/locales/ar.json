@@ -2578,5 +2578,16 @@
  "yellow": "أصفر",
  "{n} of {total}": "{n} من {total}",
  "{total} results": "{total} نتيجة",
- "Show in folder": "أظهره في المجلد"
+ "Show in folder": "أظهره في المجلد",
+ "1 of your courses has a newer version.": "أحد كورساتك له إصدار أحدث.",
+ "%s of your courses have newer versions.": "%s من كورساتك لها إصدارات أحدث.",
+ "Keep everything up to date": "خلّي كل حاجة محدّثة",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "يحدّث كل كورس أضفته من المكتبة وكل خريطة طريق تتابعها، مرة واحدة. تقدّمك محفوظ.",
+ "Update everything": "حدّث كل حاجة",
+ "Updated {n} courses. Your progress is kept.": "تم تحديث {n} كورسات. تقدّمك محفوظ.",
+ "Updated “{title}”. Your progress is kept.": "تم تحديث “{title}”. تقدّمك محفوظ.",
+ "{n} roadmaps you follow changed to the library's latest version.": "{n} من خرائط الطريق اللي بتتابعها اتحدّثت لأحدث إصدار في المكتبة.",
+ "A roadmap you follow changed to the library's latest version.": "خريطة طريق بتتابعها اتحدّثت لأحدث إصدار في المكتبة.",
+ "Everything from the library is up to date.": "كل حاجة من المكتبة محدّثة.",
+ "Some courses weren't updated:": "بعض الكورسات ماتحدّثتش:"
 }

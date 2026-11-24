@@ -2300,5 +2300,16 @@
  "Working on it…": "Работаем…",
  "That didn't work. Try again.": "Не получилось. Попробуйте ещё раз.",
  "Courses, updates and tools": "Курсы, обновления и инструменты",
- "Show in folder": "Показать в папке"
+ "Show in folder": "Показать в папке",
+ "1 of your courses has a newer version.": "У одного из твоих курсов есть новая версия.",
+ "%s of your courses have newer versions.": "У %s твоих курсов есть новые версии.",
+ "Keep everything up to date": "Держи всё в актуальном виде",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "Обновляет все курсы, добавленные из библиотеки, и все маршруты, за которыми ты следишь, за один раз. Прогресс сохраняется.",
+ "Update everything": "Обновить всё",
+ "Updated {n} courses. Your progress is kept.": "Обновлено курсов: {n}. Прогресс сохранён.",
+ "Updated “{title}”. Your progress is kept.": "«{title}» обновлён. Прогресс сохранён.",
+ "{n} roadmaps you follow changed to the library's latest version.": "Маршрутов, за которыми ты следишь, обновлено до последней версии библиотеки: {n}.",
+ "A roadmap you follow changed to the library's latest version.": "Маршрут, за которым ты следишь, обновлён до последней версии библиотеки.",
+ "Everything from the library is up to date.": "Всё из библиотеки актуально.",
+ "Some courses weren't updated:": "Некоторые курсы не обновились:"
 }

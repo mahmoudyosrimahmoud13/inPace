@@ -2300,5 +2300,16 @@
   "Working on it…": "Trabalhando nisso…",
   "That didn't work. Try again.": "Não deu certo. Tente de novo.",
   "Courses, updates and tools": "Cursos, atualizações e ferramentas",
-  "Show in folder": "Mostrar na pasta"
+  "Show in folder": "Mostrar na pasta",
+  "1 of your courses has a newer version.": "Um dos seus cursos tem uma versão mais nova.",
+  "%s of your courses have newer versions.": "%s dos seus cursos têm versões mais novas.",
+  "Keep everything up to date": "Mantenha tudo atualizado",
+  "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "Atualiza cada curso que você adicionou da biblioteca e cada trilha que você segue, de uma vez. Seu progresso é mantido.",
+  "Update everything": "Atualizar tudo",
+  "Updated {n} courses. Your progress is kept.": "{n} cursos atualizados. Seu progresso é mantido.",
+  "Updated “{title}”. Your progress is kept.": "“{title}” atualizado. Seu progresso é mantido.",
+  "{n} roadmaps you follow changed to the library's latest version.": "{n} trilhas que você segue mudaram para a versão mais recente da biblioteca.",
+  "A roadmap you follow changed to the library's latest version.": "Uma trilha que você segue mudou para a versão mais recente da biblioteca.",
+  "Everything from the library is up to date.": "Tudo da biblioteca está atualizado.",
+  "Some courses weren't updated:": "Alguns cursos não foram atualizados:"
 }

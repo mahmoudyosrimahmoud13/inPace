@@ -2300,5 +2300,16 @@
  "Working on it…": "Sedang dikerjakan…",
  "That didn't work. Try again.": "Tidak berhasil. Coba lagi.",
  "Courses, updates and tools": "Kursus, pembaruan, dan alat",
- "Show in folder": "Tampilkan di folder"
+ "Show in folder": "Tampilkan di folder",
+ "1 of your courses has a newer version.": "Satu kursusmu punya versi lebih baru.",
+ "%s of your courses have newer versions.": "%s kursusmu punya versi lebih baru.",
+ "Keep everything up to date": "Jaga semuanya tetap terbaru",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "Memperbarui setiap kursus yang kamu tambahkan dari perpustakaan dan setiap peta jalan yang kamu ikuti, sekaligus. Kemajuanmu tetap tersimpan.",
+ "Update everything": "Perbarui semuanya",
+ "Updated {n} courses. Your progress is kept.": "{n} kursus diperbarui. Kemajuanmu tetap tersimpan.",
+ "Updated “{title}”. Your progress is kept.": "“{title}” diperbarui. Kemajuanmu tetap tersimpan.",
+ "{n} roadmaps you follow changed to the library's latest version.": "{n} peta jalan yang kamu ikuti berubah ke versi terbaru perpustakaan.",
+ "A roadmap you follow changed to the library's latest version.": "Satu peta jalan yang kamu ikuti berubah ke versi terbaru perpustakaan.",
+ "Everything from the library is up to date.": "Semua dari perpustakaan sudah terbaru.",
+ "Some courses weren't updated:": "Beberapa kursus tidak diperbarui:"
 }

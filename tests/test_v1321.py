@@ -111,3 +111,101 @@ def test_the_route_shows_a_course_file_in_its_folder(tmp_path, monkeypatch, laun
     r = c.post(f"/courses/{course.id}/open-media", data={"media": "01 Intro/01 - Welcome.mp4", "reveal": "1"})
     assert r.json() == {"ok": True} and launched[-1][0] == "xdg-open" and launched[-1][1].endswith("01 Intro")
     assert c.post(f"/courses/{course.id}/open-media", data={"media": "../../etc/passwd", "reveal": "1"}).status_code == 404
+
+
+def _library(home, steps, h, rid="python-web", extra=None):
+    import json as _json
+    from tests.test_v124 import lib_index
+    idx = lib_index()
+    idx["roadmaps"][0].update(steps=steps, hash=h)
+    idx["roadmaps"] += extra or []
+    (home / "library.json").write_text(_json.dumps(idx), encoding="utf-8")
+    return idx
+
+
+def test_every_followed_library_roadmap_updates_itself(tmp_path, monkeypatch):
+    """When the library changes a roadmap's order or courses, every copy you follow changes with it, all at once,
+    without an update button per roadmap. Roadmaps you made yourself are never touched."""
+    from starlette.testclient import TestClient
+    from inpace import library, roadmaps
+    from inpace.app import create_app
+    from inpace.vault import Vault
+    v = Vault(tmp_path / "me")
+    c = TestClient(create_app(v))
+    c.post("/setup", data={"name": "Mona", "color": "#1F7A56"})
+    two = {"id": "web-two", "title": "Second path", "language": "en", "author": {"name": "inPace"},
+           "steps": [{"course": "python-basics"}], "hash": "b1"}
+    _library(v.home, [{"course": "python-basics", "note": "Start here."}, {"course": "fastapi"}], "aaa", extra=[two])
+    c.post("/roadmaps/python-web/follow")
+    c.post("/roadmaps/web-two/follow")
+    roadmaps.save(v.home, {"id": "my-own", "title": "Mine", "steps": [{"course": "fastapi"}], "source": "mine"})
+    started = roadmaps.get(v.home, "python-web")["followed_at"]
+
+    # The library reorders one roadmap and adds a course to the other.
+    two2 = {**two, "steps": [{"course": "python-basics"}, {"course": "fastapi", "optional": True}], "hash": "b2"}
+    _library(v.home, [{"course": "fastapi", "note": "API first now."}, {"course": "python-basics"}], "bbb", extra=[two2])
+    c.get("/")                                               # any page that reads the library list syncs
+    rm = roadmaps.get(v.home, "python-web")
+    assert [s["course"] for s in rm["steps"]] == ["fastapi", "python-basics"]
+    assert rm["library_hash"] == "bbb" and rm["followed_at"] == started and rm["source"] == "library"
+    assert [s["course"] for s in roadmaps.get(v.home, "web-two")["steps"]] == ["python-basics", "fastapi"]
+    assert [s["course"] for s in roadmaps.get(v.home, "my-own")["steps"]] == ["fastapi"]   # yours: untouched
+    assert "newer version of this roadmap" not in c.get("/roadmaps/python-web").text  # nothing left to click
+
+    # A roadmap that leaves the library stays as you had it; offline lists change nothing.
+    idx = _library(v.home, [{"course": "python-basics"}], "ccc")
+    idx["offline"] = True
+    assert roadmaps.sync_library(v.home, idx) == []
+    idx.pop("offline")
+    assert roadmaps.sync_library(v.home, idx) == ["python-web"]
+    assert [s["course"] for s in roadmaps.get(v.home, "web-two")["steps"]] == ["python-basics", "fastapi"]
+    assert roadmaps.sync_library(v.home, idx) == []          # already up to date: nothing to do
+
+
+def test_one_button_updates_every_course_and_roadmap(tmp_path, monkeypatch):
+    import html
+    import json as _json
+    from starlette.testclient import TestClient
+    from inpace import library, roadmaps
+    from inpace.app import SAMPLES, create_app
+    from inpace.course import course_to_pack, files_from_folder, load_course
+    from inpace.vault import Vault
+    from tests.test_v124 import lib_index
+    v = Vault(tmp_path / "me")
+    c = TestClient(create_app(v))
+    c.post("/setup", data={"name": "Mona", "color": "#1F7A56"})
+    idx = lib_index()
+    (v.home / "library.json").write_text(_json.dumps(idx), encoding="utf-8")
+    calls = []
+
+    def fake_download(entry):
+        calls.append(entry["id"])
+        return course_to_pack(load_course(files_from_folder(SAMPLES / entry["id"])), True)
+    monkeypatch.setattr(library, "download", fake_download)
+    monkeypatch.setattr(library, "load_index", lambda home, refresh=False: _json.loads(
+        (home / "library.json").read_text(encoding="utf-8")))
+    c.post("/library/python-basics/add")
+    c.post("/roadmaps/python-web/follow")
+    page = html.unescape(c.get("/library").text)
+    assert 'action="/library/update-all"' in page and "Keep everything up to date" in page
+
+    # The library publishes a new version of the course and reorders the roadmap.
+    idx["courses"][0]["hash"] = "new-version"
+    idx["roadmaps"][0].update(hash="r2", steps=[{"course": "fastapi"}, {"course": "python-basics"}])
+    (v.home / "library.json").write_text(_json.dumps(idx), encoding="utf-8")
+    roadmaps.save(v.home, {**roadmaps.get(v.home, "python-web")})        # (no sync yet: nothing opened)
+    page = html.unescape(c.get("/library").text)
+    assert "1 of your courses has a newer version." in page
+    calls.clear()
+    r = c.post("/library/update-all", follow_redirects=False)
+    assert calls == ["python-basics"]                                     # fastapi was never added: not downloaded
+    msg = html.unescape(c.get(r.headers["location"]).text)
+    assert "Updated “Python Basics”. Your progress is kept." in msg or "Updated" in msg
+    assert [s["course"] for s in roadmaps.get(v.home, "python-web")["steps"]] == ["fastapi", "python-basics"]
+
+    # Nothing newer: the button says so and downloads nothing.
+    idx["courses"][0]["hash"] = v.get_course("python-basics").hash
+    (v.home / "library.json").write_text(_json.dumps(idx), encoding="utf-8")
+    calls.clear()
+    r = c.post("/library/update-all")
+    assert calls == [] and "Everything from the library is up to date." in html.unescape(r.text)

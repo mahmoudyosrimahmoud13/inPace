@@ -2300,5 +2300,16 @@
  "Working on it…": "Üzerinde çalışılıyor…",
  "That didn't work. Try again.": "Olmadı. Tekrar dene.",
  "Courses, updates and tools": "Kurslar, güncellemeler ve araçlar",
- "Show in folder": "Klasörde göster"
+ "Show in folder": "Klasörde göster",
+ "1 of your courses has a newer version.": "Kurslarından birinin daha yeni bir sürümü var.",
+ "%s of your courses have newer versions.": "Kurslarından %s tanesinin daha yeni sürümleri var.",
+ "Keep everything up to date": "Her şeyi güncel tut",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "Kütüphaneden eklediğin her kursu ve takip ettiğin her yol haritasını tek seferde günceller. İlerlemen korunur.",
+ "Update everything": "Her şeyi güncelle",
+ "Updated {n} courses. Your progress is kept.": "{n} kurs güncellendi. İlerlemen korunuyor.",
+ "Updated “{title}”. Your progress is kept.": "“{title}” güncellendi. İlerlemen korunuyor.",
+ "{n} roadmaps you follow changed to the library's latest version.": "Takip ettiğin {n} yol haritası kütüphanenin en son sürümüne geçti.",
+ "A roadmap you follow changed to the library's latest version.": "Takip ettiğin bir yol haritası kütüphanenin en son sürümüne geçti.",
+ "Everything from the library is up to date.": "Kütüphaneden gelen her şey güncel.",
+ "Some courses weren't updated:": "Bazı kurslar güncellenmedi:"
 }

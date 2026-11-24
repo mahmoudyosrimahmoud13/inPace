@@ -2300,5 +2300,16 @@
  "Working on it…": "正在处理…",
  "That didn't work. Try again.": "没有成功，请再试一次。",
  "Courses, updates and tools": "课程、更新和工具",
- "Show in folder": "在文件夹中显示"
+ "Show in folder": "在文件夹中显示",
+ "1 of your courses has a newer version.": "你有 1 门课程有新版本。",
+ "%s of your courses have newer versions.": "你有 %s 门课程有新版本。",
+ "Keep everything up to date": "让一切保持最新",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "一次性更新你从课程库添加的每门课程和你关注的每条路线图。你的进度会保留。",
+ "Update everything": "全部更新",
+ "Updated {n} courses. Your progress is kept.": "已更新 {n} 门课程。你的进度已保留。",
+ "Updated “{title}”. Your progress is kept.": "已更新“{title}”。你的进度已保留。",
+ "{n} roadmaps you follow changed to the library's latest version.": "你关注的 {n} 条路线图已更新为课程库的最新版本。",
+ "A roadmap you follow changed to the library's latest version.": "你关注的一条路线图已更新为课程库的最新版本。",
+ "Everything from the library is up to date.": "课程库中的一切都是最新的。",
+ "Some courses weren't updated:": "有些课程没有更新："
 }

@@ -2300,5 +2300,16 @@
  "Working on it…": "काम चल रहा है…",
  "That didn't work. Try again.": "यह नहीं हुआ। फिर कोशिश करें।",
  "Courses, updates and tools": "कोर्स, अपडेट और टूल",
- "Show in folder": "फ़ोल्डर में दिखाएँ"
+ "Show in folder": "फ़ोल्डर में दिखाएँ",
+ "1 of your courses has a newer version.": "आपके एक कोर्स का नया संस्करण है।",
+ "%s of your courses have newer versions.": "आपके %s कोर्स के नए संस्करण हैं।",
+ "Keep everything up to date": "सब कुछ अपडेट रखें",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "लाइब्रेरी से जोड़ा हर कोर्स और आपका हर फॉलो किया रोडमैप, एक साथ अपडेट करता है। आपकी प्रगति बनी रहती है।",
+ "Update everything": "सब कुछ अपडेट करें",
+ "Updated {n} courses. Your progress is kept.": "{n} कोर्स अपडेट हुए। आपकी प्रगति बनी रहती है।",
+ "Updated “{title}”. Your progress is kept.": "“{title}” अपडेट हुआ। आपकी प्रगति बनी रहती है।",
+ "{n} roadmaps you follow changed to the library's latest version.": "आपके फॉलो किए {n} रोडमैप लाइब्रेरी के नवीनतम संस्करण में बदल गए।",
+ "A roadmap you follow changed to the library's latest version.": "आपका फॉलो किया एक रोडमैप लाइब्रेरी के नवीनतम संस्करण में बदल गया।",
+ "Everything from the library is up to date.": "लाइब्रेरी की हर चीज़ अप-टू-डेट है।",
+ "Some courses weren't updated:": "कुछ कोर्स अपडेट नहीं हुए:"
 }

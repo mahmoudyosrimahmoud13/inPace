@@ -2300,5 +2300,16 @@
  "Working on it…": "Đang xử lý…",
  "That didn't work. Try again.": "Không được. Hãy thử lại.",
  "Courses, updates and tools": "Khóa học, bản cập nhật và công cụ",
- "Show in folder": "Hiện trong thư mục"
+ "Show in folder": "Hiện trong thư mục",
+ "1 of your courses has a newer version.": "Một khóa học của bạn có phiên bản mới hơn.",
+ "%s of your courses have newer versions.": "%s khóa học của bạn có phiên bản mới hơn.",
+ "Keep everything up to date": "Giữ mọi thứ luôn mới",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "Cập nhật mọi khóa học bạn đã thêm từ thư viện và mọi lộ trình bạn theo dõi, cùng một lúc. Tiến độ của bạn được giữ nguyên.",
+ "Update everything": "Cập nhật tất cả",
+ "Updated {n} courses. Your progress is kept.": "Đã cập nhật {n} khóa học. Tiến độ của bạn được giữ nguyên.",
+ "Updated “{title}”. Your progress is kept.": "Đã cập nhật “{title}”. Tiến độ của bạn được giữ nguyên.",
+ "{n} roadmaps you follow changed to the library's latest version.": "{n} lộ trình bạn theo dõi đã chuyển sang phiên bản mới nhất của thư viện.",
+ "A roadmap you follow changed to the library's latest version.": "Một lộ trình bạn theo dõi đã chuyển sang phiên bản mới nhất của thư viện.",
+ "Everything from the library is up to date.": "Mọi thứ từ thư viện đều đã mới nhất.",
+ "Some courses weren't updated:": "Một số khóa học chưa được cập nhật:"
 }

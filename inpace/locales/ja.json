@@ -2300,5 +2300,16 @@
  "Working on it…": "処理中…",
  "That didn't work. Try again.": "うまくいきませんでした。もう一度お試しください。",
  "Courses, updates and tools": "コース・アップデート・ツール",
- "Show in folder": "フォルダで表示"
+ "Show in folder": "フォルダで表示",
+ "1 of your courses has a newer version.": "コースのうち1つに新しいバージョンがあります。",
+ "%s of your courses have newer versions.": "%s 個のコースに新しいバージョンがあります。",
+ "Keep everything up to date": "すべてを最新に保つ",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "ライブラリから追加したすべてのコースと、フォロー中のすべてのロードマップを一度に更新します。進み具合はそのまま残ります。",
+ "Update everything": "すべて更新",
+ "Updated {n} courses. Your progress is kept.": "{n} 個のコースを更新しました。進み具合はそのままです。",
+ "Updated “{title}”. Your progress is kept.": "「{title}」を更新しました。進み具合はそのままです。",
+ "{n} roadmaps you follow changed to the library's latest version.": "フォロー中のロードマップ {n} 件がライブラリの最新版になりました。",
+ "A roadmap you follow changed to the library's latest version.": "フォロー中のロードマップがライブラリの最新版になりました。",
+ "Everything from the library is up to date.": "ライブラリのものはすべて最新です。",
+ "Some courses weren't updated:": "更新できなかったコースがあります:"
 }

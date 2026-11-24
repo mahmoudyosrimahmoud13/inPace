@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.32.2
+
+- **Update everything, with one button.** The Library page has an **Update everything** button: every course you added from the library that has a newer version is downloaded and updated (your progress is kept, and the version before stays for Undo, like updating one course), and every library roadmap you follow is brought up to date, in one go. It tells you how many of your courses have newer versions before you press it. Courses you haven't added aren't downloaded, and courses that didn't come from the library are never touched.
+- **Roadmaps you follow from the library update themselves, all at once.** When the library changes a roadmap (a new course, a better order, a course taken out), every library roadmap you follow now changes with it the next time inPace reads the library list: on Home, on the Roadmaps and Library pages, and in the twice-daily background check. There's no "update" button to press on each one anymore. Your progress stays, because it lives in your courses, and so does the date you started following. Roadmaps you made yourself, or got in a link, are never changed, and a roadmap that leaves the library stays as you had it.
+
 ## v1.32.1
 
 - **"Open it" on a code file or notebook opens it in your own app.** It showed the raw file as text, so a notebook was a wall of JSON. Now, on computers, it opens in VS Code when you have it, and otherwise in the app your computer uses for that file (Jupyter, your editor). **Show in folder** next to it opens the folder with the file selected, and a project folder has **Open the folder** at the top. On phones, "Open it" still shows the file as text.

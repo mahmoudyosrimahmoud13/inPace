@@ -219,6 +219,35 @@ def library_list(index: dict) -> list[dict]:
     return out
 
 
+def sync_library(home: Path, index: dict, title_of=lambda cid: "") -> list[str]:
+    """Bring every library roadmap you follow up to the library's current version, all at once (v1.32.1).
+
+    A library roadmap is the library's path, so when the library changes its order or its courses, your copy
+    follows: no "update" button per roadmap. Your progress is kept (it lives in your courses, not in the roadmap),
+    and so is when you started following it. Roadmaps you made yourself, or got in a link, are never touched, and a
+    roadmap that left the library stays as you had it. Returns the ids that changed."""
+    if not index or index.get("offline"):
+        return []
+    lib = {r["id"]: r for r in library_list(index)}
+    changed = []
+    for rm in mine(home):
+        new = lib.get(rm["id"]) if rm.get("source") == "library" else None
+        if not new or (new["hash"] == rm.get("library_hash") and fingerprint(new) == fingerprint(rm)):
+            continue
+        copy = {k: v for k, v in new.items() if k not in ("minutes", "verified")}
+        copy.update(source="library", library_hash=new["hash"], followed_at=rm.get("followed_at", ""))
+        old_titles = {s["course"]: s.get("title", "") for s in rm["steps"]}
+        for st in copy["steps"]:  # course names, for before the courses are added
+            st["title"] = st.get("title") or title_of(st["course"]) or old_titles.get(st["course"], "")
+        try:
+            save(home, copy)
+        except RoadmapError:
+            continue
+        if fingerprint(new) != fingerprint(rm):
+            changed.append(rm["id"])
+    return changed
+
+
 def library_find(index: dict, rid: str) -> dict | None:
     return next((r for r in library_list(index) if r["id"] == rid), None)
 

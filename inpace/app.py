@@ -1060,6 +1060,7 @@ def create_app(vault: Vault) -> Starlette:
         cards.sort(key=lambda card: last.get(card["journey"]["id"], ""), reverse=True)
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
         rm_index = library.cached_index(V.home)
+        _sync_roadmaps(rm_index)
         road, rm_of = [], {}
         for rm in roadmaps.mine(V.home):
             for i, step in enumerate(rm["steps"], 1):
@@ -1318,6 +1319,7 @@ def create_app(vault: Vault) -> Starlette:
             return page("library.html", request, problem=str(e), entries=[], index={}, tab="courses", lib_roadmaps=[],
                         followed=set(), titles={})
         _note_library(index)
+        _sync_roadmaps(index)
         new_ids = _library_new()
         entries = []
         for e in index.get("courses", []):
@@ -1347,6 +1349,8 @@ def create_app(vault: Vault) -> Starlette:
         checked = (V.home / "library.json").stat().st_mtime if (V.home / "library.json").exists() else 0
         extra = {**extra_groups, "tab": tab, "lib_roadmaps": lib_roadmaps, "followed": followed, "titles": titles,
                  "new_count": sum(1 for e in entries if e["new"]),
+                 "update_count": sum(1 for e in entries if e["state"] == "update"),
+                 "have_count": sum(1 for e in entries if e["state"] != "add"),
                  "checked_min": int((_time.time() - checked) // 60) if checked else None}
         if new_ids and tab == "courses":
             V._set_meta("library_new", "[]")  # seen: the badge goes away, the "New" tags show this one time
@@ -1404,16 +1408,76 @@ def create_app(vault: Vault) -> Starlette:
         finally:
             progress.report(token, state="done")
 
+    async def library_update_all(request: Request):
+        """One button for everything from the library (v1.32.2): every course you have that has a newer version in
+        the library is updated, keeping your progress, and every library roadmap you follow is brought up to date.
+        Courses you haven't added stay out; courses that aren't from the library are never touched."""
+        import io as _io
+        import zipfile
+        from starlette.concurrency import run_in_threadpool
+        try:
+            index = await run_in_threadpool(library.load_index, V.home, True)
+        except library.LibraryProblem as e:
+            return go("/library", err=str(e))
+        rm_changed = _sync_roadmaps(index)
+        todo = [e for e in index.get("courses", []) if (c := V.get_course(str(e.get("id", ""))))
+                and c.hash != e.get("hash")]
+        token = _progress_token(await request.form())
+        updated, failed = [], []
+        for n, entry in enumerate(todo, 1):
+            try:
+                info = {"title": entry.get("title", ""), "size": int(entry.get("size") or 0), "n": n, "of": len(todo)}
+                data = await run_in_threadpool(progress.within, token, info, library.download, entry)
+                progress.report(token, state="installing")
+                zf = zipfile.ZipFile(_io.BytesIO(data))
+                new = load_course(files_from_zip(_io.BytesIO(data)))
+                cur = V.get_course(new.id)
+                if cur is None or new.id != entry.get("id"):
+                    raise CourseError(["The library's file is for another course."])
+                new.extra.update({k: v for k, v in cur.extra.items() if k not in new.extra})
+                editor.save(V, new)      # the same as Update on one course: the version before is kept for Undo
+                _unpack_media(new, zf, media_in_zip(zf))
+                updated.append(new.title)
+            except library.LibraryProblem as e:
+                failed.append(str(e))
+                if "internet" in str(e):
+                    break
+            except (zipfile.BadZipFile, CourseError):
+                failed.append(f"The library's file for “{entry.get('title', '')}” couldn't be read.")
+        progress.report(token, state="done")
+        parts = []
+        if updated:
+            parts.append(gettext("Updated {n} courses. Your progress is kept.").format(n=len(updated)) if len(updated) > 1
+                         else gettext("Updated “{title}”. Your progress is kept.").format(title=updated[0]))
+        if rm_changed:
+            parts.append(gettext("{n} roadmaps you follow changed to the library's latest version.").format(n=len(rm_changed))
+                         if len(rm_changed) > 1 else gettext("A roadmap you follow changed to the library's latest version."))
+        msg = {"ok": "\n".join(parts) or gettext("Everything from the library is up to date.")}
+        if failed:
+            msg["err"] = gettext("Some courses weren't updated:") + "\n" + "\n".join(failed)
+        return go("/library", **msg)
+
     # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
     async def _library_now(online: bool = True) -> dict:
-        """The library's list: fresh when it's more than an hour old and we're online, else the last copy."""
+        """The library's list: fresh when it's more than an hour old and we're online, else the last copy. Library
+        roadmaps you follow are brought up to date with it on the way."""
         from starlette.concurrency import run_in_threadpool
         if not online:
-            return library.cached_index(V.home)
+            index = library.cached_index(V.home)
+        else:
+            try:
+                index = await run_in_threadpool(library.load_index, V.home)
+            except library.LibraryProblem:
+                index = library.cached_index(V.home)
+        _sync_roadmaps(index)
+        return index
+
+    def _sync_roadmaps(index: dict) -> list[str]:
+        """Every library roadmap you follow, updated to the library's version in one go."""
         try:
-            return await run_in_threadpool(library.load_index, V.home)
-        except library.LibraryProblem:
-            return library.cached_index(V.home)
+            return roadmaps.sync_library(V.home, index, lambda cid: (library.find(index, cid) or {}).get("title", ""))
+        except Exception:
+            return []  # never let a damaged file stop a page from opening
 
     def _roadmap_where(rid: str, index: dict) -> tuple[dict | None, str]:
         """Your copy of a roadmap if you have one, else the library's. ("", None) if neither."""
@@ -5123,7 +5187,9 @@ def create_app(vault: Vault) -> Starlette:
         def run():
             try:
                 V._set_meta("library_checked", str(int(_time.time())))
-                _note_library(library.load_index(V.home, True), tell=True)
+                fresh_index = library.load_index(V.home, True)
+                _note_library(fresh_index, tell=True)
+                _sync_roadmaps(fresh_index)
             except Exception:
                 pass  # offline or the library is busy: try again next time
             finally:
@@ -5315,6 +5381,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/roadmaps/{rid}/start/{cid}", needs_setup(roadmap_start), methods=["POST"]),
         Route("/island/voyages", needs_setup(island_voyages)),
         Route("/library", needs_setup(library_page)),
+        Route("/library/update-all", needs_setup(library_update_all), methods=["POST"]),
         Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
         Route("/library/{cid}", needs_setup(library_course)),
         Route("/courses/{cid}/publish", needs_setup(publish_course)),

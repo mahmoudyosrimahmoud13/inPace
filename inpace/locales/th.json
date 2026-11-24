@@ -727,5 +727,16 @@
  "Working on it…": "กำลังดำเนินการ…",
  "That didn't work. Try again.": "ไม่สำเร็จ ลองอีกครั้ง",
  "Courses, updates and tools": "คอร์ส อัปเดต และเครื่องมือ",
- "Show in folder": "แสดงในโฟลเดอร์"
+ "Show in folder": "แสดงในโฟลเดอร์",
+ "1 of your courses has a newer version.": "คอร์สของคุณ 1 คอร์สมีเวอร์ชันใหม่กว่า",
+ "%s of your courses have newer versions.": "คอร์สของคุณ %s คอร์สมีเวอร์ชันใหม่กว่า",
+ "Keep everything up to date": "อัปเดตทุกอย่างให้เป็นปัจจุบัน",
+ "Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.": "อัปเดตทุกคอร์สที่คุณเพิ่มจากคลัง และทุกเส้นทางที่คุณติดตาม ในครั้งเดียว ความคืบหน้าของคุณยังอยู่ครบ",
+ "Update everything": "อัปเดตทั้งหมด",
+ "Updated {n} courses. Your progress is kept.": "อัปเดต {n} คอร์สแล้ว ความคืบหน้ายังอยู่ครบ",
+ "Updated “{title}”. Your progress is kept.": "อัปเดต “{title}” แล้ว ความคืบหน้ายังอยู่ครบ",
+ "{n} roadmaps you follow changed to the library's latest version.": "เส้นทางที่คุณติดตาม {n} เส้นทางเปลี่ยนเป็นเวอร์ชันล่าสุดของคลังแล้ว",
+ "A roadmap you follow changed to the library's latest version.": "เส้นทางที่คุณติดตามเปลี่ยนเป็นเวอร์ชันล่าสุดของคลังแล้ว",
+ "Everything from the library is up to date.": "ทุกอย่างจากคลังเป็นปัจจุบันแล้ว",
+ "Some courses weren't updated:": "บางคอร์สไม่ได้อัปเดต:"
 }
