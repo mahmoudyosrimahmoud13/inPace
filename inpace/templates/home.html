@@ -159,6 +159,15 @@
 </section>
 {% endfor %}
 
+{% for x in sprints %}{% set sp = x.sp %}
+<a class="card sp-home" href="/roadmaps/{{ x.rm.id }}#sprint">
+  <span class="row between wrap"><b>{{ icon('bolt', 18) }}{% if sp.before %}{{ T('Sprint starts on {date}', date=sp.start) }}{% elif sp.over %}{{ T('The {n} days are over', n=sp.days) }}{% else %}{{ T('Sprint · day {d} of {n}', d=sp.day, n=sp.days) }}{% endif %}</b>
+    <span class="small muted" dir="auto">{{ x.rm.title }} · {{ T('{p}% of the plan ticked', p=sp.percent) }}{% if sp.focus_goal and not sp.before and not sp.over %} · {{ icon('timer', 14) }} {{ T('{a} of {b} min focused today', a=sp.focus_today, b=sp.focus_goal) }}{% endif %}</span></span>
+  <ol class="sp-strip small">{% for d in sp.strip %}<li class="{{ d.state }}">{{ d.d }}</li>{% endfor %}</ol>
+  {% if sp.today %}<span class="small">{% trans trimmed %}Today:{% endtrans %} {% for s in sp.today %}<b dir="auto">{{ s.title }}</b> ({{ s.got }}/{{ s.units }}){{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}
+  {% if sp.late %}<span class="small warn-text">{{ T('{n} late', n=sp.late|length) }}</span>{% endif %}
+</a>
+{% endfor %}
 {% if road %}<div class="rm-strips">{% for x in road %}{{ R.strip(x.rm, x.st) }}{% endfor %}</div>{% endif %}
 
 {% if cards and not reminders_set %}

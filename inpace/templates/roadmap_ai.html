@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Make a sprint with AI') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="/sprints">{% trans trimmed %}Sprints{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Make a sprint with AI{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}Tell it your goal and how many days you have. The AI picks courses from the library and your own courses, gives each one a day and writes tasks you can tick. You see the plan before you follow it, and you can change any day or task later.{% endtrans %}
+    <a href="/roadmaps/new?sprint=1">{% trans trimmed %}Or make it yourself{% endtrans %}</a></p>
+</div>
+<ol class="steps">
+  <li class="{{ 'on' if step == 1 }}">{% trans trimmed %}Your goal{% endtrans %}</li>
+  <li class="{{ 'on' if step == 2 }}">{% trans trimmed %}Copy to an AI chat{% endtrans %}</li>
+  <li class="{{ 'on' if step == 3 }}">{% trans trimmed %}Paste the answer{% endtrans %}</li>
+</ol>
+
+{% if step == 1 %}
+<form method="post" class="card stack">
+  <input type="hidden" name="action" value="prompt">
+  <label>{% trans trimmed %}Your goal{% endtrans %}
+    <input name="goal" required dir="auto" value="{{ form.goal or '' }}" placeholder="{{ _('For example: get hired as an ML engineer, with projects for my CV') }}"></label>
+  <div class="row wrap">
+    <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ form.days or 7 }}"></label>
+    <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="1" max="16" step="0.5" value="{{ form.hours or 4 }}"></label>
+    <label>{% trans trimmed %}Language{% endtrans %} <select name="language"><option {{ 'selected' if form.language != 'Arabic' }}>English</option><option value="Arabic" {{ 'selected' if form.language == 'Arabic' }}>العربية</option></select></label>
+  </div>
+  <label>{% trans trimmed %}What you already know (optional){% endtrans %}
+    <textarea name="know" rows="2" dir="auto" placeholder="{{ _('For example: Python, some PyTorch, never used Docker') }}">{{ form.know or '' }}</textarea></label>
+  <label>{% trans trimmed %}Anything else (optional){% endtrans %}
+    <textarea name="notes" rows="2" dir="auto" placeholder="{{ _('For example: one hour of interview practice every morning, three projects for my CV') }}">{{ form.notes or '' }}</textarea></label>
+  <p class="small muted">{{ T('The prompt lists the {n} courses you can use, so the AI only picks courses that exist.', n=n_courses) }}</p>
+  <button class="btn primary big">{{ icon('spark', 18) }}{% trans trimmed %}Write the prompt{% endtrans %}</button>
+</form>
+{% endif %}
+
+{% if step == 2 %}
+<section class="card stack">
+  <p class="lead">{% trans trimmed %}Copy this, paste it into ChatGPT, Claude, Gemini or any AI chat, then copy the AI's whole answer.{% endtrans %}</p>
+  <textarea id="prompt" class="mono" rows="14" readonly dir="ltr">{{ prompt }}</textarea>
+  <div class="row"><button class="btn primary big" data-copy="#prompt">{% trans trimmed %}Copy prompt{% endtrans %}</button></div>
+</section>
+{% if ai_error %}<div class="note bad">{{ ai_error }}</div>{% endif %}
+{% if ai.provider %}
+<form method="post" class="card soft row between" data-progress>
+  <input type="hidden" name="action" value="auto"><textarea name="prompt" hidden>{{ prompt }}</textarea>
+  <span><b>{% trans trimmed %}Or let inPace ask the AI for you{% endtrans %}</b><br><span class="muted small">{{ providers[ai.provider] }}. {{ _('This can take a few minutes.') }}</span></span>
+  <button class="btn primary">{{ icon('spark', 18) }}{{ _("Make it for me") }}</button>
+</form>
+{% endif %}
+{% endif %}
+
+{% if step in (2, 3) %}
+{% if problems %}
+<section class="card">
+  <h2>{% trans trimmed %}A few things need fixing{% endtrans %}</h2>
+  <ul class="problems">{% for p in problems %}<li>{{ _(p) }}</li>{% endfor %}</ul>
+  <p class="muted">{% trans trimmed %}Tip: copy these lines back to the AI and ask it to fix them, then paste the new answer below.{% endtrans %}</p>
+</section>
+{% endif %}
+<form method="post" class="card stack">
+  <input type="hidden" name="action" value="check">
+  <label>{% trans trimmed %}Paste the AI's answer here{% endtrans %}
+    <textarea name="reply" rows="10" required dir="ltr" placeholder="{{ _('Paste everything the AI wrote') }}">{{ reply or '' }}</textarea></label>
+  <button class="btn primary big">{% trans trimmed %}Check the plan{% endtrans %}</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -2689,3 +2689,57 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 /* In dark mode the not-yet-done part is a brighter tint, so the dark text on the button stays easy to read. */
 :root[data-theme=dark] .btn-progress { background-color: color-mix(in srgb, var(--sun) 62%, var(--surface)) !important; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .btn-progress { background-color: color-mix(in srgb, var(--sun) 62%, var(--surface)) !important; } }
+
+/* Sprints (v1.33): a short, intensive run of a roadmap, a day for each course */
+.rm-head-btns { gap: .5rem; }
+.rm-import { margin-block-end: 1.2rem; }
+.rm-import summary { cursor: pointer; display: flex; flex-direction: column; gap: .2rem; }
+.rm-import form { margin-block-start: .8rem; }
+.rm-import textarea { width: 100%; font-family: ui-monospace, monospace; }
+.sp-card { margin-block: 1rem; display: grid; gap: .7rem; box-sizing: border-box; }
+.sp-card h3 { margin: .4rem 0 0; font-size: 1rem; }
+.sp-title { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: 1.25rem; }
+.sp-start summary { cursor: pointer; display: flex; flex-direction: column; gap: .2rem; }
+.sp-start summary b { display: flex; align-items: center; gap: .4rem; }
+.sp-form { gap: .6rem; align-items: end; margin-block-start: .6rem; }
+.sp-form input[type=number] { width: 5.5rem; }
+.sp-strip { display: flex; flex-wrap: wrap; gap: .3rem; list-style: none; margin: 0; padding: 0; }
+.sp-strip li { min-width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: .85rem; }
+.sp-strip.small li { min-width: 1.6rem; height: 1.6rem; font-size: .75rem; }
+.sp-strip li.done { background: var(--good-bg); border-color: var(--good); }
+.sp-strip li.late { background: var(--bad-bg); border-color: var(--bad); }
+.sp-strip li.today { background: var(--sun); border-color: var(--black); color: var(--black); box-shadow: var(--hard-sm); }
+.sp-step { border: 1px solid var(--line); border-radius: var(--r-sm); padding: .6rem .8rem; display: grid; gap: .4rem; }
+.sp-step.done { background: var(--good-bg); }
+.sp-step > .row > span { display: flex; flex-direction: column; }
+.sp-tasks { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .25rem; }
+.sp-tasks.plain { list-style: disc; padding-inline-start: 1.2rem; }
+.sp-tasks li form { display: flex; align-items: flex-start; gap: .5rem; margin: 0; }
+.sp-tasks li.on span { color: var(--muted); text-decoration: line-through; }
+.sp-tick { flex: none; width: 1.4rem; height: 1.4rem; min-height: 0; padding: 0; display: grid; place-items: center;
+  border: 2px solid var(--ink); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.sp-tick[aria-pressed=true] { background: var(--good); border-color: var(--good); color: var(--good-ink); }
+.sp-tick:disabled { cursor: default; opacity: .8; }
+.sp-tick:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sp-links { gap: .5rem; }
+.sp-more summary { cursor: pointer; }
+.sp-plan { margin-block-start: .6rem; }
+.sp-plan-step { border: 1px solid var(--line); border-radius: var(--r-sm); padding: .5rem .8rem; display: flex; gap: .8rem;
+  flex-wrap: wrap; align-items: flex-start; margin: 0; }
+.sp-plan-step legend { font-weight: 600; padding: 0 .3rem; }
+.sp-plan-step textarea { width: 100%; min-width: 14rem; }
+.sp-home { display: grid; gap: .5rem; margin-block-end: 1rem; text-decoration: none; color: inherit; }
+.sp-home b { display: inline-flex; align-items: center; gap: .35rem; }
+.warn-text { color: var(--bad); }
+@media (max-width: 560px) { .sp-form, .rm-head-btns { width: 100%; } .rm-head-btns .btn { flex: 1 1 auto; } }
+.sp-pick { text-decoration: none; color: inherit; align-items: center; }
+.sp-focus { border: 1px solid var(--line); border-radius: var(--r-sm); padding: .6rem .8rem; display: grid; gap: .5rem; }
+.sp-focus > .row > span { display: inline-flex; align-items: center; gap: .35rem; }
+.sp-focus-go { gap: .4rem; align-items: center; }
+.sp-focus-go form { margin: 0; }
+.sp-timer { display: grid; gap: .35rem; padding: .6rem .8rem; border-radius: var(--r-sm); background: var(--good-bg); }
+.sp-timer.break { background: var(--warn-bg); }
+.sp-timer .row { gap: .4rem; }
+.sp-timer form { margin: 0; }
+.ftimer.sprint-break .ft-bar i { background: var(--sky); }

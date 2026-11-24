@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.33.0
+
+### Sprints: a short, intensive run of a roadmap
+
+- **Make a sprint.** Roadmaps → **Make a sprint** offers three ways: **make it yourself** (the roadmap maker with the days, hours and start date; save, then give each course its day and tasks), **with AI**, or **from a file**. Any roadmap you already follow can also be run as a sprint.
+- **Sprints have their own place in the menu.** **Sprints** in the sidebar (and in the phone's More menu) lists your sprints, with the day, today's courses, what's late and your focus time, and the ways to make a new one.
+- **A sprint day can start at any hour.** Pick **Each day starts at** when you start a sprint: start at 4 pm and every sprint day runs from 4 pm to 4 pm, so work after midnight still counts for the day you started it (the timer, the ticks, Focus today and the report all follow it). Focus time is now kept by the hour for this.
+- **One timer for the whole sprint day.** **Start today's sprint** runs the focus timer in blocks with breaks between them (50 + 10, 25 + 5 or 90 + 15 minutes) until you reach the day's hours. The next block and the next break start by themselves, with a chime and a message. Breaks never count as focus. If you were away long after a break ended, the next block waits for you, paused, so time you weren't there is never counted.
+- **It shows up by itself.** Open your sprint, or a lesson from one of today's courses, and the sprint timer appears on screen, ready and paused: press play to start. Leave the sprint without starting it and it goes away. Stop it, and it stays away for the rest of the day.
+- **One timer at a time.** While the sprint timer is on, other timers and focus trips can't start: stop the sprint timer first (the Start a timer sheet says so). A running timer also has to be stopped before the sprint timer starts.
+- **On Android, in the notification too.** The phone's notification shows "Sprint · focus block 2" or "Sprint · break" with its countdown, Pause, Go on and Stop, says "Break time" when a block ends, and schedules "Back to focus" for the end of the break, even when inPace is closed. (Needs the new Android app.)
+- **Focus time is counted.** The timer now keeps a total for each day. The sprint card shows **Focus today** against your hours goal, Home shows minutes focused today, and the report for your checker lists the hours timed on each sprint day.
+- **Run any roadmap as a sprint.** On a roadmap you follow, press **Run it as a sprint**, choose the days, the hours a day and the start date. Each course gets a day (or a few days): the roadmap's own days when it has them, otherwise inPace spreads the courses by how long each one is. The sprint card shows **day 3 of 7**, a strip of the days (done, late, today), **Today** with its courses and tasks, and **Still to do from earlier days**. Home shows your sprint at the top.
+- **Tasks you tick.** A sprint step can have tasks, like "Projects 1 to 5" or "Push the repo". In a sprint a course counts as done when you tick all its tasks, so you can take just the parts of a course you need. Finishing the course in inPace ticks them all.
+- **Your plan, your way.** **Change the plan** lets you move any course to another day and rewrite its tasks, one per line. Only your copy changes, and a library update to the roadmap keeps your sprint.
+- **Honest by design, like the rest of inPace.** Every tick is logged with its time. The **sprint report for your checker** (a short Markdown file) shows each course as **proven** (finished in inPace: lessons, tasks and quizzes done) or **ticked by you**, which days you worked, and what's late, so the person who checks on you can tell the difference.
+- **Share a sprint.** **Share my plan as a file** saves your sprint, with your days and tasks, as a `.roadmap.yaml` anyone can add. Your ticks stay with you.
+- **Make a sprint with AI** (one of the ways to make one): type your goal, the days and hours, and what you already know. inPace writes a prompt that lists every course you can use (yours and the library's), so the AI only picks courses that exist. Paste it into any AI chat, or press **Make it for me** if you set up an AI in Settings, then paste the answer back. You see the plan before you follow it.
+- **The format.** A roadmap file can have `sprint: {days: 7, hours: 12}` and, on each step, `day: 2` (or `day: 4-5`) and a `tasks:` list. Older inPace versions read these files as plain roadmaps.
+
+### Add a roadmap from a file
+
+- **Roadmaps → Add a roadmap file.** Choose a `.yaml` roadmap someone sent you (or paste its text), see it, then press **Follow**, the same way you add a course file. It's also on the **Add** page and on **Open a file**.
+
 ## v1.32.3
 
 - **See what needs updating.** The Library's update button now opens an **Updates** page that checks the library right then and lists every course of yours with a newer version (old and new version, lesson count and size, with its own Update button) and every roadmap you follow that changed, with **Update everything** at the top. It also says when the library was last published, so if an update you expect isn't listed yet, you can see the library hasn't published it yet, and check again.

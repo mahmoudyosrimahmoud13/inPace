@@ -3259,11 +3259,14 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     const on = !!d.on;
     box.hidden = !on;
     if (openBtn) openBtn.classList.toggle("on", on);
+    document.querySelectorAll("[data-ft-sprint-note]").forEach((el) => (el.hidden = !d.sprint));
     if (!on) return;
     const s = left(), p = d.goal ? Math.min(1, Math.max(0, 1 - s / d.goal)) : 0;
     box.classList.toggle("paused", d.state !== "running");
     box.querySelectorAll("[data-ft-time]").forEach((el) => (el.textContent = fmt(s)));
-    box.querySelectorAll("[data-ft-label]").forEach((el) => (el.textContent = d.state !== "running" ? L("paused") : (d.label || "")));
+    box.querySelectorAll("[data-ft-label]").forEach((el) => (el.textContent = d.ready ? (L("ready") || L("paused")) + (d.label ? " · " + d.label : "")
+      : d.state !== "running" ? L("paused") : (d.label || "")));
+    box.classList.toggle("sprint-break", !!(d.sprint && d.sprint.phase === "break"));
     const bar = box.querySelector("[data-ft-bar]"); if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
     const ring = box.querySelector("[data-ft-ring]"); if (ring) ring.style.strokeDasharray = ((1 - p) * 289).toFixed(1) + " 289";
     box.classList.toggle("trip", d.kind === "trip");
@@ -3272,9 +3275,15 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     if (d.state === "running" && s <= 0 && !draw.ending) { draw.ending = true; refresh(true); }
   };
   const take = (nd, chimeIfDone) => {
-    const wasOn = d.on;
+    if (nd && nd.error) say(nd.error);  // another timer can't start while the sprint timer is on
+    const wasOn = d.on, before = d.sprint;
     d = nd || { on: false }; t0 = Date.now(); draw.ending = false;
-    if (!d.on && d.done && (wasOn || chimeIfDone)) finished();
+    if (!d.on && d.done && d.sprint_day_done && (wasOn || chimeIfDone)) { chime(); say(L("sprintDone")); }
+    else if (!d.on && d.done && (wasOn || chimeIfDone)) finished();
+    else if (d.on && d.sprint && before && (before.phase !== d.sprint.phase || before.block !== d.sprint.block)) {
+      chime();  // the sprint timer moved on by itself: a break, or the next block
+      say(d.sprint.phase === "break" ? L("sprintBreak") : L("sprintFocus").replace("{n}", d.sprint.block));
+    }
     draw();
     window.dispatchEvent(new CustomEvent("inpace-timer", { detail: d }));
   };

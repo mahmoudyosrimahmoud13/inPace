@@ -384,6 +384,7 @@ _ICONS = {
     "home": '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     "book": '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20"/>',
     "flag": '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+    "bolt": '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
     "spark": '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
     "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
     "open": '<path d="M3 19V6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2"/><path d="M3 19l3-8h15l-3 8z"/>',  # an open folder (v1.31.1: was the same as download)
@@ -724,6 +725,10 @@ def create_app(vault: Vault) -> Starlette:
             base["active_path"] = request.url.path
             base["resume"] = _last_lesson()
             base["island_on"] = garden.is_on(V)
+            try:  # a running sprint's timer shows up by itself on the sprint and today's courses (v1.33)
+                _sprint_auto(request.url.path)
+            except Exception:
+                pass
             try:  # the floating timer, on every page
                 base["timer_json"] = json.dumps(_timer_live()).replace("<", "\\u003c")
             except Exception:
@@ -753,6 +758,63 @@ def create_app(vault: Vault) -> Starlette:
         d = focus.live(V)
         _arm_focus_timer(d)
         return d
+
+    def _sprint_here(path: str) -> tuple[dict, int, str] | None:
+        """The running sprint this page belongs to, on a day of it: (roadmap, day, journey) for its own page or
+        a page of one of today's courses."""
+        import datetime as _dt
+        m = re.match(r"^/roadmaps/([a-z0-9][a-z0-9-]*)/?$", path)
+        rid = m.group(1) if m else ""
+        cid, jid = "", ""
+        m = re.match(r"^/learn/([^/]+)", path)
+        if m:
+            j = V.journey(m.group(1))
+            if not j:
+                return None
+            cid, jid = j["course_id"], j["id"]
+        if not (rid or cid):
+            return None
+        now = _dt.datetime.now()
+        for rm in roadmaps.mine(V.home):
+            run = rm.get("sprint_run")
+            if not run or (rid and rm["id"] != rid):
+                continue
+            day = roadmaps.sprint_day(run, now)
+            if not 1 <= day <= run["days"]:
+                continue
+            if rid:
+                first = next((s for s in rm["steps"] if (run["plan"].get(s["course"]) or [0, 0])[0] <= day
+                              <= (run["plan"].get(s["course"]) or [0, 0])[1]), None)
+                fj = V.journey_for_course(first["course"]) if first and V.get_course(first["course"]) else ""
+                return rm, day, fj or ""
+            r = run["plan"].get(cid)
+            if r and r[0] <= day <= r[1]:
+                return rm, day, jid
+        return None
+
+    def _sprint_auto(path: str) -> None:
+        """Show the sprint timer, ready and paused, when you open a sprint or one of today's courses."""
+        if path.startswith(("/timer", "/static", "/m/")) or path.endswith(".json"):
+            return
+        here = _sprint_here(path)
+        if not here:
+            focus.drop_ready(V)
+            return
+        rm, day, jid = here
+        if focus._load(V) or (garden.is_on(V) and focus._trip(V)) or focus.stopped_today(V, rm["id"]):
+            return
+        hours = float(rm["sprint_run"].get("hours") or 0) or 8
+        day_from = roadmaps.day_start(rm["sprint_run"], day).timestamp()
+        if focus.seconds_since(V, day_from) >= hours * 3600 - 30:
+            return
+        fm, _, bm = (V._meta("sprint_rhythm", "50-10") or "50-10").partition("-")
+        title = ""
+        if jid:
+            j = V.journey(jid)
+            c = V.get_course(j["course_id"]) if j else None
+            title = c.title if c else ""
+        label = t("Sprint day {d}", d=day) + (f": {title}" if title else "")
+        focus.ready_sprint(V, rm["id"], label, int(hours * 3600), int(fm or 50), int(bm or 10), jid, say("Break"), day_from)
 
     def _timer_here(path: str) -> dict:
         """What you're studying on this page, so a timer started here is labelled with it."""
@@ -798,10 +860,30 @@ def create_app(vault: Vault) -> Starlette:
             d = focus._load(V)
             if not d or focus.elapsed(d) < d["goal"] - 1:
                 return  # paused or stopped meanwhile
+            if d.get("chain"):  # the sprint timer: move on to the break, or the next block, and say so
+                ch = d["chain"]
+                now = focus.live(V)
+                if now.get("sprint_day_done"):
+                    notifier.notify(say("Sprint day done!"), say("You reached today's focus goal. Well done."),
+                                    f"/roadmaps/{ch['rid']}#sprint", V.home)
+                elif ch["phase"] == "focus":
+                    notifier.notify(say("Break time"), t("{n} minutes of break. The next block starts by itself.",
+                                                         n=round(ch["brk"] / 60)), f"/roadmaps/{ch['rid']}#sprint", V.home)
+                else:
+                    notifier.notify(say("Back to focus"), t("Block {n} of your sprint day has started.", n=ch["block"] + 1),
+                                    f"/roadmaps/{ch['rid']}#sprint", V.home)
+                _arm_focus_timer()
+                return
             notifier.notify(say("Time's up!"), t("{n} minutes of focus. Take a short break.", n=round(d["goal"] / 60)),
                             "/", V.home)
         except Exception:
             pass
+
+    def _timer_busy(request: Request, msg: str):
+        """Another timer can't start while one is on: say so, and keep the one that's on."""
+        if request.headers.get("accept", "").startswith("application/json") or request.headers.get("x-inpace-fetch"):
+            return JSONResponse({**_timer_live(), "error": say(msg)})
+        return go(_back(request), err=msg)
 
     async def timer_json(request: Request):
         return JSONResponse(_timer_live(), headers={"Cache-Control": "no-store"})
@@ -815,8 +897,35 @@ def create_app(vault: Vault) -> Starlette:
                 minutes = int(form.get("minutes") or 25)
             except ValueError:
                 minutes = 25
-            focus.start(V, minutes, plant=form.get("plant") == "1", label=str(form.get("label", "")),
-                        journey=str(form.get("journey", "")))
+            try:
+                focus.start(V, minutes, plant=form.get("plant") == "1", label=str(form.get("label", "")),
+                            journey=str(form.get("journey", "")))
+            except focus.Busy as e:
+                return _timer_busy(request, str(e))
+        elif what == "sprint":  # the whole sprint day: focus blocks and breaks until the day's hours are done
+            rm = roadmaps.get(V.home, str(form.get("rid", "")))
+            run = (rm or {}).get("sprint_run")
+            if not run:
+                return go(_back(request), err="Start the sprint first.")
+            try:
+                fm, _, bm = str(form.get("rhythm") or "50-10").partition("-")
+                fm, bm = int(fm), int(bm or 10)
+            except ValueError:
+                fm, bm = 50, 10
+            hours = float(run.get("hours") or 0) or 8
+            V._set_meta("sprint_rhythm", f"{fm}-{bm}")
+            if focus.sprint_on(V):  # the ready (or paused) sprint timer: this button just starts it
+                d0 = focus._load(V)
+                if d0 and d0["chain"]["rid"] != rm["id"]:
+                    return _timer_busy(request, "Stop the sprint timer that's on first. Then start this one.")
+                focus._save(V, None)
+            import datetime as _dt
+            day_from = roadmaps.day_start(run, max(1, roadmaps.sprint_day(run, _dt.datetime.now()))).timestamp()
+            try:
+                focus.start_sprint(V, rm["id"], str(form.get("label", "")) or rm["title"], int(hours * 3600), fm, bm,
+                                   journey=str(form.get("journey", "")), break_label=say("Break"), day_from=day_from)
+            except focus.Busy as e:
+                return _timer_busy(request, str(e))
         elif what == "pause":
             focus.pause(V)
         elif what == "resume":
@@ -1061,14 +1170,19 @@ def create_app(vault: Vault) -> Starlette:
         show_tour = request.query_params.get("tour") == "1" or not V._meta("tour_done", "")
         rm_index = library.cached_index(V.home)
         _sync_roadmaps(rm_index)
-        road, rm_of = [], {}
+        road, rm_of, sprints = [], {}, []
         for rm in roadmaps.mine(V.home):
             for i, step in enumerate(rm["steps"], 1):
                 rm_of.setdefault(step["course"], (rm, i))
             rst = roadmaps.status(V, rm, rm_index)
+            if rm.get("sprint_run"):
+                import datetime as _dt
+                spx = roadmaps.sprint_status(rm, rst, _dt.datetime.now(), focus.hour_totals(V))
+                if not spx["over"] or not spx["finished"]:
+                    sprints.append({"rm": rm, "sp": spx})
             if not rst["finished"]:
                 road.append({"rm": rm, "st": rst})
-        resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(), road=road[:2], rm_of=rm_of,
+        resp = page("home.html", request, cards=cards, checkers=V.my_checkers(), courses=V.courses(), road=road[:2], rm_of=rm_of, sprints=sprints[:2],
                     tour=_tour_steps() if show_tour else None, welcome_back=_welcome_back(),
                     reminders_set=bool(reminders.load(V)["items"]),
                     island_trip=garden.active(V) if garden.is_on(V) else None,
@@ -1575,12 +1689,23 @@ def create_app(vault: Vault) -> Starlette:
         return _show_roadmap(request, rm, where, index)
 
     def _show_roadmap(request: Request, rm: dict, where: str, index: dict, shared_json: str = ""):
+        if where == "mine" and rm.get("sprint_run"):
+            _timer_live()  # move the sprint timer on (break, next block) before the page shows it
+            try:
+                _sprint_auto(request.url.path)  # and put it on screen, ready, if it isn't yet
+            except Exception:
+                pass
         st = roadmaps.status(V, rm, index)
         lib_copy = roadmaps.library_find(index, rm["id"])
         newer = bool(where == "mine" and rm.get("source") == "library" and lib_copy
                      and lib_copy["hash"] != rm.get("library_hash") and roadmaps.fingerprint(lib_copy) != roadmaps.fingerprint(rm))
         chart = garden.voyage_chart(st, labels=_voyage_labels(), compact=True)
-        return page("roadmap.html", request, rm=rm, st=st, where=where, lib_copy=lib_copy, newer=newer,
+        import datetime as _dt
+        sp = roadmaps.sprint_status(rm if where == "mine" else roadmaps.stop_sprint(rm), st, _dt.datetime.now(),
+                                     focus.hour_totals(V) if where == "mine" and rm.get("sprint_run") else None)
+        stimer = focus.sprint_timer(V, rm["id"]) if where == "mine" else None
+        return page("roadmap.html", request, rm=rm, st=st, where=where, lib_copy=lib_copy, newer=newer, sp=sp, stimer=stimer,
+                    today=_dt.date.today().isoformat(), now_hour=f"{_dt.datetime.now().hour:02d}:00",
                     chart=chart, shared_json=shared_json, island_on=garden.is_on(V), index=index,
                     in_library=bool(lib_copy and roadmaps.fingerprint(lib_copy) == roadmaps.fingerprint(rm)))
 
@@ -1771,14 +1896,44 @@ def create_app(vault: Vault) -> Starlette:
             draft = {"id": (rm or {}).get("id") or "", "title": form.get("title", ""), "description": form.get("description", ""),
                      "language": form.get("language", lang), "tags": str(form.get("tags", "")),
                      "author": V.me["name"] if V.me else "", "steps": _roadmap_form_steps(form, index)}
+            sprint_form = form.get("sprint_days") is not None
+            if sprint_form:  # making (or editing) a sprint: its length and hours come from the form
+                try:
+                    draft["sprint"] = {"days": int(str(form.get("sprint_days") or 7)),
+                                       "hours": float(str(form.get("sprint_hours") or 0) or 0)}
+                except ValueError:
+                    draft["sprint"] = {"days": 7, "hours": 0}
+            if rm:  # the editor doesn't show sprint days and tasks: keep them, and a running sprint, as they were
+                plan = {s["course"]: s for s in rm["steps"]}
+                for s in draft["steps"]:
+                    for k in ("day", "tasks"):
+                        if plan.get(str(s.get("course", "")), {}).get(k) and not s.get(k):
+                            s[k] = plan[str(s["course"])][k]
+                for k in ("sprint", "sprint_run"):
+                    if rm.get(k) and not (k == "sprint" and sprint_form):
+                        draft[k] = rm[k]
             try:
                 if not draft["id"]:
                     draft["id"] = roadmaps.free_id(V.home, roadmaps.slug(str(draft["title"])))
                 clean = roadmaps.parse(draft, "mine")
             except roadmaps.RoadmapError as e:
                 return page("roadmap_edit.html", request, rm=rm, draft=draft, courses=courses, problems=e.problems,
-                            goal="", suggested=False, lang=lang)
+                            goal="", suggested=False, lang=lang, sprint=sprint_form, today=_today(), now_hour=_now_hour())
             clean["made_at"] = (rm or {}).get("made_at") or now_utc()
+            if sprint_form and not rm:  # a new sprint starts right away; next you give each course its day and tasks
+                st = roadmaps.status(V, clean, index)
+                start = str(form.get("sprint_start") or "") or _today()
+                try:
+                    import datetime as _dt
+                    _dt.date.fromisoformat(start)
+                except ValueError:
+                    start = _today()
+                clean = roadmaps.start_sprint(clean, {x["course"]: x["minutes"] for x in st["steps"]},
+                                              clean["sprint"]["days"], clean["sprint"]["hours"], start,
+                                              _form_hour(form, "sprint_start_time"))
+                roadmaps.save(V.home, clean)
+                return go(f"/roadmaps/{clean['id']}?plan=1#plan",
+                          ok="Made your sprint. Now give each course its day and its tasks.")
             roadmaps.save(V.home, clean)
             return go(f"/roadmaps/{clean['id']}", ok="Saved the roadmap." if rm else "Made your roadmap. Share it, or publish it to the library.")
         goal = str(request.query_params.get("goal", "")).strip()[:120]
@@ -1795,8 +1950,38 @@ def create_app(vault: Vault) -> Starlette:
             if not draft.get("title"):
                 draft["title"] = goal[:1].upper() + goal[1:]
             suggested = True
+        sprint = bool(request.query_params.get("sprint") == "1" or (rm and rm.get("sprint")))
+        if sprint and not draft.get("sprint"):
+            draft["sprint"] = {"days": 7, "hours": 4}
         return page("roadmap_edit.html", request, rm=rm, draft=draft, courses=courses, problems=None, goal=goal,
-                    suggested=suggested, lang=lang)
+                    suggested=suggested, lang=lang, sprint=sprint, today=_today(), now_hour=_now_hour())
+
+    def _today() -> str:
+        import datetime as _dt
+        return _dt.date.today().isoformat()
+
+    def _now_hour() -> str:
+        import datetime as _dt
+        return f"{_dt.datetime.now().hour:02d}:00"
+
+    async def sprints_page(request: Request):
+        """Sprints (its own place in the menu): your sprints, then the ways to make one: yourself (the main way),
+        with AI, from a file, or from a roadmap you already follow."""
+        import datetime as _dt
+        index = await _library_now(online=False)
+        mine, follow = [], []
+        days = focus.hour_totals(V)
+        for rm in roadmaps.mine(V.home):
+            if rm.get("sprint_run"):
+                st = roadmaps.status(V, rm, index)
+                mine.append({"rm": rm, "sp": roadmaps.sprint_status(rm, st, _dt.datetime.now(), days)})
+            else:
+                follow.append(rm)
+        mine.sort(key=lambda x: (x["sp"]["over"], x["sp"]["before"], -x["sp"]["day"]))
+        return page("sprints.html", request, sprints=mine, follow=follow, index=index)
+
+    async def roadmap_new_sprint(request: Request):
+        return go("/sprints")
 
     async def roadmap_share(request: Request):
         """Send a roadmap, or publish it to the library."""
@@ -1821,7 +2006,163 @@ def create_app(vault: Vault) -> Starlette:
         rm = roadmaps.get(V.home, request.path_params["rid"])
         if not rm:
             return go("/roadmaps", err="That roadmap isn't on this device.")
+        if request.query_params.get("plan") == "1" and rm.get("sprint_run"):  # your sprint, as you changed it
+            return download(roadmaps.to_yaml(roadmaps.as_plan(rm)).encode("utf-8"), f"{rm['id']}.sprint.roadmap.yaml",
+                            "text/yaml")
         return download(roadmaps.to_yaml(rm).encode("utf-8"), f"{rm['id']}.roadmap.yaml", "text/yaml")
+
+    async def roadmap_sprint(request: Request):
+        """Start, restart or stop a sprint on a roadmap you follow (v1.33)."""
+        rid = request.path_params["rid"]
+        rm = roadmaps.get(V.home, rid)
+        if not rm:
+            return go("/roadmaps", err="Follow the roadmap first, then start a sprint on it.")
+        form = await request.form()
+        if form.get("action") == "stop":
+            roadmaps.save(V.home, roadmaps.stop_sprint(rm))
+            return go(f"/roadmaps/{quote(rid)}", ok="Sprint stopped. Your courses and progress stay.")
+        if form.get("action") == "plan":  # your own days and tasks for this sprint
+            plan, tasks = {}, {}
+            for i, step in enumerate(rm["steps"], 1):
+                plan[step["course"]] = str(form.get(f"day_{i}", "") or "")
+                if form.get(f"tasks_{i}") is not None:
+                    tasks[step["course"]] = str(form.get(f"tasks_{i}", "")).splitlines()
+            try:
+                run = rm.get("sprint_run") or {}
+                new = roadmaps.customize(rm, int(str(form.get("days") or run.get("days") or 7)),
+                                         float(str(form.get("hours") or 0) or 0), plan, tasks)
+            except ValueError:
+                return go(f"/roadmaps/{quote(rid)}?plan=1#plan", err="Days and hours should be numbers.")
+            except roadmaps.RoadmapError as e:
+                return go(f"/roadmaps/{quote(rid)}?plan=1#plan", err=" ".join(e.problems))
+            roadmaps.save(V.home, new)
+            return go(f"/roadmaps/{quote(rid)}#sprint", ok="Saved your sprint plan.")
+        import datetime as _dt
+        try:
+            days = int(str(form.get("days") or 7))
+            hours = float(str(form.get("hours") or 0) or 0)
+        except ValueError:
+            return go(f"/roadmaps/{quote(rid)}", err="Days and hours should be numbers.")
+        if not 1 <= days <= roadmaps.MAX_SPRINT_DAYS:
+            return go(f"/roadmaps/{quote(rid)}", err=say("A sprint can be 1 to %s days.", [roadmaps.MAX_SPRINT_DAYS]))
+        start = str(form.get("start") or "").strip() or _dt.date.today().isoformat()
+        try:
+            _dt.date.fromisoformat(start)
+        except ValueError:
+            start = _dt.date.today().isoformat()
+        index = await _library_now(online=False)
+        st = roadmaps.status(V, rm, index)
+        minutes = {s["course"]: s["minutes"] for s in st["steps"]}
+        focus.drop_ready(V)  # a sprint that starts again gets a fresh timer
+        roadmaps.save(V.home, roadmaps.start_sprint(rm, minutes, days, hours, start, _form_hour(form, "start_time")))
+        return go(f"/roadmaps/{quote(rid)}#sprint", ok="Sprint started. Today's plan is at the top.")
+
+    def _form_hour(form, name: str) -> int:
+        """The hour a sprint day starts, from a time field ("16:00" -> 16)."""
+        m = re.match(r"^\s*(\d{1,2})", str(form.get(name) or ""))
+        return int(m.group(1)) % 24 if m else 0
+
+    async def roadmap_sprint_tick(request: Request):
+        rid = request.path_params["rid"]
+        rm = roadmaps.get(V.home, rid)
+        if not rm:
+            return go("/roadmaps", err="That roadmap isn't on this device.")
+        form = await request.form()
+        try:
+            i = int(str(form.get("i") or 0))
+        except ValueError:
+            i = -1
+        roadmaps.save(V.home, roadmaps.tick(rm, str(form.get("course", "")), i, form.get("on") == "1"))
+        return go(f"/roadmaps/{quote(rid)}#" + str(form.get("back") or "sprint"))
+
+    async def roadmap_sprint_report(request: Request):
+        """Your sprint as a Markdown file, to send to the person who checks on you."""
+        import datetime as _dt
+        rm = roadmaps.get(V.home, request.path_params["rid"])
+        if not rm or not rm.get("sprint_run"):
+            return go("/roadmaps", err="Start a sprint first.")
+        st = roadmaps.status(V, rm, await _library_now(online=False))
+        sp = roadmaps.sprint_status(rm, st, _dt.datetime.now(), focus.hour_totals(V))
+        text = roadmaps.report(rm, sp, V.me["name"] if V.me else "")
+        return download(text.encode("utf-8"), f"{rm['id']}-sprint-report.md", "text/markdown")
+
+    def _ai_course_list(index: dict) -> list[dict]:
+        """Every course a sprint can use: yours, then the library's (each once)."""
+        out, seen = [], set()
+        for c in V.courses():
+            mins = sum(int(les.get("minutes") or 0) for m in c.modules for les in m["lessons"])
+            out.append({"id": c.id, "title": c.title, "lessons": c.lesson_count, "minutes": mins})
+            seen.add(c.id)
+        for e in index.get("courses") or []:
+            if isinstance(e, dict) and e.get("id") and e["id"] not in seen:
+                out.append({"id": str(e["id"]), "title": str(e.get("title", "")), "lessons": int(e.get("lessons") or 0),
+                            "minutes": int(e.get("minutes") or 0)})
+                seen.add(e["id"])
+        return out
+
+    async def roadmap_ai(request: Request):
+        """Make a sprint (or any roadmap) with AI: we write the prompt from the courses there are, you paste the
+        answer back, and inPace shows it before you follow it. Or "Ask my AI" sends it to the AI you set up."""
+        index = await _library_now()
+        ctx = {"step": 1, "form": {}, "ai": integrations.ai_settings(V), "providers": integrations.PROVIDERS,
+               "n_courses": len(_ai_course_list(index))}
+        if request.method == "POST":
+            form = await request.form()
+            action = str(form.get("action", ""))
+            ctx["form"] = {k: v for k, v in form.items() if isinstance(v, str)}
+            if action == "auto":
+                from starlette.concurrency import run_in_threadpool
+                try:
+                    reply = await run_in_threadpool(integrations.ask_ai, V, str(form.get("prompt", "")))
+                except RuntimeError as e:
+                    return page("roadmap_ai.html", request, **{**ctx, "step": 2, "prompt": str(form.get("prompt", "")),
+                                                               "ai_error": str(e)})
+                action, form = "check", {"reply": reply}
+            if action == "prompt":
+                try:
+                    days, hours = int(str(form.get("days") or 7)), float(str(form.get("hours") or 4))
+                except ValueError:
+                    days, hours = 7, 4
+                ctx.update(step=2, prompt=roadmaps.ai_prompt(str(form.get("goal", "")), days, hours, _ai_course_list(index),
+                                                             str(form.get("know", "")), str(form.get("notes", "")),
+                                                             str(form.get("language", "English"))))
+            elif action == "check":
+                text = str(form.get("reply", "")).strip()
+                try:
+                    rm = roadmaps.parse(strip_fences(text), "link")
+                except roadmaps.RoadmapError as e:
+                    return page("roadmap_ai.html", request, **{**ctx, "step": 3, "problems": e.problems, "reply": text})
+                if not rm.get("author"):
+                    rm["author"] = V.me["name"] if V.me else ""
+                return _show_roadmap(request, rm, "shared", index,
+                                     shared_json=json.dumps(roadmaps.share_data(rm, False), ensure_ascii=False))
+        return page("roadmap_ai.html", request, **ctx)
+
+    async def roadmap_import(request: Request):
+        """Add a roadmap from a file or pasted text (a .roadmap.yaml someone sent you, or one you wrote)."""
+        form = await request.form()
+        text = str(form.get("text") or "").strip()
+        up = form.get("file")
+        if not text and up is not None and getattr(up, "filename", ""):
+            raw = await up.read()
+            if len(raw) > 512 * 1024:
+                return go("/roadmaps", err="That file is too big to be a roadmap.")
+            try:
+                text = raw.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                return go("/roadmaps", err="That file isn't a roadmap: it isn't text.")
+        if not text:
+            return go("/roadmaps", err="Choose a roadmap file, or paste one.")
+        try:
+            rm = roadmaps.parse(strip_fences(text), "link")
+        except roadmaps.RoadmapError as e:
+            return go("/roadmaps", err=say("That isn't a roadmap inPace can read: %s", [" ".join(e.problems)]))
+        index = await _library_now()
+        have = roadmaps.get(V.home, rm["id"])
+        if have and roadmaps.fingerprint(have) == roadmaps.fingerprint(rm):
+            return go(f"/roadmaps/{rm['id']}", ok="You already follow this roadmap.")
+        return _show_roadmap(request, rm, "shared", index,
+                             shared_json=json.dumps(roadmaps.share_data(rm, False), ensure_ascii=False))
 
     def _voyage_labels() -> dict:
         return {"chart": say("Tempo's voyage along the roadmap"), "harbour": say("Harbour"), "you": say("You are here")}
@@ -4756,6 +5097,27 @@ def create_app(vault: Vault) -> Starlette:
             if not d.get("on") or d.get("kind") != "timer":
                 return None
             CURRENT["lang"] = V._meta("lang", "en") or "en"
+            if d.get("sprint"):  # the sprint timer: focus block or break, and what comes next
+                stv = focus.sprint_timer(V) or {}
+                ends = _time.time() + d["left"]
+                brk = d["sprint"]["phase"] == "break"
+                out = {"id": d["id"], "state": d["state"], "mode": "anywhere", "goal": round(d["goal"] / 60),
+                       "url": f"/roadmaps/{d['sprint']['rid']}#sprint",
+                       "ends_ms": int(ends * 1000) if d["state"] == "running" else None,
+                       "channel": say("Focus timer"),
+                       "title": t("Sprint · break") if brk else t("Sprint · focus block {n}", n=d["sprint"]["block"]),
+                       "body": d.get("label") or say("Keep going. Tap to open inPace."),
+                       "paused_title": say("Sprint timer paused") if not d.get("ready") else say("Your sprint timer is ready"),
+                       "paused_body": say("Tap to open inPace and go on."),
+                       "done_title": say("Back to focus") if brk else say("Break time"),
+                       "done_body": (t("Block {n} of your sprint day has started.", n=d["sprint"]["block"] + 1) if brk else
+                                     t("{n} minutes of break. The next block starts by itself.", n=stv.get("break_min", 10))),
+                       **_timer_buttons()}
+                if not brk and d["state"] == "running" and stv:
+                    out["next"] = [{"at_ms": int((ends + stv["break_min"] * 60) * 1000), "title": say("Back to focus"),
+                                    "body": t("Block {n} of your sprint day has started.", n=d["sprint"]["block"] + 1),
+                                    "picture": "tempo_wave"}]
+                return out
             return {"id": d["id"], "state": d["state"], "mode": "anywhere", "goal": round(d["goal"] / 60), "url": "/",
                     "ends_ms": int((_time.time() + d["left"]) * 1000) if d["state"] == "running" else None,
                     "channel": say("Focus timer"), "title": say("Focus timer"),
@@ -5069,6 +5431,8 @@ def create_app(vault: Vault) -> Starlette:
             minutes = int(form.get("minutes") or 25)
         except ValueError:
             minutes = 25
+        if focus.sprint_on(V):  # a sprint timer is on: it has to be stopped before a trip starts
+            return go("/island", err="Stop the sprint timer first. Then you can start another timer.")
         garden.start(V, str(form.get("kind", "")), minutes, str(form.get("mode", "anywhere")), str(form.get("journey", "")))
         return go("/island/trip")
 
@@ -5401,7 +5765,11 @@ def create_app(vault: Vault) -> Starlette:
         Route("/sample-file/{cid}/{path:path}", needs_setup(sample_file)),
         Route("/roadmaps", needs_setup(roadmaps_page)),
         Route("/roadmaps/new", needs_setup(roadmap_new), methods=["GET", "POST"]),
+        Route("/roadmaps/new-sprint", needs_setup(roadmap_new_sprint)),
+        Route("/sprints", needs_setup(sprints_page)),
         Route("/roadmaps/shared", needs_setup(roadmap_follow_shared), methods=["POST"]),
+        Route("/roadmaps/import", needs_setup(roadmap_import), methods=["POST"]),
+        Route("/roadmaps/ai", needs_setup(roadmap_ai), methods=["GET", "POST"]),
         Route("/roadmaps/{rid}", needs_setup(roadmap_page)),
         Route("/roadmaps/{rid}/follow", needs_setup(roadmap_follow), methods=["POST"]),
         Route("/roadmaps/{rid}/edit", needs_setup(roadmap_edit), methods=["GET", "POST"]),
@@ -5412,6 +5780,9 @@ def create_app(vault: Vault) -> Starlette:
         Route("/roadmaps/{rid}/add-all", needs_setup(roadmap_add_all), methods=["POST"]),
         Route("/roadmaps/{rid}/drop-missing", needs_setup(roadmap_drop_missing), methods=["POST"]),
         Route("/roadmaps/{rid}/start/{cid}", needs_setup(roadmap_start), methods=["POST"]),
+        Route("/roadmaps/{rid}/sprint", needs_setup(roadmap_sprint), methods=["POST"]),
+        Route("/roadmaps/{rid}/sprint/tick", needs_setup(roadmap_sprint_tick), methods=["POST"]),
+        Route("/roadmaps/{rid}/sprint/report", needs_setup(roadmap_sprint_report)),
         Route("/island/voyages", needs_setup(island_voyages)),
         Route("/library", needs_setup(library_page)),
         Route("/library/update-all", needs_setup(library_update_all), methods=["POST"]),

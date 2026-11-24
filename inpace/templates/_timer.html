@@ -12,7 +12,9 @@
 <div class="ftimer" data-ftimer data-look="{{ timer_look }}" hidden role="region" aria-label="{{ _('Focus timer') }}"
      data-l-pause="{{ _('Pause the timer') }}" data-l-resume="{{ _('Go on with the timer') }}"
      data-l-done="{{ _('Time is up!') }}" data-l-done-body="{{ _('{n} minutes of focus. Take a short break.') }}"
-     data-l-paused="{{ _('Paused') }}" data-l-left="{{ _('{time} left') }}">
+     data-l-paused="{{ _('Paused') }}" data-l-left="{{ _('{time} left') }}"
+     data-l-ready="{{ _('Ready: press play') }}" data-l-sprint-break="{{ _('Break time. The next block starts by itself.') }}"
+     data-l-sprint-focus="{{ _('Back to focus: block {n}.') }}" data-l-sprint-done="{{ _('Sprint day done! You reached today’s focus goal.') }}">
   <button type="button" class="ft-size" data-ft-size aria-label="{{ _('Drag to make the timer bigger or smaller') }}" title="{{ _('Drag to make the timer bigger or smaller') }}"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M13 5L5 13M13 9l-4 4" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
   <div class="ft-pill">
     <span class="ft-grip" data-ft-grip title="{{ _('Drag to move the timer') }}">{{ icon('timer', 20) }}<b data-ft-time>25:00</b></span>
@@ -39,6 +41,7 @@
   <form method="post" action="/timer/start" data-timer-form>
     <div class="sheet-head"><h2 id="timer-sheet-h">{{ icon('timer', 22) }} {{ _('Start a timer') }}</h2>
       <button type="button" class="btn icon-btn" data-timer-close aria-label="{{ _('Close') }}">{{ icon('x', 20) }}</button></div>
+    <p class="note warn small" data-ft-sprint-note hidden>{{ _('Stop the sprint timer first. Then you can start another timer.') }}</p>
     <fieldset class="timer-lengths">
       <legend class="ft-sr">{{ _('How long') }}</legend>
       {% for m in (10, 15, 25, 45, 60, 90) %}

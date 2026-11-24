@@ -7,8 +7,26 @@
     <h1>{% trans trimmed %}Roadmaps{% endtrans %}.</h1>
     <p class="muted">{% trans trimmed %}A roadmap puts several courses in the right order, toward one goal. Follow one from the library, or make your own from the courses there are.{% endtrans %}</p>
   </div>
-  <a class="btn primary" href="/roadmaps/new">{{ icon('plus', 18) }}{% trans trimmed %}Make a roadmap{% endtrans %}</a>
+  <div class="row wrap rm-head-btns">
+    <a class="btn" href="/sprints">{{ icon('bolt', 18) }}{% trans trimmed %}Make a sprint{% endtrans %}</a>
+    <a class="btn" href="/roadmaps?import=1#import">{{ icon('upload', 18) }}{% trans trimmed %}Add a roadmap file{% endtrans %}</a>
+    <a class="btn primary" href="/roadmaps/new">{{ icon('plus', 18) }}{% trans trimmed %}Make a roadmap{% endtrans %}</a>
+  </div>
 </div>
+
+<details class="card rm-import" id="import" {{ 'open' if request.query_params.get('err') or request.query_params.get('import') }}>
+  <summary><b>{% trans trimmed %}Add a roadmap from a file{% endtrans %}</b>
+    <span class="small muted">{% trans trimmed %}A .yaml roadmap someone sent you, or one you wrote. You see it first, then press Follow.{% endtrans %}</span></summary>
+  <form method="post" action="/roadmaps/import" enctype="multipart/form-data" class="stack">
+    <label class="btn">{{ icon('upload', 18) }}{% trans trimmed %}Choose a roadmap file{% endtrans %}
+      <input type="file" name="file" accept=".yaml,.yml,.json,.txt" data-autosubmit hidden></label>
+    <details>
+      <summary class="small">{% trans trimmed %}Or paste the roadmap's text{% endtrans %}</summary>
+      <textarea name="text" rows="8" dir="ltr" placeholder="title: ...&#10;steps:&#10;  - course: fastapi"></textarea>
+      <button class="btn primary">{% trans trimmed %}Open the roadmap{% endtrans %}</button>
+    </details>
+  </form>
+</details>
 
 {% if cards %}
 <div class="rm-list">

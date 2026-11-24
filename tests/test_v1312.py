@@ -38,7 +38,7 @@ def test_long_buttons_are_marked():
     T = ROOT / "inpace" / "templates"
     assert 'action="/library/{{ e.id }}/add" data-progress' in (T / "library_course.html").read_text(encoding="utf-8")
     roadmap = (T / "roadmap.html").read_text(encoding="utf-8")
-    assert roadmap.count("data-progress") == 3 and "data-busy" not in roadmap
+    assert roadmap.count("data-progress") == 4 and "data-busy" not in roadmap  # v1.33: the sprint's Add too
     base = (T / "base.html").read_text(encoding="utf-8")
     assert 'action="/updates/check" data-progress' in base and 'action="/updates/install" data-progress' in base
     assert 'data-w-installing=' in base

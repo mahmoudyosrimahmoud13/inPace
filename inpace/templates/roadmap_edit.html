@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-{% block title %}{{ _('Edit the roadmap') if rm else _('Make a roadmap') }}{% endblock %}
+{% block title %}{{ _('Edit the roadmap') if rm else (_('Make a sprint') if sprint else _('Make a roadmap')) }}{% endblock %}
 {% block main %}
 {% set ids = draft.steps|map(attribute='course')|list %}
 <div class="page-head">
-  <p class="eyebrow"><a data-up href="{{ '/roadmaps/' ~ rm.id if rm else '/roadmaps' }}">{{ rm.title if rm else _('Roadmaps') }}</a></p>
-  <h1>{{ _('Edit the roadmap') if rm else _('Make a roadmap') }}.</h1>
+  <p class="eyebrow"><a data-up href="{{ '/roadmaps/' ~ rm.id if rm else ('/sprints' if sprint else '/roadmaps') }}">{{ rm.title if rm else (_('Sprints') if sprint else _('Roadmaps')) }}</a></p>
+  <h1>{{ _('Edit the roadmap') if rm else (_('Make a sprint') if sprint else _('Make a roadmap')) }}.</h1>
+  {% if sprint and not rm %}<p class="muted">{% trans trimmed %}Pick the courses, set how many days you have, and save. Next you give each course its day and the tasks you'll tick.{% endtrans %}</p>{% endif %}
   <p class="muted">{% trans trimmed %}Put the courses in the order you'd take them, and say why each one comes where it does. Courses from the library can be shared with anyone; your own courses only work for you until you publish them.{% endtrans %}</p>
 </div>
 
 {% if not rm %}
-<form class="card stack rm-goal" method="get" action="/roadmaps/new">
+<form class="card stack rm-goal" method="get" action="/roadmaps/new">{% if sprint %}<input type="hidden" name="sprint" value="1">{% endif %}
   <label for="rm-goal"><b>{% trans trimmed %}Start from a goal{% endtrans %}</b>
     <span class="small muted" style="font-weight:400">{% trans trimmed %}inPace picks the courses that match, from your courses and the library, and puts them in order: the basics first, and the parts of a series together. You can change everything after.{% endtrans %}</span></label>
   <div class="row">
@@ -39,6 +40,19 @@
         <input name="tags" dir="auto" value="{{ (draft.tags or [])|join(', ') if draft.tags is not string else draft.tags }}" placeholder="{{ _('data, career') }}"></label>
     </div>
   </section>
+
+  {% if sprint %}
+  <section class="card stack">
+    <h2 style="margin:0">{{ icon('bolt', 20) }} {% trans trimmed %}The sprint{% endtrans %}</h2>
+    <div class="row wrap sp-form">
+      <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="sprint_days" min="1" max="60" value="{{ (draft.sprint or {}).days or 7 }}"></label>
+      <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="sprint_hours" min="0" max="16" step="0.5" value="{{ (draft.sprint or {}).hours or 4 }}"></label>
+      {% if not rm %}<label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="sprint_start" value="{{ today }}"></label>
+      <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="sprint_start_time" step="3600" value="{{ now_hour }}"></label>{% endif %}
+    </div>
+    <p class="small muted">{% trans trimmed %}Want the AI to pick the courses and write the tasks?{% endtrans %} <a href="/roadmaps/ai">{% trans trimmed %}Make it with AI{% endtrans %}</a></p>
+  </section>
+  {% endif %}
 
   <section class="card stack">
     <div class="row between"><h2 style="margin:0">{% trans trimmed %}The path{% endtrans %}</h2><span class="chip" data-rm-count>{{ T('{n} courses', n=draft.steps|length) }}</span></div>
@@ -74,7 +88,7 @@
   </section>
 
   <div class="row wrap">
-    <button class="btn primary big">{% trans trimmed %}Save the roadmap{% endtrans %}</button>
+    <button class="btn primary big">{% if sprint and not rm %}{% trans trimmed %}Save and plan the days{% endtrans %}{% else %}{% trans trimmed %}Save the roadmap{% endtrans %}{% endif %}</button>
     <a class="btn" href="{{ '/roadmaps/' ~ rm.id if rm else '/roadmaps' }}">{% trans trimmed %}Cancel{% endtrans %}</a>
   </div>
 </form>

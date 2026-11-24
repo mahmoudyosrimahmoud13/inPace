@@ -2,7 +2,7 @@
 {% block title %}{{ _('Open a file') }}{% endblock %}
 {% block main %}
 <div class="page-head"><h1>{% trans trimmed %}Open a file{% endtrans %}.</h1></div>
-<p class="lead">{% trans trimmed %}Drop any inPace file here: a course, a contact card, a progress file, or a checker's reply. inPace figures out what it is.{% endtrans %}</p>
+<p class="lead">{% trans trimmed %}Drop any inPace file here: a course, a roadmap, a contact card, a progress file, or a checker's reply. inPace figures out what it is.{% endtrans %}</p>
 {% if problems %}
 <section class="card">
   <h2>{{ T('“{name}” has a few problems', name=filename) }}</h2>
@@ -23,6 +23,7 @@
 </form>
 <div class="grid small">
   <div class="card flat"><b>{% trans trimmed %}.lpack, .zip or .yaml{% endtrans %}</b><p class="muted">{% trans trimmed %}A course{% endtrans %}</p></div>
+  <div class="card flat"><b>{% trans trimmed %}.roadmap.yaml{% endtrans %}</b><p class="muted">{% trans trimmed %}A roadmap, or a sprint plan{% endtrans %}</p></div>
   <div class="card flat"><b>{% trans trimmed %}contact card{% endtrans %}</b><p class="muted">{% trans trimmed %}Someone you want to connect with{% endtrans %}</p></div>
   <div class="card flat"><b>{% trans trimmed %}progress / reply{% endtrans %}</b><p class="muted">{% trans trimmed %}Milestones to review, or your checker's answer{% endtrans %}</p></div>
 </div>

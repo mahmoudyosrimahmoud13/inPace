@@ -9,6 +9,36 @@
   <span class="small muted">{% if where == 'library' %}{% trans trimmed %}One click: follows the roadmap and puts every course on this device, ready even offline.{% endtrans %}{% else %}{% trans trimmed %}Every course ready on this device, even offline. You still start each one when you get to it.{% endtrans %}{% endif %}</span>
 </form>
 {% endmacro %}
+{% macro day_label(r) %}{% if r[0] == r[1] %}{{ T('Day {n}', n=r[0]) }}{% else %}{{ T('Days {a}–{b}', a=r[0], b=r[1]) }}{% endif %}{% endmacro %}
+{% macro hm(m) %}{% if m >= 60 %}{{ T('{h} h {m} min', h=m // 60, m=m % 60) }}{% else %}{{ T('{n} min', n=m) }}{% endif %}{% endmacro %}
+{% macro tasks(s, back='sprint') %}
+<ul class="sp-tasks">
+{% for it in s['items'] %}
+  <li class="{{ 'on' if it.on }}">
+    <form method="post" action="/roadmaps/{{ rm.id }}/sprint/tick">
+      <input type="hidden" name="course" value="{{ s.course }}"><input type="hidden" name="i" value="{{ it.i }}">
+      <input type="hidden" name="on" value="{{ '0' if it.on else '1' }}"><input type="hidden" name="back" value="{{ back }}">
+      <button class="sp-tick" {{ 'disabled' if s.state == 'done' }} aria-pressed="{{ 'true' if it.on else 'false' }}"
+        title="{{ _('Course finished') if s.state == 'done' else (_('Untick') if it.on else _('Tick when done')) }}">{% if it.on %}{{ icon('check', 16) }}{% endif %}</button>
+      <span dir="auto">{{ it.text or _('Done for this sprint') }}</span>
+    </form>
+  </li>
+{% endfor %}
+</ul>
+{% endmacro %}
+{% macro sp_step(s, back='sprint') %}
+<div class="sp-step {{ 'done' if s.sprint_done }}">
+  <div class="row between wrap">
+    <span><span class="small muted">{% if s.range %}{{ day_label(s.range) }} · {% endif %}{{ T('Course {n}', n=s.n) }}</span>
+      <b dir="auto">{% if s.journey %}<a href="/learn/{{ s.journey }}">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}</b></span>
+    {% if s.state == 'active' %}<a class="btn small primary" href="/learn/{{ s.journey }}">{% trans trimmed %}Continue{% endtrans %}</a>
+    {% elif s.state == 'start' %}<form method="post" action="/roadmaps/{{ rm.id }}/start/{{ s.course }}"><button class="btn small primary">{% trans trimmed %}Start{% endtrans %}</button></form>
+    {% elif s.state == 'add' %}<form method="post" action="/roadmaps/{{ rm.id }}/add/{{ s.course }}" data-progress><button class="btn small">{{ icon('download', 16) }}{% trans trimmed %}Add{% endtrans %}</button></form>
+    {% elif s.state == 'done' %}<span class="chip good">{% trans trimmed %}Finished{% endtrans %}</span>{% endif %}
+  </div>
+  {{ tasks(s, back) }}
+</div>
+{% endmacro %}
 {% block main %}
 {% set here = st.current %}
 <div class="page-head rm-head">
@@ -21,6 +51,7 @@
     {% if st.minutes %}<li>{{ icon('clock', 15) }}{{ R.hours_text(st.minutes) }}</li>{% endif %}
     <li>{{ 'العربية' if rm.language == 'ar' else 'English' }}</li>
     {% if rm.author %}<li>{{ T('by {name}', name=rm.author) }}{% if lib_copy and lib_copy.verified %} ✓{% endif %}</li>{% endif %}
+    {% if rm.sprint %}<li>{{ icon('bolt', 15) }}{{ T('A {n}-day sprint', n=rm.sprint.days) }}{% if rm.sprint.hours %} · {{ T('about {h} h a day', h=rm.sprint.hours) }}{% endif %}</li>{% endif %}
     {% if in_library %}<li><span class="chip plain">{{ icon('library', 14) }}{% trans trimmed %}In the library{% endtrans %}</span></li>{% endif %}
   </ul>
 
@@ -71,6 +102,122 @@
   </div>
 </div>
 
+  {% if where == 'mine' %}
+  {% if sp.running %}
+  <section class="card sp-card" id="sprint">
+    <div class="row between wrap">
+      <h2 class="sp-title">{{ icon('bolt', 20) }}
+        {% if sp.before %}{{ T('Sprint starts on {date}', date=sp.start) }}
+        {% elif sp.over %}{% if sp.finished %}{% trans trimmed %}Sprint done!{% endtrans %}{% else %}{{ T('The {n} days are over', n=sp.days) }}{% endif %}
+        {% else %}{{ T('Sprint · day {d} of {n}', d=sp.day, n=sp.days) }}{% endif %}</h2>
+      <span class="small muted">{% if sp.hour %}{{ T('days run {t} to {t}', t='%02d:00'|format(sp.hour)) }} · {% endif %}{% if sp.hours %}{{ T('about {h} h a day', h=sp.hours) }} · {% endif %}{{ T('{p}% of the plan ticked', p=sp.percent) }}</span>
+    </div>
+    <ol class="sp-strip" aria-label="{{ _('Sprint days') }}">
+      {% for d in sp.strip %}<li class="{{ d.state }}" title="{{ T('Day {n}', n=d.d) }}{% if d.focus %} · {{ hm(d.focus) }}{% endif %}">{{ d.d }}</li>{% endfor %}
+    </ol>
+    <div class="bar"><span style="width: {{ sp.percent }}%"></span></div>
+    {% if not sp.before and not sp.over %}
+    {% set first = (sp.today|selectattr('state', 'equalto', 'active')|first) or (sp.today|first) %}
+    <div class="sp-focus" id="sprint-timer">
+      <div class="row between wrap">
+        <span>{{ icon('timer', 18) }} {% trans trimmed %}Focus today:{% endtrans %} <b>{{ hm(sp.focus_today) }}</b>{% if sp.focus_goal %} · {{ T('goal {h} h', h=sp.hours) }}{% endif %}</span>
+        <button type="button" class="btn small" data-timer-open>{% trans trimmed %}Open the timer{% endtrans %}</button>
+      </div>
+      {% if sp.focus_goal %}<div class="bar sp-focus-bar"><span style="width: {{ [100, (100 * sp.focus_today / sp.focus_goal)|round|int]|min }}%"></span></div>{% endif %}
+      {% if stimer %}
+      <div class="sp-timer {{ stimer.phase }}">
+        <b>{% if stimer.phase == 'break' %}{{ T('Break · {n} min left', n=(stimer.left / 60)|round(0, 'ceil')|int) }}{% elif stimer.ready %}{% trans trimmed %}Your sprint timer is ready{% endtrans %}{% elif stimer.state == 'paused' %}{{ T('Block {n} is waiting for you', n=stimer.block) }}{% else %}{{ T('Focus block {n} · {m} min left', n=stimer.block, m=(stimer.left / 60)|round(0, 'ceil')|int) }}{% endif %}</b>
+        <span class="small muted">{{ T('{a} min focus, {b} min break, until today’s {h} h are done. Breaks don’t count as focus.', a=stimer.focus_min, b=stimer.break_min, h=sp.hours) }}</span>
+        <div class="row wrap">
+          {% if stimer.state == 'running' %}<form method="post" action="/timer/pause"><button class="btn small">{% trans trimmed %}Pause{% endtrans %}</button></form>
+          {% else %}<form method="post" action="/timer/resume"><button class="btn small primary">{% if stimer.ready %}{{ icon('timer', 16) }}{% trans trimmed %}Start today's sprint{% endtrans %}{% else %}{% trans trimmed %}Go on{% endtrans %}{% endif %}</button></form>{% endif %}
+          <form method="post" action="/timer/stop"><button class="btn small">{% trans trimmed %}Stop for today{% endtrans %}</button></form>
+        </div>
+      </div>
+      {% else %}
+      <form method="post" action="/timer/sprint" class="row wrap sp-focus-go">
+        <input type="hidden" name="rid" value="{{ rm.id }}">
+        <input type="hidden" name="label" value="{{ T('Sprint day {d}', d=sp.day) }}{% if first %}: {{ first.title }}{% endif %}">
+        {% if first and first.journey %}<input type="hidden" name="journey" value="{{ first.journey }}">{% endif %}
+        <label class="small">{% trans trimmed %}Blocks{% endtrans %}
+          <select name="rhythm">
+            <option value="50-10" selected>{% trans trimmed %}50 min focus, 10 min break{% endtrans %}</option>
+            <option value="25-5">{% trans trimmed %}25 min focus, 5 min break{% endtrans %}</option>
+            <option value="90-15">{% trans trimmed %}90 min focus, 15 min break{% endtrans %}</option>
+          </select></label>
+        <button class="btn primary">{{ icon('timer', 18) }}{% if sp.focus_today %}{% trans trimmed %}Go on with today's sprint{% endtrans %}{% else %}{% trans trimmed %}Start today's sprint{% endtrans %}{% endif %}</button>
+      </form>
+      <p class="small muted">{% trans trimmed %}One button for the whole day: the timer runs a focus block, then a break, then the next block, until you reach today's hours. Breaks aren't counted.{% endtrans %}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if sp.today %}
+    <h3>{% trans trimmed %}Today{% endtrans %}</h3>
+    {% for s in sp.today %}{{ sp_step(s) }}{% endfor %}
+    {% elif not sp.before and not sp.over %}<p class="small muted">{% trans trimmed %}Nothing planned for today. Catch up on anything late, or rest.{% endtrans %}</p>{% endif %}
+    {% if sp.late %}
+    <h3 class="warn-text">{% trans trimmed %}Still to do from earlier days{% endtrans %}</h3>
+    {% for s in sp.late %}{{ sp_step(s) }}{% endfor %}
+    {% endif %}
+    <div class="row wrap sp-links">
+      <a class="btn small" href="/roadmaps/{{ rm.id }}/sprint/report">{{ icon('download', 16) }}{% trans trimmed %}Sprint report for your checker{% endtrans %}</a>
+      <a class="btn small" href="/roadmaps/{{ rm.id }}/file?plan=1">{{ icon('send', 16) }}{% trans trimmed %}Share my plan as a file{% endtrans %}</a>
+    </div>
+    <p class="small muted">{{ T('You ticked work on {a} of {b} days.', a=sp.active_days, b=[[sp.day, 0]|max, sp.days]|min) }}
+      {% trans trimmed %}A course counts as proven when you finish it in inPace; ticks are your own word. The report shows both, so the person who checks on you can tell them apart.{% endtrans %}</p>
+    <details class="sp-more" id="plan" {{ 'open' if request.query_params.get('plan') }}>
+      <summary class="small">{% trans trimmed %}Change the plan: days and tasks{% endtrans %}</summary>
+      <form method="post" action="/roadmaps/{{ rm.id }}/sprint" class="stack sp-plan">
+        <input type="hidden" name="action" value="plan">
+        <div class="row wrap">
+          <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ sp.days }}"></label>
+          <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
+        </div>
+        {% for x in sp.steps %}
+        <fieldset class="sp-plan-step">
+          <legend dir="auto">{{ T('Course {n}', n=x.n) }}: {{ x.title }}{% if x.optional %} · {{ _('Optional') }}{% endif %}</legend>
+          <label>{% trans trimmed %}Day{% endtrans %} <input name="day_{{ x.n }}" size="5" dir="ltr" placeholder="3 / 4-5"
+            value="{% if x.range %}{{ x.range[0] if x.range[0] == x.range[1] else x.range[0] ~ '-' ~ x.range[1] }}{% endif %}"></label>
+          <label class="grow">{% trans trimmed %}Tasks, one per line (leave empty for a single “done” tick){% endtrans %}
+            <textarea name="tasks_{{ x.n }}" rows="{{ [x.tasks|length + 1, 3]|max }}" dir="auto">{{ x.tasks|join('\n') }}</textarea></label>
+        </fieldset>
+        {% endfor %}
+        <button class="btn primary">{% trans trimmed %}Save the plan{% endtrans %}</button>
+        <p class="small muted">{% trans trimmed %}Only your copy changes. Ticks on tasks you removed are dropped.{% endtrans %}</p>
+      </form>
+    </details>
+    <details class="sp-more">
+      <summary class="small">{% trans trimmed %}Restart or stop the sprint{% endtrans %}</summary>
+      <form method="post" action="/roadmaps/{{ rm.id }}/sprint" class="row wrap sp-form">
+        <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ sp.days }}"></label>
+        <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
+        <label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="start" value="{{ today }}"></label>
+        <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="start_time" step="3600" value="{{ now_hour }}"></label>
+        <button class="btn small" name="action" value="start">{% trans trimmed %}Restart from day 1{% endtrans %}</button>
+        <button class="btn small danger" name="action" value="stop">{% trans trimmed %}Stop the sprint{% endtrans %}</button>
+      </form>
+      <p class="small muted">{% trans trimmed %}Restarting clears your ticks. Stopping keeps your courses and progress.{% endtrans %}</p>
+    </details>
+  </section>
+  {% else %}
+  <details class="card sp-card sp-start" id="sprint" {{ 'open' if sp.planned }}>
+    <summary><b>{{ icon('bolt', 18) }}{% if sp.planned %}{% trans trimmed %}This roadmap is a sprint plan. Start it?{% endtrans %}{% else %}{% trans trimmed %}Run it as a sprint{% endtrans %}{% endif %}</b>
+      <span class="small muted">{% trans trimmed %}A short, intensive push: each course gets a day, and every day shows you what to do and what's late.{% endtrans %}</span></summary>
+    <form method="post" action="/roadmaps/{{ rm.id }}/sprint" class="row wrap sp-form">
+      <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ sp.days }}"></label>
+      <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
+      <label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="start" value="{{ today }}"></label>
+        <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="start_time" step="3600" value="{{ now_hour }}"></label>
+      <button class="btn primary" name="action" value="start">{{ icon('bolt', 18) }}{% trans trimmed %}Start the sprint{% endtrans %}</button>
+    </form>
+    <p class="small muted">{% if sp.planned %}{% trans trimmed %}The roadmap already says which day each course belongs to.{% endtrans %}{% else %}{% trans trimmed %}inPace spreads the courses over the days by how long each one is.{% endtrans %}{% endif %}
+      {% trans trimmed %}In a sprint a course counts as done when you tick its tasks, so you can take just the parts you need.{% endtrans %}</p>
+  </details>
+  {% endif %}
+  {% elif rm.sprint %}
+  <p class="note small">{{ icon('bolt', 15) }}{% trans trimmed %}This is a sprint plan. Follow it, then start the sprint on its page: inPace shows you each day's courses and tasks.{% endtrans %}</p>
+  {% endif %}
+
 {% if newer %}
 <form class="note warn row between" method="post" action="/roadmaps/{{ rm.id }}/follow">
   <span>{% trans trimmed %}The library has a newer version of this roadmap.{% endtrans %}</span>
@@ -117,7 +264,12 @@
         {% if s.state == 'done' %} · <b>{% trans trimmed %}Finished{% endtrans %}</b>{% endif %}</p>
       <h3 dir="auto">{% if s.journey %}<a href="/learn/{{ s.journey }}">{{ s.title }}</a>{% elif s.entry %}<a href="/library/{{ s.course }}">{{ s.title }}</a>{% else %}{{ s.title }}{% endif %}</h3>
       <p class="small muted">{% if s.lessons %}{{ T('{n} lessons', n=s.lessons) }}{% endif %}{% if s.minutes %} · {{ R.hours_text(s.minutes) }}{% endif %}</p>
+      {% set sps = (sp.steps[loop.index0] if sp.running else None) %}
+      {% if sps and sps.range %}<p class="small"><span class="chip plain">{{ day_label(sps.range) }}</span>{% if sps.sprint_done %} <span class="chip good">{% trans trimmed %}Done for the sprint{% endtrans %}</span>{% endif %}</p>
+      {% elif s.day %}<p class="small"><span class="chip plain">{{ T('Day {n}', n=s.day) }}</span></p>{% endif %}
       {% if s.note %}<p class="rm-note" dir="auto">{{ s.note }}</p>{% endif %}
+      {% if sps %}{{ tasks(sps, 'step-' ~ s.n) }}
+      {% elif s.tasks %}<ul class="sp-tasks plain">{% for t in s.tasks %}<li dir="auto">{{ t }}</li>{% endfor %}</ul>{% endif %}
       {% if s.state == 'active' %}<div class="row"><div class="bar grow"><span style="width: {{ s.percent }}%"></span></div><b class="small">{{ s.percent }}%</b></div>{% endif %}
     </div>
     <div class="rm-step-act">

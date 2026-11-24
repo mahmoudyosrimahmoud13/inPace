@@ -52,6 +52,7 @@ class Reminders {
   static const testId = 899999;
   static const tripId = 850001; // the focus trip's countdown, shown while a trip runs
   static const tripDoneId = 850002; // "your plant is ready", at the trip's last second
+  static const tripNextId = 850003; // a sprint's next breaks and blocks (850003 to 850006), scheduled ahead
   static const downloadsId = 850010; // downloads in progress (a foreground service, so Android lets them finish)
   static const downloadsDoneId = 850011; // "Downloads finished"
   static void Function()? onDownloadsStop;
@@ -235,6 +236,9 @@ class Reminders {
     if (key == _tripKey) return;
     _tripKey = key;
     try {
+      for (var i = 0; i < 4; i++) {
+        await plugin.cancel(id: tripNextId + i); // a sprint's alerts are scheduled again below, if it still runs
+      }
       if (t == null || (state != 'running' && state != 'paused')) {
         await plugin.cancel(id: tripId);
         await plugin.cancel(id: tripDoneId);
@@ -271,6 +275,20 @@ class Reminders {
               largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
       await _at(tripDoneId, ends, (t['done_title'] as String?) ?? '', (t['done_body'] as String?) ?? '', 'tempo',
           (t['url'] as String?) ?? '/island/trip', picture: 'tempo_cheer', exact: true);
+      // A sprint day: "back to focus" and "break time" for the next blocks, even if inPace stays closed.
+      final next = t['next'];
+      if (next is List) {
+        var i = 0;
+        for (final n in next.take(4)) {
+          if (n is! Map) continue;
+          final at = DateTime.fromMillisecondsSinceEpoch(((n['at_ms'] as num?) ?? 0).toInt());
+          if (at.isAfter(DateTime.now())) {
+            await _at(tripNextId + i, at, (n['title'] as String?) ?? '', (n['body'] as String?) ?? '', 'tempo',
+                (t['url'] as String?) ?? '/', picture: (n['picture'] as String?) ?? 'tempo_wave', exact: true);
+          }
+          i++;
+        }
+      }
     } catch (_) {
       _tripKey = ''; // notifications not allowed (yet): try again on the next page
     }

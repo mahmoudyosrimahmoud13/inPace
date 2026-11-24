@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Sprints') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Sprints{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}A sprint is a short, intensive plan: a few days, a day for each course, and tasks you tick. Every day shows what to do and what's late, and the report for your checker tells finished courses from ticks.{% endtrans %}</p>
+</div>
+
+{% if sprints %}
+<section class="stack sp-list">
+{% for x in sprints %}{% set sp = x.sp %}
+<a class="card sp-home" href="/roadmaps/{{ x.rm.id }}#sprint">
+  <span class="row between wrap"><b>{{ icon('bolt', 18) }}<span dir="auto">{{ x.rm.title }}</span></b>
+    <span class="small muted">{% if sp.before %}{{ T('Sprint starts on {date}', date=sp.start) }}{% elif sp.over %}{% if sp.finished %}{% trans trimmed %}Sprint done!{% endtrans %}{% else %}{{ T('The {n} days are over', n=sp.days) }}{% endif %}{% else %}{{ T('Sprint · day {d} of {n}', d=sp.day, n=sp.days) }}{% endif %}
+      · {{ T('{p}% of the plan ticked', p=sp.percent) }}{% if sp.focus_goal and not sp.before and not sp.over %} · {{ T('{a} of {b} min focused today', a=sp.focus_today, b=sp.focus_goal) }}{% endif %}</span></span>
+  <ol class="sp-strip small">{% for d in sp.strip %}<li class="{{ d.state }}">{{ d.d }}</li>{% endfor %}</ol>
+  {% if sp.today %}<span class="small">{% trans trimmed %}Today:{% endtrans %} {% for s in sp.today %}<b dir="auto">{{ s.title }}</b> ({{ s.got }}/{{ s.units }}){{ ', ' if not loop.last }}{% endfor %}</span>{% endif %}
+  {% if sp.late %}<span class="small warn-text">{{ T('{n} late', n=sp.late|length) }}</span>{% endif %}
+</a>
+{% endfor %}
+</section>
+{% endif %}
+
+<h2 class="add-h">{% trans trimmed %}Make a sprint{% endtrans %}</h2>
+<div class="add-grid">
+  <a class="card tile add-pick" href="/roadmaps/new?sprint=1">
+    <span class="ico">{{ icon('pen') }}</span>
+    <span><b>{% trans trimmed %}Make it yourself{% endtrans %}</b>
+    <span>{% trans trimmed %}Pick the courses and the number of days, then give each course its day and tasks.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/roadmaps/ai">
+    <span class="ico">{{ icon('spark') }}</span>
+    <span><b>{% trans trimmed %}With AI{% endtrans %}</b>
+    <span>{% trans trimmed %}Type your goal and the days you have. The AI picks the courses and writes the tasks; you check it, then change anything.{% endtrans %}</span></span>
+  </a>
+  <a class="card tile add-pick" href="/roadmaps?import=1#import">
+    <span class="ico">{{ icon('upload') }}</span>
+    <span><b>{% trans trimmed %}From a file{% endtrans %}</b>
+    <span>{% trans trimmed %}A sprint someone shared with you, as a .roadmap.yaml file.{% endtrans %}</span></span>
+  </a>
+</div>
+
+{% if follow %}
+<section class="section">
+  <h2>{% trans trimmed %}Or run a roadmap you follow as a sprint{% endtrans %}</h2>
+  <div class="stack">
+  {% for rm in follow %}
+    <a class="card row between sp-pick" href="/roadmaps/{{ rm.id }}#sprint">
+      <span><b dir="auto">{{ rm.title }}</b><br><span class="small muted">{{ T('{n} courses', n=rm.steps|length) }}{% if rm.sprint %} · {{ T('A {n}-day sprint', n=rm.sprint.days) }}{% endif %}</span></span>
+      {{ icon('bolt', 18) }}
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
