@@ -4151,4 +4151,26 @@ window.inpaceMediaSession = (box, v) => {
     addEventListener("pagehide", () => clearTimeout(t), { once: true });
   });
 })();
+// "Open it" and "Show in folder" on a code file or project folder: the computer opens it in your own app
+// (VS Code, Jupyter, your editor) or file manager. If that fails, the file shows as plain text instead.
+document.addEventListener("click", (e) => {
+  const b = e.target instanceof Element && e.target.closest("[data-open-file]");
+  if (!b) return;
+  e.preventDefault();
+  const body = new FormData();
+  body.append("media", b.dataset.media || "");
+  if (b.hasAttribute("data-reveal")) body.append("reveal", "1");
+  const fallback = () => {
+    if (!b.dataset.view) return;
+    const a = document.createElement("a");
+    a.href = b.dataset.view; a.target = "_blank"; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  b.disabled = true;
+  fetch(b.dataset.openFile, { method: "POST", body, headers: { "X-Inpace-Fetch": "1" } })
+    .then((r) => (r.ok ? r.json() : { ok: false }))
+    .then((j) => { if (!j || !j.ok) fallback(); })
+    .catch(fallback)
+    .finally(() => setTimeout(() => { b.disabled = false; }, 800));
+});
 })();

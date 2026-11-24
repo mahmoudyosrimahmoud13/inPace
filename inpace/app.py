@@ -45,6 +45,72 @@ SAMPLES = HERE / "sample_courses"
 MEANINGFUL = {"lesson_done", "evidence_added", "writeup_saved", "quiz_taken", "exam_taken", "reflection_saved",
               "review_done", "commitment_set", "pause_started", "pause_ended"}
 
+
+# Files that would RUN if handed to the system's "open" (a .py on Windows runs in Python, a .command on a Mac runs in
+# Terminal, a .desktop file on Linux starts a program). Course files come from other people, so these open in an
+# editor instead, or only their folder is shown.
+RUNNABLE = {".py", ".pyw", ".pyz", ".js", ".jse", ".mjs", ".vbs", ".vbe", ".wsf", ".wsh", ".bat", ".cmd", ".ps1",
+            ".psm1", ".sh", ".bash", ".zsh", ".command", ".tool", ".desktop", ".appimage", ".exe", ".com", ".scr",
+            ".msi", ".hta", ".lnk", ".url", ".reg", ".jar", ".app", ".scpt", ".applescript", ".run", ".bin", ".pl",
+            ".rb", ".php", ".cpl", ".msc", ".pif", ".gadget", ".inf", ".ins", ".job", ".settingcontent-ms"}
+
+
+def _launch(args: list[str]) -> None:
+    from .window import _clean_env
+    subprocess.Popen(args, env=_clean_env(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def open_on_desktop(p: Path, reveal: bool = False) -> None:
+    """Open a file in its own app, or (reveal) show it in the file manager. Code goes to VS Code when it's
+    installed; a file that could run itself is never "opened", only edited or shown."""
+    p = Path(p)
+    win, mac = sys.platform == "win32", sys.platform == "darwin"
+    if reveal or p.is_dir():
+        if p.is_dir():
+            target = p
+            if win:
+                os.startfile(str(target))  # type: ignore[attr-defined]
+            else:
+                _launch(["open" if mac else "xdg-open", str(target)])
+        elif win:
+            subprocess.Popen(f'explorer /select,"{p}"')  # explorer wants the quotes around the path only
+        elif mac:
+            _launch(["open", "-R", str(p)])
+        else:  # ask the file manager to select it; if none answers, open the folder
+            try:
+                r = subprocess.run(["dbus-send", "--session", "--print-reply", "--dest=org.freedesktop.FileManager1",
+                                    "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1.ShowItems",
+                                    f"array:string:{p.as_uri()}", "string:"], timeout=3,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                ok = r.returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                ok = False
+            if not ok:
+                _launch(["xdg-open", str(p.parent)])
+        return
+    from .course import media_kind
+    if media_kind(p.name) == "code":
+        code = shutil.which("code") or shutil.which("codium")
+        if code:
+            _launch([code, str(p)])
+            return
+    if p.suffix.lower() in RUNNABLE:
+        if win:
+            try:
+                os.startfile(str(p), "edit")  # type: ignore[attr-defined]
+                return
+            except OSError:
+                pass
+        elif mac:
+            _launch(["open", "-t", str(p)])  # the default text editor
+            return
+        open_on_desktop(p, reveal=True)
+        return
+    if win:
+        os.startfile(str(p))  # type: ignore[attr-defined]
+    else:
+        _launch(["open" if mac else "xdg-open", str(p)])
+
 def _highlight(code: str, lang: str, attrs: str) -> str:
     """Colour code blocks on this computer (no internet needed)."""
     from html import escape
@@ -1923,18 +1989,15 @@ def create_app(vault: Vault) -> Starlette:
         return JSONResponse({"ok": True}) if fetch else go(_back(request), ok="Subtitles added.")
 
     async def open_media(request: Request):
-        """"Open in your video player": for videos the app window can't play (MKV, AVI, H.265…)."""
+        """Open a course file in your own app: "Open in your video player" for videos the app window can't play
+        (MKV, AVI, H.265…), and "Open it" for code and notebooks (VS Code, Jupyter, your editor).
+        With reveal=1 it opens the folder the file is in instead ("Show in folder")."""
         form = await request.form()
         p = V.find_media(request.path_params["cid"], str(form.get("media", "")))
         if not p or updater.install_kind() == "android":
             return JSONResponse({"ok": False}, status_code=404)
         try:
-            if sys.platform == "win32":
-                os.startfile(str(p))  # type: ignore[attr-defined]
-            else:
-                from .window import _clean_env
-                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(p)], env=_clean_env(),
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            open_on_desktop(p, reveal=bool(form.get("reveal")))
         except Exception:
             return JSONResponse({"ok": False}, status_code=500)
         return JSONResponse({"ok": True})

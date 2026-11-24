@@ -101,6 +101,24 @@ def code_block(path, name: str, url: str, t: Tr) -> str:
     return f'<pre dir="ltr"><code class="language-{e(lang)}">{body}</code></pre>'
 
 
+def open_buttons(files, rel: str, url: str, t: Tr, folder: bool = False) -> str:
+    """"Open it" for a code file or a project folder.
+
+    On a computer it opens in your own app (VS Code, Jupyter, your editor) and "Show in folder" opens the
+    folder it's in. On a phone, or if that fails, the file shows as plain text in a new tab."""
+    e = html.escape
+    action = getattr(files, "open_action", "") if files else ""
+    if not action:
+        return "" if folder else f'<a href="{url}?view=1" target="_blank" rel="noopener">{e(t("Open it"))}</a>'
+    data = f'data-open-file="{e(action)}" data-media="{e(rel)}"'
+    if folder:
+        return (f'<span class="open-btns"><button type="button" class="linkish" {data} data-reveal>'
+                f'{e(t("Open the folder"))}</button></span>')
+    return (f'<span class="open-btns"><button type="button" class="linkish" {data} data-view="{e(url)}?view=1">'
+            f'{e(t("Open it"))}</button><button type="button" class="linkish" {data} data-reveal>'
+            f'{e(t("Show in folder"))}</button></span>')
+
+
 def _notebook_text(text: str) -> str:
     """The code cells of a Jupyter notebook, one after another."""
     import json
@@ -115,7 +133,7 @@ def _notebook_text(text: str) -> str:
     return "\n\n".join(out)
 
 
-def folder_view(course_id: str, rel: str, folder, t: Tr) -> str:
+def folder_view(course_id: str, rel: str, folder, t: Tr, course_files=None) -> str:
     """A project folder from the course: every code file, coloured, one under the other (first one open)."""
     files = []
     for p in sorted(folder.rglob("*"), key=lambda p: str(p.relative_to(folder)).lower()):
@@ -132,11 +150,16 @@ def folder_view(course_id: str, rel: str, folder, t: Tr) -> str:
         sub = p.relative_to(folder).as_posix()
         url = media_url(course_id, f"{rel.rstrip('/')}/{sub}")
         if media_kind(p.name) == "code":
-            inner = code_block(p, p.name, url, t)
+            head = open_buttons(course_files, f"{rel.rstrip('/')}/{sub}", url, t) \
+                if course_files and course_files.open_action else ""
+            inner = (f'<div class="code-file-head" dir="ltr"><span></span>{head}</div>' if head else "") \
+                + code_block(p, p.name, url, t)
         else:
             inner = f'<p><a href="{url}" target="_blank" rel="noopener">{html.escape(t("Open it"))}</a></p>'
         items.append(f'<details class="code-file"{" open" if i == 0 else ""}><summary dir="ltr">{html.escape(sub)}</summary>{inner}</details>')
-    return f'<div class="code-folder">{"".join(items)}</div>'
+    top = open_buttons(course_files, rel.rstrip("/") + "/", "", t, folder=True)
+    top = f'<div class="code-file-head" dir="ltr"><span></span>{top}</div>' if top else ""
+    return f'{top}<div class="code-folder">{"".join(items)}</div>'
 
 
 def _clock(sec: float) -> str:
@@ -475,10 +498,10 @@ def player(course_id: str, ref: str, label: str, exists: Callable[[str], bool], 
         if not path:
             body = f'<p><a href="{url}?view=1" target="_blank" rel="noopener">{e(name)}</a></p>'
         elif kind == "folder":
-            body = folder_view(course_id, rel, path, t)
+            body = folder_view(course_id, rel, path, t, files)
         else:
             body = (f'<div class="code-file-head" dir="ltr"><span>{e(name)}</span>'
-                    f'<a href="{url}?view=1" target="_blank" rel="noopener">{e(t("Open it"))}</a></div>' + code_block(path, name, url, t))
+                    f'{open_buttons(files, rel, url, t)}</div>' + code_block(path, name, url, t))
     elif kind == "office":  # Word, PowerPoint, Excel: a light preview, and the file to open in its own app
         path = files.find(rel) if files else None
         name = rel.rsplit("/", 1)[-1]

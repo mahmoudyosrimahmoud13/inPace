@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.32.1
+
+- **"Open it" on a code file or notebook opens it in your own app.** It showed the raw file as text, so a notebook was a wall of JSON. Now, on computers, it opens in VS Code when you have it, and otherwise in the app your computer uses for that file (Jupyter, your editor). **Show in folder** next to it opens the folder with the file selected, and a project folder has **Open the folder** at the top. On phones, "Open it" still shows the file as text.
+- **A script from a course never runs by itself.** Files that would run when opened (.py on Windows, .command on a Mac, .bat, .sh, .desktop and the like) open in your editor instead, or only their folder is shown. This also covers "Open in your video player".
+
 ## v1.32.0
 
 ### A PDF reader like GNOME's (Evince), and highlights saved in the PDF itself

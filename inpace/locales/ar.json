@@ -2577,5 +2577,6 @@
  "to": "إلى",
  "yellow": "أصفر",
  "{n} of {total}": "{n} من {total}",
- "{total} results": "{total} نتيجة"
+ "{total} results": "{total} نتيجة",
+ "Show in folder": "أظهره في المجلد"
 }
