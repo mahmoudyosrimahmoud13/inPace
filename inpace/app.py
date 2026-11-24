@@ -1408,6 +1408,39 @@ def create_app(vault: Vault) -> Starlette:
         finally:
             progress.report(token, state="done")
 
+    def _pending_updates(index: dict) -> dict:
+        """What "Update everything" would change, without changing anything: courses you have whose library copy is
+        newer, and library roadmaps you follow that the library has changed."""
+        courses = []
+        for e in index.get("courses", []):
+            c = V.get_course(str(e.get("id", "")))
+            if c and c.hash != e.get("hash"):
+                courses.append({"id": c.id, "title": c.title, "mine": getattr(c, "version", "") or "",
+                                "theirs": e.get("version", ""), "size": int(e.get("size") or 0),
+                                "lessons_mine": c.lesson_count, "lessons_theirs": int(e.get("lessons") or 0)})
+        rms = []
+        for rm in roadmaps.mine(V.home):
+            lib = roadmaps.library_find(index, rm["id"]) if rm.get("source") == "library" else None
+            if lib and roadmaps.fingerprint(lib) != roadmaps.fingerprint(rm):
+                rms.append({"id": rm["id"], "title": lib["title"], "steps_mine": len(rm["steps"]),
+                            "steps_theirs": len(lib["steps"])})
+        return {"courses": courses, "roadmaps": rms}
+
+    async def library_updates(request: Request):
+        """The list behind "Update everything": what has a newer version, checked against the library right now."""
+        from starlette.concurrency import run_in_threadpool
+        problem = ""
+        try:
+            index = await run_in_threadpool(library.load_index, V.home, True)
+        except library.LibraryProblem as e:
+            index, problem = library.cached_index(V.home), str(e)
+        pending = _pending_updates(index)
+        have = sum(1 for e in index.get("courses", []) if V.get_course(str(e.get("id", ""))))
+        return page("library_updates.html", request, pending=pending, problem=problem, have=have,
+                    published=nice_date(index.get("updated")) if index.get("updated") else "",
+                    published_raw=str(index.get("updated", ""))[:16].replace("T", " "),
+                    followed=sum(1 for r in roadmaps.mine(V.home) if r.get("source") == "library"))
+
     async def library_update_all(request: Request):
         """One button for everything from the library (v1.32.2): every course you have that has a newer version in
         the library is updated, keeping your progress, and every library roadmap you follow is brought up to date.
@@ -1455,7 +1488,7 @@ def create_app(vault: Vault) -> Starlette:
         msg = {"ok": "\n".join(parts) or gettext("Everything from the library is up to date.")}
         if failed:
             msg["err"] = gettext("Some courses weren't updated:") + "\n" + "\n".join(failed)
-        return go("/library", **msg)
+        return go("/library/updates", **msg)
 
     # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
     async def _library_now(online: bool = True) -> dict:
@@ -5382,6 +5415,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/voyages", needs_setup(island_voyages)),
         Route("/library", needs_setup(library_page)),
         Route("/library/update-all", needs_setup(library_update_all), methods=["POST"]),
+        Route("/library/updates", needs_setup(library_updates)),
         Route("/library/{cid}/add", needs_setup(library_add), methods=["POST"]),
         Route("/library/{cid}", needs_setup(library_course)),
         Route("/courses/{cid}/publish", needs_setup(publish_course)),

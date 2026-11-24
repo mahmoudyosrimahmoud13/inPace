@@ -23,10 +23,8 @@
   <a href="/library" class="{{ 'on' if tab == 'courses' }}" {{ 'aria-current=page' if tab == 'courses' }}>{{ icon('book', 18) }}{% trans trimmed %}Courses{% endtrans %} <span class="n">{{ entries|length }}</span></a>
   <a href="/library?tab=roadmaps" class="{{ 'on' if tab == 'roadmaps' }}" {{ 'aria-current=page' if tab == 'roadmaps' }}>{{ icon('route', 18) }}{% trans trimmed %}Roadmaps{% endtrans %} <span class="n">{{ lib_roadmaps|length }}</span></a>
   {% if have_count or followed %}
-  <form class="lib-update-all" method="post" action="/library/update-all" data-progress
-        title="{{ _('Updates every course you added from the library and every roadmap you follow, in one go. Your progress is kept.') }}">
-    <button class="btn small {{ 'primary' if update_count else 'ghost' }}">{{ icon('download', 16) }}{% trans trimmed %}Update everything{% endtrans %}{% if update_count %} <span class="n">{{ update_count }}</span>{% endif %}</button>
-  </form>
+  <a class="btn small {{ 'primary' if update_count else 'ghost' }} lib-update-all" href="/library/updates"
+     title="{{ _('See which of your courses and roadmaps have newer versions, and update them in one go.') }}">{{ icon('download', 16) }}{% trans trimmed %}Updates{% endtrans %}{% if update_count %} <span class="n">{{ update_count }}</span>{% endif %}</a>
   {% endif %}
 </nav>
 {% endif %}

@@ -824,6 +824,12 @@ main > .page { flex: 1 0 auto; width: 100%; }
 
 /* Code files from a course */
 .lib-update-all { margin: 0 0 0 auto; align-self: center; }
+.upd-go { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; margin: 0 0 1.2rem; }
+.upd-go .n, .lib-update-all .n { font-size: .75rem; padding: 0 .35rem; border: 1.5px solid currentColor; }
+.upd-list { list-style: none; padding: 0; margin: 0 0 1.2rem; display: grid; gap: .5rem; }
+.upd-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .9rem; border: 2px solid var(--hair); }
+.upd-list form { margin: 0; }
+.upd-name { display: grid; gap: .15rem; }
 .lib-update-all .n { font-size: .75rem; padding: 0 .35rem; border: 1.5px solid currentColor; margin-inline-start: .15rem; }
 .lib-head .lib-actions { margin: .4rem 0 .8rem; padding: 0; }
 .lib-about { margin: 0 0 .7rem; line-height: 1.55; }

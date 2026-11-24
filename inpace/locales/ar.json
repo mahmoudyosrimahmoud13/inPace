@@ -2591,5 +2591,21 @@
  "Everything from the library is up to date.": "كل حاجة من المكتبة محدّثة.",
  "Some courses weren't updated:": "بعض الكورسات ماتحدّثتش:",
  "Added: open My courses": "مُضاف: افتح كورساتي",
- "Report a problem with this course": "أبلغ عن مشكلة في هذا الكورس"
+ "Report a problem with this course": "أبلغ عن مشكلة في هذا الكورس",
+ "See which of your courses and roadmaps have newer versions, and update them in one go.": "اعرف أي كورسات وخرائط طريق عندك لها إصدارات أحدث، وحدّثها مرة واحدة.",
+ "This is the list from the last time inPace could check.": "دي القائمة من آخر مرة inPace قدر يتحقق فيها.",
+ "Checked against the library just now.": "تم التحقق من المكتبة حالًا.",
+ "The library was last published on %s (UTC).": "آخر نشر للمكتبة كان في %s (بتوقيت UTC).",
+ "Your progress is kept. The version before each course stays, so you can undo.": "تقدّمك محفوظ. الإصدار السابق لكل كورس بيفضل موجود، فتقدر ترجع له.",
+ "version %s → %s": "الإصدار %s ← %s",
+ "a newer copy": "نسخة أحدث",
+ "%s → %s lessons": "%s ← %s درس",
+ "All %s courses you added from the library are up to date.": "كل الكورسات اللي أضفتها من المكتبة (%s) محدّثة.",
+ "You haven't added any courses from the library yet.": "لسه ماضفتش أي كورس من المكتبة.",
+ "Roadmaps you follow": "خرائط الطريق اللي بتتابعها",
+ "%s → %s courses": "%s ← %s كورس",
+ "new order or notes": "ترتيب أو ملاحظات جديدة",
+ "All %s library roadmaps you follow are up to date.": "كل خرائط الطريق اللي بتتابعها من المكتبة (%s) محدّثة.",
+ "You don't follow any library roadmaps yet.": "لسه مابتتابعش أي خريطة طريق من المكتبة.",
+ "Expected an update that isn't listed? The library publishes a few minutes after a change, and the list can take up to 10 more minutes to reach everyone. Check again in a little while.": "مستني تحديث مش ظاهر هنا؟ المكتبة بتتنشر بعد التغيير بدقايق، والقائمة ممكن تاخد لحد 10 دقايق كمان عشان توصل للكل. تحقّق تاني بعد شوية."
 }

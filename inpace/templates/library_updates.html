@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Updates') }}{% endblock %}
+{% block main %}
+<a class="lib-crumb" href="/library" data-up>{{ icon('back', 18) }}{% trans trimmed %}Course library{% endtrans %}</a>
+<div class="page-head">
+  <div class="grow">
+    <h1>{% trans trimmed %}Updates{% endtrans %}.</h1>
+    <p class="muted small">
+      {% if problem %}{{ _(problem) }} {% trans trimmed %}This is the list from the last time inPace could check.{% endtrans %}
+      {% else %}{% trans trimmed %}Checked against the library just now.{% endtrans %}{% endif %}
+      {% if published_raw %}{{ _('The library was last published on %s (UTC).')|format(published_raw) }}{% endif %}
+    </p>
+  </div>
+  <a class="btn ghost small" href="/library/updates">{{ icon('undo', 16) }}{% trans trimmed %}Check again{% endtrans %}</a>
+</div>
+
+{% set n = pending.courses|length + pending.roadmaps|length %}
+{% if n %}
+<form method="post" action="/library/update-all" data-progress class="upd-go">
+  <button class="btn primary">{{ icon('download', 18) }}{% trans trimmed %}Update everything{% endtrans %} <span class="n">{{ n }}</span></button>
+  <span class="muted small">{% trans trimmed %}Your progress is kept. The version before each course stays, so you can undo.{% endtrans %}</span>
+</form>
+{% endif %}
+
+<h2 class="lib-section">{% trans trimmed %}Courses{% endtrans %}</h2>
+{% if pending.courses %}
+<ul class="upd-list">
+  {% for c in pending.courses %}
+  <li>
+    <span class="upd-name"><a href="/library/{{ c.id }}" dir="auto">{{ c.title }}</a>
+      <span class="muted small">{% if c.mine and c.theirs and c.mine != c.theirs %}{{ _('version %s → %s')|format(c.mine, c.theirs) }}{% else %}{% trans trimmed %}a newer copy{% endtrans %}{% endif %}{% if c.lessons_theirs and c.lessons_theirs != c.lessons_mine %} · {{ _('%s → %s lessons')|format(c.lessons_mine, c.lessons_theirs) }}{% endif %}{% if c.size %} · {{ (c.size / 1000000)|round(1) }} MB{% endif %}</span></span>
+    <form method="post" action="/library/{{ c.id }}/add" data-progress><button class="btn small">{% trans trimmed %}Update{% endtrans %}</button></form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">{% if have %}{{ _('All %s courses you added from the library are up to date.')|format(have) }}{% else %}{% trans trimmed %}You haven't added any courses from the library yet.{% endtrans %}{% endif %}</p>
+{% endif %}
+
+<h2 class="lib-section">{% trans trimmed %}Roadmaps you follow{% endtrans %}</h2>
+{% if pending.roadmaps %}
+<ul class="upd-list">
+  {% for r in pending.roadmaps %}
+  <li><span class="upd-name"><a href="/roadmaps/{{ r.id }}" dir="auto">{{ r.title }}</a>
+    <span class="muted small">{% if r.steps_theirs != r.steps_mine %}{{ _('%s → %s courses')|format(r.steps_mine, r.steps_theirs) }}{% else %}{% trans trimmed %}new order or notes{% endtrans %}{% endif %}</span></span></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">{% if followed %}{{ _('All %s library roadmaps you follow are up to date.')|format(followed) }}{% else %}{% trans trimmed %}You don't follow any library roadmaps yet.{% endtrans %}{% endif %}</p>
+{% endif %}
+
+{% if not n and not problem %}
+<p class="note">{% trans trimmed %}Expected an update that isn't listed? The library publishes a few minutes after a change, and the list can take up to 10 more minutes to reach everyone. Check again in a little while.{% endtrans %}</p>
+{% endif %}
+{% endblock %}
