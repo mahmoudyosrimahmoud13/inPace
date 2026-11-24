@@ -2311,5 +2311,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "आपके फॉलो किए {n} रोडमैप लाइब्रेरी के नवीनतम संस्करण में बदल गए।",
  "A roadmap you follow changed to the library's latest version.": "आपका फॉलो किया एक रोडमैप लाइब्रेरी के नवीनतम संस्करण में बदल गया।",
  "Everything from the library is up to date.": "लाइब्रेरी की हर चीज़ अप-टू-डेट है।",
- "Some courses weren't updated:": "कुछ कोर्स अपडेट नहीं हुए:"
+ "Some courses weren't updated:": "कुछ कोर्स अपडेट नहीं हुए:",
+ "Added: open My courses": "जोड़ा गया: मेरे कोर्स खोलें",
+ "Report a problem with this course": "इस कोर्स में समस्या की रिपोर्ट करें"
 }

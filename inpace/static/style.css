@@ -823,8 +823,13 @@ main > .page { flex: 1 0 auto; width: 100%; }
 @media (prefers-reduced-motion: reduce) { .pl-bar, .pl-toast { transition: none; } }
 
 /* Code files from a course */
-.lib-update-all { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin: 0 0 1.2rem; }
-.lib-update-all > span { display: grid; gap: .2rem; min-width: 14rem; flex: 1; }
+.lib-update-all { margin: 0 0 0 auto; align-self: center; }
+.lib-update-all .n { font-size: .75rem; padding: 0 .35rem; border: 1.5px solid currentColor; margin-inline-start: .15rem; }
+.lib-head .lib-actions { margin: .4rem 0 .8rem; padding: 0; }
+.lib-about { margin: 0 0 .7rem; line-height: 1.55; }
+.lib-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; margin: 0; }
+.lib-tag { font-size: .78rem; padding: .05rem .45rem; border: 1.5px solid var(--hair); color: var(--ink2); }
+.lib-dl-note { display: flex; align-items: center; gap: .35rem; margin: 0 0 .6rem; }
 .code-file-head { display: flex; justify-content: space-between; gap: 1rem; font: 700 .9rem var(--mono, monospace); padding: .4rem 0; }
 .code-folder { display: grid; gap: .5rem; }
 .code-file > .code-file-head { padding: .4rem .8rem; }

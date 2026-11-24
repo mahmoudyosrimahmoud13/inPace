@@ -187,7 +187,7 @@ def test_one_button_updates_every_course_and_roadmap(tmp_path, monkeypatch):
     c.post("/library/python-basics/add")
     c.post("/roadmaps/python-web/follow")
     page = html.unescape(c.get("/library").text)
-    assert 'action="/library/update-all"' in page and "Keep everything up to date" in page
+    assert 'action="/library/update-all"' in page and "Update everything" in page
 
     # The library publishes a new version of the course and reorders the roadmap.
     idx["courses"][0]["hash"] = "new-version"
@@ -195,7 +195,7 @@ def test_one_button_updates_every_course_and_roadmap(tmp_path, monkeypatch):
     (v.home / "library.json").write_text(_json.dumps(idx), encoding="utf-8")
     roadmaps.save(v.home, {**roadmaps.get(v.home, "python-web")})        # (no sync yet: nothing opened)
     page = html.unescape(c.get("/library").text)
-    assert "1 of your courses has a newer version." in page
+    assert 'Update everything <span class="n">1</span>' in page
     calls.clear()
     r = c.post("/library/update-all", follow_redirects=False)
     assert calls == ["python-basics"]                                     # fastapi was never added: not downloaded

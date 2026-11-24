@@ -738,5 +738,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "เส้นทางที่คุณติดตาม {n} เส้นทางเปลี่ยนเป็นเวอร์ชันล่าสุดของคลังแล้ว",
  "A roadmap you follow changed to the library's latest version.": "เส้นทางที่คุณติดตามเปลี่ยนเป็นเวอร์ชันล่าสุดของคลังแล้ว",
  "Everything from the library is up to date.": "ทุกอย่างจากคลังเป็นปัจจุบันแล้ว",
- "Some courses weren't updated:": "บางคอร์สไม่ได้อัปเดต:"
+ "Some courses weren't updated:": "บางคอร์สไม่ได้อัปเดต:",
+ "Added: open My courses": "เพิ่มแล้ว: เปิดคอร์สของฉัน",
+ "Report a problem with this course": "รายงานปัญหาของคอร์สนี้"
 }

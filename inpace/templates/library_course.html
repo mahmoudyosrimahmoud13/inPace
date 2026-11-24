@@ -14,17 +14,14 @@
       <li>{{ icon('book', 16) }}{{ T('{a} modules · {b} lessons', a=e.modules, b=e.lessons) }}</li>
       <li>{{ 'العربية' if e.language == 'ar' else 'English' }}</li>
     </ul>
-    {% if e.description %}<p dir="auto">{{ e.description }}</p>{% endif %}
-    <p class="muted small">{% if e.author %}{{ T('by {name}', name=e.author.name) }}{% if e.author.verified %} ✓{% endif %}{% endif %}
-      {% if e.license %} · {{ e.license }}{% endif %}</p>
-    {% if e.tags %}<div class="row wrap lib-tags">{% for tg in e.tags[:8] %}<span class="chip plain">{{ tg }}</span>{% endfor %}</div>{% endif %}
-    {% if e.downloads %}<p class="note warn">{% trans trimmed %}This course's videos download separately. After adding it, inPace shows a button to get them.{% endtrans %}</p>{% endif %}
     <div class="lib-actions">
-      {% if state == 'have' %}<span class="chip good">{% trans trimmed %}Added{% endtrans %}</span>
-        <a class="btn primary" href="/courses">{% trans trimmed %}My courses{% endtrans %}</a>
+      {% if state == 'have' %}<a class="btn primary" href="/courses">{{ icon('check', 18) }}{% trans trimmed %}Added: open My courses{% endtrans %}</a>
       {% else %}<form method="post" action="/library/{{ e.id }}/add" data-progress><button class="btn primary big">{{ _('Update') if state == 'update' else _('Add this course') }}</button></form>{% endif %}
-      <a class="btn ghost small" href="{{ report_url }}?title={{ ('Report: ' ~ e.title)|urlencode }}&labels=report" target="_blank" rel="noopener">{% trans trimmed %}Report{% endtrans %}</a>
     </div>
+    {% if e.downloads %}<p class="muted small lib-dl-note">{{ icon('download', 16) }}{% trans trimmed %}This course's videos download separately. After adding it, inPace shows a button to get them.{% endtrans %}</p>{% endif %}
+    {% if e.description %}<p class="lib-about" dir="auto">{{ e.description }}</p>{% endif %}
+    <p class="muted small lib-meta">{% if e.author %}{{ T('by {name}', name=e.author.name) }}{% if e.author.verified %} ✓{% endif %}{% endif %}{% if e.license %} · {{ e.license }}{% endif %}
+      {% if e.tags %} · {% for tg in e.tags[:8] %}<span class="lib-tag">{{ tg }}</span>{% endfor %}{% endif %}</p>
   </div>
 </header>
 
@@ -72,5 +69,5 @@
 </article>
 {% endif %}
 
-{% if e.credit %}<p class="muted small lib-credit" dir="auto">{{ e.credit }}</p>{% endif %}
+<p class="muted small lib-credit" dir="auto">{% if e.credit %}{{ e.credit }} {% endif %}<a href="{{ report_url }}?title={{ ('Report: ' ~ e.title)|urlencode }}&labels=report" target="_blank" rel="noopener">{% trans trimmed %}Report a problem with this course{% endtrans %}</a></p>
 {% endblock %}

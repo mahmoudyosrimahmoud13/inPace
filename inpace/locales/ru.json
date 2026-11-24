@@ -2311,5 +2311,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "Маршрутов, за которыми ты следишь, обновлено до последней версии библиотеки: {n}.",
  "A roadmap you follow changed to the library's latest version.": "Маршрут, за которым ты следишь, обновлён до последней версии библиотеки.",
  "Everything from the library is up to date.": "Всё из библиотеки актуально.",
- "Some courses weren't updated:": "Некоторые курсы не обновились:"
+ "Some courses weren't updated:": "Некоторые курсы не обновились:",
+ "Added: open My courses": "Добавлен: открыть «Мои курсы»",
+ "Report a problem with this course": "Сообщить о проблеме с курсом"
 }

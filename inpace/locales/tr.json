@@ -2311,5 +2311,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "Takip ettiğin {n} yol haritası kütüphanenin en son sürümüne geçti.",
  "A roadmap you follow changed to the library's latest version.": "Takip ettiğin bir yol haritası kütüphanenin en son sürümüne geçti.",
  "Everything from the library is up to date.": "Kütüphaneden gelen her şey güncel.",
- "Some courses weren't updated:": "Bazı kurslar güncellenmedi:"
+ "Some courses weren't updated:": "Bazı kurslar güncellenmedi:",
+ "Added: open My courses": "Eklendi: Kurslarımı aç",
+ "Report a problem with this course": "Bu kursla ilgili bir sorun bildir"
 }

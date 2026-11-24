@@ -2,6 +2,7 @@
 
 ## v1.32.2
 
+- **A calmer library.** The update button is now a small button next to the Courses and Roadmaps tabs, with a number when updates are waiting, instead of a large box. A course's page shows its main button right under the title, then the description; the author, licence and tags share one quiet line, the note about videos is a short line, and "Report a problem" moved to the bottom.
 - **Update everything, with one button.** The Library page has an **Update everything** button: every course you added from the library that has a newer version is downloaded and updated (your progress is kept, and the version before stays for Undo, like updating one course), and every library roadmap you follow is brought up to date, in one go. It tells you how many of your courses have newer versions before you press it. Courses you haven't added aren't downloaded, and courses that didn't come from the library are never touched.
 - **Roadmaps you follow from the library update themselves, all at once.** When the library changes a roadmap (a new course, a better order, a course taken out), every library roadmap you follow now changes with it the next time inPace reads the library list: on Home, on the Roadmaps and Library pages, and in the twice-daily background check. There's no "update" button to press on each one anymore. Your progress stays, because it lives in your courses, and so does the date you started following. Roadmaps you made yourself, or got in a link, are never changed, and a roadmap that leaves the library stays as you had it.
 

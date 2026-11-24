@@ -2311,5 +2311,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "フォロー中のロードマップ {n} 件がライブラリの最新版になりました。",
  "A roadmap you follow changed to the library's latest version.": "フォロー中のロードマップがライブラリの最新版になりました。",
  "Everything from the library is up to date.": "ライブラリのものはすべて最新です。",
- "Some courses weren't updated:": "更新できなかったコースがあります:"
+ "Some courses weren't updated:": "更新できなかったコースがあります:",
+ "Added: open My courses": "追加済み: マイコースを開く",
+ "Report a problem with this course": "このコースの問題を報告"
 }

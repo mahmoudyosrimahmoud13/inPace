@@ -2311,5 +2311,7 @@
  "{n} roadmaps you follow changed to the library's latest version.": "你关注的 {n} 条路线图已更新为课程库的最新版本。",
  "A roadmap you follow changed to the library's latest version.": "你关注的一条路线图已更新为课程库的最新版本。",
  "Everything from the library is up to date.": "课程库中的一切都是最新的。",
- "Some courses weren't updated:": "有些课程没有更新："
+ "Some courses weren't updated:": "有些课程没有更新：",
+ "Added: open My courses": "已添加：打开我的课程",
+ "Report a problem with this course": "报告此课程的问题"
 }

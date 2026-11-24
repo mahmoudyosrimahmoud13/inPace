@@ -2311,5 +2311,7 @@
   "{n} roadmaps you follow changed to the library's latest version.": "{n} rutas que sigues pasaron a la última versión de la biblioteca.",
   "A roadmap you follow changed to the library's latest version.": "Una ruta que sigues pasó a la última versión de la biblioteca.",
   "Everything from the library is up to date.": "Todo lo de la biblioteca está al día.",
-  "Some courses weren't updated:": "Algunos cursos no se actualizaron:"
+  "Some courses weren't updated:": "Algunos cursos no se actualizaron:",
+  "Added: open My courses": "Añadido: abrir Mis cursos",
+  "Report a problem with this course": "Informar de un problema con este curso"
 }
