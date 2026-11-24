@@ -4851,7 +4851,9 @@ def create_app(vault: Vault) -> Starlette:
                 pass
         server = (rec["data"].get("server") or next((m["body"].get("server") for m in report["milestones"]
                                                      if m["body"].get("server")), None))
+        sprints = [exchange.sprint_view(x, lid) for x in (rec["data"].get("sprints") or [])[:5] if isinstance(x, dict)]
         return page("review.html", request, person=person, rec=rec, report=report, names=names, weekly=weekly, server=server,
+                    sprints=sprints,
                     reply_file=reply_file, reply_share=reply_share, receipts=V.receipts(lid, jid),
                     graded=graded, have_files=checks.has_received_files(V), course=course, quizzes=quizzes,
                     sent=checks.sent_exams(V, lid, jid), course_diffs=diffs,

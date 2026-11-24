@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.35.0
+
+- **The person who checks on you follows your sprints.** Every progress file you send now carries the sprints its course is part of, signed with your key: the plan, what you ticked and when, which courses are finished in inPace (proven) and which are only ticked, what's late, and the focus time of each day. Nothing new to send or remember.
+- **Short for the checker.** On the review page each sprint is one line, "ML sprint · day 3 of 7 · 45% of the plan ticked · 1 late", and opens to the day strip, a small table of the courses, and when the ticks were made. A sprint changed after the learner made it is flagged "Not signed by them".
+
 ## v1.34.1
 
 - **Removing an account on Windows deletes its folder.** Windows can't delete a file that's still open, so removing someone right after they used inPace could leave their folder behind. inPace now tries for a few seconds, and if a file is still in use, it moves the folder aside so the account is gone at once, then finishes deleting it the next time host mode starts or you make an account.

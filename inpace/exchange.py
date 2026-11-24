@@ -201,7 +201,103 @@ def make_progress_file(v: Vault, journey: str, since: int = 0) -> dict:
     import os as _os
     if _os.environ.get("INPACE_HOSTED"):
         data["server"] = {"name": _os.environ.get("INPACE_HOST_NAME", "")[:80]}
+    sprints = sprint_snapshots(v, course.id)
+    if sprints:
+        data["sprints"] = sprints
     return data
+
+
+# ---------------------------------------------------------------------------
+# Sprints in progress files (v1.35): your checker follows the sprints this course is part of
+# ---------------------------------------------------------------------------
+
+MAX_SPRINT_TICKS = 300
+
+
+def sprint_snapshots(v: Vault, course_id: str) -> list[dict]:
+    """Every running sprint that has this course in it, as it stands now, signed with your key so it can't be
+    changed on the way: the plan, each step's tasks and which you ticked, whether its course is finished in
+    inPace (proven) or only ticked, the time of each tick, and the focus time of each day."""
+    import datetime as _dt
+    from . import focus, roadmaps
+    out = []
+    try:
+        mine = roadmaps.mine(v.home)
+    except Exception:
+        return out
+    hours = None
+    for rm in mine:
+        run = rm.get("sprint_run")
+        if not run or not any(s["course"] == course_id for s in rm["steps"]):
+            continue
+        if hours is None:
+            hours = focus.hour_totals(v)
+        st = roadmaps.status(v, rm, {})
+        sp = roadmaps.sprint_status(rm, st, _dt.datetime.now(), hours)
+        steps = [{"course": r["course"], "title": r.get("title") or r["course"], "range": r["range"],
+                  "optional": bool(r["optional"]), "tasks": list(r["tasks"]),
+                  "done": [x["i"] for x in r["items"] if x["on"]], "units": r["units"], "proven": bool(r["proven"])}
+                 for r in sp["steps"]]
+        ticks = [[at, c, i] for at, c, i, on in (run.get("log") or []) if on][-MAX_SPRINT_TICKS:]
+        body = {"kind": "sprint", "v": 1, "learner": v.identity.id, "id": rm["id"], "title": rm["title"],
+                "start": run["start"], "hour": int(run.get("hour") or 0), "days": run["days"],
+                "hours": run["hours"], "steps": steps, "ticks": ticks,
+                "focus": {str(x["d"]): x["focus"] for x in sp["strip"] if x["focus"]}, "made_at": now_utc()}
+        h = fingerprint(body)
+        out.append({"body": body, "hash": h, "sig": v.identity.sign({"kind": "sprint", "hash": h})})
+    return out
+
+
+def check_sprint(snap: dict, learner_id: str) -> bool:
+    """A sprint in a progress file is the learner's own, unchanged since they made it."""
+    try:
+        body = snap["body"]
+        return (body.get("kind") == "sprint" and body.get("learner") == learner_id
+                and fingerprint(body) == snap["hash"]
+                and verify(learner_id, {"kind": "sprint", "hash": snap["hash"]}, snap.get("sig", "")))
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def sprint_view(snap: dict, learner_id: str) -> dict:
+    """What the checker sees of one sprint: one short line, and the details behind it."""
+    import datetime as _dt
+    from . import roadmaps
+    b = snap.get("body") or {}
+    ok = check_sprint(snap, learner_id)
+    run = {"start": b.get("start", "2000-01-01"), "hour": b.get("hour", 0)}
+    try:
+        made = _dt.datetime.fromisoformat(str(b.get("made_at", "")).replace("Z", "+00:00")).astimezone().replace(tzinfo=None)
+        day = roadmaps.sprint_day(run, made)
+    except ValueError:
+        made, day = None, 0
+    days = int(b.get("days") or 0)
+    need = [s for s in b.get("steps") or [] if not s.get("optional")]
+    units = sum(int(s.get("units") or 1) for s in need)
+    got = sum(int(s.get("units") or 1) if s.get("proven") else len(s.get("done") or []) for s in need)
+    late = [s for s in need if s.get("range") and s["range"][1] < day and not s.get("proven")
+            and len(s.get("done") or []) < int(s.get("units") or 1)]
+    focus = {int(k): int(m) for k, m in (b.get("focus") or {}).items() if str(k).isdigit()}
+    per_day: dict[int, list[str]] = {}
+    for at, c, i in b.get("ticks") or []:
+        try:
+            d = roadmaps.sprint_day(run, _dt.datetime.fromisoformat(at))
+        except (ValueError, TypeError):
+            continue
+        per_day.setdefault(d, []).append(at[11:16])
+    strip = []
+    for d in range(1, days + 1):
+        due = [s for s in need if s.get("range") and s["range"][1] == d]
+        done = all(s.get("proven") or len(s.get("done") or []) >= int(s.get("units") or 1) for s in due)
+        state = "today" if d == day else ("done" if done else "late") if d < day else "ahead"
+        strip.append({"d": d, "state": state, "focus": focus.get(d, 0), "ticks": len(per_day.get(d, []))})
+    goal = int(round(float(b.get("hours") or 0) * 60))
+    return {"ok": ok, "id": b.get("id", ""), "title": b.get("title", ""), "day": day, "days": days,
+            "made_at": b.get("made_at", ""), "percent": round(100 * got / units) if units else 0,
+            "late": late, "steps": b.get("steps") or [], "strip": strip, "per_day": per_day,
+            "proven": sum(1 for s in need if s.get("proven")), "need": len(need),
+            "focus_total": sum(focus.values()), "focus_goal": goal, "hours": b.get("hours") or 0,
+            "hour": b.get("hour", 0), "over": day > days}
 
 
 def complete_progress(v: Vault, data: dict) -> dict:

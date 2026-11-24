@@ -2762,3 +2762,11 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 .host-login { width: min(100%, 420px); margin: 0; }
 .host-login h1 { font-size: 1.5rem; margin: 0; }
 .host-login input { width: 100%; }
+.sp-review { margin-block: .6rem; padding: .6rem .9rem; }
+.sp-review > summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.sp-review-line { display: inline-flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.sp-review-body { margin-block-start: .7rem; }
+.sp-review-table { border-collapse: collapse; width: 100%; }
+.sp-review-table td { padding: .3rem .4rem; border-block-end: 1px solid var(--line); vertical-align: top; }
+.sp-review-table tr.opt { color: var(--muted); }
+.sp-review-ticks { margin: .3rem 0 0; padding-inline-start: 1.1rem; }

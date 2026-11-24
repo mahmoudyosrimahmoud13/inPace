@@ -2816,5 +2816,15 @@
  "There's already an account with that username.": "يوجد حساب بهذا الاسم بالفعل.",
  "Give the person's name.": "اكتب اسم الشخص.",
  "There's no account with that username.": "لا يوجد حساب بهذا الاسم.",
- "That course isn't on this computer.": "هذه الدورة ليست على هذا الجهاز."
+ "That course isn't on this computer.": "هذه الدورة ليست على هذا الجهاز.",
+ "Not signed by them": "ليست موقّعة منه",
+ "This sprint was changed after the learner made it, or someone else made it. Don't trust what it says.": "تغيّرت هذه الخطة بعد أن صنعها المتعلم، أو صنعها شخص آخر. لا تثق بما فيها.",
+ "{n} ticks": "{n} علامات",
+ "{a} of {b} courses finished in inPace (proven); the rest of the ticks are their own word.": "{a} من {b} دورات انتهت في inPace (مثبتة)؛ باقي العلامات كلمته هو.",
+ "Focus timer: {h} h {m} min in all.": "مؤقت التركيز: {h} س {m} د إجمالًا.",
+ "Goal: {h} h a day.": "الهدف: {h} س يوميًا.",
+ "As of {date}.": "حتى {date}.",
+ "Proven": "مثبتة",
+ "When they ticked": "متى وضع العلامات",
+ "Your sprint goes to the person who checks on you inside your progress files, signed. A course counts as proven when you finish it in inPace; ticks are your own word, and they see both.": "خطتك المكثفة تصل لمن يتابعك داخل ملفات تقدّمك، موقّعة. تُحسب الدورة مثبتة عندما تُنهيها في inPace، أما العلامات فهي كلمتك، وهو يرى الاثنين."
 }

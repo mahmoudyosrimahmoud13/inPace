@@ -45,6 +45,37 @@
     <p class="muted small" style="margin:0">{{ T('File received {date}', date=rec.received_at|date) }}{% if report.last_reviewed %} · {{ T('you last reviewed on {date}', date=report.last_reviewed|date) }}{% endif %}</p>
   </div>
 </div>
+{% for x in sprints %}
+<details class="card sp-review" id="sprint-{{ x.id }}">
+  <summary><span class="sp-review-line">{{ icon('bolt', 16) }}<b dir="auto">{{ x.title }}</b>
+    <span class="small muted">{% if x.over %}{{ T('The {n} days are over', n=x.days) }}{% else %}{{ T('Sprint · day {d} of {n}', d=[x.day, 1]|max, n=x.days) }}{% endif %}
+    · {{ T('{p}% of the plan ticked', p=x.percent) }}{% if x.late %} · <span class="warn-text">{{ T('{n} late', n=x.late|length) }}</span>{% endif %}</span></span>
+    {% if not x.ok %}<span class="chip bad">{% trans trimmed %}Not signed by them{% endtrans %}</span>{% endif %}</summary>
+  <div class="stack sp-review-body">
+    {% if not x.ok %}<p class="note bad small">{% trans trimmed %}This sprint was changed after the learner made it, or someone else made it. Don't trust what it says.{% endtrans %}</p>{% endif %}
+    <ol class="sp-strip small" aria-label="{{ _('Sprint days') }}">{% for d in x.strip %}<li class="{{ d.state }}" title="{{ T('Day {n}', n=d.d) }}{% if d.focus %} · {{ T('{n} min', n=d.focus) }}{% endif %}{% if d.ticks %} · {{ T('{n} ticks', n=d.ticks) }}{% endif %}">{{ d.d }}</li>{% endfor %}</ol>
+    <p class="small">{{ T('{a} of {b} courses finished in inPace (proven); the rest of the ticks are their own word.', a=x.proven, b=x.need) }}
+      {% if x.focus_total %}{{ T('Focus timer: {h} h {m} min in all.', h=x.focus_total // 60, m=x.focus_total % 60) }}{% if x.focus_goal %} {{ T('Goal: {h} h a day.', h=x.hours) }}{% endif %}{% endif %}
+      <span class="muted">{{ T('As of {date}.', date=x.made_at|date) }}</span></p>
+    <table class="sp-review-table small">
+      <tbody>
+      {% for s in x.steps %}
+        <tr class="{{ 'opt' if s.optional }}">
+          <td>{% if s.range %}{% if s.range[0] == s.range[1] %}{{ T('Day {n}', n=s.range[0]) }}{% else %}{{ T('Days {a}–{b}', a=s.range[0], b=s.range[1]) }}{% endif %}{% endif %}</td>
+          <td dir="auto">{{ s.title }}{% if s.optional %} <span class="muted">· {{ _('Optional') }}</span>{% endif %}</td>
+          <td>{% if s.proven %}<span class="chip good">{% trans trimmed %}Proven{% endtrans %}</span>{% else %}{{ s.done|length }}/{{ s.units }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if x.per_day %}
+    <details class="small"><summary>{% trans trimmed %}When they ticked{% endtrans %}</summary>
+      <ul class="sp-review-ticks">{% for d, times in x.per_day|dictsort %}<li>{{ T('Day {n}', n=d) }}: <span dir="ltr">{{ times|join(', ') }}</span></li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </div>
+</details>
+{% endfor %}
 {% if server %}<div class="note warn" role="note"><b>{% trans trimmed %}Signed by a server.{% endtrans %}</b>
   {{ T('This progress comes from a shared inPace ({name}). The person who runs it could have changed it. Progress from someone’s own device is stronger proof.', name=(server.name ~ '’s inPace') if server.name else _('host mode')) }}</div>{% endif %}
 

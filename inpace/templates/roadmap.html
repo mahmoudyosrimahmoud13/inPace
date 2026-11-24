@@ -164,7 +164,7 @@
       <a class="btn small" href="/roadmaps/{{ rm.id }}/file?plan=1">{{ icon('send', 16) }}{% trans trimmed %}Share my plan as a file{% endtrans %}</a>
     </div>
     <p class="small muted">{{ T('You ticked work on {a} of {b} days.', a=sp.active_days, b=[[sp.day, 0]|max, sp.days]|min) }}
-      {% trans trimmed %}A course counts as proven when you finish it in inPace; ticks are your own word. The report shows both, so the person who checks on you can tell them apart.{% endtrans %}</p>
+      {% trans trimmed %}Your sprint goes to the person who checks on you inside your progress files, signed. A course counts as proven when you finish it in inPace; ticks are your own word, and they see both.{% endtrans %}</p>
     <details class="sp-more" id="plan" {{ 'open' if request.query_params.get('plan') }}>
       <summary class="small">{% trans trimmed %}Change the plan: days and tasks{% endtrans %}</summary>
       <form method="post" action="/roadmaps/{{ rm.id }}/sprint" class="stack sp-plan">
