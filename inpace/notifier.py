@@ -345,6 +345,8 @@ def open_inpace(path: str = "/", home: Path | None = None) -> None:
 def notify(title: str, body: str, path: str = "/", home: Path | None = None, picture: str = "") -> bool:
     """Show a notification, with Tempo's face when `picture` names one (tempo_cheer, villain...).
     Clicking it opens inPace on that page, where the computer allows it."""
+    if os.environ.get("INPACE_HOSTED"):  # someone using a shared inPace: nothing pops up on the host computer
+        return False
     try:
         if sys.platform == "win32":
             return _windows_toast(title, body, go_link(path), alarm=False, image=_icon_png(picture) if picture else "")
@@ -437,6 +439,8 @@ def _ask_alarm(title: str, body: str, labels: dict, picture: str = "") -> str:
 
 def alarm(title: str, body: str, path: str, labels: dict, home: Path | None = None, picture: str = "tempo_wave") -> str:
     """Ring until you stop it. Snooze rings again after 10 minutes (up to three times). Tempo's face shows where it can."""
+    if os.environ.get("INPACE_HOSTED"):
+        return ""
     if sys.platform == "win32":
         # Windows rings, snoozes and stops it by itself
         _windows_toast(title, body, go_link(path), alarm=True, image=_icon_png(picture) if picture else "")

@@ -198,6 +198,9 @@ def make_progress_file(v: Vault, journey: str, since: int = 0) -> dict:
     isle = _island(v)
     if isle:
         data["island"] = isle
+    import os as _os
+    if _os.environ.get("INPACE_HOSTED"):
+        data["server"] = {"name": _os.environ.get("INPACE_HOST_NAME", "")[:80]}
     return data
 
 

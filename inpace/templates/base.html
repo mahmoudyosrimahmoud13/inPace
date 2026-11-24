@@ -106,7 +106,11 @@
   {% endif %}
   <main>
     <div class="page {% block width %}{% endblock %}">
-      {% if update and update.kind not in ('source', 'android') %}
+      {% if host_bar %}<div class="host-bar" role="status">{{ icon('users', 18) }}<span>{% trans trimmed %}Host mode is on.{% endtrans %} {% trans trimmed %}People on your network can sign in at{% endtrans %} <b dir="ltr">{{ host_bar.url }}</b></span>
+        <a class="btn small" href="/settings/host">{% trans trimmed %}Manage{% endtrans %}</a></div>{% endif %}
+      {% if hosted %}<div class="host-bar guest" role="status">{{ icon('users', 18) }}<span>{{ T('You’re using {name}’s inPace on this network.', name=host_name or 'a shared') }}</span>
+        <a class="btn small" href="/host-logout">{% trans trimmed %}Sign out{% endtrans %}</a></div>{% endif %}
+      {% if update and update.kind not in ('source', 'android') and not hosted %}
         {% if not update.setting %}
         <form class="update-bar" method="post" action="/updates/setting">
           <span>{% trans trimmed %}Keep inPace up to date automatically? It checks once a day and installs new versions for you. Nothing else leaves your computer.{% endtrans %}</span>

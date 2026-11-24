@@ -104,6 +104,7 @@
 </section>
 <h2 class="set-group" id="g-videos">{% trans trimmed %}Videos{% endtrans %}</h2>
 <p class="muted set-sub">{% trans trimmed %}YouTube lessons and saving videos to watch offline.{% endtrans %}</p>
+{% if not hosted %}
 <section class="card stack" style="max-width:620px" id="youtube">
   <h3 class="set-h" style="margin:0">{% trans trimmed %}YouTube videos{% endtrans %}</h3>
   <form method="post" action="/settings/youtube" class="stack" data-nav-form>
@@ -116,6 +117,8 @@
     <button class="btn">{% trans trimmed %}Save{% endtrans %}</button>
   </form>
 </section>
+{% endif %}
+{% if not hosted %}
 <section class="card" style="max-width:620px" id="videos">
   <h3 class="set-h">{% trans trimmed %}Video downloads{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}For watching YouTube lessons offline. inPace uses yt-dlp, a free open-source downloader, kept in your inPace folder.{% endtrans %}</p>
@@ -144,7 +147,9 @@
   </form>
   <p class="small muted">{% trans trimmed %}yt-dlp comes from its official GitHub releases, and each copy is checked against its published checksums before inPace uses it.{% endtrans %}</p>
 </section>
+{% endif %}
 <h2 class="set-group" id="g-ai">{% trans trimmed %}AI{% endtrans %}</h2>
+{% if not hosted %}
 <section class="card" style="max-width:620px" id="ai">
   <h3 class="set-h">{% trans trimmed %}AI course maker{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Optional. By default you copy a prompt into any AI chat yourself, and nothing leaves this computer.{% endtrans %}</p>
@@ -157,8 +162,18 @@
     <button class="btn">{% trans trimmed %}Save AI settings{% endtrans %}</button>
   </form>
 </section>
+{% endif %}
+{% if not on_phone() and not hosted %}
+<h2 class="set-group" id="g-share">{% trans trimmed %}Sharing{% endtrans %}</h2>
+<section class="card" style="max-width:620px" id="host">
+  <h3 class="set-h">{{ icon('users', 18) }} {% trans trimmed %}Host mode{% endtrans %}{% if host_bar %} <span class="chip good">{% trans trimmed %}On{% endtrans %}</span>{% endif %}</h3>
+  <p>{% trans trimmed %}Share inPace with people on your network: each person signs in from their browser and gets their own inPace on this computer. Off unless you turn it on.{% endtrans %}</p>
+  <a class="btn" href="/settings/host">{% if host_bar %}{% trans trimmed %}Manage host mode{% endtrans %}{% else %}{% trans trimmed %}Set up host mode{% endtrans %}{% endif %}</a>
+</section>
+{% endif %}
 <h2 class="set-group" id="g-data">{% trans trimmed %}Your data{% endtrans %}</h2>
 <p class="muted set-sub">{% trans trimmed %}Where it's kept, backups, and starting fresh.{% endtrans %}</p>
+{% if not hosted %}
 <section class="card" style="max-width:620px" id="data">
   <h3 class="set-h">{% trans trimmed %}Where your data lives{% endtrans %}</h3>
   <p>{% trans trimmed %}Everything is in this folder on your computer:{% endtrans %}</p>
@@ -167,6 +182,7 @@
   <details class="small muted"><summary>{% trans trimmed %}Show details{% endtrans %}</summary>{% trans trimmed %}Your public id: {% endtrans %}<code>{{ me.id }}</code>
     {% if startup %}<br>{{ _('Last start: ready in %s s, first page in %s s.')|format('%.1f'|format((startup.python or 0) / 1000), '%.1f'|format((startup.page or startup.python or 0) / 1000)) }}{% endif %}</details>
 </section>
+{% endif %}
 <section class="card" style="max-width:620px" id="backups">
   <h3 class="set-h">{% trans trimmed %}Backups{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
@@ -189,6 +205,7 @@
     </form>
   </details>
 </section>
+{% if not hosted %}
 <section class="card stack danger-zone" style="max-width:620px" id="delete">
   <h3 class="set-h" style="margin:0">{% trans trimmed %}Delete all my data{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Removes everything inPace keeps in its folder: your courses, progress, notes, milestones, people, races, reminders and your private key. inPace starts fresh, like the first day. This can't be undone, so make a backup first if you might want it back.{% endtrans %}</p>
@@ -202,7 +219,9 @@
     </form>
   </details>
 </section>
+{% endif %}
 <h2 class="set-group" id="g-app">{% trans trimmed %}The app{% endtrans %}</h2>
+{% if not hosted %}
 <section class="card" style="max-width:620px" id="updates">
   <h3 class="set-h">{% trans trimmed %}Updates{% endtrans %}</h3>
   <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>
@@ -227,6 +246,7 @@
     <p class="small muted">{% trans trimmed %}Updates come from inPace's GitHub releases. Each download is checked against the release's published checksums before it's installed.{% endtrans %}</p>
   {% endif %}
 </section>
+{% endif %}
 <section class="card stack" style="max-width:620px" id="about">
   <div class="row">{{ mascot('happy', 70) }}<div class="grow"><h3 class="set-h" style="margin:0">{% trans trimmed %}About inPace{% endtrans %}</h3>
   <p class="muted" style="margin:.2rem 0 0">{{ T('Version {v}', v=update.version) }}</p></div></div>
@@ -239,7 +259,7 @@
   </div>
   <p class="small muted">{% trans trimmed %}Made by Mahmoud Yosri. MIT license.{% endtrans %}</p>
 </section>
-{% if not on_phone() %}
+{% if not on_phone() and not hosted %}
 <section class="card" style="max-width:620px">
   <h3 class="set-h">{% trans trimmed %}Quit inPace{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}Stops inPace in the background. Your data stays safe in the folder above.{% endtrans %}</p>

@@ -534,6 +534,9 @@ class Vault:
             },
             "created_at": now_utc(),
         }
+        import os as _os
+        if _os.environ.get("INPACE_HOSTED"):  # made in a shared inPace (host mode): say so, inside what's signed
+            body["server"] = {"name": _os.environ.get("INPACE_HOST_NAME", "")[:80]}
         h = fingerprint(body)
         sig = self.identity.sign({"kind": "milestone", "hash": h})
         self.db.execute("INSERT INTO milestones VALUES (?,?,?,?,?)",

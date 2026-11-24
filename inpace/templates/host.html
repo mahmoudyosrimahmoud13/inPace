@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Host mode') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <p class="eyebrow"><a data-up href="/settings">{% trans trimmed %}Settings{% endtrans %}</a></p>
+  <h1>{% trans trimmed %}Host mode{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}Share inPace with people on your network. Each person signs in from their own browser and gets their own inPace on this computer: their own courses and progress, kept apart from yours and from each other's.{% endtrans %}</p>
+</div>
+
+{% if public %}
+<div class="note bad host-warn" role="alert"><b>{% trans trimmed %}This looks like a public network.{% endtrans %}</b>
+  {% trans trimmed %}People you don't know may be able to reach inPace. Turn host mode off, or switch to a network you trust.{% endtrans %}</div>
+{% endif %}
+
+{% if not on %}
+<section class="card stack host-card" id="turn-on">
+  <h2>{% trans trimmed %}Share inPace on your network?{% endtrans %}</h2>
+  <p>{% trans trimmed %}Other people on this Wi-Fi or network will be able to open inPace in their browser and use the courses on this computer.{% endtrans %}</p>
+  <p><b>{% trans trimmed %}Before you turn it on:{% endtrans %}</b></p>
+  <ul class="host-risks">
+    <li><b>{% trans trimmed %}Anyone on this network can reach the sign-in page.{% endtrans %}</b> {% trans trimmed %}Only turn this on at home, in a class or at work, never on café, airport or hotel Wi-Fi.{% endtrans %}</li>
+    <li><b>{% trans trimmed %}This computer has to stay on and awake{% endtrans %}</b> {% trans trimmed %}for others to use inPace.{% endtrans %}</li>
+    <li><b>{% trans trimmed %}Everyone's progress is kept on this computer.{% endtrans %}</b> {% trans trimmed %}You, the host, could change it, so progress from this server is marked “signed by this server”, not by each learner's own device.{% endtrans %}</li>
+    <li><b>{% trans trimmed %}Videos are sent from this computer.{% endtrans %}</b> {% trans trimmed %}Many people watching at once can slow down your network.{% endtrans %}</li>
+    <li><b>{% trans trimmed %}inPace isn't ready to be reached from the internet.{% endtrans %}</b> {% trans trimmed %}Host mode works on your own network only. Opening a port on your router would let anyone in the world reach the sign-in page.{% endtrans %}</li>
+  </ul>
+  <form method="post" class="stack" data-host-on>
+    <input type="hidden" name="action" value="on">
+    <label class="check"><input type="checkbox" name="trust" value="1" required> {% trans trimmed %}I'm on a network I trust{% endtrans %}</label>
+    <label class="check"><input type="checkbox" name="stored" value="1" required> {% trans trimmed %}I understand that everyone's progress is stored on this computer{% endtrans %}</label>
+    <label>{% trans trimmed %}Port{% endtrans %} <input type="number" name="port" min="1024" max="65535" value="{{ port }}" style="width:7rem" dir="ltr"></label>
+    <div class="row wrap"><button class="btn primary">{{ icon('users', 18) }}{% trans trimmed %}Turn on host mode{% endtrans %}</button>
+      <a class="btn" href="/settings">{% trans trimmed %}Cancel{% endtrans %}</a></div>
+  </form>
+  {% if door_error %}<p class="note bad small">{{ door_error }}</p>{% endif %}
+</section>
+{% else %}
+<section class="card stack host-card host-live">
+  <h2>{{ icon('users', 20) }} {% trans trimmed %}Host mode is on{% endtrans %}</h2>
+  <p>{% trans trimmed %}People on your network sign in at:{% endtrans %}</p>
+  <ul class="host-urls">{% for ip in ips %}<li><code dir="ltr">http://{{ ip }}:{{ port }}</code></li>{% else %}<li class="muted">{% trans trimmed %}This computer isn't on a network right now.{% endtrans %}</li>{% endfor %}</ul>
+  <p class="small muted">{% trans trimmed %}Keep this computer on and awake. If someone can't reach it, your computer's firewall may need to let inPace in on your private network.{% endtrans %}</p>
+  <form method="post"><input type="hidden" name="action" value="off"><button class="btn danger">{% trans trimmed %}Turn off host mode{% endtrans %}</button></form>
+</section>
+{% endif %}
+
+<section class="card stack host-card" id="people">
+  <h2>{% trans trimmed %}People{% endtrans %}</h2>
+  {% if people %}
+  <ul class="host-people">
+  {% for p in people %}
+    <li class="card flat">
+      <div class="row between wrap"><span><b dir="auto">{{ p.name }}</b> <code dir="ltr">{{ p.username }}</code>
+        {% if p.active %}<span class="chip good">{% trans trimmed %}Using inPace now{% endtrans %}</span>{% endif %}</span></div>
+      <details class="small"><summary>{% trans trimmed %}Change password or remove{% endtrans %}</summary>
+        <form method="post" class="row wrap host-inline"><input type="hidden" name="action" value="password"><input type="hidden" name="username" value="{{ p.username }}">
+          <input type="password" name="password" minlength="{{ min_password }}" required autocomplete="new-password" placeholder="{{ _('New password') }}" dir="ltr">
+          <button class="btn small">{% trans trimmed %}Change password{% endtrans %}</button></form>
+        <form method="post" class="row wrap host-inline"><input type="hidden" name="action" value="remove"><input type="hidden" name="username" value="{{ p.username }}">
+          <label class="check"><input type="checkbox" name="sure" value="1" required> {% trans trimmed %}Delete this account and all its progress{% endtrans %}</label>
+          <button class="btn small danger">{% trans trimmed %}Remove{% endtrans %}</button></form>
+      </details>
+    </li>
+  {% endfor %}
+  </ul>
+  {% else %}<p class="muted">{% trans trimmed %}No accounts yet. Make one for each person who will use inPace from this computer.{% endtrans %}</p>{% endif %}
+
+  <form method="post" class="stack host-add">
+    <input type="hidden" name="action" value="add">
+    <h3>{% trans trimmed %}Make an account{% endtrans %}</h3>
+    <div class="row wrap">
+      <label class="grow">{% trans trimmed %}Their name{% endtrans %}<input name="name" required maxlength="60" dir="auto"></label>
+      <label class="grow">{% trans trimmed %}Username{% endtrans %}<input name="username" required pattern="[a-z0-9][a-z0-9_.\-]{2,31}" autocapitalize="none" spellcheck="false" dir="ltr" placeholder="sara"></label>
+    </div>
+    <label>{% trans trimmed %}Password{% endtrans %}<input name="password" type="password" minlength="{{ min_password }}" required autocomplete="new-password" dir="ltr"></label>
+    <p class="small muted">{% trans trimmed %}8 characters or more, and a different password for each person. Not a password they use anywhere else: on your network it travels without HTTPS. Passwords are kept scrambled (hashed), never as they are.{% endtrans %}</p>
+    {% if courses %}
+    <details><summary class="small">{% trans trimmed %}Give them some of your courses (optional){% endtrans %}</summary>
+      <div class="host-courses">{% for c in courses %}<label class="check"><input type="checkbox" name="give" value="{{ c.id }}"> <span dir="auto">{{ c.title }}</span></label>{% endfor %}</div>
+    </details>
+    {% endif %}
+    <button class="btn primary">{% trans trimmed %}Make the account{% endtrans %}</button>
+  </form>
+</section>
+
+{% if people and courses %}
+<section class="card stack host-card" id="courses">
+  <h2>{% trans trimmed %}Give a course to everyone{% endtrans %}</h2>
+  <p class="small muted">{% trans trimmed %}The course goes into each person's inPace. Its videos and files aren't copied when your disk allows linking them, so a big course takes no extra space. Their progress starts from zero.{% endtrans %}</p>
+  <form method="post" class="row wrap">
+    <input type="hidden" name="action" value="give">
+    <select name="course" dir="auto">{% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}</select>
+    <button class="btn">{% trans trimmed %}Give it to everyone{% endtrans %}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="card stack host-card">
+  <h2>{% trans trimmed %}What people who sign in can't do{% endtrans %}</h2>
+  <p class="small">{% trans trimmed %}Anything that would act on this computer is off for them: opening files in your apps, “Show in folder”, folders on this computer, YouTube downloads, updates, alarms and quitting inPace. Nothing they do pops up on your screen.{% endtrans %}</p>
+  <p class="small">{% trans trimmed %}Progress files from them say “signed by a server”, so a checker knows the person who runs this computer could have changed them.{% endtrans %}</p>
+</section>
+{% endblock %}

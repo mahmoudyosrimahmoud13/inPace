@@ -45,6 +45,8 @@
     <p class="muted small" style="margin:0">{{ T('File received {date}', date=rec.received_at|date) }}{% if report.last_reviewed %} · {{ T('you last reviewed on {date}', date=report.last_reviewed|date) }}{% endif %}</p>
   </div>
 </div>
+{% if server %}<div class="note warn" role="note"><b>{% trans trimmed %}Signed by a server.{% endtrans %}</b>
+  {{ T('This progress comes from a shared inPace ({name}). The person who runs it could have changed it. Progress from someone’s own device is stronger proof.', name=(server.name ~ '’s inPace') if server.name else _('host mode')) }}</div>{% endif %}
 
 {% if reply_file %}
 <section class="card result good">

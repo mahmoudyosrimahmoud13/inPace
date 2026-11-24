@@ -120,6 +120,7 @@ def main() -> None:
     ap.add_argument("--remind", metavar="ID", help="show a reminder now (the computer's scheduler runs this)")
     ap.add_argument("--check-reminders", action="store_true",
                     help="show Tempo's automatic notifications that are due (the scheduler runs this every hour)")
+    ap.add_argument("--hosted", action="store_true", help=argparse.SUPPRESS)  # one person's inPace behind host mode
     ap.add_argument("link", nargs="?", default=None, help="an inPace link to open (inpace://open/...)")
     args, _unknown = ap.parse_known_args()  # macOS may add its own arguments (-psn_...)
     if args.remind or args.check_reminders:
@@ -138,6 +139,20 @@ def main() -> None:
             Path(args.which_window).write_text(kind, encoding="utf-8")
         return
 
+    if args.hosted:
+        # One person's own inPace, started by host mode's door: only the door can reach it (this computer,
+        # and a secret it sends). No window, updates, scheduler, video tools or inPace links for it.
+        if not os.environ.get("INPACE_HOST_TOKEN"):
+            sys.exit("inPace: --hosted is only for host mode.")
+        os.environ["INPACE_HOSTED"] = "1"
+        vault = Vault(args.home)
+        _quiet_streams(vault.home)
+        _remember_port(vault.home, args.port)
+        from .hosting import watch_the_door
+        threading.Thread(target=watch_the_door, daemon=True).start()
+        uvicorn.Server(uvicorn.Config(create_app(vault), host="127.0.0.1", port=args.port, log_level="warning")).run()
+        return
+
     vault = Vault(args.home)
     _quiet_streams(vault.home)
     _stop_old_copy(vault.home)
@@ -150,6 +165,14 @@ def main() -> None:
     threading.Thread(target=register, daemon=True).start()  # tapping inPace links opens this copy
     threading.Thread(target=_keep_reminders, args=(vault,), daemon=True).start()
     url = f"http://127.0.0.1:{port}/" + start_path(args.link)
+
+    from . import hosting  # host mode: the door on your network, if you turned it on in Settings
+    if vault._meta("host_on", "") == "1" and not os.environ.get("INPACE_MOBILE"):
+        try:
+            hosting.DOOR.start(vault.home, int(vault._meta("host_port", "") or hosting.DEFAULT_PORT),
+                               (vault.me or {}).get("name", ""))
+        except Exception:
+            pass
 
     # 127.0.0.1 means only this computer can reach it.
     config = uvicorn.Config(create_app(vault), host="127.0.0.1", port=port, log_level="warning")

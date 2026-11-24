@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.34.0
+
+### Host mode: share inPace with people on your network
+
+- **Settings → Sharing → Host mode.** Off unless you turn it on (computers only, not phones). Turning it on shows what it means first: anyone on the network can reach the sign-in page (so never on café, airport or hotel Wi-Fi), the computer has to stay on, everyone's progress is kept on it, videos are sent from it, and it isn't ready for the internet. You tick two boxes, pick a port (8780) and it starts. A bar on every page says it's on, with the address people use.
+- **An account for each person.** You make the accounts (name, username, password: 8 characters or more, a different one for each person). Passwords are kept as scrypt hashes, never as they are. Change a password or remove an account (and its progress) any time.
+- **Each person gets their own inPace.** People sign in from any browser on the network (phones too) at `http://<your computer>:8780`, and get their own inPace: their own courses, progress, keys and settings, kept apart from yours and from each other's. Each runs as its own program that only this computer can reach, started when they sign in and stopped after 30 minutes without a page, or when you quit inPace.
+- **Give your courses.** Give a course to one person or to everyone. Its videos and files are linked, not copied, when your disk allows it, so a big course takes no extra space, and a course that plays videos from a folder on your computer plays them for them too.
+- **Safe by default.** Anything that would act on your computer is off for people who sign in: opening files in your apps, Show in folder, folders on your computer, YouTube downloads, updates, alarms, the AI settings and Quit. Nothing they do pops up on your screen. Sign-in is limited to 10 tries in 10 minutes from one address, sessions end after 12 hours without a page, and the sign-in cookie can't be used by other sites.
+- **Honest proof.** Milestones made in a shared inPace carry "signed by a server" inside what's signed, and a checker reviewing them sees: "Signed by a server. The person who runs it could have changed it."
+
 ## v1.33.0
 
 ### Sprints: a short, intensive run of a roadmap

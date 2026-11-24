@@ -25,6 +25,7 @@ A free, open-source app that helps you follow a course and lets someone you trus
 - **Daily review.** Old questions come back over days and weeks so they stick.
 - **Notes on lessons (new in 1.25).** Select a sentence and press **Take a note**, like a reply button. Notes stay highlighted in the lesson, are listed per course, download as a Markdown file, and stay private.
 - **Roadmaps (new in 1.24).** A roadmap puts several courses in order toward one goal, like "Become a data analyst". Follow one from the library, or make your own: type a goal and inPace picks the matching courses and puts the basics first. Home keeps your place, and on Tempo's island each roadmap is a voyage with a lighthouse for every course and a chest at the end.
+- **Host mode (new in 1.34).** Share inPace with people on your network: turn it on in Settings, make an account for each person, and they sign in from any browser to their own inPace on your computer, with their own progress. Anything that would act on your computer is off for them, and their progress says it was signed by a server.
 - **Sprints (new in 1.33).** Run any roadmap as a short, intensive sprint: each course gets a day, tasks you tick, a day strip that shows what's late, and a report for your checker that tells finished courses (proven) from ticks (your word). Change any day or task, share your plan as a file, add roadmap files from **Roadmaps → Add a roadmap file**, or **make a sprint with AI** from the courses you can get.
 
 **Share and find courses**

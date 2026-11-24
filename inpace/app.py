@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 import json
 import zipfile
 from . import __version__
@@ -28,7 +29,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import ai, books, builder, checks, clock, codenote, progress, editor, encourage, exchange, focus, folders, garden, integrations, langs, library, notifier, offline, organize, pace, pdfnotes, races, record, reminders, roadmaps, updater
+from . import ai, books, builder, checks, clock, codenote, progress, editor, encourage, exchange, focus, folders, garden, hosting, integrations, langs, library, notifier, offline, organize, pace, pdfnotes, races, record, reminders, roadmaps, updater
 from . import mascot as mascot_mod
 from .mascot import mascot
 from .canon import now_utc, short
@@ -734,6 +735,9 @@ def create_app(vault: Vault) -> Starlette:
             except Exception:
                 base["timer_json"] = '{"on": false}'
             base["timer_look"] = focus.look(V)
+            base["hosted"] = hosting.is_hosted()
+            base["host_name"] = os.environ.get("INPACE_HOST_NAME", "") if base["hosted"] else ""
+            base["host_bar"] = _host_bar() if not base["hosted"] else None
             base["timer_here"] = _timer_here(request.url.path)
             if os.environ.get("INPACE_MOBILE"):
                 try:
@@ -3670,6 +3674,8 @@ def create_app(vault: Vault) -> Starlette:
         import secrets
         draft = str(form.get("src_draft", "")).strip()
         path = str(form.get("src_path", "")).strip().strip('"')
+        if hosting.is_hosted():
+            path = ""  # a shared inPace never reads a folder on the host computer
         ups = [u for u in form.getlist("src_files") if getattr(u, "filename", "")]
         if ups:
             draft = secrets.token_hex(8)
@@ -4285,7 +4291,7 @@ def create_app(vault: Vault) -> Starlette:
         form = await request.form()
         try:
             race = races.create_race(V, str(form.get("name", "")), str(form.get("kind", "")), int(form.get("days") or 14))
-            races.join_race(V, race, str(form.get("journey", "")), str(form.get("folder", "")))
+            races.join_race(V, race, str(form.get("journey", "")), "" if hosting.is_hosted() else str(form.get("folder", "")))
         except (ValueError, exchange.FileProblem) as e:
             return go("/races", err=str(e))
         return go(f"/races/{race['id']}", ok="Race created. Send the invite to your friends.")
@@ -4295,7 +4301,7 @@ def create_app(vault: Vault) -> Starlette:
         import json as _json
         try:
             race = _json.loads(str(form.get("race", "")))
-            races.join_race(V, race, str(form.get("journey", "")), str(form.get("folder", "")))
+            races.join_race(V, race, str(form.get("journey", "")), "" if hosting.is_hosted() else str(form.get("folder", "")))
         except (ValueError, exchange.FileProblem) as e:
             return go("/races", err=str(e))
         return go(f"/races/{race['id']}", ok=f"You joined “{race['name']}”.")
@@ -4338,7 +4344,7 @@ def create_app(vault: Vault) -> Starlette:
             races.send_cheer(V, rid, str(form.get("to", "")), str(form.get("text", "")))
             return go(f"/races/{rid}", ok="Cheer added. It goes out with your next update.")
         if action == "folder":
-            V.db.execute("UPDATE races SET folder=? WHERE id=?", (str(form.get("folder", "")).strip(), rid))
+            V.db.execute("UPDATE races SET folder=? WHERE id=?", ("" if hosting.is_hosted() else str(form.get("folder", "")).strip(), rid))
             V.db.commit()
             return go(f"/races/{rid}", ok="Saved.")
         if action == "leave":
@@ -4843,7 +4849,9 @@ def create_app(vault: Vault) -> Starlette:
                 reply_share = sh if sh["fits"] else None
             except exchange.FileProblem:
                 pass
-        return page("review.html", request, person=person, rec=rec, report=report, names=names, weekly=weekly,
+        server = (rec["data"].get("server") or next((m["body"].get("server") for m in report["milestones"]
+                                                     if m["body"].get("server")), None))
+        return page("review.html", request, person=person, rec=rec, report=report, names=names, weekly=weekly, server=server,
                     reply_file=reply_file, reply_share=reply_share, receipts=V.receipts(lid, jid),
                     graded=graded, have_files=checks.has_received_files(V), course=course, quizzes=quizzes,
                     sent=checks.sent_exams(V, lid, jid), course_diffs=diffs,
@@ -5032,6 +5040,75 @@ def create_app(vault: Vault) -> Starlette:
         integrations.save_ai_settings(V, str(form.get("provider", "")), str(form.get("model", "")),
                                       str(form.get("base_url", "")), str(form.get("key", "")))
         return go("/settings#ai", ok="AI settings saved.")
+
+    def _host_bar() -> dict | None:
+        """While host mode is on, every page of yours says so, with the address people use."""
+        if not hosting.DOOR.running:
+            return None
+        ips = hosting.addresses()
+        return {"url": f"http://{ips[0] if ips else 'this-computer'}:{hosting.DOOR.port}"}
+
+    async def host_page(request: Request):
+        """Settings → Host mode: share inPace with people on your network (v1.34)."""
+        if os.environ.get("INPACE_MOBILE"):
+            return go("/settings", err="Host mode works on a computer, not on a phone.")
+        if request.method == "POST":
+            form = await request.form()
+            action = str(form.get("action", ""))
+            try:
+                if action == "on":
+                    if not (form.get("trust") and form.get("stored")):
+                        return go("/settings/host", err="Tick both boxes first.")
+                    try:
+                        port = int(str(form.get("port") or hosting.DEFAULT_PORT))
+                    except ValueError:
+                        port = hosting.DEFAULT_PORT
+                    if not 1024 <= port <= 65535:
+                        return go("/settings/host", err="Pick a port from 1024 to 65535.")
+                    if not hosting.port_free(port):
+                        return go("/settings/host", err="That port is busy. Pick another one, like 8781.")
+                    V._set_meta("host_port", str(port))
+                    V._set_meta("host_on", "1")
+                    hosting.DOOR.start(V.home, port, V.me["name"])
+                    if not hosting.DOOR.running:
+                        V._set_meta("host_on", "")
+                        return go("/settings/host", err="Host mode couldn't start. The port may be busy.")
+                    return go("/settings/host", ok="Host mode is on. Make an account for each person.")
+                if action == "off":
+                    V._set_meta("host_on", "")
+                    hosting.DOOR.stop()
+                    return go("/settings/host", ok="Host mode is off. Nobody else can reach inPace now.")
+                if action == "add":
+                    hosting.add_user(V.home, str(form.get("username", "")), str(form.get("name", "")),
+                                     str(form.get("password", "")))
+                    given = [c for c in form.getlist("give") if V.get_course(str(c))]
+                    for cid in given:
+                        hosting.give_course(V, str(cid), [str(form.get("username", "")).strip().lower()])
+                    return go("/settings/host#people", ok="Made the account. Give the person their username and password.")
+                if action == "password":
+                    hosting.set_password(V.home, str(form.get("username", "")), str(form.get("password", "")))
+                    return go("/settings/host#people", ok="Changed the password.")
+                if action == "remove":
+                    if form.get("sure") != "1":
+                        return go("/settings/host#people", err="Tick the box to say you're sure.")
+                    hosting.remove_user(V.home, str(form.get("username", "")))
+                    return go("/settings/host#people", ok="Removed the account and its progress.")
+                if action == "give":
+                    users = [str(u) for u in form.getlist("to")] or list(hosting.load_users(V.home))
+                    n = hosting.give_course(V, str(form.get("course", "")), users)
+                    return go("/settings/host#courses", ok=say("Gave the course to %s people.", [n]))
+            except hosting.AccountProblem as e:
+                return go("/settings/host#people", err=str(e))
+            return go("/settings/host")
+        ips = hosting.addresses()
+        users = hosting.load_users(V.home)
+        people = []
+        for u, info in sorted(users.items()):
+            people.append({"username": u, "name": info.get("name", u),
+                           "active": u in hosting.DOOR.workers and hosting.DOOR.workers[u]["proc"].poll() is None})
+        return page("host.html", request, on=hosting.DOOR.running, port=hosting.DOOR.port or int(V._meta("host_port", "") or hosting.DEFAULT_PORT),
+                    ips=ips, public=hosting.network_looks_public(ips), people=people, courses=V.courses(),
+                    door_error=hosting.DOOR.error, min_password=hosting.MIN_PASSWORD)
 
     async def settings(request: Request):
         if request.method == "POST":
@@ -5931,6 +6008,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),
         Route("/settings/youtube", needs_setup(youtube_setting), methods=["POST"]),
+        Route("/settings/host", needs_setup(host_page), methods=["GET", "POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     from starlette.middleware import Middleware
@@ -5951,6 +6029,32 @@ def create_app(vault: Vault) -> Starlette:
                     pass
             return await self.app(scope, receive, send)
 
+    class HostedGuard:
+        """In a shared inPace (host mode): answer only the door, and keep people away from pages that would act
+        on the host computer (its files, its apps, its updates)."""
+
+        def __init__(self, app):
+            self.app = app
+            self.token = os.environ.get("INPACE_HOST_TOKEN", "")
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] != "http":
+                return await self.app(scope, receive, send)
+            headers = dict(scope.get("headers") or [])
+            if not self.token or not secrets.compare_digest(headers.get(b"x-inpace-host", b"").decode("latin-1"), self.token):
+                return await Response("Forbidden", status_code=403)(scope, receive, send)
+            path = scope.get("path", "")
+            if hosting.blocked(path):
+                CURRENT["lang"] = V._meta("lang", "en") or "en"
+                msg = say("This only works on the computer that runs inPace.")
+                if headers.get(b"x-inpace-fetch") or b"application/json" in headers.get(b"accept", b""):
+                    return await JSONResponse({"ok": False, "error": msg}, status_code=403)(scope, receive, send)
+                ref = headers.get(b"referer", b"/").decode("latin-1")
+                from urllib.parse import urlsplit
+                back = urlsplit(ref).path or "/"
+                return await RedirectResponse(back + "?err=" + quote(msg), status_code=303)(scope, receive, send)
+            return await self.app(scope, receive, send)
+
     async def page_not_found(request: Request, exc):
         """A link to a page that doesn't exist: in the app window, go home instead of a dead black page you can't
         leave (the window has no browser Back button)."""
@@ -5958,5 +6062,7 @@ def create_app(vault: Vault) -> Starlette:
             return RedirectResponse("/", status_code=303)
         return Response("Not found", status_code=404)
 
-    return Starlette(routes=routes, middleware=[Middleware(NavMiddleware), Middleware(LangMiddleware)],
-                     exception_handlers={404: page_not_found})
+    middleware = [Middleware(NavMiddleware), Middleware(LangMiddleware)]
+    if hosting.is_hosted():
+        middleware.insert(0, Middleware(HostedGuard))
+    return Starlette(routes=routes, middleware=middleware, exception_handlers={404: page_not_found})
