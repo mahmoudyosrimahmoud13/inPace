@@ -33,7 +33,7 @@
   <div class="stack" style="gap:.5rem">
     <b>{% trans trimmed %}Share your turtle{% endtrans %}</b>
     <p class="small muted" style="margin:0">{% trans trimmed %}Your contact card carries your turtle, so people you add see it. You can also save a picture of it to post anywhere.{% endtrans %}</p>
-    <form method="post" action="/me/turtle.png" class="row wrap" data-turtle-png>
+    <form method="post" action="/me/turtle.png" class="row wrap" data-turtle-png data-file-form>
       <input type="hidden" name="png" value="">
       <button class="btn">{{ icon('image', 18) }}{% trans trimmed %}Save a picture of my turtle{% endtrans %}</button>
       <a class="btn ghost" href="/me/turtle.svg" download>{% trans trimmed %}As SVG{% endtrans %}</a>
@@ -187,7 +187,7 @@
   <h3 class="set-h">{% trans trimmed %}Backups{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
   <p class="small muted">{% trans trimmed %}To keep it small, a backup leaves out downloaded YouTube videos and files bigger than 50 MB. Your progress, notes and answers are all in it.{% endtrans %}</p>
-  <form method="post" action="/settings/backup" class="row">
+  <form method="post" action="/settings/backup" class="row" data-file-form>
     <input type="password" name="password" minlength="6" required placeholder="{{ _('Choose a password (6+ characters)') }}" style="max-width:300px" autocomplete="new-password">
     <button class="btn primary">{% trans trimmed %}Download backup{% endtrans %}</button>
   </form>

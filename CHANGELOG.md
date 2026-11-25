@@ -1,9 +1,10 @@
 # Changelog
 
-## v1.36.1
+## v1.36.2
 
 - **Pages open much faster, on computers and phones.** Three things made every page slow, and the sprint page slowest: each course's progress was worked out again for every roadmap it's on (24 times on Home), every page read and parsed all your roadmap files several times over, and once an hour the roadmap and sprint pages waited for the course library's list to download before drawing anything, and kept trying on every visit when the download failed (no internet, a slow connection). Now progress and roadmaps are kept in memory until something changes, no page ever waits for the internet (a newer library list is fetched behind the page), and a failed download is remembered for ten minutes. With a real study history, Home went from 89 to 33 ms and the sprint page from 152 to 32 ms on a fast computer; on a phone, where Python runs inside the app, that's the difference between a two-second wait and a quick one.
 - The library page shows the saved list at once and fetches a newer one behind it; its refresh button still waits for a fresh one.
+- **Download backup works again.** On computers it showed "Method Not Allowed" instead of saving the file: the Settings page sends forms without reloading, and when the answer was a file it opened the address again without the form. Forms that answer with a file (the backup, your turtle picture, the island picture) are sent the usual way now, so the window saves the file, and any other form that answers with a file is handled the same way. Android was not affected.
 - **Slow scrolling on Linux: the window tries the graphics card again.** When the app window's first start was slow or the graphics card failed once, inPace fell back to drawing on the processor and kept that choice forever, which makes long pages like Settings scroll slowly. Now that choice is dropped after every update, so the graphics card is tried first again, and Settings → The app shows **Slow scrolling? Try the graphics card again** whenever inPace is drawing on the processor.
 
 ## v1.36.0

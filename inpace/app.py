@@ -6068,12 +6068,14 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/turtle", needs_setup(settings_turtle), methods=["POST"]),
         Route("/me/turtle.svg", needs_setup(my_turtle_svg)),
         Route("/me/turtle.png", needs_setup(my_turtle_png), methods=["POST"]),
+        Route("/me/turtle.png", lambda request: RedirectResponse("/settings#turtle", status_code=303)),  # a plain visit: back to the page
         Route("/island/look", needs_setup(island_look), methods=["POST"]),
         Route("/island/clear", needs_setup(island_clear), methods=["POST"]),
         Route("/island/gentle", needs_setup(island_gentle), methods=["POST"]),
         Route("/island/sharing", needs_setup(island_sharing), methods=["POST"]),
         Route("/island/share.svg", needs_setup(island_share_svg)),
         Route("/island/share.png", needs_setup(island_share_png), methods=["POST"]),
+        Route("/island/share.png", lambda request: RedirectResponse("/island", status_code=303)),  # a plain visit: back to the page
         Route("/people/{pid}/island", needs_setup(person_island)),
         Route("/island/start", needs_setup(island_start), methods=["POST"]),
         Route("/island/trip", needs_setup(island_trip)),
@@ -6100,6 +6102,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/updates/restart", needs_setup(update_restart), methods=["POST"]),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
+        Route("/settings/backup", lambda request: RedirectResponse("/settings#backups", status_code=303)),  # a plain visit: back to the page
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),
         Route("/settings/youtube", needs_setup(youtube_setting), methods=["POST"]),

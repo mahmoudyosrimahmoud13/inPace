@@ -135,3 +135,22 @@ def test_settings_offers_to_retry_the_graphics_card(app, monkeypatch):
     assert "Slow scrolling?" in page and 'action="/settings/window-retry"' in page
     c.post("/settings/window-retry")
     assert not (v.home / "window.json").exists() and "Slow scrolling?" not in c.get("/settings").text
+
+
+def test_forms_that_answer_with_a_file_are_saved_not_opened_again(app):
+    """The backup showed "Method Not Allowed": the page sent the form in the background, got a file back, then
+    opened its address again without the form. Forms that answer with a file are sent the usual way now."""
+    from pathlib import Path
+    v, c = app
+    page = c.get("/settings").text
+    assert '<form method="post" action="/settings/backup" class="row" data-file-form>' in page
+    assert 'action="/me/turtle.png" class="row wrap" data-turtle-png data-file-form' in page
+    island = (Path(__file__).parent.parent / "inpace" / "templates" / "island.html").read_text()
+    assert 'action="/island/share.png" data-share-island data-file-form' in island
+    js = (Path(__file__).parent.parent / "inpace" / "static" / "app.js").read_text()
+    assert 'if (f.hasAttribute("data-file-form")) return;' in js and "HTMLFormElement.prototype.submit.call(f)" in js
+    for path, back in (("/settings/backup", "/settings"), ("/me/turtle.png", "/settings"), ("/island/share.png", "/island")):
+        r = c.get(path, follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"].startswith(back), path
+    r = c.post("/settings/backup", data={"password": "secret123"})
+    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]

@@ -122,7 +122,7 @@
   {% if st.blooming %}<figcaption>{% trans trimmed %}Your checker approved a milestone, so the island is blooming this week.{% endtrans %}</figcaption>{% endif %}
   <figcaption class="isle-caption isle-share">
     <span class="small muted">{% if sharing %}{% trans trimmed %}People you add can see your island.{% endtrans %}{% else %}{% trans trimmed %}Your island is private.{% endtrans %}{% endif %}</span>
-    <form method="post" action="/island/share.png" data-share-island><input type="hidden" name="png" value="">
+    <form method="post" action="/island/share.png" data-share-island data-file-form><input type="hidden" name="png" value="">
       <button class="btn small primary">{{ icon('send', 16) }}{% trans trimmed %}Share my island{% endtrans %}</button></form>
   </figcaption>
 </figure>

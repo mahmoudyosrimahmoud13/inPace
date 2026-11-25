@@ -3018,6 +3018,7 @@ document.addEventListener("click", (ev) => {
     const f = e.target;
     if (e.defaultPrevented || !(f instanceof HTMLFormElement) || running) return;
     if ((f.getAttribute("method") || "get").toLowerCase() !== "post" || f.target || f.hasAttribute("data-nav-form")) return;
+    if (f.hasAttribute("data-file-form")) return;  // answers with a file (a backup): the window saves it the usual way
     if (!f.closest("[data-live][id]") || f.querySelector("input[type=file], [data-busy]") || f.enctype === "text/plain") return;
     const action = new URL(f.getAttribute("action") || location.href, location.href);
     if (action.origin !== location.origin) return;
@@ -3042,7 +3043,12 @@ document.addEventListener("click", (ev) => {
       const to = strip(r.url), here = strip(location.href);
       if (!r.ok || !type.includes("text/html")) {  // an error page, or a file: show it as the browser would
         if (type.includes("text/html")) { const html = await r.text(); document.open(); document.write(html); document.close(); }
-        else location.assign(r.url);
+        else if ((r.headers.get("content-disposition") || "").includes("attachment") || r.url === action.href) {
+          // A file came back. Opening its address again would ask for it without the form ("Method Not
+          // Allowed", v1.36.1): send the form the usual way instead, so the window saves the file.
+          running = false; btns.forEach((b) => { b.disabled = false; });
+          HTMLFormElement.prototype.submit.call(f);
+        } else location.assign(r.url);
         return;
       }
       if (to.pathname !== here.pathname || to.search !== here.search) { location.assign(r.url); return; }
@@ -4157,6 +4163,7 @@ window.inpaceMediaSession = (box, v) => {
     // Forms that update the page in place have their own feedback (and their buttons must stay as drawn).
     if (f.closest("[data-live]") || f.matches("[data-nav-form], [data-dl-form], .yt-save, [data-timer-form]")) return;
     const t = setTimeout(() => { if (btn.isConnected) btn.classList.add("is-busy"); }, 450);
+    if (f.hasAttribute("data-file-form")) setTimeout(() => { clearTimeout(t); btn.classList.remove("is-busy"); }, 4000);  // the page stays: a file is saved
     addEventListener("pagehide", () => clearTimeout(t), { once: true });
   });
 })();
