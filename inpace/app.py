@@ -1435,11 +1435,20 @@ def create_app(vault: Vault) -> Starlette:
     async def library_page(request: Request):
         """Courses other people shared in the inPace library. Only goes online when you open this page."""
         from starlette.concurrency import run_in_threadpool
-        try:
-            index = await run_in_threadpool(library.load_index, V.home, request.query_params.get("refresh") == "1")
-        except library.LibraryProblem as e:
-            return page("library.html", request, problem=str(e), entries=[], index={}, tab="courses", lib_roadmaps=[],
-                        followed=set(), titles={})
+        if request.query_params.get("refresh") == "1" or not library.cached_index(V.home):
+            # You asked for a fresh list (or there is none yet): wait for it
+            try:
+                index = await run_in_threadpool(library.load_index, V.home, True)
+            except library.LibraryProblem as e:
+                _lib_refresh["failed_at"] = _time.time()
+                return page("library.html", request, problem=str(e), entries=[], index={}, tab="courses", lib_roadmaps=[],
+                            followed=set(), titles={})
+        else:  # the saved list at once; a newer one is fetched behind the page when it's an hour old (v1.36.1)
+            index = library.cached_index(V.home)
+            if library.index_stale(V.home):
+                _refresh_library_later()
+            if _time.time() - _lib_refresh["failed_at"] < 600:
+                index["offline"] = True
         _note_library(index)
         _sync_roadmaps(index)
         new_ids = _library_new()
@@ -1574,7 +1583,7 @@ def create_app(vault: Vault) -> Starlette:
             index = await run_in_threadpool(library.load_index, V.home, True)
         except library.LibraryProblem as e:
             return go("/library", err=str(e))
-        rm_changed = _sync_roadmaps(index)
+        rm_changed = _sync_roadmaps(index, force=True)
         todo = [e for e in index.get("courses", []) if (c := V.get_course(str(e.get("id", ""))))
                 and c.hash != e.get("hash")]
         token = _progress_token(await request.form())
@@ -1613,24 +1622,60 @@ def create_app(vault: Vault) -> Starlette:
         return go("/library/updates", **msg)
 
     # ---- roadmaps (v1.24): a path through several courses ----------------------------------------------------
-    async def _library_now(online: bool = True) -> dict:
-        """The library's list: fresh when it's more than an hour old and we're online, else the last copy. Library
-        roadmaps you follow are brought up to date with it on the way."""
-        from starlette.concurrency import run_in_threadpool
-        if not online:
-            index = library.cached_index(V.home)
-        else:
+    _lib_refresh: dict = {"thread": None, "failed_at": 0.0}
+
+    def _refresh_library_later() -> None:
+        """Fetch a newer library list in the background, once at a time. A failure (offline, a slow
+        connection) is remembered for ten minutes, so pages don't try again and again."""
+        import threading as _th
+        t = _lib_refresh["thread"]
+        if (t and t.is_alive()) or _time.time() - _lib_refresh["failed_at"] < 600:
+            return
+
+        def run():
             try:
-                index = await run_in_threadpool(library.load_index, V.home)
-            except library.LibraryProblem:
-                index = library.cached_index(V.home)
+                index = library.load_index(V.home)
+                if index.get("offline"):
+                    _lib_refresh["failed_at"] = _time.time()
+            except Exception:
+                _lib_refresh["failed_at"] = _time.time()
+        t = _th.Thread(target=run, name="inpace-library", daemon=True)
+        _lib_refresh["thread"] = t
+        t.start()
+
+    async def _library_now(online: bool = True) -> dict:
+        """The library's list, from the last copy on disk: a page never waits for the internet (v1.36.1). When
+        the copy is more than an hour old and we may be online, a newer one is fetched in the background and
+        shows on the next page. Library roadmaps you follow are brought up to date with it on the way."""
+        index = library.cached_index(V.home)
+        if online and not os.environ.get("INPACE_HOSTED"):
+            if not index or library.index_stale(V.home):
+                if not index:  # the very first time: wait for it, there's nothing to show otherwise
+                    from starlette.concurrency import run_in_threadpool
+                    if _time.time() - _lib_refresh["failed_at"] >= 600:
+                        try:
+                            index = await run_in_threadpool(library.load_index, V.home)
+                        except library.LibraryProblem:
+                            _lib_refresh["failed_at"] = _time.time()
+                            index = {}
+                else:
+                    _refresh_library_later()
         _sync_roadmaps(index)
         return index
 
-    def _sync_roadmaps(index: dict) -> list[str]:
-        """Every library roadmap you follow, updated to the library's version in one go."""
+    _synced: dict = {"key": None}
+
+    def _sync_roadmaps(index: dict, force: bool = False) -> list[str]:
+        """Every library roadmap you follow, updated to the library's version in one go. Done once per library
+        list (it only changes when the library publishes), not on every page."""
+        key = (index.get("updated"), tuple((r.get("id"), r.get("hash")) for r in index.get("roadmaps") or []
+                                            if isinstance(r, dict)), len(index.get("courses") or []))
+        if not index or (_synced["key"] == key and not force):
+            return []
         try:
-            return roadmaps.sync_library(V.home, index, lambda cid: (library.find(index, cid) or {}).get("title", ""))
+            out = roadmaps.sync_library(V.home, index, lambda cid: (library.find(index, cid) or {}).get("title", ""))
+            _synced["key"] = key
+            return out
         except Exception:
             return []  # never let a damaged file stop a page from opening
 
@@ -5145,6 +5190,19 @@ def create_app(vault: Vault) -> Starlette:
                     ips=ips, public=hosting.network_looks_public(ips), people=people, courses=V.courses(),
                     door_error=hosting.DOOR.error, min_password=hosting.MIN_PASSWORD)
 
+    def _cpu_drawing() -> bool:
+        try:
+            from . import window as win
+            return sys.platform.startswith("linux") and not os.environ.get("INPACE_MOBILE") and win.drawing_on_cpu(V.home)
+        except Exception:
+            return False
+
+    async def window_retry_gpu(request: Request):
+        """Forget that the app window fell back to drawing on the CPU: the next start tries the graphics card."""
+        from . import window as win
+        win.forget(V.home)
+        return go("/settings#window", ok="Done. Quit inPace and start it again: it will try the graphics card first.")
+
     async def settings(request: Request):
         if request.method == "POST":
             form = await request.form()
@@ -5164,7 +5222,8 @@ def create_app(vault: Vault) -> Starlette:
             startup = None
         return page("settings.html", request, colors=COLORS, yt_guard=(V._meta("yt_ad_guard", "on") or "on") == "on", yt_block=(V._meta("yt_ad_block", "on") or "on") == "on", home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
-                    providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup)
+                    providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup,
+                    cpu_drawing=_cpu_drawing())
 
     # ---- Tempo's island (reward mode) -------------------------------------------------------------
     def _island_labels() -> dict:
@@ -6045,6 +6104,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),
         Route("/settings/youtube", needs_setup(youtube_setting), methods=["POST"]),
         Route("/settings/host", needs_setup(host_page), methods=["GET", "POST"]),
+        Route("/settings/window-retry", needs_setup(window_retry_gpu), methods=["POST"]),
         Mount("/static", StaticFiles(directory=HERE / "static"), name="static"),
     ]
     from starlette.middleware import Middleware

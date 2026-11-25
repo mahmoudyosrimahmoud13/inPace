@@ -221,6 +221,13 @@
 </section>
 {% endif %}
 <h2 class="set-group" id="g-app">{% trans trimmed %}The app{% endtrans %}</h2>
+{% if cpu_drawing %}
+<section class="card" style="max-width:620px" id="window">
+  <h3 class="set-h">{% trans trimmed %}Slow scrolling?{% endtrans %}</h3>
+  <p class="muted">{% trans trimmed %}inPace's window is drawing on the processor instead of the graphics card, which makes long pages scroll slowly. That happens when the graphics card failed once, or the first start was slow. Try the graphics card again: if the window comes up blank, inPace goes back to this by itself.{% endtrans %}</p>
+  <form method="post" action="/settings/window-retry"><button class="btn">{% trans trimmed %}Try the graphics card again{% endtrans %}</button></form>
+</section>
+{% endif %}
 {% if not hosted %}
 <section class="card" style="max-width:620px" id="updates">
   <h3 class="set-h">{% trans trimmed %}Updates{% endtrans %}</h3>

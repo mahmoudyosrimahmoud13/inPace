@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import time
 import unicodedata
@@ -299,15 +300,36 @@ def save(home: Path, rm: dict) -> dict:
     return rm
 
 
+_PARSED: dict[str, tuple[tuple, dict | None]] = {}  # file -> ((mtime, size), parsed): read and parsed once per change
+
+
+def _read(p: Path) -> dict | None:
+    """A roadmap file, parsed. Kept in memory until the file changes (v1.36.1): pages ask for your roadmaps
+    several times each (the sprint strip, the sprint timer, Home's list), and parsing them all every time
+    took a good part of a page on a phone. A caller gets its own copy."""
+    import copy
+    try:
+        st = p.stat()
+    except OSError:
+        _PARSED.pop(str(p), None)
+        return None
+    key = (st.st_mtime_ns, st.st_size)
+    hit = _PARSED.get(str(p))
+    if hit and hit[0] == key:
+        return copy.deepcopy(hit[1])
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        rm = parse(raw, raw.get("source", "mine"))
+    except (OSError, ValueError, RoadmapError):
+        rm = None
+    _PARSED[str(p)] = (key, rm)
+    return copy.deepcopy(rm)
+
+
 def get(home: Path, rid: str) -> dict | None:
     if not ID_RE.match(rid or ""):
         return None
-    p = _folder(home) / f"{rid}.json"
-    try:
-        raw = json.loads(p.read_text(encoding="utf-8"))
-        return parse(raw, raw.get("source", "mine"))
-    except (OSError, ValueError, RoadmapError):
-        return None
+    return _read(_folder(home) / f"{rid}.json")
 
 
 def mine(home: Path) -> list[dict]:
@@ -315,11 +337,13 @@ def mine(home: Path) -> list[dict]:
     out = []
     f = _folder(home)
     if f.is_dir():
-        for p in f.glob("*.json"):
-            rm = get(home, p.stem)
-            if rm:
-                rm["_mtime"] = p.stat().st_mtime
-                out.append(rm)
+        with os.scandir(f) as it:
+            for e in it:
+                if e.name.endswith(".json") and not e.name.startswith(".") and e.is_file():
+                    rm = _read(Path(e.path))
+                    if rm:
+                        rm["_mtime"] = e.stat().st_mtime
+                        out.append(rm)
     out.sort(key=lambda r: -r.pop("_mtime"))
     return out
 

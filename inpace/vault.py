@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS received_files (
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY, course TEXT, lesson TEXT, journey TEXT, quote TEXT, text TEXT, created_at TEXT, updated_at TEXT);
 CREATE INDEX IF NOT EXISTS notes_by_lesson ON notes (course, lesson);
+CREATE INDEX IF NOT EXISTS events_by_journey ON events (journey, seq);
 CREATE TABLE IF NOT EXISTS review_cards (
   course TEXT, qid TEXT, box INTEGER, due TEXT, PRIMARY KEY (course, qid));
 CREATE TABLE IF NOT EXISTS races (id TEXT PRIMARY KEY, data TEXT, journey TEXT, folder TEXT, joined_at TEXT);
@@ -126,6 +127,7 @@ class Vault:
         (self.home / "courses").mkdir(exist_ok=True)
         (self.home / "evidence").mkdir(exist_ok=True)
         self.db = sqlite3.connect(self.home / "vault.db", check_same_thread=False)
+        self._progress_cache: dict[str, tuple] = {}
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(people)")}
@@ -347,6 +349,7 @@ class Vault:
             (journey, type_, json.dumps(data, ensure_ascii=False), now_utc()),
         )
         self.db.commit()
+        self._progress_cache.pop(journey, None)
 
     def events(self, journey: str, after_seq: int = 0) -> list[dict]:
         rows = self.db.execute(
@@ -366,8 +369,22 @@ class Vault:
 
     # ---- progress (everything is calculated from events) --------------------
     def progress(self, journey: str) -> dict:
+        """Where you are in a course. Computed from every event of the journey, so it's kept (v1.36.1): pages
+        like Home ask for the same course's progress many times (once per roadmap it's on), and each time used
+        to walk and date-parse the whole history. The copy is dropped when an event is added or the course
+        changes; a caller gets its own copy, so what it does to it can't leak into the next page."""
         j = self.journey(journey)
         course = self.get_course(j["course_id"]) if j else None
+        last = self.db.execute("SELECT COALESCE(MAX(seq), 0) FROM events WHERE journey=?", (journey,)).fetchone()[0]
+        key = (last, course.hash if course else "", bool(j and j.get("archived")))
+        hit = self._progress_cache.get(journey)
+        if hit and hit[0] == key:
+            return _copy_progress(hit[1])
+        out = self._progress_uncached(journey, j, course)
+        self._progress_cache[journey] = (key, _copy_progress(out))
+        return out
+
+    def _progress_uncached(self, journey: str, j, course) -> dict:
         evs = self.events(journey)
         done_lessons = {e["data"]["lesson"] for e in evs if e["type"] == "lesson_done"}
         opened = {e["data"].get("lesson") for e in evs if e["type"] == "lesson_opened"}
@@ -641,6 +658,12 @@ def display_name(p: dict | None) -> str:
     if not p:
         return "Unknown"
     return p.get("nickname") or p.get("name") or "Someone"
+
+
+def _copy_progress(p: dict) -> dict:
+    """A copy of a progress dict that shares the (unchanging) Course object and copies everything else."""
+    import copy
+    return {k: (v if k == "course" else copy.deepcopy(v)) for k, v in p.items()}
 
 
 def active_minutes(events: list[dict]) -> int:

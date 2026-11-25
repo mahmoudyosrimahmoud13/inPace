@@ -2834,5 +2834,9 @@
  "Today’s window is closed. The next one opens in": "انتهى وقت اليوم. الوقت التالي يبدأ بعد",
  "Last day’s window is closed.": "انتهى وقت آخر يوم.",
  "The sprint starts in": "تبدأ الخطة بعد",
- "Day {d} of {n}": "اليوم {d} من {n}"
+ "Day {d} of {n}": "اليوم {d} من {n}",
+ "Slow scrolling?": "التمرير بطيء؟",
+ "inPace's window is drawing on the processor instead of the graphics card, which makes long pages scroll slowly. That happens when the graphics card failed once, or the first start was slow. Try the graphics card again: if the window comes up blank, inPace goes back to this by itself.": "نافذة inPace ترسم على المعالج بدل كرت الشاشة، وهذا يجعل تمرير الصفحات الطويلة بطيئًا. يحدث هذا عندما يفشل كرت الشاشة مرة، أو عندما يكون أول تشغيل بطيئًا. جرّب كرت الشاشة مرة أخرى: إذا ظهرت النافذة فارغة، يرجع inPace لهذا الوضع وحده.",
+ "Try the graphics card again": "جرّب كرت الشاشة مرة أخرى",
+ "Done. Quit inPace and start it again: it will try the graphics card first.": "تم. أغلق inPace وشغّله مرة أخرى: سيجرّب كرت الشاشة أولًا."
 }

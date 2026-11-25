@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.36.1
+
+- **Pages open much faster, on computers and phones.** Three things made every page slow, and the sprint page slowest: each course's progress was worked out again for every roadmap it's on (24 times on Home), every page read and parsed all your roadmap files several times over, and once an hour the roadmap and sprint pages waited for the course library's list to download before drawing anything, and kept trying on every visit when the download failed (no internet, a slow connection). Now progress and roadmaps are kept in memory until something changes, no page ever waits for the internet (a newer library list is fetched behind the page), and a failed download is remembered for ten minutes. With a real study history, Home went from 89 to 33 ms and the sprint page from 152 to 32 ms on a fast computer; on a phone, where Python runs inside the app, that's the difference between a two-second wait and a quick one.
+- The library page shows the saved list at once and fetches a newer one behind it; its refresh button still waits for a fresh one.
+- **Slow scrolling on Linux: the window tries the graphics card again.** When the app window's first start was slow or the graphics card failed once, inPace fell back to drawing on the processor and kept that choice forever, which makes long pages like Settings scroll slowly. Now that choice is dropped after every update, so the graphics card is tried first again, and Settings → The app shows **Slow scrolling? Try the graphics card again** whenever inPace is drawing on the processor.
+
 ## v1.36.0
 
 - **The sprint strip.** While a sprint runs, a strip at the top of every page counts down today's sprint window: pick when each day starts and ends (12:00 to 00:00 is a 12-hour window) and it shows the hours, minutes and seconds left. It follows the clock, so nothing pauses it, it's back after you restart inPace, and it goes away only when you stop the sprint. Your focus timer is separate and works as before.

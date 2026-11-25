@@ -150,6 +150,15 @@ def load_index(home: Path, refresh: bool = False) -> dict:
     return data
 
 
+def index_stale(home: Path) -> bool:
+    """True when the saved library list is more than an hour old, or there is none."""
+    cache = home / "library.json"
+    try:
+        return time.time() - cache.stat().st_mtime >= CACHE_SECONDS
+    except OSError:
+        return True
+
+
 def cached_index(home: Path) -> dict:
     """The last library list we downloaded, without going online. Empty if we never looked."""
     try:

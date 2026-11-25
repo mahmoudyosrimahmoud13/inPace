@@ -616,9 +616,24 @@ def forget(home: Path | None) -> None:
             pass
 
 
+CPU_WAYS = ("safe", "soft", "qt-soft")
+
+
 def _order(modes: tuple[str, ...], home: Path | None) -> list[str]:
-    last = remembered(home).get("way")
+    """The ways to try, the one that worked last time first. A way that draws on the CPU (safe, soft) makes
+    scrolling slow, so it's only kept for the version that chose it (v1.36.1): after an update, the graphics
+    card is tried first again, in case the fall-back was a one-time thing (a slow first start)."""
+    from . import __version__
+    mem = remembered(home)
+    last = mem.get("way")
+    if last in CPU_WAYS and mem.get("version") != __version__:
+        last = None
     return ([last] if last in modes else []) + [m for m in modes if m != last]
+
+
+def drawing_on_cpu(home: Path | None) -> bool:
+    """True when the app window draws without the graphics card (slow scrolling); Settings offers a retry."""
+    return remembered(home).get("way") in CPU_WAYS
 
 
 def _run_helper(cmd: list[str], env: dict, home: Path | None, name: str, on_ready=None) -> str:
