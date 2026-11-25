@@ -150,6 +150,12 @@ def _run(v, course_ids: set[str]) -> dict | None:
         hour = 0
     if 0 < hour < 24:  # a sprint day starts at this hour (a 4 pm start runs 4 pm to 4 pm)
         out["hour"] = hour
+    try:
+        end = int(v["end"]) if v.get("end") not in (None, "") else None
+    except (TypeError, ValueError):
+        end = None
+    if end is not None and 0 <= end < 24:  # each day's window ends at this hour (the countdown strip)
+        out["end"] = end
     if tasks:
         out["tasks"] = tasks
     if log:
@@ -489,7 +495,8 @@ def auto_plan(rm: dict, minutes_of: dict, days: int) -> dict:
     return plan
 
 
-def start_sprint(rm: dict, minutes_of: dict, days: int, hours: float, start: str, hour: int = 0) -> dict:
+def start_sprint(rm: dict, minutes_of: dict, days: int, hours: float, start: str, hour: int = 0,
+                 end: int | None = None) -> dict:
     """Start (or restart) a sprint on your copy of the roadmap. Ticks from an earlier run are dropped.
     hour: when each sprint day starts (0-23). Start at 16 and every day runs from 4 pm to 4 pm the next day, so
     late-night work still counts for the day you started it."""
@@ -497,7 +504,34 @@ def start_sprint(rm: dict, minutes_of: dict, days: int, hours: float, start: str
     run = {"start": start, **sp, "plan": auto_plan(rm, minutes_of, sp["days"]), "ticks": {}}
     if 0 < int(hour or 0) < 24:
         run["hour"] = int(hour)
+    if end is not None and 0 <= int(end) < 24:
+        run["end"] = int(end)
     return {**rm, "sprint_run": run}
+
+
+def sprint_window(run: dict, now) -> dict | None:
+    """Today's sprint window, for the countdown strip: it opens when the sprint day starts and closes at the
+    end hour you chose (12:00 to 00:00 is a 12-hour window). Without an end hour, the window is as long as the
+    hours a day. It follows the clock, so nothing pauses it, and it comes back after a restart.
+    Returns None once the sprint's last day is over."""
+    day = sprint_day(run, now)
+    days = int(run.get("days") or 0)
+    if day > days:
+        return None
+    if day < 1:
+        start = day_start(run, 1)
+        return {"state": "before", "day": 0, "days": days, "start": start, "end": start, "next": start}
+    import datetime as _dt
+    start = day_start(run, day)
+    hour = int(run.get("hour") or 0)
+    if run.get("end") is not None:
+        length = (int(run["end"]) - hour) % 24 or 24
+    else:
+        length = min(24.0, float(run.get("hours") or 0) or 24.0)
+    end = start + _dt.timedelta(hours=length)
+    nxt = start + _dt.timedelta(days=1)
+    state = "open" if now < end else ("closed" if day < days else "done")
+    return {"state": state, "day": day, "days": days, "start": start, "end": end, "next": nxt}
 
 
 def sprint_day(run: dict, now) -> int:
@@ -558,7 +592,7 @@ def tick(rm: dict, course: str, index: int, on: bool, at: str = "") -> dict:
     return {**rm, "sprint_run": {**run, "ticks": ticks, "log": log}}
 
 
-def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict) -> dict:
+def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict, end: int | None | str = "keep") -> dict:
     """Change your running sprint: its length, hours, the day of each step and its tasks.
 
     plan: course -> "3" or "4-5" (blank keeps the step where it was); tasks: course -> lines of text (the same as
@@ -594,6 +628,10 @@ def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict) -> dic
     if problems:
         raise RoadmapError(problems)
     out = {**run, **sp, "plan": new_plan}
+    if end != "keep":  # the hour each day's window ends (None: as long as the hours a day)
+        out.pop("end", None)
+        if end is not None and 0 <= int(end) < 24:
+            out["end"] = int(end)
     out.pop("tasks", None)
     if own:
         out["tasks"] = own
@@ -689,6 +727,7 @@ def sprint_status(rm: dict, st: dict, today, focus: dict | None = None) -> dict:
     focus_today = secs.get(day, 0) // 60
     return {"running": True, "start": run["start"], "day": day, "days": run["days"], "hours": run["hours"],
             "hour": int(run.get("hour") or 0),
+            "end_time": f"{int(run['end']):02d}:00" if run.get("end") is not None else "",
             "active_days": len(by_day), "custom": bool(run.get("tasks")), "focus_today": focus_today,
             "focus_total": sum(x["focus"] for x in strip),
             "focus_goal": int(round(float(run["hours"] or 0) * 60)),

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.36.0
+
+- **The sprint strip.** While a sprint runs, a strip at the top of every page counts down today's sprint window: pick when each day starts and ends (12:00 to 00:00 is a 12-hour window) and it shows the hours, minutes and seconds left. It follows the clock, so nothing pauses it, it's back after you restart inPace, and it goes away only when you stop the sprint. Your focus timer is separate and works as before.
+- **Its look.** A black band with the time in a yellow block, a mark for every hour along the track, and Tempo walking it as the day goes by. In the last half hour the time pulses; when the window closes the strip turns grey, Tempo sleeps, and it counts down to the next day's window. Tap it to open the sprint.
+- **Set the window.** "Each day starts at ... and ends at ..." when you start or make a sprint, and "Each day ends at" in Change the plan for a sprint that's already running. Without an end time, the window is as long as your hours a day.
+
 ## v1.35.0
 
 - **The person who checks on you follows your sprints.** Every progress file you send now carries the sprints its course is part of, signed with your key: the plan, what you ticked and when, which courses are finished in inPace (proven) and which are only ticked, what's late, and the focus time of each day. Nothing new to send or remember.

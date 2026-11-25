@@ -4183,3 +4183,53 @@ document.addEventListener("click", (e) => {
     .finally(() => setTimeout(() => { b.disabled = false; }, 800));
 });
 })();
+
+
+// ---- The sprint strip (v1.36) ------------------------------------------------------------------------------
+// A countdown to the end of today's sprint window, at the top of every page. It follows the clock: nothing
+// pauses it, it comes back after a restart (the server knows the window), and it goes away only when you stop
+// the sprint. Your focus timer is separate and still works as before.
+(() => {
+  const el = document.querySelector("[data-sprint-strip]");
+  if (!el) return;
+  let w = { start: +el.dataset.start, end: +el.dataset.end, next: +el.dataset.next, state: el.dataset.state };
+  const t = el.querySelector("[data-ss-time]"), lab = el.querySelector("[data-ss-label]"), bar = el.querySelector("[data-ss-bar]");
+  const tempo = el.querySelector("[data-ss-tempo]");
+  const fill = (p) => { const pc = (100 * Math.min(1, Math.max(0, p))).toFixed(2) + "%"; bar.style.width = pc; if (tempo) tempo.style.insetInlineStart = pc; };
+  const fmt = (ms) => { let s = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    s %= 60; return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0"); };
+  let asking = false;
+  const refresh = async () => {
+    if (asking) return; asking = true;
+    try {
+      const d = await (await fetch("/sprint-bar.json", { cache: "no-store" })).json();
+      if (!d || !d.end) { el.remove(); return; }
+      w = d; el.className = "sprint-strip " + d.state;
+      const day = el.querySelector(".ss-day"); if (day && d.day) day.textContent = day.textContent.replace(/\d+/, d.day);
+    } catch (e) { /* offline for a moment */ }
+    asking = false;
+  };
+  const tick = () => {
+    const now = Date.now();
+    let state = w.state;
+    if (state === "before" && now >= w.start) { refresh(); return; }
+    if (state === "open" && now >= w.end) state = w.state = (w.done ? "done" : "closed");
+    if (state === "closed" && now >= w.next) { refresh(); return; }
+    el.classList.toggle("open", state === "open"); el.classList.toggle("closed", state !== "open");
+    if (state === "open") {
+      t.textContent = fmt(w.end - now); lab.textContent = el.dataset.lLeft;
+      fill((now - w.start) / (w.end - w.start));
+      el.classList.toggle("last", w.end - now < 30 * 60 * 1000);  // the last half hour
+    } else if (state === "before") {
+      t.textContent = fmt(w.start - now); lab.textContent = el.dataset.lBefore; fill(0);
+    } else if (state === "done") {
+      t.textContent = ""; lab.textContent = el.dataset.lDone; fill(1);
+    } else {
+      t.textContent = fmt(w.next - now); lab.textContent = el.dataset.lClosed; fill(1);
+    }
+    if (state !== "open") el.classList.remove("last");
+  };
+  tick();
+  setInterval(tick, 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+})();

@@ -735,6 +735,10 @@ def create_app(vault: Vault) -> Starlette:
             except Exception:
                 base["timer_json"] = '{"on": false}'
             base["timer_look"] = focus.look(V)
+            try:
+                base["sprint_bar"] = _sprint_bar()
+            except Exception:
+                base["sprint_bar"] = None
             base["hosted"] = hosting.is_hosted()
             base["host_name"] = os.environ.get("INPACE_HOST_NAME", "") if base["hosted"] else ""
             base["host_bar"] = _host_bar() if not base["hosted"] else None
@@ -1934,7 +1938,7 @@ def create_app(vault: Vault) -> Starlette:
                     start = _today()
                 clean = roadmaps.start_sprint(clean, {x["course"]: x["minutes"] for x in st["steps"]},
                                               clean["sprint"]["days"], clean["sprint"]["hours"], start,
-                                              _form_hour(form, "sprint_start_time"))
+                                              _form_hour(form, "sprint_start_time"), _form_end(form, "sprint_end_time"))
                 roadmaps.save(V.home, clean)
                 return go(f"/roadmaps/{clean['id']}?plan=1#plan",
                           ok="Made your sprint. Now give each course its day and its tasks.")
@@ -2034,7 +2038,8 @@ def create_app(vault: Vault) -> Starlette:
             try:
                 run = rm.get("sprint_run") or {}
                 new = roadmaps.customize(rm, int(str(form.get("days") or run.get("days") or 7)),
-                                         float(str(form.get("hours") or 0) or 0), plan, tasks)
+                                         float(str(form.get("hours") or 0) or 0), plan, tasks,
+                                         _form_end(form, "end_time") if "end_time" in form else "keep")
             except ValueError:
                 return go(f"/roadmaps/{quote(rid)}?plan=1#plan", err="Days and hours should be numbers.")
             except roadmaps.RoadmapError as e:
@@ -2058,13 +2063,41 @@ def create_app(vault: Vault) -> Starlette:
         st = roadmaps.status(V, rm, index)
         minutes = {s["course"]: s["minutes"] for s in st["steps"]}
         focus.drop_ready(V)  # a sprint that starts again gets a fresh timer
-        roadmaps.save(V.home, roadmaps.start_sprint(rm, minutes, days, hours, start, _form_hour(form, "start_time")))
+        roadmaps.save(V.home, roadmaps.start_sprint(rm, minutes, days, hours, start, _form_hour(form, "start_time"),
+                                                    _form_end(form, "end_time")))
         return go(f"/roadmaps/{quote(rid)}#sprint", ok="Sprint started. Today's plan is at the top.")
 
     def _form_hour(form, name: str) -> int:
         """The hour a sprint day starts, from a time field ("16:00" -> 16)."""
         m = re.match(r"^\s*(\d{1,2})", str(form.get(name) or ""))
         return int(m.group(1)) % 24 if m else 0
+
+    def _form_end(form, name: str) -> int | None:
+        """The hour each sprint day's window ends, or None when the field is empty."""
+        return _form_hour(form, name) if str(form.get(name) or "").strip() else None
+
+    def _sprint_bar() -> dict | None:
+        """The countdown strip at the top of every page while a sprint runs (v1.36): today's sprint window."""
+        import datetime as _dt
+        now = _dt.datetime.now()
+        best = None
+        for rm in roadmaps.mine(V.home):
+            run = rm.get("sprint_run")
+            if not run:
+                continue
+            w = roadmaps.sprint_window(run, now)
+            if not w:
+                continue
+            item = {"rid": rm["id"], "title": rm["title"], "day": w["day"], "days": w["days"], "state": w["state"],
+                    "start": int(w["start"].timestamp() * 1000), "end": int(w["end"].timestamp() * 1000),
+                    "next": int(w["next"].timestamp() * 1000)}
+            rank = {"open": 0, "closed": 1, "before": 2, "done": 3}[w["state"]]
+            if best is None or rank < best[0]:
+                best = (rank, item)
+        return best[1] if best else None
+
+    async def sprint_bar_json(request: Request):
+        return JSONResponse(_sprint_bar() or {}, headers={"Cache-Control": "no-store"})
 
     async def roadmap_sprint_tick(request: Request):
         rid = request.path_params["rid"]
@@ -5992,6 +6025,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/island/done", needs_setup(island_done), methods=["POST"]),
         Route("/island/live.json", needs_setup(island_live)),
         Route("/timer.json", needs_setup(timer_json)),
+        Route("/sprint-bar.json", needs_setup(sprint_bar_json)),
         Route("/window/popout", needs_setup(window_popout), methods=["POST"]),
         Route("/window/popout/close", needs_setup(window_popout_close), methods=["POST"]),
         Route("/timer/{what}", needs_setup(timer_action), methods=["POST"]),

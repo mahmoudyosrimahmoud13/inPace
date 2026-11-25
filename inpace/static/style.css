@@ -2770,3 +2770,51 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 .sp-review-table td { padding: .3rem .4rem; border-block-end: 1px solid var(--line); vertical-align: top; }
 .sp-review-table tr.opt { color: var(--muted); }
 .sp-review-ticks { margin: .3rem 0 0; padding-inline-start: 1.1rem; }
+
+/* The sprint strip (v1.36): today's sprint window counting down, at the top of every page. A black band with the
+   time in a yellow block, hour marks along the track, and Tempo walking it: slow and steady, to the end of the day. */
+.sprint-strip { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .3rem .8rem;
+  padding: .55rem .75rem 1.55rem; margin-block-end: 1.1rem; border: 2px solid var(--black); border-radius: var(--r-sm);
+  background: var(--black); color: var(--black-ink); text-decoration: none; box-shadow: 4px 4px 0 var(--sun); }
+.sprint-strip:hover, .sprint-strip:focus-visible { text-decoration: none; transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--sun); }
+.sprint-strip:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.sprint-strip .ss-badge { display: grid; place-items: center; width: 2rem; height: 2rem; background: var(--sun); color: #111;
+  border: 2px solid var(--sun); }
+.sprint-strip .ss-head { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+.sprint-strip .ss-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; }
+.sprint-strip .ss-day { flex: none; font-size: .78rem; font-weight: 700; letter-spacing: .03em; padding: .1rem .45rem;
+  border: 1px solid currentColor; opacity: .85; white-space: nowrap; }
+.sprint-strip .ss-count { display: flex; align-items: center; gap: .55rem; justify-self: end; }
+.sprint-strip .ss-digits { font: 800 1.35rem/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums; letter-spacing: .04em; padding: .3rem .55rem; background: var(--sun); color: #111;
+  min-width: 6.4ch; text-align: center; }
+.sprint-strip .ss-digits:empty { display: none; }
+.sprint-strip .ss-label { font-size: .8rem; opacity: .8; max-width: 16rem; line-height: 1.25; }
+.sprint-strip .ss-track { position: absolute; inset-inline: .75rem; inset-block-end: .55rem; height: 8px;
+  background: repeating-linear-gradient(to right, transparent 0 calc(100% / var(--ss-hours) - 2px),
+    color-mix(in srgb, currentColor 45%, transparent) calc(100% / var(--ss-hours) - 2px) calc(100% / var(--ss-hours))),
+    color-mix(in srgb, currentColor 14%, transparent); }
+.sprint-strip .ss-fill { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0; background: var(--sun);
+  transition: width .9s linear; }
+.sprint-strip .ss-tempo { position: absolute; inset-block-end: -4px; inset-inline-start: 0; transform: translateX(-50%);
+  transition: inset-inline-start .9s linear; pointer-events: none; line-height: 0; }
+[dir="rtl"] .sprint-strip .ss-tempo { transform: translateX(50%) scaleX(-1); }
+.sprint-strip .ss-tempo svg { display: block; }
+.sprint-strip .ss-asleep { display: none; }
+.sprint-strip.open .ss-tempo { animation: ss-walk 1.2s ease-in-out infinite; }
+@keyframes ss-walk { 0%, 100% { margin-block-end: 0; } 50% { margin-block-end: 2px; } }
+.sprint-strip.last .ss-digits { animation: ss-pulse 1.6s ease-in-out infinite; }
+@keyframes ss-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sun) 70%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.sprint-strip.closed, .sprint-strip.done, .sprint-strip.before { box-shadow: 4px 4px 0 var(--line-strong); }
+.sprint-strip.closed .ss-fill, .sprint-strip.done .ss-fill { background: color-mix(in srgb, currentColor 40%, transparent); }
+.sprint-strip.closed .ss-digits, .sprint-strip.before .ss-digits { background: transparent; color: var(--black-ink); border: 1px solid currentColor; }
+.sprint-strip.closed .ss-awake, .sprint-strip.done .ss-awake { display: none; }
+.sprint-strip.closed .ss-asleep, .sprint-strip.done .ss-asleep { display: inline; }
+@media (prefers-reduced-motion: reduce) {
+  .sprint-strip .ss-fill, .sprint-strip .ss-tempo { transition: none; }
+  .sprint-strip.open .ss-tempo, .sprint-strip.last .ss-digits { animation: none; }
+}
+@media (max-width: 560px) {
+  .sprint-strip { grid-template-columns: auto 1fr; }
+  .sprint-strip .ss-count { grid-column: 1 / -1; justify-self: stretch; justify-content: space-between; }
+}

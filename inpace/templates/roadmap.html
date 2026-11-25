@@ -172,6 +172,7 @@
         <div class="row wrap">
           <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ sp.days }}"></label>
           <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
+          <label>{% trans trimmed %}Each day ends at{% endtrans %} <input type="time" name="end_time" step="3600" value="{{ sp.end_time or '' }}"></label>
         </div>
         {% for x in sp.steps %}
         <fieldset class="sp-plan-step">
@@ -193,6 +194,7 @@
         <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
         <label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="start" value="{{ today }}"></label>
         <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="start_time" step="3600" value="{{ now_hour }}"></label>
+        <label>{% trans trimmed %}and ends at{% endtrans %} <input type="time" name="end_time" step="3600" value="{{ sp.end_time if sp.running and sp.end_time else '' }}"></label>
         <button class="btn small" name="action" value="start">{% trans trimmed %}Restart from day 1{% endtrans %}</button>
         <button class="btn small danger" name="action" value="stop">{% trans trimmed %}Stop the sprint{% endtrans %}</button>
       </form>
@@ -208,6 +210,7 @@
       <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
       <label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="start" value="{{ today }}"></label>
         <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="start_time" step="3600" value="{{ now_hour }}"></label>
+        <label>{% trans trimmed %}and ends at{% endtrans %} <input type="time" name="end_time" step="3600" value="{{ sp.end_time if sp.running and sp.end_time else '' }}"></label>
       <button class="btn primary" name="action" value="start">{{ icon('bolt', 18) }}{% trans trimmed %}Start the sprint{% endtrans %}</button>
     </form>
     <p class="small muted">{% if sp.planned %}{% trans trimmed %}The roadmap already says which day each course belongs to.{% endtrans %}{% else %}{% trans trimmed %}inPace spreads the courses over the days by how long each one is.{% endtrans %}{% endif %}

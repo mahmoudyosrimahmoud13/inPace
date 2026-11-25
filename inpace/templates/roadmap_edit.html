@@ -48,7 +48,8 @@
       <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="sprint_days" min="1" max="60" value="{{ (draft.sprint or {}).days or 7 }}"></label>
       <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="sprint_hours" min="0" max="16" step="0.5" value="{{ (draft.sprint or {}).hours or 4 }}"></label>
       {% if not rm %}<label>{% trans trimmed %}Start{% endtrans %} <input type="date" name="sprint_start" value="{{ today }}"></label>
-      <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="sprint_start_time" step="3600" value="{{ now_hour }}"></label>{% endif %}
+      <label>{% trans trimmed %}Each day starts at{% endtrans %} <input type="time" name="sprint_start_time" step="3600" value="{{ now_hour }}"></label>
+      <label>{% trans trimmed %}and ends at{% endtrans %} <input type="time" name="sprint_end_time" step="3600"></label>{% endif %}
     </div>
     <p class="small muted">{% trans trimmed %}Want the AI to pick the courses and write the tasks?{% endtrans %} <a href="/roadmaps/ai">{% trans trimmed %}Make it with AI{% endtrans %}</a></p>
   </section>

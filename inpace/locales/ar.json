@@ -2826,5 +2826,13 @@
  "As of {date}.": "حتى {date}.",
  "Proven": "مثبتة",
  "When they ticked": "متى وضع العلامات",
- "Your sprint goes to the person who checks on you inside your progress files, signed. A course counts as proven when you finish it in inPace; ticks are your own word, and they see both.": "خطتك المكثفة تصل لمن يتابعك داخل ملفات تقدّمك، موقّعة. تُحسب الدورة مثبتة عندما تُنهيها في inPace، أما العلامات فهي كلمتك، وهو يرى الاثنين."
+ "Your sprint goes to the person who checks on you inside your progress files, signed. A course counts as proven when you finish it in inPace; ticks are your own word, and they see both.": "خطتك المكثفة تصل لمن يتابعك داخل ملفات تقدّمك، موقّعة. تُحسب الدورة مثبتة عندما تُنهيها في inPace، أما العلامات فهي كلمتك، وهو يرى الاثنين.",
+ "and ends at": "وينتهي الساعة",
+ "Each day ends at": "كل يوم ينتهي الساعة",
+ "left today": "باقٍ اليوم",
+ "until today’s window opens": "حتى يبدأ وقت اليوم",
+ "Today’s window is closed. The next one opens in": "انتهى وقت اليوم. الوقت التالي يبدأ بعد",
+ "Last day’s window is closed.": "انتهى وقت آخر يوم.",
+ "The sprint starts in": "تبدأ الخطة بعد",
+ "Day {d} of {n}": "اليوم {d} من {n}"
 }

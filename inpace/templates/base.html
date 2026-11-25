@@ -106,6 +106,20 @@
   {% endif %}
   <main>
     <div class="page {% block width %}{% endblock %}">
+      {% if sprint_bar %}{% set ss_hours = ((sprint_bar.end - sprint_bar.start) / 3600000)|round|int %}
+      <a class="sprint-strip {{ sprint_bar.state }}" href="/roadmaps/{{ sprint_bar.rid }}#sprint" data-sprint-strip
+         style="--ss-hours: {{ [ss_hours, 1]|max }}"
+         data-start="{{ sprint_bar.start }}" data-end="{{ sprint_bar.end }}" data-next="{{ sprint_bar.next }}" data-state="{{ sprint_bar.state }}"
+         data-l-left="{{ _('left today') }}" data-l-closed="{{ _('Today’s window is closed. The next one opens in') }}"
+         data-l-done="{{ _('Last day’s window is closed.') }}" data-l-before="{{ _('The sprint starts in') }}"
+         aria-label="{{ _('Sprint countdown') }}">
+        <span class="ss-badge">{{ icon('bolt', 18) }}</span>
+        <span class="ss-head"><b dir="auto">{{ sprint_bar.title }}</b>
+          {% if sprint_bar.day %}<span class="ss-day">{{ T('Day {d} of {n}', d=sprint_bar.day, n=sprint_bar.days) }}</span>{% endif %}</span>
+        <span class="ss-count"><span class="ss-digits" data-ss-time dir="ltr">--:--:--</span><span class="ss-label" data-ss-label></span></span>
+        <span class="ss-track" aria-hidden="true"><i class="ss-fill" data-ss-bar></i>
+          <span class="ss-tempo" data-ss-tempo><span class="ss-awake">{{ mascot('read', 30, '') }}</span><span class="ss-asleep">{{ mascot('sleepy', 30, '') }}</span></span></span>
+      </a>{% endif %}
       {% if host_bar %}<div class="host-bar" role="status">{{ icon('users', 18) }}<span>{% trans trimmed %}Host mode is on.{% endtrans %} {% trans trimmed %}People on your network can sign in at{% endtrans %} <b dir="ltr">{{ host_bar.url }}</b></span>
         <a class="btn small" href="/settings/host">{% trans trimmed %}Manage{% endtrans %}</a></div>{% endif %}
       {% if hosted %}<div class="host-bar guest" role="status">{{ icon('users', 18) }}<span>{{ T('You’re using {name}’s inPace on this network.', name=host_name or 'a shared') }}</span>
