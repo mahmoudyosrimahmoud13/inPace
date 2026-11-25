@@ -187,17 +187,27 @@
   <h3 class="set-h">{% trans trimmed %}Backups{% endtrans %}</h3>
   <p class="muted">{% trans trimmed %}A backup is one file with everything, locked with a password. Keep it on a USB drive or any cloud folder.{% endtrans %}</p>
   <p class="small muted">{% trans trimmed %}To keep it small, a backup leaves out downloaded YouTube videos and files bigger than 50 MB. Your progress, notes and answers are all in it.{% endtrans %}</p>
-  <form method="post" action="/settings/backup" class="row" data-file-form>
+  <p class="small">{{ T('Everything to back up: about {mb} MB (the file comes out smaller).', mb='%.0f'|format(backup.estimate_mb)) }}</p>
+  <form method="post" action="/settings/backup" class="row" data-progress>
     <input type="password" name="password" minlength="6" required placeholder="{{ _('Choose a password (6+ characters)') }}" style="max-width:300px" autocomplete="new-password">
-    <button class="btn primary">{% trans trimmed %}Download backup{% endtrans %}</button>
+    <button class="btn primary">{% trans trimmed %}Make a backup{% endtrans %}</button>
   </form>
+  {% if backup.name %}
+  <div class="card flat row between wrap" id="backup-ready">
+    <span><b>{% trans trimmed %}Backup ready{% endtrans %}</b> · {{ '%.1f'|format(backup.mb) }} MB<br><span class="small muted">{{ backup.made }} · {% trans trimmed %}kept on this device until you remove it{% endtrans %}</span></span>
+    <span class="row wrap">
+      <a class="btn primary" href="/settings/backup/file" download>{{ icon('download', 18) }}{% trans trimmed %}Download{% endtrans %}</a>
+      <form method="post" action="/settings/backup/delete"><button class="btn small">{% trans trimmed %}Remove{% endtrans %}</button></form>
+    </span>
+  </div>
+  {% endif %}
   <p class="small muted">{% trans trimmed %}There's no way to open a backup without its password. Write it down somewhere safe.{% endtrans %}</p>
   <details class="more"><summary>{% trans trimmed %}Restore from a backup{% endtrans %}</summary>
-    <form method="post" action="/settings/restore" enctype="multipart/form-data" class="stack" style="margin-block-start:.75rem">
+    <form method="post" action="/settings/restore" enctype="multipart/form-data" class="stack" style="margin-block-start:.75rem" data-progress>
       {% if on_phone() %}
       <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this phone with the backup.{% endtrans %}</p>
       {% else %}
-      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup.{% endtrans %}</p>
+      <p class="note warn" style="margin:0">{% trans trimmed %}Restoring replaces everything on this computer with the backup. inPace then starts again by itself.{% endtrans %}</p>
       {% endif %}
       <input type="file" name="file" required accept=".inpace-backup">
       <input type="password" name="password" required placeholder="{{ _("The backup's password") }}" autocomplete="current-password">
@@ -233,8 +243,16 @@
   <h3 class="set-h">{% trans trimmed %}Updates{% endtrans %}</h3>
   <p class="muted">{{ T('You have inPace {v}.', v=update.version) }}</p>
   {% if update.kind == 'android' %}
-    <p class="small">{% trans trimmed %}On Android, get new versions from the inPace website. Your courses and progress stay when you install the new version over this one.{% endtrans %}</p>
-    <a class="btn" href="https://mahmoudyosrimahmoud13.github.io/inPace/#download">{% trans trimmed %}Get the newest version{% endtrans %}</a>
+    {% if update.new and update.new.apk %}
+    <p class="small"><b>{{ T('inPace {v} is out.', v=update.new.version) }}</b> {% trans trimmed %}The app downloads it to the phone and opens Android's install dialog. Your courses and progress stay when you install the new version over this one.{% endtrans %}</p>
+    <div class="row wrap">
+      <a class="btn primary" href="{{ update.new.apk }}" data-android-update="{{ update.new.version }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Download and install{% endtrans %}</a>
+      {% if update.new.page %}<a class="btn" href="{{ update.new.page }}" target="_blank" rel="noopener">{% trans trimmed %}What's new{% endtrans %}</a>{% endif %}
+    </div>
+    {% else %}
+    <p class="small">{% trans trimmed %}The app looks for new versions by itself and downloads them to the phone; Android then asks you to install. Your courses and progress stay.{% endtrans %}</p>
+    {% endif %}
+    <form method="post" action="/updates/check" style="margin-block-start:.6rem" data-progress><button class="btn">{% trans trimmed %}Check now{% endtrans %}</button></form>
   {% elif update.kind == 'source' %}
     <p class="small">{% trans trimmed %}This copy runs from its code folder. Update it with git pull, and it uses the new code next time it starts.{% endtrans %}</p>
   {% else %}

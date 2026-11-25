@@ -143,7 +143,7 @@ def test_forms_that_answer_with_a_file_are_saved_not_opened_again(app):
     from pathlib import Path
     v, c = app
     page = c.get("/settings").text
-    assert '<form method="post" action="/settings/backup" class="row" data-file-form>' in page
+    assert 'action="/settings/backup" class="row" data-progress' in page  # v1.37: a progress bar, then a download link
     assert 'action="/me/turtle.png" class="row wrap" data-turtle-png data-file-form' in page
     island = (Path(__file__).parent.parent / "inpace" / "templates" / "island.html").read_text(encoding="utf-8")
     assert 'action="/island/share.png" data-share-island data-file-form' in island
@@ -152,5 +152,6 @@ def test_forms_that_answer_with_a_file_are_saved_not_opened_again(app):
     for path, back in (("/settings/backup", "/settings"), ("/me/turtle.png", "/settings"), ("/island/share.png", "/island")):
         r = c.get(path, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"].startswith(back), path
-    r = c.post("/settings/backup", data={"password": "secret123"})
+    c.post("/settings/backup", data={"password": "secret123"})
+    r = c.get("/settings/backup/file")
     assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]

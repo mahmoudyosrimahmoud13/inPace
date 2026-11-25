@@ -270,7 +270,9 @@ def test_one_button_runs_the_whole_sprint_day_with_breaks(app):
     from inpace import focus
     v, c = app
     today = dt.date.today().isoformat()
-    rm = roadmaps.start_sprint(roadmaps.parse(SPRINT, "mine"), {}, 7, 2, today)  # 2 hours a day
+    # the sprint day started yesterday at an hour that puts us outside today's 2-hour window: the timer waits, ready
+    yesterday = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+    rm = roadmaps.start_sprint(roadmaps.parse(SPRINT, "mine"), {}, 7, 2, yesterday, (dt.datetime.now().hour + 3) % 24)
     roadmaps.save(v.home, rm)
     page = c.get("/roadmaps/ml-sprint").text
     assert 'id="sprint-timer"' in page and "Focus today:" in page and "goal 2 h" in page
@@ -371,16 +373,18 @@ def test_the_sprint_timer_shows_up_on_todays_courses_and_stays_away_once_stopped
     c.post("/roadmaps/python-web/follow")
     c.post("/roadmaps/python-web/add/python-basics")
     c.post("/roadmaps/python-web/sprint", data={"action": "start", "days": "2", "hours": "3",
-                                                  "start": dt.date.today().isoformat()})
+                                                  "start": dt.date.today().isoformat(), "start_time": "00:00", "end_time": "00:00"})
     plan = roadmaps.get(v.home, "python-web")["sprint_run"]["plan"]
     jid = v.journey_for_course("python-basics") or c.post("/roadmaps/python-web/start/python-basics") and v.journey_for_course("python-basics")
     if plan["python-basics"][0] == 1:
         c.get(f"/learn/{jid}")
         d = focus._load(v)
-        assert d and d.get("ready") and d["chain"]["rid"] == "python-web" and d["label"].startswith("Sprint day 1")
+        # inside the day's window (all day, 00:00 to 00:00) the timer runs by itself (v1.37)
+        assert d and d["state"] == "running" and d["chain"]["rid"] == "python-web" and d["label"].startswith("Sprint day 1")
         c.post("/timer/stop")  # you don't want it today
         c.get(f"/learn/{jid}")
-        assert focus._load(v) is None and focus.stopped_today(v, "python-web")
+        assert focus._load(v) is None and v._meta("sprint_timer_off").endswith("|python-web")
+        assert focus.stopped_today(v, "python-web", d["chain"]["day_from"])
 
 
 def test_the_phone_notification_knows_the_sprint(app, monkeypatch):

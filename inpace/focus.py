@@ -197,15 +197,15 @@ def stop(v) -> None:
         d = _load(v)
         if d and (d.get("chain") or {}).get("phase") != "break":
             _bank(v, min(elapsed(d), d["goal"]))
-        if d and d.get("chain"):  # you stopped the sprint timer: it doesn't pop up again today
-            import datetime as _dt
-            v._set_meta("sprint_timer_off", f"{_dt.date.today().isoformat()}|{d['chain']['rid']}")
+        if d and d.get("chain"):  # you stopped the sprint timer: it doesn't start again this sprint day
+            ch = d["chain"]
+            v._set_meta("sprint_timer_off", f"{int(ch.get('day_from') or 0)}|{ch['rid']}")
     _save(v, None)
 
 
-def stopped_today(v, rid: str) -> bool:
-    import datetime as _dt
-    return (v._meta("sprint_timer_off", "") or "") == f"{_dt.date.today().isoformat()}|{rid}"
+def stopped_today(v, rid: str, day_from: float = 0) -> bool:
+    """You pressed Stop for today on this sprint day (day_from: when the day started, as a timestamp)."""
+    return (v._meta("sprint_timer_off", "") or "") == f"{int(day_from or 0)}|{rid}"
 
 
 def ready_sprint(v, rid: str, label: str, target_seconds: int, focus_min: int, break_min: int, journey: str = "",

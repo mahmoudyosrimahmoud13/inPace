@@ -157,6 +157,14 @@ def _run(v, course_ids: set[str]) -> dict | None:
         end = None
     if end is not None and 0 <= end < 24:  # each day's window ends at this hour (the countdown strip)
         out["end"] = end
+    rh = v.get("rhythm")  # the timer's blocks: [focus minutes, break minutes]
+    if isinstance(rh, (list, tuple)) and len(rh) == 2:
+        try:
+            f, b = int(rh[0]), int(rh[1])
+            if 10 <= f <= 120 and 3 <= b <= 30:
+                out["rhythm"] = [f, b]
+        except (TypeError, ValueError):
+            pass
     if tasks:
         out["tasks"] = tasks
     if log:
@@ -520,7 +528,7 @@ def auto_plan(rm: dict, minutes_of: dict, days: int) -> dict:
 
 
 def start_sprint(rm: dict, minutes_of: dict, days: int, hours: float, start: str, hour: int = 0,
-                 end: int | None = None) -> dict:
+                 end: int | None = None, rhythm: tuple | None = None) -> dict:
     """Start (or restart) a sprint on your copy of the roadmap. Ticks from an earlier run are dropped.
     hour: when each sprint day starts (0-23). Start at 16 and every day runs from 4 pm to 4 pm the next day, so
     late-night work still counts for the day you started it."""
@@ -530,7 +538,15 @@ def start_sprint(rm: dict, minutes_of: dict, days: int, hours: float, start: str
         run["hour"] = int(hour)
     if end is not None and 0 <= int(end) < 24:
         run["end"] = int(end)
+    if rhythm:
+        run["rhythm"] = [int(rhythm[0]), int(rhythm[1])]
     return {**rm, "sprint_run": run}
+
+
+def rhythm_of(run: dict) -> tuple[int, int]:
+    """The timer's blocks for this sprint: (focus minutes, break minutes), 50 and 10 unless you chose."""
+    rh = run.get("rhythm") or [50, 10]
+    return int(rh[0]), int(rh[1])
 
 
 def sprint_window(run: dict, now) -> dict | None:
@@ -555,7 +571,8 @@ def sprint_window(run: dict, now) -> dict | None:
     end = start + _dt.timedelta(hours=length)
     nxt = start + _dt.timedelta(days=1)
     state = "open" if now < end else ("closed" if day < days else "done")
-    return {"state": state, "day": day, "days": days, "start": start, "end": end, "next": nxt}
+    return {"state": state, "day": day, "days": days, "start": start, "end": end, "next": nxt,
+            "rhythm": rhythm_of(run)}
 
 
 def sprint_day(run: dict, now) -> int:
@@ -616,7 +633,8 @@ def tick(rm: dict, course: str, index: int, on: bool, at: str = "") -> dict:
     return {**rm, "sprint_run": {**run, "ticks": ticks, "log": log}}
 
 
-def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict, end: int | None | str = "keep") -> dict:
+def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict, end: int | None | str = "keep",
+              rhythm: tuple | None = None) -> dict:
     """Change your running sprint: its length, hours, the day of each step and its tasks.
 
     plan: course -> "3" or "4-5" (blank keeps the step where it was); tasks: course -> lines of text (the same as
@@ -652,6 +670,8 @@ def customize(rm: dict, days: int, hours: float, plan: dict, tasks: dict, end: i
     if problems:
         raise RoadmapError(problems)
     out = {**run, **sp, "plan": new_plan}
+    if rhythm:
+        out["rhythm"] = [int(rhythm[0]), int(rhythm[1])]
     if end != "keep":  # the hour each day's window ends (None: as long as the hours a day)
         out.pop("end", None)
         if end is not None and 0 <= int(end) < 24:
@@ -752,6 +772,7 @@ def sprint_status(rm: dict, st: dict, today, focus: dict | None = None) -> dict:
     return {"running": True, "start": run["start"], "day": day, "days": run["days"], "hours": run["hours"],
             "hour": int(run.get("hour") or 0),
             "end_time": f"{int(run['end']):02d}:00" if run.get("end") is not None else "",
+            "rhythm": list(rhythm_of(run)),
             "active_days": len(by_day), "custom": bool(run.get("tasks")), "focus_today": focus_today,
             "focus_total": sum(x["focus"] for x in strip),
             "focus_goal": int(round(float(run["hours"] or 0) * 60)),

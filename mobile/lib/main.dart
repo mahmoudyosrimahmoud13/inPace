@@ -53,10 +53,16 @@ class Reminders {
   static const tripId = 850001; // the focus trip's countdown, shown while a trip runs
   static const tripDoneId = 850002; // "your plant is ready", at the trip's last second
   static const tripNextId = 850003; // a sprint's next breaks and blocks (850003 to 850006), scheduled ahead
+  static const sprintId = 850007; // today's sprint window: a yellow card with the countdown (v1.37)
+  static const updateId = 850008; // the update downloading (v1.37)
   static const downloadsId = 850010; // downloads in progress (a foreground service, so Android lets them finish)
   static const downloadsDoneId = 850011; // "Downloads finished"
   static void Function()? onDownloadsStop;
   static String _tripKey = '';
+  static String _sprintKey = '';
+  static Timer? _sprintTick; // redraws the sprint card's progress bar every minute while the app lives
+  // inPace's sun yellow: every notification carries it, and the live ones (timer, sprint, downloads) are painted with it.
+  static const sun = Color(0xFFFFD43B);
   static Map<String, dynamic> labels = {};
   static String? pendingPage; // a page to open, from a tapped notification
   static Future<void> ready = Future.value(); // done once init() has finished (or failed)
@@ -140,6 +146,7 @@ class Reminders {
           timeoutAfter: 10 * 60 * 1000,
           styleInformation: style,
           largeIcon: face,
+          color: sun,
           actions: <AndroidNotificationAction>[
             AndroidNotificationAction('snooze', (labels['snooze'] as String?) ?? 'Snooze 10 min',
                 showsUserInterface: true, cancelNotification: true),
@@ -158,6 +165,7 @@ class Reminders {
         category: AndroidNotificationCategory.reminder,
         styleInformation: style,
         largeIcon: face,
+        color: sun,
       ),
     );
   }
@@ -253,6 +261,7 @@ class Reminders {
             notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
                 importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
                 category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+                color: sun, colorized: true,
                 actions: _timerActions(t, false),
                 largeIcon: const DrawableResourceAndroidBitmap('tempo_sleepy'))));
         return;
@@ -271,6 +280,7 @@ class Reminders {
               showWhen: true, when: ends.millisecondsSinceEpoch, usesChronometer: true, chronometerCountDown: true,
               timeoutAfter: left.inMilliseconds, // gone when the time is up
               category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
+              color: sun, colorized: true,
               actions: _timerActions(t, true),
               largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
       await _at(tripDoneId, ends, (t['done_title'] as String?) ?? '', (t['done_body'] as String?) ?? '', 'tempo',
@@ -292,6 +302,59 @@ class Reminders {
     } catch (_) {
       _tripKey = ''; // notifications not allowed (yet): try again on the next page
     }
+  }
+
+  // Today's sprint window (v1.37): one yellow card that stays while the window is open, with a countdown to
+  // its end that Android keeps running by itself and a bar showing how far through the day you are. The
+  // bar is redrawn every minute while inPace lives; when the window closes, the card goes by itself.
+  static Future<void> sprint(Map<String, dynamic>? sp) async {
+    final key = sp == null ? '' : '${sp['rid']}|${sp['end_ms']}|${sp['stopped']}|${sp['head']}';
+    if (key == _sprintKey) return;
+    _sprintKey = key;
+    _sprintTick?.cancel();
+    _sprintTick = null;
+    try {
+      if (sp == null) {
+        await plugin.cancel(id: sprintId);
+        return;
+      }
+      await _drawSprint(sp);
+      _sprintTick = Timer.periodic(const Duration(minutes: 1), (_) => _drawSprint(sp));
+    } catch (_) {
+      _sprintKey = '';
+    }
+  }
+
+  static Future<void> _drawSprint(Map<String, dynamic> sp) async {
+    final start = ((sp['start_ms'] as num?) ?? 0).toInt();
+    final end = ((sp['end_ms'] as num?) ?? 0).toInt();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (end <= now) {
+      _sprintTick?.cancel();
+      _sprintTick = null;
+      await plugin.cancel(id: sprintId);
+      return;
+    }
+    final total = (end - start).clamp(1, 1 << 40);
+    final pct = (((now - start) * 100) ~/ total).clamp(0, 100);
+    final stopped = sp['stopped'] == true;
+    final body = stopped ? ((sp['stopped_body'] as String?) ?? '') : ((sp['body'] as String?) ?? '');
+    final title = '${sp['title'] ?? ''}${sp['head'] != null ? ' · ${sp['head']}' : ''}';
+    try {
+      await plugin.show(id: sprintId, title: title, body: body,
+          payload: jsonEncode({'url': (sp['url'] as String?) ?? '/'}),
+          notificationDetails: NotificationDetails(android: AndroidNotificationDetails(
+              'inpace_sprint', (sp['channel'] as String?) ?? 'Sprint',
+              importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+              ongoing: true, autoCancel: false,
+              showWhen: true, when: end, usesChronometer: true, chronometerCountDown: true,
+              timeoutAfter: end - now,
+              showProgress: true, maxProgress: 100, progress: pct,
+              category: AndroidNotificationCategory.progress,
+              styleInformation: BigTextStyleInformation(body, summaryText: sp['l_left'] as String?),
+              color: sun, colorized: true,
+              largeIcon: DrawableResourceAndroidBitmap(stopped ? 'tempo_sleepy' : 'tempo_read'))));
+    } catch (_) {}
   }
 
   static Future<void> _snooze(Map<String, dynamic> data) async {
@@ -339,7 +402,7 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   WebViewController? _web;
   // Picture-in-picture (floating over other apps): MainActivity.kt answers on this channel.
   static const _pip = MethodChannel('inpace/pip');
@@ -364,6 +427,7 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // The web view starts up (it loads the browser engine, which takes a moment) while Python starts.
     _web = _makeWebView();
     _pip.setMethodCallHandler((call) async {
@@ -383,8 +447,15 @@ class _ShellState extends State<Shell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _links?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from Android's "allow installing apps" setting: open the install dialog for the waiting update.
+    if (state == AppLifecycleState.resumed && _apkWaiting != null && !_updating) _install();
   }
 
   Future<int> _freePort() async {
@@ -606,6 +677,10 @@ class _ShellState extends State<Shell> {
         await Reminders.sync(Map<String, dynamic>.from(msg['plan'] as Map));
       case 'trip':
         await Reminders.trip(msg['trip'] == null ? null : Map<String, dynamic>.from(msg['trip'] as Map));
+      case 'sprint':
+        await Reminders.sprint(msg['sprint'] == null ? null : Map<String, dynamic>.from(msg['sprint'] as Map));
+      case 'update':
+        await _update(msg['url'] as String, (msg['version'] as String?) ?? '');
       case 'media':
         // The lesson video in Android's media controls (MainActivity.kt makes the media session and notification).
         try { await _pip.invokeMethod('media', msg['state']); } catch (_) {}
@@ -672,7 +747,7 @@ class _ShellState extends State<Shell> {
         final details = AndroidNotificationDetails('inpace_downloads', channel,
             importance: Importance.low, priority: Priority.low, onlyAlertOnce: true, ongoing: true, autoCancel: false,
             showProgress: true, maxProgress: 100, progress: pct, indeterminate: pct == 0,
-            category: AndroidNotificationCategory.progress,
+            category: AndroidNotificationCategory.progress, color: Reminders.sun, colorized: true,
             actions: stop.isEmpty ? null : <AndroidNotificationAction>[
               AndroidNotificationAction('dl_stop', stop, showsUserInterface: true, cancelNotification: false),
             ]);
@@ -700,6 +775,7 @@ class _ShellState extends State<Shell> {
               notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_downloads', channel,
                   importance: Importance.defaultImportance, priority: Priority.defaultPriority,
                   styleInformation: BigTextStyleInformation((n['body'] as String?) ?? ''),
+                  color: Reminders.sun,
                   largeIcon: const DrawableResourceAndroidBitmap('tempo_cheer'))));
         }
       }
@@ -729,6 +805,80 @@ class _ShellState extends State<Shell> {
     await dir.create(recursive: true);
     final safe = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     return File('${dir.path}/$safe');
+  }
+
+  // Updates (v1.37): the new APK is downloaded to the app's own storage, with a yellow progress notification,
+  // then Android's install dialog opens (MainActivity hands the file over). If Android doesn't allow inPace to
+  // install apps yet, its setting opens first, and the dialog follows once you're back.
+  bool _updating = false;
+  String? _apkWaiting;
+
+  Future<void> _update(String url, String version) async {
+    if (_updating) return;
+    _updating = true;
+    _toast('Downloading inPace $version…');
+    try {
+      final dir = Directory('${(await getTemporaryDirectory()).path}/updates');
+      await dir.create(recursive: true);
+      for (final f in dir.listSync()) {
+        try { await f.delete(); } catch (_) {}  // older downloads
+      }
+      final file = File('${dir.path}/inPace-${version.replaceAll(RegExp(r'[^0-9A-Za-z.]'), '_')}.apk');
+      final client = http.Client();
+      final resp = await client.send(http.Request('GET', Uri.parse(url)));
+      if (resp.statusCode != 200) throw Exception('status ${resp.statusCode}');
+      final total = resp.contentLength ?? 0;
+      var got = 0;
+      var lastPct = -1;
+      final sink = file.openWrite();
+      await for (final chunk in resp.stream) {
+        sink.add(chunk);
+        got += chunk.length;
+        final pct = total > 0 ? (got * 100 ~/ total) : 0;
+        if (pct != lastPct) {
+          lastPct = pct;
+          await _updateNotice(version, pct, total);
+        }
+      }
+      await sink.close();
+      client.close();
+      await Reminders.plugin.cancel(id: Reminders.updateId);
+      _apkWaiting = file.path;
+      await _install();
+    } catch (e) {
+      await Reminders.plugin.cancel(id: Reminders.updateId);
+      _toast("Couldn't download the update: $e");
+    } finally {
+      _updating = false;
+    }
+  }
+
+  Future<void> _updateNotice(String version, int pct, int total) async {
+    final mb = total > 0 ? ' · ${(total / 1048576).toStringAsFixed(0)} MB' : '';
+    try {
+      await Reminders.plugin.show(id: Reminders.updateId, title: 'inPace $version', body: 'Downloading the update$mb',
+          notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_downloads', 'Downloads',
+              importance: Importance.low, priority: Priority.low, onlyAlertOnce: true, ongoing: true, autoCancel: false,
+              showProgress: true, maxProgress: 100, progress: pct, indeterminate: total == 0,
+              category: AndroidNotificationCategory.progress, color: Reminders.sun, colorized: true,
+              largeIcon: const DrawableResourceAndroidBitmap('tempo_read'))));
+    } catch (_) {}
+  }
+
+  Future<void> _install() async {
+    final path = _apkWaiting;
+    if (path == null) return;
+    try {
+      final r = await _pip.invokeMethod<String>('install', path);
+      if (r == 'ask') {
+        _toast('Allow inPace to install updates, then come back.');
+      } else {
+        _apkWaiting = null;  // Android's install dialog is open
+      }
+    } catch (e) {
+      _apkWaiting = null;
+      _toast("Couldn't open the installer: $e");
+    }
   }
 
   Future<void> _download(String url) async {

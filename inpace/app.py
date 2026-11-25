@@ -399,6 +399,7 @@ _ICONS = {
     "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     "lock": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     "shield": '<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+    "chart": '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     "send": '<path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/>',
     "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     "moon": '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
@@ -748,6 +749,10 @@ def create_app(vault: Vault) -> Starlette:
                     base["trip_live_json"] = json.dumps(_trip_live()).replace("<", "\\u003c")
                 except Exception:
                     base["trip_live_json"] = "null"
+                try:
+                    base["sprint_live_json"] = json.dumps(_sprint_live()).replace("<", "\\u003c")
+                except Exception:
+                    base["sprint_live_json"] = "null"
             elif base["island_on"]:
                 _arm_trip_timer()
             if base["island_on"] and not request.url.path.startswith("/island/trip"):
@@ -780,8 +785,6 @@ def create_app(vault: Vault) -> Starlette:
             if not j:
                 return None
             cid, jid = j["course_id"], j["id"]
-        if not (rid or cid):
-            return None
         now = _dt.datetime.now()
         for rm in roadmaps.mine(V.home):
             run = rm.get("sprint_run")
@@ -790,13 +793,17 @@ def create_app(vault: Vault) -> Starlette:
             day = roadmaps.sprint_day(run, now)
             if not 1 <= day <= run["days"]:
                 continue
-            if rid:
-                first = next((s for s in rm["steps"] if (run["plan"].get(s["course"]) or [0, 0])[0] <= day
-                              <= (run["plan"].get(s["course"]) or [0, 0])[1]), None)
+            w = roadmaps.sprint_window(run, now)
+            inside = bool(w and w["state"] == "open")
+            if not (rid or cid) and not inside:
+                continue  # another page, outside the window: nothing to show
+            first = next((s for s in rm["steps"] if (run["plan"].get(s["course"]) or [0, 0])[0] <= day
+                          <= (run["plan"].get(s["course"]) or [0, 0])[1]), None)
+            if rid or not cid:
                 fj = V.journey_for_course(first["course"]) if first and V.get_course(first["course"]) else ""
                 return rm, day, fj or ""
             r = run["plan"].get(cid)
-            if r and r[0] <= day <= r[1]:
+            if (r and r[0] <= day <= r[1]) or inside:
                 return rm, day, jid
         return None
 
@@ -809,20 +816,25 @@ def create_app(vault: Vault) -> Starlette:
             focus.drop_ready(V)
             return
         rm, day, jid = here
-        if focus._load(V) or (garden.is_on(V) and focus._trip(V)) or focus.stopped_today(V, rm["id"]):
+        day_from = roadmaps.day_start(rm["sprint_run"], day).timestamp()
+        if focus._load(V) or (garden.is_on(V) and focus._trip(V)) or focus.stopped_today(V, rm["id"], day_from):
             return
         hours = float(rm["sprint_run"].get("hours") or 0) or 8
-        day_from = roadmaps.day_start(rm["sprint_run"], day).timestamp()
         if focus.seconds_since(V, day_from) >= hours * 3600 - 30:
             return
-        fm, _, bm = (V._meta("sprint_rhythm", "50-10") or "50-10").partition("-")
+        fm, bm = roadmaps.rhythm_of(rm["sprint_run"])
         title = ""
         if jid:
             j = V.journey(jid)
             c = V.get_course(j["course_id"]) if j else None
             title = c.title if c else ""
         label = t("Sprint day {d}", d=day) + (f": {title}" if title else "")
-        focus.ready_sprint(V, rm["id"], label, int(hours * 3600), int(fm or 50), int(bm or 10), jid, say("Break"), day_from)
+        import datetime as _dt
+        w = roadmaps.sprint_window(rm["sprint_run"], _dt.datetime.now())
+        if w and w["state"] == "open":  # inside today's window: the timer runs with the sprint, by itself
+            focus.start_sprint(V, rm["id"], label, int(hours * 3600), fm, bm, jid, say("Break"), day_from)
+        else:
+            focus.ready_sprint(V, rm["id"], label, int(hours * 3600), fm, bm, jid, say("Break"), day_from)
 
     def _timer_here(path: str) -> dict:
         """What you're studying on this page, so a timer started here is labelled with it."""
@@ -922,6 +934,8 @@ def create_app(vault: Vault) -> Starlette:
                 fm, bm = 50, 10
             hours = float(run.get("hours") or 0) or 8
             V._set_meta("sprint_rhythm", f"{fm}-{bm}")
+            rm["sprint_run"]["rhythm"] = [fm, bm]
+            roadmaps.save(V.home, rm)
             if focus.sprint_on(V):  # the ready (or paused) sprint timer: this button just starts it
                 d0 = focus._load(V)
                 if d0 and d0["chain"]["rid"] != rm["id"]:
@@ -2033,6 +2047,35 @@ def create_app(vault: Vault) -> Starlette:
         mine.sort(key=lambda x: (x["sp"]["over"], x["sp"]["before"], -x["sp"]["day"]))
         return page("sprints.html", request, sprints=mine, follow=follow, index=index)
 
+    async def insights_page(request: Request):
+        """Insights (v1.37): your studying in charts, and every running sprint against its plan."""
+        import datetime as _dt
+        from . import insights
+        st = insights.study(V)
+        labels = [d.strftime("%d/%m") for d in st["dates"]]
+        today = len(labels) - 1
+        charts = {"focus": insights.bars(st["focus"], labels, say("Focus time per day"), " min", mark=today),
+                  "lessons": insights.bars(st["lessons"], labels, say("Lessons finished per day"), mark=today, tone="shell"),
+                  "clock": insights.clock(st["hours"], say("When you focus best"))}
+        index = await _library_now(online=False)
+        hours = focus.hour_totals(V)
+        out = []
+        for rm in roadmaps.mine(V.home):
+            if not rm.get("sprint_run"):
+                continue
+            sp = roadmaps.sprint_status(rm, roadmaps.status(V, rm, index), _dt.datetime.now(), hours)
+            a = insights.sprint(rm, sp)
+            if not a or sp["over"] and sp["day"] > sp["days"] + 7:
+                continue
+            days = [str(d) for d in range(1, a["days"] + 1)]
+            out.append({"rm": rm, "sp": sp, "a": a,
+                        "plan": insights.lines(a["expected"], a["done"], say("The plan against what you ticked"), days),
+                        "focus": insights.bars(a["focus"], days, say("Focus minutes per sprint day"), " min",
+                                               goal=a["goal"] or None, mark=a["today"] - 1 if 1 <= sp["day"] <= a["days"] else None,
+                                               tone="sky")})
+        out.sort(key=lambda x: (x["sp"]["over"], x["sp"]["before"]))
+        return page("insights.html", request, st=st, charts=charts, sprints=out)
+
     async def roadmap_new_sprint(request: Request):
         return go("/sprints")
 
@@ -2082,9 +2125,13 @@ def create_app(vault: Vault) -> Starlette:
                     tasks[step["course"]] = str(form.get(f"tasks_{i}", "")).splitlines()
             try:
                 run = rm.get("sprint_run") or {}
+                rh = None
+                if form.get("rhythm"):
+                    f_, _, b_ = str(form.get("rhythm")).partition("-")
+                    rh = (int(f_ or 50), int(b_ or 10))
                 new = roadmaps.customize(rm, int(str(form.get("days") or run.get("days") or 7)),
                                          float(str(form.get("hours") or 0) or 0), plan, tasks,
-                                         _form_end(form, "end_time") if "end_time" in form else "keep")
+                                         _form_end(form, "end_time") if "end_time" in form else "keep", rh)
             except ValueError:
                 return go(f"/roadmaps/{quote(rid)}?plan=1#plan", err="Days and hours should be numbers.")
             except roadmaps.RoadmapError as e:
@@ -2135,7 +2182,8 @@ def create_app(vault: Vault) -> Starlette:
                 continue
             item = {"rid": rm["id"], "title": rm["title"], "day": w["day"], "days": w["days"], "state": w["state"],
                     "start": int(w["start"].timestamp() * 1000), "end": int(w["end"].timestamp() * 1000),
-                    "next": int(w["next"].timestamp() * 1000)}
+                    "next": int(w["next"].timestamp() * 1000), "focus": w["rhythm"][0], "brk": w["rhythm"][1],
+                    "stopped": focus.stopped_today(V, rm["id"], w["start"].timestamp())}
             rank = {"open": 0, "closed": 1, "before": 2, "done": 3}[w["state"]]
             if best is None or rank < best[0]:
                 best = (rank, item)
@@ -5016,29 +5064,70 @@ def create_app(vault: Vault) -> Starlette:
         return download(p.read_bytes(), name, "application/json")
 
     async def backup(request: Request):
+        """Make a backup, with a progress bar, and keep it in the data folder: the page then shows its size
+        and a Download button (v1.37)."""
         form = await request.form()
+        token = _progress_token(form)
+        password = str(form.get("password", ""))
+        if len(password) < 6:
+            return go("/settings#backups", err="Use a password with at least 6 characters.")
+        label = say("Making the backup")
+
+        def work():
+            def on_progress(done, total):
+                progress.report(token, got=done, size=total, label=label)
+            return pace.save_backup(V, password, on_progress)
         try:
-            data = pace.make_backup(V, str(form.get("password", "")))
+            path = await run_in_threadpool(progress.within, token, {"title": "backup", "label": label}, work)
         except ValueError as e:
-            return go("/settings", err=str(e))
-        return download(data, f"inPace backup - {V.me['name']} - {now_utc()[:10]}.inpace-backup")
+            return go("/settings#backups", err=str(e))
+        mb = path.stat().st_size / 1048576
+        return go("/settings#backups", ok=say("Backup ready: %s MB. Press Download to save it.", [f"{mb:.1f}"]))
+
+    async def backup_file(request: Request):
+        """The newest backup, as a download."""
+        p = pace.latest_backup(V)
+        if not p:
+            return go("/settings#backups", err="Make a backup first.")
+        return FileResponse(str(p), media_type="application/octet-stream", filename=p.name)
+
+    async def backup_delete(request: Request):
+        p = pace.latest_backup(V)
+        if p:
+            p.unlink(missing_ok=True)
+        return go("/settings#backups", ok="Removed the backup from this computer.")
 
     async def restore(request: Request):
+        """Put a backup in place, with a progress bar, then start inPace again by itself (v1.37)."""
         form = await request.form()
+        token = _progress_token(form)
         up = form.get("file")
         if not up or not getattr(up, "filename", ""):
-            return go("/settings", err="Choose your backup file first.")
+            return go("/settings#backups", err="Choose your backup file first.")
+        progress.report(token, label=say("Reading the backup"))
         raw = await up.read()
+        password = str(form.get("password", ""))
+        progress.report(token, label=say("Checking the password"))
         try:
-            pace.open_backup(raw, str(form.get("password", "")))
+            await run_in_threadpool(pace.open_backup, raw, password)
         except ValueError as e:
-            return go("/settings", err=str(e))
+            progress.report(token, state="failed")
+            return go("/settings#backups", err=str(e))
         except Exception:
-            return go("/settings", err="This backup couldn't be read.")
-        pace.restore_backup(V, raw, str(form.get("password", "")))
-        # Reopen the restored data right away (closing inPace instead looked like a crash).
-        V.__init__(V.home)
-        return go("/", ok="Backup restored.")
+            progress.report(token, state="failed")
+            return go("/settings#backups", err="This backup couldn't be read.")
+        label = say("Restoring")
+
+        def work():
+            def on_progress(n, of):
+                progress.report(token, got=n, size=of, n=n, of=of, label=label)
+            return pace.restore_backup(V, raw, password, on_progress)
+        await run_in_threadpool(progress.within, token, {"title": "restore", "label": label}, work)
+        V.__init__(V.home)  # the restored data, open again
+        if updater.install_kind() == "android" or hosting.is_hosted():
+            return go("/", ok="Backup restored.")
+        progress.report(token, state="installing", note="restart", label=say("Starting inPace again"))
+        return _restarting(say("Backup restored. inPace opens again in a moment, with everything from the backup."), 1.2)
 
     async def youtube_setting(request: Request):
         form = await request.form()
@@ -5190,6 +5279,19 @@ def create_app(vault: Vault) -> Starlette:
                     ips=ips, public=hosting.network_looks_public(ips), people=people, courses=V.courses(),
                     door_error=hosting.DOOR.error, min_password=hosting.MIN_PASSWORD)
 
+    def _backup_info() -> dict:
+        """For Settings: about how big a backup would be, and the newest one made, with its size."""
+        try:
+            est = pace.backup_size(V)
+        except Exception:
+            est = 0
+        p = pace.latest_backup(V)
+        if p:
+            st = p.stat()
+            return {"estimate_mb": est / 1048576, "name": p.name, "mb": st.st_size / 1048576,
+                    "made": datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M")}
+        return {"estimate_mb": est / 1048576}
+
     def _cpu_drawing() -> bool:
         try:
             from . import window as win
@@ -5223,7 +5325,7 @@ def create_app(vault: Vault) -> Starlette:
         return page("settings.html", request, colors=COLORS, yt_guard=(V._meta("yt_ad_guard", "on") or "on") == "on", yt_block=(V._meta("yt_ad_block", "on") or "on") == "on", home=str(V.home), ai=integrations.ai_settings(V), videos=videos,
                     maker=_maker(av), av=av, has_turtle=bool(V.me.get("avatar")),
                     providers=integrations.PROVIDERS, models=integrations.DEFAULT_MODELS, startup=startup,
-                    cpu_drawing=_cpu_drawing())
+                    cpu_drawing=_cpu_drawing(), backup=_backup_info())
 
     # ---- Tempo's island (reward mode) -------------------------------------------------------------
     def _island_labels() -> dict:
@@ -5309,6 +5411,25 @@ def create_app(vault: Vault) -> Starlette:
                 "done_title": t("Your {plant} is ready!", plant=plant),
                 "done_body": say("Tempo finished the trip. Come and see it join the island."),
                 **_timer_buttons()}
+
+    def _sprint_live() -> dict | None:
+        """Today's sprint window for the phone's sprint notification (v1.37): a yellow card with the countdown to
+        the end of the window and how far through the day you are. None when no window is open."""
+        bar = _sprint_bar()
+        if not bar or bar["state"] != "open":
+            return None
+        CURRENT["lang"] = V._meta("lang", "en") or "en"
+        import datetime as _dt
+        end = _dt.datetime.fromtimestamp(bar["end"] / 1000)
+        return {"rid": bar["rid"], "title": bar["title"], "day": bar["day"], "days": bar["days"],
+                "start_ms": bar["start"], "end_ms": bar["end"], "focus": bar["focus"], "brk": bar["brk"],
+                "stopped": bool(bar["stopped"]), "url": f"/roadmaps/{bar['rid']}#sprint",
+                "channel": say("Sprint"),
+                "head": t("Day {d} of {n}", d=bar["day"], n=bar["days"]) if bar["day"] else bar["title"],
+                "body": t("Sprint day until {time} \u00b7 {f} min blocks, {b} min breaks", time=end.strftime("%H:%M"),
+                          f=bar["focus"], b=bar["brk"]),
+                "stopped_body": say("Timer stopped for today. Tap to start it again."),
+                "l_left": say("left today")}
 
     def _timer_buttons() -> dict:
         """The words on the notification's buttons (the phone app makes Pause, Go on and Stop from them)."""
@@ -5657,7 +5778,7 @@ def create_app(vault: Vault) -> Starlette:
 
     async def island_live(request: Request):
         """What the phone's notification should show about the focus trip right now."""
-        return JSONResponse({"trip": _trip_live()}, headers={"Cache-Control": "no-store"})
+        return JSONResponse({"trip": _trip_live(), "sprint": _sprint_live()}, headers={"Cache-Control": "no-store"})
 
     async def island_done(request: Request):
         just = garden.check(V)
@@ -5808,8 +5929,14 @@ def create_app(vault: Vault) -> Starlette:
             status = {}
         if status.get("version") and not updater.newer(status["version"]):
             status = {}  # already running that version
-        return {"kind": kind, "setting": V._meta("updates", "") or "", "status": status,
-                "version": updater.__version__}
+        out = {"kind": kind, "setting": V._meta("updates", "") or "", "status": status,
+               "version": updater.__version__}
+        if kind == "android":  # the phone downloads the new APK itself and opens Android's install dialog (v1.37)
+            rel = updater.news(V)
+            if rel:
+                out["new"] = {"version": rel["version"], "apk": (rel.get("assets") or {}).get(updater.ANDROID_APK, ""),
+                              "page": rel.get("page", "")}
+        return out
 
     async def update_setting(request: Request):
         form = await request.form()
@@ -5829,6 +5956,15 @@ def create_app(vault: Vault) -> Starlette:
     async def update_check(request: Request):
         import anyio
         token = _progress_token(await request.form())
+        if updater.install_kind() == "android":  # just look for the newest version; the phone app installs it
+            rel = await anyio.to_thread.run_sync(lambda: progress.within(token, {"title": "inPace", "note": "check"},
+                                                                          updater.check_news, V, True))
+            progress.report(token, state="done")
+            if not rel:
+                return go("/settings#updates", err="Couldn't check for updates right now. Are you online?")
+            if not updater.newer(rel["version"]):
+                return go("/settings#updates", ok="You have the newest version.")
+            return go("/settings#updates", ok=t("inPace {v} is out. Press Download and install.", v=rel["version"]))
         status = await anyio.to_thread.run_sync(lambda: progress.within(token, {"title": "inPace", "note": "check"},
                                                                          updater.run, V, force=True))
         progress.report(token, state="done")
@@ -5866,12 +6002,19 @@ def create_app(vault: Vault) -> Starlette:
     async def update_restart(request: Request):
         return _restarting()
 
-    def _restarting():
+    def _restarting(note: str = "", wait: float = 0.6):
+        """Say goodbye, then start inPace again. The page keeps trying the app's address and goes to it when the
+        new copy answers, so the window isn't left on a dead page (v1.37)."""
         import threading
-        threading.Timer(0.6, updater.restart).start()
-        return HTMLResponse('<!doctype html><meta charset="utf-8"><title>inPace</title>'
-                            '<body style="font-family:system-ui;padding:3rem;background:#F7F3EA;color:#111">'
-                            '<h1>Restarting inPace…</h1><p>The new version opens in a moment.</p></body>')
+        threading.Timer(wait, updater.restart).start()
+        note = html_escape(note or say("The new version opens in a moment."))
+        dark = (V._meta("theme", "") == "dark") if V.is_set_up else False
+        bg, ink = ("#161412", "#F2EDE2") if dark else ("#F7F3EA", "#111")
+        return HTMLResponse(f'<!doctype html><meta charset="utf-8"><title>inPace</title>'
+                            f'<body style="font-family:system-ui;padding:3rem;background:{bg};color:{ink}">'
+                            f'<h1>{html_escape(say("Restarting inPace…"))}</h1><p>{note}</p>'
+                            '<script>setTimeout(function w(){fetch("/ping",{cache:"no-store"}).then(function(r){'
+                            'if(r.ok)location.replace("/");else setTimeout(w,700)}).catch(function(){setTimeout(w,700)})},2500)</script></body>')
 
     async def set_look(request: Request):
         """Settings → Light or dark: like the device, light, or dark; and dark as dark brown or AMOLED black."""
@@ -5938,6 +6081,7 @@ def create_app(vault: Vault) -> Starlette:
         Route("/roadmaps/new", needs_setup(roadmap_new), methods=["GET", "POST"]),
         Route("/roadmaps/new-sprint", needs_setup(roadmap_new_sprint)),
         Route("/sprints", needs_setup(sprints_page)),
+        Route("/insights", needs_setup(insights_page)),
         Route("/roadmaps/shared", needs_setup(roadmap_follow_shared), methods=["POST"]),
         Route("/roadmaps/import", needs_setup(roadmap_import), methods=["POST"]),
         Route("/roadmaps/ai", needs_setup(roadmap_ai), methods=["GET", "POST"]),
@@ -6102,6 +6246,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/updates/restart", needs_setup(update_restart), methods=["POST"]),
         Route("/settings/ai", needs_setup(ai_settings), methods=["POST"]),
         Route("/settings/backup", needs_setup(backup), methods=["POST"]),
+        Route("/settings/backup/file", needs_setup(backup_file)),
+        Route("/settings/backup/delete", needs_setup(backup_delete), methods=["POST"]),
         Route("/settings/backup", lambda request: RedirectResponse("/settings#backups", status_code=303)),  # a plain visit: back to the page
         Route("/settings/restore", needs_setup(restore), methods=["POST"]),
         Route("/settings/delete-everything", needs_setup(delete_everything), methods=["POST"]),

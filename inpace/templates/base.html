@@ -60,6 +60,9 @@
   <span class="pill" title="{{ _('Nothing leaves this computer unless you send a file yourself') }}"><i class="dot"></i>{% trans trimmed %}Offline · on this computer{% endtrans %}</span>
   {% if me %}<button type="button" class="search-btn" data-search title="{{ _('Search and jump (Ctrl+K)') }}">{{ icon('search', 18) }}<span>{{ _('Search…') }}</span><kbd>Ctrl K</kbd></button>{% endif %}
   {% if me %}<button type="button" class="timer-btn" data-timer-open aria-haspopup="dialog" title="{{ _('Focus timer') }}" aria-label="{{ _('Focus timer') }}">{{ icon('timer', 20) }}</button>{% endif %}
+  {% if not on_phone() %}<button type="button" class="theme-toggle full-btn" data-full-btn aria-label="{{ _('Full screen (F11)') }}" title="{{ _('Full screen (F11)') }}" data-l-on="{{ _('Full screen (F11)') }}" data-l-off="{{ _('Leave full screen (F11 or Esc)') }}">
+    <span class="when-windowed">{{ icon('expand', 20) }}</span><span class="when-full">{{ icon('shrink', 20) }}</span>
+  </button>{% endif %}
   <button type="button" class="theme-toggle" data-theme-toggle aria-label="{{ _('Switch light or dark mode') }}" title="{{ _('Switch light or dark mode') }}">
     <span class="when-light">{{ icon('moon', 20) }}</span><span class="when-dark">{{ icon('sun', 20) }}</span>
   </button>
@@ -81,6 +84,7 @@
     {% set sprint_on = p.startswith('/sprints') or p.startswith('/roadmaps/ai') or p.startswith('/roadmaps/new-sprint') or (p.startswith('/roadmaps/new') and request is defined and request.query_params.get('sprint') == '1') %}
     <a href="/roadmaps" class="{{ 'on' if p.startswith('/roadmaps') and not sprint_on }}">{{ icon('route', 22) }}{{ _("Roadmaps") }}</a>
     <a href="/sprints" class="{{ 'on' if sprint_on }}">{{ icon('bolt', 22) }}{{ _("Sprints") }}</a>
+    <a href="/insights" class="{{ 'on' if p.startswith('/insights') }}">{{ icon('chart', 22) }}{{ _("Insights") }}</a>
     <a href="/milestones" class="{{ 'on' if p.startswith('/milestones') }}">{{ icon('shield', 22) }}{{ _("Milestones") }}</a>
     <a href="/island" class="{{ 'on' if p.startswith('/island') }}">{{ icon('island', 22) }}{{ _("Tempo's island") }}</a>
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
@@ -108,14 +112,17 @@
     <div class="page {% block width %}{% endblock %}">
       {% if sprint_bar %}{% set ss_hours = ((sprint_bar.end - sprint_bar.start) / 3600000)|round|int %}
       <a class="sprint-strip {{ sprint_bar.state }}" href="/roadmaps/{{ sprint_bar.rid }}#sprint" data-sprint-strip
-         style="--ss-hours: {{ [ss_hours, 1]|max }}"
+         style="--ss-hours: {{ [ss_hours, 1]|max }}; --ss-cycle: {{ (100 * (sprint_bar.focus + sprint_bar.brk) / (60 * [ss_hours, 1]|max))|round(4) }}%; --ss-focus: {{ (100 * sprint_bar.focus / (60 * [ss_hours, 1]|max))|round(4) }}%"
+         data-focus="{{ sprint_bar.focus }}" data-brk="{{ sprint_bar.brk }}"{% if sprint_bar.stopped %} data-stopped="1"{% endif %}
          data-start="{{ sprint_bar.start }}" data-end="{{ sprint_bar.end }}" data-next="{{ sprint_bar.next }}" data-state="{{ sprint_bar.state }}"
          data-l-left="{{ _('left today') }}" data-l-closed="{{ _('Today’s window is closed. The next one opens in') }}"
          data-l-done="{{ _('Last day’s window is closed.') }}" data-l-before="{{ _('The sprint starts in') }}"
+         data-l-block="{{ _('Block {n}') }}" data-l-break="{{ _('Break') }}" data-l-paused="{{ _('Paused') }}" data-l-stopped="{{ _('Timer stopped for today') }}"
          aria-label="{{ _('Sprint countdown') }}">
         <span class="ss-badge">{{ icon('bolt', 18) }}</span>
         <span class="ss-head"><b dir="auto">{{ sprint_bar.title }}</b>
           {% if sprint_bar.day %}<span class="ss-day">{{ T('Day {d} of {n}', d=sprint_bar.day, n=sprint_bar.days) }}</span>{% endif %}</span>
+        <span class="ss-phase" data-ss-phase hidden><i class="ss-dot"></i><span data-ss-phase-text></span> <b data-ss-phase-time dir="ltr"></b></span>
         <span class="ss-count"><span class="ss-digits" data-ss-time dir="ltr">--:--:--</span><span class="ss-label" data-ss-label></span></span>
         <span class="ss-track" aria-hidden="true"><i class="ss-fill" data-ss-bar></i>
           <span class="ss-tempo" data-ss-tempo><span class="ss-awake">{{ mascot('read', 30, '') }}</span><span class="ss-asleep">{{ mascot('sleepy', 30, '') }}</span></span></span>
@@ -187,7 +194,7 @@
   {% if me %}
   {% set p = active_path %}
   {% set waiting = checking|sum(attribute='waiting') if checking else 0 %}
-  {% set more_on = p.startswith('/roadmaps') or p.startswith('/sprints') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') or p.startswith('/feedback') or p.startswith('/share') or p.startswith('/downloads') %}
+  {% set more_on = p.startswith('/roadmaps') or p.startswith('/sprints') or p.startswith('/insights') or p.startswith('/island') or p.startswith('/races') or p.startswith('/library') or p.startswith('/people') or p.startswith('/review') or p.startswith('/settings') or p.startswith('/open') or p.startswith('/reminders') or p.startswith('/feedback') or p.startswith('/share') or p.startswith('/downloads') %}
   <nav class="tabbar" aria-label="{{ _('Main') }}">
     <a href="/" class="{{ 'on' if p == '/' }}" {{ 'aria-current=page' if p == '/' }}>{{ icon('home', 22) }}<span>{{ _("Home") }}</span></a>
     <a href="/courses" class="{{ 'on' if p.startswith('/courses') or p.startswith('/learn') }}">{{ icon('book', 22) }}<span>{{ _("Courses") }}</span></a>
@@ -200,6 +207,7 @@
     {% set sprint_on = p.startswith('/sprints') or p.startswith('/roadmaps/ai') or p.startswith('/roadmaps/new-sprint') or (p.startswith('/roadmaps/new') and request is defined and request.query_params.get('sprint') == '1') %}
     <a href="/roadmaps" class="{{ 'on' if p.startswith('/roadmaps') and not sprint_on }}">{{ icon('route', 22) }}{{ _("Roadmaps") }}</a>
     <a href="/sprints" class="{{ 'on' if sprint_on }}">{{ icon('bolt', 22) }}{{ _("Sprints") }}</a>
+    <a href="/insights" class="{{ 'on' if p.startswith('/insights') }}">{{ icon('chart', 22) }}{{ _("Insights") }}</a>
     <a href="/island" class="{{ 'on' if p.startswith('/island') }}">{{ icon('island', 22) }}{{ _("Tempo's island") }}</a>
     <a href="/races" class="{{ 'on' if p.startswith('/races') }}">{{ icon('flag', 22) }}{{ _("Races") }}</a>
     <a href="/library" class="{{ 'on' if p.startswith('/library') }}">{{ icon('library', 22) }}{{ _("Course library") }}{% if lib_new %}<em class="badge" title="{{ _('New courses') }}">{{ lib_new }}</em>{% endif %}</a>
@@ -222,7 +230,7 @@
   <p class="small muted">{% trans trimmed %}Your courses, progress and milestones stay as they are.{% endtrans %}</p>
   <div class="row wrap news-actions">
     {% if update_news.kind == 'android' %}
-    <a class="btn primary" href="{{ update_news.apk }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Download the update{% endtrans %}</a>
+    <a class="btn primary" href="{{ update_news.apk }}" data-android-update="{{ update_news.version }}" target="_blank" rel="noopener">{{ icon('download', 18) }}{% trans trimmed %}Download and install{% endtrans %}</a>
     {% elif update_news.kind == 'source' %}
     <p class="small"><b>{% trans trimmed %}This copy runs from its code folder. To update, run this in the inPace folder:{% endtrans %}</b> <code>git pull</code></p>
     {% else %}
@@ -231,7 +239,7 @@
     {% if update_news.page %}<a class="btn" href="{{ update_news.page }}" target="_blank" rel="noopener">{% trans trimmed %}What's new{% endtrans %}</a>{% endif %}
     <form method="post" action="/updates/later" data-news-later><button class="btn ghost">{% trans trimmed %}Later{% endtrans %}</button></form>
   </div>
-  {% if update_news.kind == 'android' %}<p class="small muted">{% trans trimmed %}Open the downloaded file to install it over this one. If Android asks, allow installing from your browser or files app.{% endtrans %}</p>{% endif %}
+  {% if update_news.kind == 'android' %}<p class="small muted">{% trans trimmed %}The app downloads it and Android asks you to install it over this one. If Android asks first, allow inPace to install updates.{% endtrans %}</p>{% endif %}
 </dialog>
 {% endif %}
 {% if tour %}
@@ -257,6 +265,7 @@
 </dialog>
 {% endif %}
 {% if trip_live_json is defined %}<script type="application/json" id="inpace-trip">{{ trip_live_json|safe }}</script>{% endif %}
+{% if sprint_live_json is defined %}<script type="application/json" id="inpace-sprint">{{ sprint_live_json|safe }}</script>{% endif %}
 <script src="/static/app.js?v={{ static_v['app.js'] }}"></script>
 </body>
 </html>

@@ -142,7 +142,8 @@ def test_download_links_in_courses(tmp_path):
 
 def test_restore_on_android_keeps_the_app_open(tmp_path, monkeypatch):
     v, c = _course(tmp_path)
-    backup = c.post("/settings/backup", data={"password": "longpassword"}).content
+    c.post("/settings/backup", data={"password": "longpassword"})
+    backup = c.get("/settings/backup/file").content
     fv, f = client(tmp_path, "Sara")
     monkeypatch.setenv("INPACE_MOBILE", "android")
     import os as _os
@@ -155,15 +156,21 @@ def test_restore_on_android_keeps_the_app_open(tmp_path, monkeypatch):
     assert fv.me["name"] == "Omar" and fv.get_course("fastapi")
 
 
-def test_restore_on_the_computer_keeps_the_app_open(tmp_path, monkeypatch):
+def test_restore_on_the_computer_starts_inpace_again(tmp_path, monkeypatch):
+    """v1.37: on a computer, inPace starts again by itself after a restore (the data is reopened first)."""
     v, c = _course(tmp_path)
-    backup = c.post("/settings/backup", data={"password": "longpassword"}).content
+    c.post("/settings/backup", data={"password": "longpassword"})
+    backup = c.get("/settings/backup/file").content
     fv, f = client(tmp_path, "Sara")
     monkeypatch.delenv("INPACE_MOBILE", raising=False)
-    import os as _os
-    monkeypatch.setattr(_os, "_exit", lambda code: (_ for _ in ()).throw(AssertionError("closed the app")))
+    from inpace import updater
+    restarted = []
+    monkeypatch.setattr(updater, "restart", lambda: restarted.append(1))
     r = f.post("/settings/restore", data={"password": "longpassword"},
                files={"file": ("me.inpace-backup", backup)}, follow_redirects=True)
-    assert "Backup restored." in html.unescape(r.text) and "Quit inPace" in html.unescape(f.get("/settings").text)
+    assert "Backup restored" in html.unescape(r.text) and "Restarting inPace" in r.text
     assert fv.me["name"] == "Omar" and fv.get_course("fastapi")
     assert "Omar" in html.unescape(f.get("/").text)
+    import time
+    time.sleep(1.5)
+    assert restarted == [1]

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Insights') }}{% endblock %}
+{% block main %}
+<div class="page-head">
+  <h1>{% trans trimmed %}Insights{% endtrans %}.</h1>
+  <p class="lead">{% trans trimmed %}How your studying goes: the last four weeks, and every sprint you're running.{% endtrans %}</p>
+</div>
+
+<div class="stats in-stats">
+  <div><b>{{ (st.this_week.focus / 60)|round(1) }} h</b><span>{% trans trimmed %}focused this week{% endtrans %}{% if st.last_week.focus %} · {{ T('last week {n} h', n=(st.last_week.focus / 60)|round(1)) }}{% endif %}</span></div>
+  <div><b>{{ st.this_week.lessons }}</b><span>{% trans trimmed %}lessons this week{% endtrans %}{% if st.last_week.lessons %} · {{ T('last week {n}', n=st.last_week.lessons) }}{% endif %}</span></div>
+  <div><b>{{ st.streak }}</b><span>{% trans trimmed %}days in a row{% endtrans %}</span></div>
+  <div><b>{% if st.top_hour is not none %}{{ '%02d'|format(st.top_hour) }}:00{% else %}–{% endif %}</b><span>{% trans trimmed %}your best hour{% endtrans %}</span></div>
+</div>
+
+{% if not st.total_focus and not st.total_lessons %}
+<p class="card soft">{% trans trimmed %}Nothing to show yet. Finish a lesson or run the focus timer, and the charts fill up from there.{% endtrans %}</p>
+{% else %}
+<section class="card in-card">
+  <h2>{% trans trimmed %}Focus time per day{% endtrans %}</h2>
+  <p class="small muted">{{ T('{h} hours in {d} active days of the last {n}', h=(st.total_focus / 60)|round(1), d=st.active_days, n=st.dates|length) }}</p>
+  {{ charts.focus|safe }}
+</section>
+<section class="card in-card">
+  <h2>{% trans trimmed %}Lessons finished per day{% endtrans %}</h2>
+  <p class="small muted">{{ T('{n} lessons, {q} quizzes', n=st.total_lessons, q=st.quizzes|sum) }}</p>
+  {{ charts.lessons|safe }}
+</section>
+<section class="card in-card">
+  <h2>{% trans trimmed %}When you focus best{% endtrans %}</h2>
+  <p class="small muted">{% trans trimmed %}Every hour of the day: the darker, the more focus time you've timed in it.{% endtrans %}</p>
+  {{ charts.clock|safe }}
+</section>
+{% endif %}
+
+{% if st.courses %}
+<section class="card in-card">
+  <h2>{% trans trimmed %}Courses{% endtrans %}</h2>
+  <ul class="in-courses">
+  {% for c in st.courses %}
+    <li><a href="/courses/{{ c.course }}" dir="auto">{{ c.title }}</a>
+      <span class="in-bar" aria-hidden="true"><i style="width: {{ c.percent }}%"></i></span>
+      <span class="small muted" dir="ltr">{{ c.percent }}% · {{ c.done }}/{{ c.total }}</span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% for s in sprints %}
+<section class="card in-card">
+  <h2>{{ icon('bolt', 18) }} <a href="/roadmaps/{{ s.rm.id }}#sprint" dir="auto">{{ s.rm.title }}</a></h2>
+  <p class="small muted">{{ T('Day {d} of {n}', d=s.sp.day, n=s.sp.days) }} · {{ T('{p}% of the plan ticked', p=s.a.percent) }}
+    · {{ T('worked on {w} of {d} days', w=s.a.worked, d=s.a.today) }}
+    {% if s.sp.day >= 1 %}· {% if s.a.on_track %}<span class="good-text">{% trans trimmed %}on track{% endtrans %}</span>{% else %}<span class="warn-text">{% trans trimmed %}behind the plan{% endtrans %}</span>{% endif %}{% endif %}</p>
+  <h3 class="small">{% trans trimmed %}The plan (thin line) against what you ticked (thick line){% endtrans %}</h3>
+  {{ s.plan|safe }}
+  {% if s.a.goal %}<h3 class="small">{{ T('Focus minutes per sprint day, against the {n} min goal (dotted)', n=s.a.goal) }}</h3>{% else %}<h3 class="small">{% trans trimmed %}Focus minutes per sprint day{% endtrans %}</h3>{% endif %}
+  {{ s.focus|safe }}
+</section>
+{% endfor %}
+{% endblock %}

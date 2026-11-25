@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
+import re
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 
@@ -161,10 +163,38 @@ def _belongs_in_backup(p, rel: str) -> bool:
         return False
 
 
-def make_backup(v: Vault, password: str) -> bytes:
+def backup_files(v: Vault) -> list[tuple]:
+    """What goes in a backup, besides the database: [(path, name inside, size)]."""
+    out = []
+    for p in v.home.rglob("*"):
+        rel = p.relative_to(v.home).as_posix()
+        if rel.split("/")[0] == "backups":  # earlier backups never go inside a backup
+            continue
+        if p.is_file() and not rel.startswith(("vault.db", "inpace.log")) and _belongs_in_backup(p, rel):
+            try:
+                out.append((p, rel, p.stat().st_size))
+            except OSError:
+                continue
+    return out
+
+
+def backup_size(v: Vault) -> int:
+    """About how much a backup would hold, before compression (for the Settings page)."""
+    try:
+        db = (v.home / "vault.db").stat().st_size
+    except OSError:
+        db = 0
+    return db + sum(size for _p, _rel, size in backup_files(v))
+
+
+def make_backup(v: Vault, password: str, on_progress=None) -> bytes:
+    """Everything, as one encrypted file. on_progress(done_bytes, total_bytes) is called as files go in."""
     if len(password) < 6:
         raise ValueError("Use a password with at least 6 characters.")
     v.db.commit()
+    files = backup_files(v)
+    total = sum(size for _p, _rel, size in files) + 1
+    done = 0
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         # A consistent copy of the database, even while the app is running.
@@ -176,18 +206,43 @@ def make_backup(v: Vault, password: str) -> bytes:
             copy.close()
             with open(f"{tmp}/vault.db", "rb") as f:
                 zf.writestr("vault.db", f.read())
-        for p in v.home.rglob("*"):
-            rel = p.relative_to(v.home).as_posix()
-            if p.is_file() and not rel.startswith(("vault.db", "inpace.log")) and _belongs_in_backup(p, rel):
-                try:  # a file another part of inPace is writing right now (locked on Windows) is skipped
-                    data = p.read_bytes()
-                except OSError:
-                    continue
-                zf.writestr(rel, data)
+        for p, rel, size in files:
+            try:  # a file another part of inPace is writing right now (locked on Windows) is skipped
+                data = p.read_bytes()
+            except OSError:
+                continue
+            zf.writestr(rel, data)
+            done += size
+            if on_progress:
+                on_progress(done, total)
         zf.writestr("backup.json", json.dumps({"made": _now().isoformat(), "name": v.me["name"]}))
     salt = nacl.utils.random(nacl.pwhash.argon2id.SALTBYTES)
     box = nacl.secret.SecretBox(_key(password, salt))
+    if on_progress:
+        on_progress(total, total)
     return BACKUP_MAGIC + salt + box.encrypt(buf.getvalue())
+
+
+def save_backup(v: Vault, password: str, on_progress=None) -> Path:
+    """Make a backup and keep it in <data folder>/backups/, so it can be downloaded (and its size shown).
+    Only the newest one is kept there."""
+    folder = v.home / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    data = make_backup(v, password, on_progress)
+    name = f"inPace backup - {v.me['name']} - {_now().strftime('%Y-%m-%d %H.%M')}.inpace-backup"
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+    for old in folder.glob("*.inpace-backup"):
+        old.unlink(missing_ok=True)
+    tmp = folder / (name + ".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(folder / name)
+    return folder / name
+
+
+def latest_backup(v: Vault) -> Path | None:
+    folder = v.home / "backups"
+    found = sorted(folder.glob("*.inpace-backup"), key=lambda p: p.stat().st_mtime) if folder.is_dir() else []
+    return found[-1] if found else None
 
 
 def open_backup(data: bytes, password: str) -> zipfile.ZipFile:
@@ -206,13 +261,15 @@ def open_backup(data: bytes, password: str) -> zipfile.ZipFile:
     return zf
 
 
-def restore_backup(v: Vault, data: bytes, password: str) -> None:
+def restore_backup(v: Vault, data: bytes, password: str, on_progress=None) -> int:
+    """Put a backup's files in place. on_progress(n, of) as files are written. Returns how many."""
     zf = open_backup(data, password)
     v.db.close()
-    for name in zf.namelist():
-        parts = name.split("/")
-        if ".." in parts or name.startswith("/") or name == "backup.json":
-            continue
-        target = v.home.joinpath(*parts)
+    names = [n for n in zf.namelist() if ".." not in n.split("/") and not n.startswith("/") and n != "backup.json"]
+    for i, name in enumerate(names, 1):
+        target = v.home.joinpath(*name.split("/"))
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(zf.read(name))
+        if on_progress:
+            on_progress(i, len(names))
+    return len(names)

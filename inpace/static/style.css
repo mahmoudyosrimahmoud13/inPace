@@ -2773,7 +2773,7 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 
 /* The sprint strip (v1.36): today's sprint window counting down, at the top of every page. A black band with the
    time in a yellow block, hour marks along the track, and Tempo walking it: slow and steady, to the end of the day. */
-.sprint-strip { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .3rem .8rem;
+.sprint-strip { position: relative; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: .3rem .8rem;
   padding: .55rem .75rem 1.55rem; margin-block-end: 1.1rem; border: 2px solid var(--black); border-radius: var(--r-sm);
   background: var(--black); color: var(--black-ink); text-decoration: none; box-shadow: 4px 4px 0 var(--sun); }
 .sprint-strip:hover, .sprint-strip:focus-visible { text-decoration: none; transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--sun); }
@@ -2791,9 +2791,18 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 .sprint-strip .ss-digits:empty { display: none; }
 .sprint-strip .ss-label { font-size: .8rem; opacity: .8; max-width: 16rem; line-height: 1.25; }
 .sprint-strip .ss-track { position: absolute; inset-inline: .75rem; inset-block-end: .55rem; height: 8px;
-  background: repeating-linear-gradient(to right, transparent 0 calc(100% / var(--ss-hours) - 2px),
-    color-mix(in srgb, currentColor 45%, transparent) calc(100% / var(--ss-hours) - 2px) calc(100% / var(--ss-hours))),
-    color-mix(in srgb, currentColor 14%, transparent); }
+  background:
+    repeating-linear-gradient(to right, transparent 0 calc(100% / var(--ss-hours) - 2px),
+      color-mix(in srgb, currentColor 55%, transparent) calc(100% / var(--ss-hours) - 2px) calc(100% / var(--ss-hours))),
+    repeating-linear-gradient(to right, color-mix(in srgb, currentColor 22%, transparent) 0 var(--ss-focus),
+      color-mix(in srgb, var(--sky) 55%, transparent) var(--ss-focus) var(--ss-cycle)); }
+.sprint-strip .ss-phase { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; white-space: nowrap;
+  padding: .15rem .5rem; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 999px; }
+.sprint-strip .ss-phase b { font-variant-numeric: tabular-nums; }
+.sprint-strip .ss-dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--sun); animation: ss-blink 1.4s ease-in-out infinite; }
+.sprint-strip.on-break .ss-dot { background: var(--sky); animation: none; }
+.sprint-strip.on-break .ss-digits { background: var(--sky); color: var(--sky-ink); }
+@keyframes ss-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .sprint-strip .ss-fill { position: absolute; inset-block: 0; inset-inline-start: 0; width: 0; background: var(--sun);
   transition: width .9s linear; }
 .sprint-strip .ss-tempo { position: absolute; inset-block-end: -4px; inset-inline-start: 0; transform: translateX(-50%);
@@ -2812,9 +2821,48 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 .sprint-strip.closed .ss-asleep, .sprint-strip.done .ss-asleep { display: inline; }
 @media (prefers-reduced-motion: reduce) {
   .sprint-strip .ss-fill, .sprint-strip .ss-tempo { transition: none; }
-  .sprint-strip.open .ss-tempo, .sprint-strip.last .ss-digits { animation: none; }
+  .sprint-strip.open .ss-tempo, .sprint-strip.last .ss-digits, .sprint-strip .ss-dot { animation: none; }
 }
 @media (max-width: 560px) {
   .sprint-strip { grid-template-columns: auto 1fr; }
+  .sprint-strip .ss-phase { grid-column: 1 / -1; justify-self: start; }
   .sprint-strip .ss-count { grid-column: 1 / -1; justify-self: stretch; justify-content: space-between; }
 }
+
+/* ---- Insights (v1.37): small inline charts that follow the theme ---- */
+.good-text { color: var(--shell); font-weight: 600; }
+.in-card h2 { font-size: 1.05rem; margin-block-end: .2rem; display: flex; align-items: center; gap: .4rem; }
+.in-card h2 a { color: inherit; text-decoration: none; }
+.in-card h3.small { margin: 1rem 0 .3rem; color: var(--muted); font-weight: 500; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .ch-grid { stroke: var(--line); stroke-width: 1; }
+.chart .ch-axis { fill: var(--muted); font-size: 11px; font-family: inherit; }
+.chart { --tone: var(--sun); }
+.chart.tone-shell { --tone: var(--shell); }
+.chart.tone-sky { --tone: #4FA6D8; }
+.chart .ch-bar { fill: var(--tone); stroke: var(--black); stroke-width: 1.2; }
+.chart .ch-bar.on { fill: var(--pink); }
+.chart .ch-bar.empty { fill: var(--line); stroke: none; }
+.chart .ch-goal { stroke: var(--pink); stroke-width: 2; stroke-dasharray: 5 4; }
+.chart .ch-plan { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 4; }
+.chart .ch-done { fill: none; stroke: var(--shell); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+.chart .ch-dot { fill: var(--pink); stroke: var(--surface); stroke-width: 2.5; }
+.chart.clock .ch-cell { fill: var(--tone); stroke: var(--black); stroke-width: 1; }
+:root:not([data-theme=light]) .chart .ch-bar, :root:not([data-theme=light]) .chart.clock .ch-cell { stroke: none; }
+:root[data-theme=dark] .chart .ch-bar, :root[data-theme=dark] .chart.clock .ch-cell { stroke: none; }
+.in-bar i { background: var(--shell); }
+.stats.in-stats > div { border-block-start: 4px solid var(--sun); }
+.stats.in-stats > div:nth-child(2) { border-color: var(--shell); }
+.stats.in-stats > div:nth-child(3) { border-color: var(--pink); }
+.stats.in-stats > div:nth-child(4) { border-color: #4FA6D8; }
+.in-courses { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.in-courses li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 160px) auto; gap: .7rem; align-items: center; }
+.in-courses li a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.in-bar { height: 8px; border-radius: 4px; background: var(--raised); overflow: hidden; }
+.in-bar i { display: block; height: 100%; border-radius: 4px; }
+@media (max-width: 600px) { .in-courses li { grid-template-columns: minmax(0, 1fr) auto; } .in-courses .in-bar { grid-column: 1 / -1; } }
+
+/* ---- Full screen (v1.37): the button in the top bar, on computers ---- */
+.full-btn .when-full, html.is-full .full-btn .when-windowed { display: none; }
+html.is-full .full-btn .when-full { display: inline; }
+@media (max-width: 720px) { .full-btn { display: none; } }

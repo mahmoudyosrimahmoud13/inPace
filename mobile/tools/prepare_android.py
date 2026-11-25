@@ -72,6 +72,7 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "enter" -> result.success(enter())
+                "install" -> result.success(install(call.arguments as? String ?: ""))
                 "media" -> {
                     try { media(call.arguments as? Map<*, *>) } catch (e: Exception) { }
                     result.success(null)
@@ -90,6 +91,23 @@ class MainActivity : FlutterActivity() {
         session = null
         cancelMedia()
         super.onDestroy()
+    }
+
+    // ---- updates (v1.37): open Android's install dialog for a downloaded APK ----
+    // Returns "ask" when Android first wants you to allow inPace to install apps (its setting opens), else "ok".
+    private fun install(path: String): String {
+        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+            val i = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                           android.net.Uri.parse("package:$packageName"))
+            startActivity(i)
+            return "ask"
+        }
+        val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.inpace.files", java.io.File(path))
+        val i = Intent(Intent.ACTION_VIEW)
+        i.setDataAndType(uri, "application/vnd.android.package-archive")
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(i)
+        return "ok"
     }
 
     // ---- picture-in-picture ----
@@ -317,6 +335,18 @@ if "flutterlocalnotifications.ForegroundService" not in m:
     m = m.replace("</application>", """        <service android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
             android:exported="false" android:stopWithTask="false" android:foregroundServiceType="dataSync"/>
     </application>""", 1)
+# Updates (v1.37): the app downloads the new APK itself and opens Android's install dialog.
+if "REQUEST_INSTALL_PACKAGES" not in m:
+    m = m.replace("<application", '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <application', 1)
+if "inpace.files" not in m:
+    m = m.replace("</application>", """        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.inpace.files"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/inpace_paths"/>
+        </provider>
+    </application>""", 1)
+paths_xml = ROOT / "src" / "main" / "res" / "xml" / "inpace_paths.xml"
+paths_xml.parent.mkdir(parents=True, exist_ok=True)
+paths_xml.write_text('<?xml version="1.0" encoding="utf-8"?>\n<paths>\n    <cache-path name="updates" path="updates/"/>\n</paths>\n', encoding="utf-8")
 if "showWhenLocked" not in m:
     m = re.sub(r'(<activity\b(?=[^>]*MainActivity))', r'\1 android:showWhenLocked="true" android:turnScreenOn="true"', m, count=1)
 manifest.write_text(m, encoding="utf-8")

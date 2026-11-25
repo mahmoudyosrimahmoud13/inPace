@@ -197,7 +197,8 @@ def test_phase_d_screens(tmp_path):
     assert pace.card_count(lv, "python-basics") == 3
     # Backup download works and needs a password.
     assert "at least 6" in learner.post("/settings/backup", data={"password": "123"}).text
-    b = learner.post("/settings/backup", data={"password": "longpassword"})
+    learner.post("/settings/backup", data={"password": "longpassword"})  # v1.37: made first, downloaded after
+    b = learner.get("/settings/backup/file")
     assert b.content.startswith(b"INPACEBK1")
 
 

@@ -309,7 +309,7 @@ def test_tempo_shows_in_the_test_notification(tmp_path, monkeypatch):
 def test_the_phone_gets_the_trip_for_its_countdown(tmp_path, monkeypatch):
     v, c, jid = _python(tmp_path)
     garden.set_on(v, True)
-    assert c.get("/island/live.json").json() == {"trip": None}
+    assert c.get("/island/live.json").json() == {"trip": None, "sprint": None}
     assert 'id="inpace-trip"' not in c.get("/").text  # only the phone app gets it
     c.post("/island/start", data={"kind": "oak", "minutes": "25", "mode": "anywhere", "journey": jid})
     live = c.get("/island/live.json").json()["trip"]

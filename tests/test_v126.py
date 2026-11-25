@@ -56,7 +56,7 @@ def test_the_pop_up_fits_each_kind_of_copy(tmp_path, monkeypatch):
     _news(v)
     monkeypatch.setattr(updater, "install_kind", lambda: "android")
     page = html.unescape(c.get("/").text)
-    assert 'href="https://example.com/inPace.apk"' in page and "Download the update" in page
+    assert 'href="https://example.com/inPace.apk"' in page and "Download and install" in page
     monkeypatch.setattr(updater, "install_kind", lambda: "source")
     assert "git pull" in html.unescape(c.get("/").text)
     monkeypatch.setattr(updater, "install_kind", lambda: "mac")

@@ -1386,6 +1386,29 @@ function youtubeExtras(frame, box, wrap) {
   });
 }
 
+// Full screen (v1.37): the whole of inPace fills the screen, from the button in the top bar or F11. On the
+// Linux window the page also tells the window itself, so the title bar goes too; Esc or F11 brings it back.
+(() => {
+  const btn = document.querySelector("[data-full-btn]");
+  if (!btn) return;
+  const root = document.documentElement;
+  const tell = (on) => { try { window.webkit.messageHandlers.inpace.postMessage(on ? "full:1" : "full:0"); } catch (e) { /* not the Linux window */ } };
+  const paint = () => {
+    const on = !!document.fullscreenElement;
+    root.classList.toggle("is-full", on);
+    btn.title = btn.ariaLabel = on ? btn.dataset.lOff : btn.dataset.lOn;
+    tell(on);
+  };
+  const toggle = () => {
+    if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
+    if (root.requestFullscreen) root.requestFullscreen().catch(() => { root.classList.toggle("is-full"); tell(root.classList.contains("is-full")); });
+  };
+  btn.addEventListener("click", toggle);
+  document.addEventListener("fullscreenchange", paint);
+  document.addEventListener("keydown", (e) => { if (e.key === "F11") { e.preventDefault(); toggle(); } });
+  paint();
+})();
+
 // Web pages in lessons can go full screen.
 document.querySelectorAll("[data-fullscreen]").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -2159,7 +2182,7 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   if (!bridge) return;
   document.documentElement.classList.add("android");
   const send = (msg) => bridge.postMessage(JSON.stringify(msg));
-  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$|evidence\/[0-9a-f]{64}$|codenote\/lesson\.md$)/;
+  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|settings\/backup\/file$|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$|evidence\/[0-9a-f]{64}$|codenote\/lesson\.md$)/;
 
   // Downloads: the app saves or shares the file.
   document.addEventListener("click", (e) => {
@@ -2177,7 +2200,7 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   document.addEventListener("submit", async (e) => {
     const form = e.target;
     const picture = form.matches('form[action="/me/turtle.png"], form[action="/island/share.png"]');
-    if (!form.matches('form[action="/settings/backup"]') && !picture) return;
+    if (!picture) return;
     if (picture && !form.png.value) return;  // the picture isn't drawn yet
     e.preventDefault();
     const r = await fetch(form.action, { method: "POST", body: new FormData(form) });
@@ -2262,10 +2285,28 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   let trip = null;
   try { trip = JSON.parse((document.getElementById("inpace-trip") || {}).textContent || "null"); } catch (e) {}
   if (document.getElementById("inpace-trip")) send({ type: "trip", trip });
+  // Updates (v1.37): "Download and install" hands the APK's address to the app, which downloads it to the
+  // phone and opens Android's install dialog. In a plain browser the link just downloads the file.
+  document.querySelectorAll("[data-android-update]").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      send({ type: "update", url: a.href, version: a.dataset.androidUpdate });
+      const d = a.closest("dialog"); if (d && d.open) d.close();
+    });
+  });
+
+  // The sprint day (v1.37): the app shows a yellow card with the countdown to the end of today's window.
+  let sprint = null;
+  try { sprint = JSON.parse((document.getElementById("inpace-sprint") || {}).textContent || "null"); } catch (e) {}
+  if (document.getElementById("inpace-sprint")) send({ type: "sprint", sprint });
   window.inpaceTripChanged = async () => {
     try {
       const r = await fetch("/island/live.json", { cache: "no-store" });
-      if (r.ok) { trip = (await r.json()).trip; send({ type: "trip", trip }); }
+      if (r.ok) {
+        const d = await r.json();
+        trip = d.trip; send({ type: "trip", trip });
+        if ("sprint" in d) { sprint = d.sprint; send({ type: "sprint", sprint }); }
+      }
     } catch (e) {}
   };
   window.inpaceTripPaused = () => { if (trip) send({ type: "trip", trip: { ...trip, state: "paused", ends_ms: null } }); };
@@ -4071,6 +4112,10 @@ window.inpaceMediaSession = (box, v) => {
   };
   const text = (x) => {
     const steps = x.of > 1 ? ` ${x.n}/${x.of}` : "";
+    if (x.label) {  // work that names itself (a backup, a restore): its own words, with how far it got
+      const pct = x.size ? ` · ${Math.round((100 * x.got) / x.size)}%` : "";
+      return x.state === "installing" ? x.label : x.label + (x.of > 1 ? steps : pct) + (x.size && x.note !== "restore" && !(x.of > 1) ? ` · ${size(x.got)} / ${size(x.size)}` : "");
+    }
     if (x.state === "installing") return x.note === "install" ? W.wInstalling : W.wAdding + steps;
     if (x.size) {
       const pct = Math.round((100 * x.got) / x.size);
@@ -4239,4 +4284,22 @@ document.addEventListener("click", (e) => {
   tick();
   setInterval(tick, 1000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+  // The timer that runs with the sprint (focus blocks and breaks): its phase shows on the strip too.
+  const ph = el.querySelector("[data-ss-phase]"), phText = el.querySelector("[data-ss-phase-text]"), phTime = el.querySelector("[data-ss-phase-time]");
+  let td = null, t0 = 0;
+  const fmtS = (s) => { s = Math.max(0, Math.ceil(s)); const m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
+  const phase = () => {
+    if (!ph) return;
+    if (el.dataset.stopped && !(td && td.on && td.sprint)) { ph.hidden = false; el.classList.remove("on-break"); phText.textContent = el.dataset.lStopped; phTime.textContent = ""; return; }
+    if (!td || !td.on || !td.sprint) { ph.hidden = true; el.classList.remove("on-break"); return; }
+    ph.hidden = false;
+    const left = td.state === "running" ? td.left - (Date.now() - t0) / 1000 : td.left;
+    const brk = td.sprint.phase === "break";
+    el.classList.toggle("on-break", brk);
+    phText.textContent = brk ? el.dataset.lBreak : el.dataset.lBlock.replace("{n}", td.sprint.block) + (td.state !== "running" ? " · " + el.dataset.lPaused : "");
+    phTime.textContent = fmtS(left);
+  };
+  addEventListener("inpace-timer", (e) => { td = e.detail; t0 = Date.now(); phase(); });
+  setInterval(phase, 1000);
+  if (window.inpaceTimer) { td = window.inpaceTimer.get(); t0 = Date.now(); phase(); }
 })();

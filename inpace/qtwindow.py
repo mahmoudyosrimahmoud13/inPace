@@ -134,7 +134,18 @@ def main(argv: list[str]) -> None:
     st.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
     st.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
     st.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
-    page.fullScreenRequested.connect(lambda r: (r.accept(), view.showFullScreen() if r.toggleOn() else view.showNormal()))
+    was = {"max": False}
+
+    def on_full(r):  # the page's full screen button or F11 (v1.37), and videos: the window itself fills the screen
+        r.accept()
+        if r.toggleOn():
+            was["max"] = view.isMaximized()
+            view.showFullScreen()
+        elif was["max"]:
+            view.showMaximized()
+        else:
+            view.showNormal()
+    page.fullScreenRequested.connect(on_full)
     view.setWindowTitle("inPace")
     view.resize(1280, 860)
     view.setMinimumSize(420, 520)

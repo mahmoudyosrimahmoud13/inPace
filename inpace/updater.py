@@ -258,16 +258,41 @@ def clean_old_copies() -> None:
         shutil.rmtree(exe.parent.with_name(exe.parent.name + ".old"), ignore_errors=True)
 
 
+def restart_env() -> dict:
+    """The environment for a new copy of inPace. The Linux builds are one-file programs: the running copy's
+    environment points at its own unpacked files (_MEIPASS2) and libraries, which vanish the moment it exits. A new
+    copy that inherits them dies before it can open a window (v1.37, the Linux "doesn't open again after an
+    update"). So those are taken out, and the new copy unpacks and starts on its own."""
+    env = os.environ.copy()
+    for k in ("_MEIPASS2", "_PYI_APPLICATION_HOME_DIR", "_PYI_ARCHIVE_FILE", "_PYI_PARENT_PROCESS_LEVEL",
+              "PYTHONHOME", "PYTHONPATH"):
+        env.pop(k, None)
+    if "LD_LIBRARY_PATH_ORIG" in env:
+        env["LD_LIBRARY_PATH"] = env.pop("LD_LIBRARY_PATH_ORIG")
+    elif is_frozen():
+        env.pop("LD_LIBRARY_PATH", None)
+    return env
+
+
+def restart_command() -> list[str]:
+    exe = Path(sys.executable).resolve()
+    if os.environ.get("APPIMAGE"):  # start the new AppImage file, not the old one's unpacked program
+        return [os.environ["APPIMAGE"], *sys.argv[1:]]
+    if not is_frozen():  # from the code folder: python -m inpace
+        return [str(exe), "-m", "inpace", *[a for a in sys.argv[1:]]]
+    return [str(exe), *sys.argv[1:]]
+
+
 def restart() -> None:
     """Start the (new) app again, then leave. The new copy takes over the window and the data folder."""
     exe = Path(sys.executable).resolve()
+    env = restart_env()
     if install_kind() == "mac":
-        subprocess.Popen(["open", "-n", str(exe.parents[2])])
-    elif os.environ.get("APPIMAGE"):  # start the new AppImage file, not the old one's unpacked program
-        subprocess.Popen([os.environ["APPIMAGE"], *sys.argv[1:]], start_new_session=True)
+        subprocess.Popen(["open", "-n", str(exe.parents[2])], env=env)
     else:
         kw = {"start_new_session": True} if os.name != "nt" else {"creationflags": 0x00000008 | 0x00000200}
-        subprocess.Popen([str(exe), *sys.argv[1:]], **kw)
+        subprocess.Popen(restart_command(), env=env, cwd=str(Path.home()), stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, **kw)
     time.sleep(0.3)
     from .window import close_children
     close_children()

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.37.0
+
+- **Backups show what they do.** Settings → Backups says how big a backup will be, shows a progress bar while it's made ("Making the backup"), then a card with the file's size and a Download button. Restoring shows its steps too (reading, checking the password, restoring), and when it's done inPace starts again by itself with everything from the backup.
+- **inPace opens again after an update on Linux.** The restart after an update or a restore inherited the running app's unpacking settings, so the new copy sometimes never came up. The restart now starts clean, on every system.
+- **Sprints run their timer.** Inside today's sprint window the focus timer runs by itself in blocks and breaks (pick the rhythm in the sprint's plan: 50/10, 25/5, 90/15…); the strip at the top shows the block or break running and when it ends, and the hour marks and break segments on its bar. Stop the timer and the sprint leaves you alone for the rest of that day.
+- **Sprints in Android's notifications.** While a sprint day is open, a yellow card shows the countdown to the end of the window and how far through the day you are, with the blocks and breaks announced as they come. All of inPace's notifications now carry its yellow.
+- **Insights: a new page in the menu.** Focus time per day, lessons finished per day, the hours you focus best, every course's progress, and for every running sprint the plan against what you ticked and the focus minutes per day against the goal.
+- **Full screen on computers.** The button in the top bar or F11 makes inPace fill the screen; Esc or F11 brings it back.
+- **Android updates itself.** When a new version is out, Settings → Updates (and the "new version" card) has Download and install: the app downloads the APK to the phone with a progress notification and opens Android's install dialog. Check now looks for the newest version at once.
+
 ## v1.36.3
 
 - A test of 1.36.2 failed on Windows (it read a file without saying it's UTF-8, and Windows guessed another encoding). The app itself was fine; only the tests changed.

@@ -321,6 +321,11 @@ try:
             text = ""
         if text.startswith("bg:"):
             set_bg(text[3:].strip())
+        elif text.startswith("full:"):  # full screen from the page's button or F11 (v1.37)
+            try:
+                (win.fullscreen if text[5:].strip() == "1" else win.unfullscreen)()
+            except Exception:
+                pass
         else:  # "painted": the loading screen has drawn its first frame
             on_painted()
     _ucm.connect("script-message-received::inpace", on_message)

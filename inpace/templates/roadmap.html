@@ -147,7 +147,7 @@
           </select></label>
         <button class="btn primary">{{ icon('timer', 18) }}{% if sp.focus_today %}{% trans trimmed %}Go on with today's sprint{% endtrans %}{% else %}{% trans trimmed %}Start today's sprint{% endtrans %}{% endif %}</button>
       </form>
-      <p class="small muted">{% trans trimmed %}One button for the whole day: the timer runs a focus block, then a break, then the next block, until you reach today's hours. Breaks aren't counted.{% endtrans %}</p>
+      <p class="small muted">{% trans trimmed %}The timer runs with the sprint: inside today's window it starts by itself, a focus block, then a break, then the next block, until you reach today's hours. Breaks aren't counted. Stop for today turns it off until tomorrow.{% endtrans %}</p>
       {% endif %}
     </div>
     {% endif %}
@@ -173,6 +173,10 @@
           <label>{% trans trimmed %}Days{% endtrans %} <input type="number" name="days" min="1" max="60" value="{{ sp.days }}"></label>
           <label>{% trans trimmed %}Hours a day{% endtrans %} <input type="number" name="hours" min="0" max="16" step="0.5" value="{{ sp.hours }}"></label>
           <label>{% trans trimmed %}Each day ends at{% endtrans %} <input type="time" name="end_time" step="3600" value="{{ sp.end_time or '' }}"></label>
+          <label>{% trans trimmed %}Blocks{% endtrans %}
+            <select name="rhythm">
+              {% for f, b in ((50, 10), (25, 5), (90, 15)) %}<option value="{{ f }}-{{ b }}" {{ 'selected' if sp.rhythm == [f, b] }}>{{ T('{a} min focus, {b} min break', a=f, b=b) }}</option>{% endfor %}
+            </select></label>
         </div>
         {% for x in sp.steps %}
         <fieldset class="sp-plan-step">
