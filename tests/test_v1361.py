@@ -145,9 +145,9 @@ def test_forms_that_answer_with_a_file_are_saved_not_opened_again(app):
     page = c.get("/settings").text
     assert '<form method="post" action="/settings/backup" class="row" data-file-form>' in page
     assert 'action="/me/turtle.png" class="row wrap" data-turtle-png data-file-form' in page
-    island = (Path(__file__).parent.parent / "inpace" / "templates" / "island.html").read_text()
+    island = (Path(__file__).parent.parent / "inpace" / "templates" / "island.html").read_text(encoding="utf-8")
     assert 'action="/island/share.png" data-share-island data-file-form' in island
-    js = (Path(__file__).parent.parent / "inpace" / "static" / "app.js").read_text()
+    js = (Path(__file__).parent.parent / "inpace" / "static" / "app.js").read_text(encoding="utf-8")
     assert 'if (f.hasAttribute("data-file-form")) return;' in js and "HTMLFormElement.prototype.submit.call(f)" in js
     for path, back in (("/settings/backup", "/settings"), ("/me/turtle.png", "/settings"), ("/island/share.png", "/island")):
         r = c.get(path, follow_redirects=False)

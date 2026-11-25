@@ -39,7 +39,7 @@ def test_accounts_are_checked_and_passwords_are_never_kept(tmp_path):
         hosting.add_user(home, "sara", "Sara", "another one!")
     with pytest.raises(hosting.AccountProblem, match="their own password"):
         hosting.add_user(home, "omar", "Omar", "tea and books")
-    raw = (home / "hosted" / "users.json").read_text()
+    raw = (home / "hosted" / "users.json").read_text(encoding="utf-8")
     assert "tea and books" not in raw and '"hash"' in raw
     assert hosting.check_login(home, "sara", "tea and books") and hosting.check_login(home, "SARA ", "tea and books")
     assert not hosting.check_login(home, "sara", "tea and book") and not hosting.check_login(home, "nobody", "x")

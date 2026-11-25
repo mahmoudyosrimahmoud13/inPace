@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.36.3
+
+- A test of 1.36.2 failed on Windows (it read a file without saying it's UTF-8, and Windows guessed another encoding). The app itself was fine; only the tests changed.
+
 ## v1.36.2
 
 - **Pages open much faster, on computers and phones.** Three things made every page slow, and the sprint page slowest: each course's progress was worked out again for every roadmap it's on (24 times on Home), every page read and parsed all your roadmap files several times over, and once an hour the roadmap and sprint pages waited for the course library's list to download before drawing anything, and kept trying on every visit when the download failed (no internet, a slow connection). Now progress and roadmaps are kept in memory until something changes, no page ever waits for the internet (a newer library list is fetched behind the page), and a failed download is remembered for ten minutes. With a real study history, Home went from 89 to 33 ms and the sprint page from 152 to 32 ms on a fast computer; on a phone, where Python runs inside the app, that's the difference between a two-second wait and a quick one.
