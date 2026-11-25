@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.1
+
+- **The Android app opens faster, and no more long white screen.** Three things made a start slow, worst right after an update: the app rebuilt its compiled copy of the Python libraries after every update even when they hadn't changed (now the copy is kept unless the libraries themselves change); the template warm-up and that library copy ran in the background at full speed while the first pages were drawing, so those pages waited (now they step aside whenever a page is being drawn); and at every start the app re-scheduled up to 400 reminder alarms on the phone's screen thread, which froze the page in white on slower phones (now it schedules two weeks ahead, 20 seconds after the page is up, only when the plan changed, with a breath between alarms).
+
 ## v1.37.0
 
 - **Backups show what they do.** Settings → Backups says how big a backup will be, shows a progress bar while it's made ("Making the backup"), then a card with the file's size and a Download button. Restoring shows its steps too (reading, checking the password, restoring), and when it's done inPace starts again by itself with everything from the backup.

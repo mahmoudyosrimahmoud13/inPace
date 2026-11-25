@@ -2240,7 +2240,9 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
       try { localStorage.setItem("inpace-plan-at", String(Date.now())); } catch (e) {}
     } catch (e) {}
   };
-  syncPlan(onReminders);
+  // Sent 20 seconds after the page is up (v1.37.1), not while the first screens are drawing: scheduling the
+  // notifications keeps the phone's screen thread busy, and at the start that looked like a frozen white page.
+  if (onReminders) syncPlan(true); else setTimeout(() => syncPlan(false), 20000);
   // Tempo's friendly ask: shown before Android's own permission box, once on a new install, then at most once a
   // week, and when you start a timer or a video while notifications are off. "Maybe later" is fine: no nagging.
   const sheet = document.querySelector("[data-notify-sheet]");

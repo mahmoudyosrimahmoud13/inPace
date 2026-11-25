@@ -530,6 +530,23 @@ def _sample_courses() -> list:
     return [c for c in _SAMPLE_CACHE if c is not None]
 
 
+# When a page was last asked for (v1.37.1). Background work that eats the processor (compiling templates and
+# libraries on a phone) steps aside while pages are being drawn, so the first screens after a start come up
+# at once instead of fighting for the processor.
+LAST_REQUEST = {"at": 0.0}
+
+
+def quiet(seconds: float = 2.0) -> bool:
+    """True when no page was asked for in the last `seconds`: safe to do heavy work in the background."""
+    return _time.time() - LAST_REQUEST["at"] > seconds
+
+
+def wait_quiet(seconds: float = 2.0, step: float = 0.5) -> None:
+    """Sleep until the app has been idle for `seconds`."""
+    while not quiet(seconds):
+        _time.sleep(step)
+
+
 class NavMiddleware:
     """Two small rules for every response, so Back always shows the app as it is now.
 
@@ -545,6 +562,8 @@ class NavMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        if not scope.get("path", "").startswith("/static/"):
+            LAST_REQUEST["at"] = _time.time()
         nav = False
         static = b""
         if scope.get("path", "").startswith("/static/"):
@@ -692,13 +711,14 @@ def create_app(vault: Vault) -> Starlette:
     # so the first visit to a page doesn't wait for it. On a phone that wait was up to a second per page.
     def _warm_templates():
         import time as _t
-        _t.sleep(3)
+        _t.sleep(15 if os.environ.get("INPACE_MOBILE") else 3)
         for name in env.list_templates(filter_func=lambda n: n.endswith(".html")):
+            wait_quiet(2.0)  # never while a page is being drawn (v1.37.1): on a phone that made the first screens wait
             try:
                 env.get_template(name)
             except Exception:
                 pass
-            _t.sleep(0.02)  # stay out of the way of a page being drawn
+            _t.sleep(0.05)
     if not os.environ.get("INPACE_NO_WARMUP") and "pytest" not in sys.modules:  # tests make many short-lived apps
         threading.Thread(target=_warm_templates, name="inpace-warm", daemon=True).start()
 

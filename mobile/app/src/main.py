@@ -33,9 +33,27 @@ def _libs_zip():
     return next((p for p in sys.path if p.endswith("sitepackages.zip") and os.path.isfile(p)), None)
 
 
+_STAMP = {}
+
+
 def _libs_copy(zip_path):
-    st = os.stat(zip_path)
-    return os.path.join(home, "cache", "libs", f"{st.st_size}-{int(st.st_mtime)}")
+    """The folder for this zip's copy. The stamp is made from the libraries' own checksums in the zip's table of
+    contents (v1.37.1; cheap, nothing is unpacked), not the zip's date: an app update that changes inPace but not
+    the libraries keeps using the copy, so the first start after an update is no longer a slow one."""
+    if zip_path not in _STAMP:
+        try:
+            import zipfile
+            import zlib
+            crc = 0
+            with zipfile.ZipFile(zip_path) as z:
+                for info in z.infolist():
+                    if info.filename.split("/", 1)[0] in PURE and not info.is_dir():
+                        crc = zlib.crc32(f"{info.filename}:{info.CRC}:{info.file_size};".encode(), crc)
+            _STAMP[zip_path] = f"libs-{crc:08x}"
+        except Exception:
+            st = os.stat(zip_path)
+            _STAMP[zip_path] = f"{st.st_size}-{int(st.st_mtime)}"
+    return os.path.join(home, "cache", "libs", _STAMP[zip_path])
 
 
 def use_fast_libs():
@@ -77,8 +95,14 @@ def make_fast_libs(wait=12.0):
         import time
         import zipfile
         tmp = ""
+        def pause():  # step aside while pages are being drawn (v1.37.1)
+            try:
+                from inpace.app import wait_quiet
+                wait_quiet(3.0)
+            except Exception:
+                pass
+
         try:
-            time.sleep(wait)  # let the first pages load first
             zp = _libs_zip()
             if not zp:
                 return
@@ -86,6 +110,8 @@ def make_fast_libs(wait=12.0):
             root = os.path.dirname(copy)
             if os.path.isfile(os.path.join(copy, ".ok")):
                 return
+            time.sleep(wait)  # let the first pages load first
+            pause()
             tmp = copy + ".tmp"
             shutil.rmtree(tmp, ignore_errors=True)
             shutil.rmtree(copy, ignore_errors=True)
@@ -106,9 +132,13 @@ def make_fast_libs(wait=12.0):
                     if name.endswith(".py"):
                         sources.append(target)
                     time.sleep(0.002)
+                    if len(sources) % 25 == 0:
+                        pause()
             if not sources:
                 raise RuntimeError("no libraries found in the zip")
-            for path in sources:
+            for i, path in enumerate(sources):
+                if i % 10 == 0:
+                    pause()
                 try:
                     py_compile.compile(path, doraise=True, quiet=1)
                 except Exception:
@@ -149,7 +179,7 @@ try:
 
     start_auto_updates(home)  # yt-dlp for offline YouTube lessons: a new copy once a day, if you chose that
     app = create_app(Vault(home))
-    make_fast_libs(float(os.environ.get("INPACE_LIBS_WAIT", "12")))
+    make_fast_libs(float(os.environ.get("INPACE_LIBS_WAIT", "30")))
 
     # h11 and asyncio are pure Python, so they work everywhere (uvloop and httptools need compiled parts).
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning", loop="asyncio", http="h11")

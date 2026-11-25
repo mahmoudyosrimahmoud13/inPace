@@ -196,8 +196,17 @@ class Reminders {
     return when;
   }
 
+  static String _planKey = '';
+  static DateTime _planAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   static Future<void> sync(Map<String, dynamic> plan) async {
     labels = Map<String, dynamic>.from((plan['labels'] as Map?) ?? {});
+    // The same plan as last time, scheduled less than a day ago: nothing to do (v1.37.1). Scheduling runs on the
+    // phone's screen thread, so doing it only when something changed keeps the app smooth.
+    final key = jsonEncode(plan);
+    if (key == _planKey && DateTime.now().difference(_planAt).inHours < 24) return;
+    _planKey = key;
+    _planAt = DateTime.now();
     for (final p in await plugin.pendingNotificationRequests()) {
       if (p.id < tripId) await plugin.cancel(id: p.id); // the trip and the test have their own, kept
     }
@@ -209,7 +218,9 @@ class Reminders {
       final days = (r['days'] as List).cast<int>(); // 0 = Monday
       final every = (r['every'] as num?)?.toInt() ?? 1; // "Other": every few days from its first day
       final start = DateTime.tryParse((r['start'] as String?) ?? '');
-      for (var i = 0; i < (every > 1 ? 62 : 28) && id < 400; i++) {
+      // Two weeks ahead is plenty: the plan is sent again every half hour of use (v1.37.1: was four weeks and up
+      // to 400 alarms, which took a slow phone a long time at every start).
+      for (var i = 0; i < (every > 1 ? 31 : 14) && id < 150; i++) {
         final when = DateTime(now.year, now.month, now.day + i, int.parse(hm[0]), int.parse(hm[1]));
         if (!when.isAfter(now)) continue;
         if (every > 1) {
@@ -221,6 +232,7 @@ class Reminders {
         }
         await _at(id++, when, r['title'] as String, r['body'] as String, r['kind'] as String, r['url'] as String,
             picture: (r['picture'] as String?) ?? '');
+        await Future<void>.delayed(const Duration(milliseconds: 15)); // let the screen breathe between alarms
       }
     }
     final evening = ((plan['evening'] as String?) ?? '18:30').split(':');
