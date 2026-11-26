@@ -112,7 +112,8 @@ def test_linux_notifications_show_tempo_beside_the_text(monkeypatch):
     monkeypatch.setattr(notifier, "_run", lambda cmd, **kw: calls.append(cmd) or type("R", (), {"returncode": 0})())
     assert notifier.notify("Title", "Body", picture="tempo_cheer")
     cmd = calls[0]
-    assert "string:desktop-entry:inpace" in cmd and any(a.startswith("string:image-path:") and a.endswith("tempo_cheer.png") for a in cmd)
+    assert any(a.startswith("string:image-path:") and a.endswith("tempo_cheer.png") for a in cmd)
+    assert not any("desktop-entry" in a for a in cmd)  # GNOME 46 drops it when inPace isn't an installed app
 
 
 def test_linux_notifications_use_the_system_libraries_and_say_when_gnome_blocks_them(app, monkeypatch):

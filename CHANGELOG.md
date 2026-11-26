@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.6
+
+- **Notifications show again on Linux.** 1.37.4 tagged each notification as coming from the installed "inpace" app. GNOME 46 (Zorin 17, Ubuntu 24.04) silently drops a notification with that tag when it can't find the app, for example when inPace runs from its code folder, so nothing appeared even though the test said "Sent". The tag is gone; the inPace icon and Tempo's face stay.
+
 ## v1.37.5
 
 - **Notifications on Linux (Zorin, Ubuntu, Fedora...).** inPace started notify-send with the packaged app's own libraries instead of the system's, which can make it quietly misbehave. It now runs it (and the alarm's sound and its window) the same clean way it already starts other programs, and falls back to the desktop's notification service directly if notify-send fails.

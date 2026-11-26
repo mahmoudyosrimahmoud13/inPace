@@ -421,11 +421,11 @@ def notify(title: str, body: str, path: str = "/", home: Path | None = None, pic
         LAST["why"] = _linux_blocked()
         ns = shutil.which("notify-send")
         if ns:
-            # The inPace icon as the app's icon, Tempo's face as the picture beside the text, and the hints that make
-            # GNOME and KDE file it under inPace (v1.37.3: Linux desktops draw the card themselves).
+            # The inPace icon, and Tempo's face as the picture beside the text. No "desktop-entry" hint (v1.37.6):
+            # GNOME 46 silently drops a notification whose desktop entry isn't an installed app, which is the case
+            # when inPace runs from its code folder.
             app_icon, face = _icon_png(), _icon_png(picture or "tempo_wave")
             r = _run([ns, "-a", "inPace", *(["-i", app_icon] if app_icon else []),
-                      "-h", "string:desktop-entry:inpace",
                       *(["-h", f"string:image-path:{face}"] if face else []), title, body], timeout=15)
             if r.returncode == 0:
                 return True
@@ -434,7 +434,7 @@ def notify(title: str, body: str, path: str = "/", home: Path | None = None, pic
         if gdbus:
             r = _run([gdbus, "call", "--session", "--dest", "org.freedesktop.Notifications", "--object-path",
                       "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify",
-                      "inPace", "0", _icon_png(picture), title, body, "[]", "{'desktop-entry': <'inpace'>}", "10000"],
+                      "inPace", "0", _icon_png(picture), title, body, "[]", "{}", "10000"],
                      timeout=15)
             if r.returncode == 0:
                 return True
