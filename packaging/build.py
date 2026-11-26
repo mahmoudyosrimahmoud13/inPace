@@ -256,7 +256,7 @@ def build_appimage(full: bool = False) -> Path:
     (app / "inpace.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=inPace\nComment=Learn at your pace. Prove you kept it.\n"
         "Exec=inPace %u\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
-        "MimeType=x-scheme-handler/inpace;\nStartupWMClass=inpace\n", encoding="utf-8")
+        "MimeType=x-scheme-handler/inpace;\nStartupWMClass=inpace\nX-GNOME-UsesNotifications=true\n", encoding="utf-8")
     out = DIST / ("inPace-linux-full.AppImage" if full else "inPace-linux.AppImage")
     env = dict(__import__("os").environ, ARCH="x86_64", APPIMAGE_EXTRACT_AND_RUN="1")
     print("+ appimagetool", app, out, flush=True)
@@ -295,7 +295,7 @@ def build_deb(full: bool = False) -> Path:
         "Comment=Learn at your pace. Prove you kept it.\n"
         "Exec=/opt/inpace/inPace %u\nIcon=inpace\nTerminal=false\nCategories=Education;\n"
         "MimeType=x-scheme-handler/inpace;\n"
-        "StartupWMClass=inpace\n"
+        "StartupWMClass=inpace\nX-GNOME-UsesNotifications=true\n"
         "Keywords=learning;study;course;accountability;\n", encoding="utf-8")
     size_kb = sum(p.stat().st_size for p in stage.rglob("*") if p.is_file() and not p.is_symlink()) // 1024
     (stage / "DEBIAN" / "control").write_text(

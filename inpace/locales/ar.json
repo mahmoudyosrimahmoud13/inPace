@@ -2893,5 +2893,7 @@
   "Focus block {n}": "كتلة تركيز {n}",
   "Sprint and timer": "السبرنت والمؤقت",
   "Reminder": "تذكير",
-  "Open inPace": "افتح inPace"
+  "Open inPace": "افتح inPace",
+  "Notifications are turned off for inPace on this computer. Turn them on in your system Settings → Notifications → inPace, then try again.": "الإشعارات مغلقة لـ inPace على هذا الكمبيوتر. شغّلها من إعدادات النظام ← الإشعارات ← inPace، ثم جرّب مرة أخرى.",
+  "Sent, but Do Not Disturb is on, so it went straight to the notification list.": "أُرسل، لكن وضع عدم الإزعاج مفعّل، لذلك ذهب مباشرة إلى قائمة الإشعارات."
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.37.5
+
+- **Notifications on Linux (Zorin, Ubuntu, Fedora...).** inPace started notify-send with the packaged app's own libraries instead of the system's, which can make it quietly misbehave. It now runs it (and the alarm's sound and its window) the same clean way it already starts other programs, and falls back to the desktop's notification service directly if notify-send fails.
+- **The Test button tells you when your desktop blocks inPace.** GNOME can turn notifications off for one app, and then it takes them and throws them away without a word, so the test said "Sent" and nothing showed. It now checks, and says "Notifications are turned off for inPace on this computer" with where to turn them on. With Do Not Disturb on, it says the test went straight to the notification list.
+- **inPace shows up in GNOME's Settings → Notifications**, so you can turn its notifications on or off there.
+
 ## v1.37.4
 
 - **Every phone notification looks like inPace now, not just the sprint card.** Reminders, alarms, Tempo's nudges, "Break time", "Back to focus", "Your plant is ready", the test notification, "Downloads finished" and the update download all use the same yellow card with Tempo's face. Reminders and nudges have a **Start studying** button; alarms have **Snooze 10 min** and **Stop** on the card and keep ringing until you press one (full screen on a locked phone, like before).

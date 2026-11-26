@@ -3658,6 +3658,12 @@ def create_app(vault: Vault) -> Starlette:
             return go("/reminders", ok="The alarm is ringing. Stop it or snooze it.")
         from starlette.concurrency import run_in_threadpool
         ok = await run_in_threadpool(notifier.notify, msg["title"], msg["body"], msg["url"], V.home, msg["picture"])
+        why = notifier.LAST.get("why", "")
+        if why == "app":  # GNOME takes it and throws it away: say so instead of "Sent"
+            return go("/reminders", err="Notifications are turned off for inPace on this computer. Turn them on in "
+                                        "your system Settings → Notifications → inPace, then try again.")
+        if ok and why == "dnd":
+            return go("/reminders", ok="Sent, but Do Not Disturb is on, so it went straight to the notification list.")
         return go("/reminders", ok="Sent. Look for it in the corner of your screen.") if ok else \
             go("/reminders", err="This computer didn't show the notification. Check that notifications are allowed for inPace.")
 

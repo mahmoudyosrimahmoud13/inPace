@@ -31,10 +31,51 @@ NO_WINDOW = 0x08000000  # Windows: don't flash a console window
 SNOOZE_MINUTES = 10
 
 
+def _sys_env() -> dict | None:
+    """Linux (v1.37.4): the packaged app points LD_LIBRARY_PATH and friends at its own libraries. notify-send,
+    gdbus, zenity and paplay are the system's, so they get the system's libraries, or they can quietly misbehave."""
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        from .window import _clean_env
+        return _clean_env()
+    except Exception:
+        env = os.environ.copy()
+        env["LD_LIBRARY_PATH"] = env.get("LD_LIBRARY_PATH_ORIG", "")
+        return env
+
+
 def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
     if sys.platform == "win32":
         kw.setdefault("creationflags", NO_WINDOW)
+    env = _sys_env()
+    if env is not None:
+        kw.setdefault("env", env)
     return subprocess.run(cmd, capture_output=True, text=True, timeout=kw.pop("timeout", 30), **kw)
+
+
+# What happened to the last notification, for the Test button: "" (shown), "app" (turned off for inPace in the
+# desktop's settings), "dnd" (Do Not Disturb: it went straight to the list) or "failed".
+LAST = {"why": ""}
+
+
+def _linux_blocked() -> str:
+    """GNOME (Ubuntu, Zorin, Fedora...) can turn notifications off for one app, and then it takes them and throws
+    them away without a word. Look, so we can say so instead of "Sent"."""
+    gs = shutil.which("gsettings")
+    if not gs:
+        return ""
+    try:
+        r = _run([gs, "get", "org.gnome.desktop.notifications.application:/org/gnome/desktop/notifications/application/inpace/",
+                  "enable"], timeout=5)
+        if r.returncode == 0 and r.stdout.strip() == "false":
+            return "app"
+        r = _run([gs, "get", "org.gnome.desktop.notifications", "show-banners"], timeout=5)
+        if r.returncode == 0 and r.stdout.strip() == "false":
+            return "dnd"
+    except Exception:
+        pass
+    return ""
 
 
 # ---- how to start inPace from the scheduler --------------------------------------------------------------
@@ -361,6 +402,7 @@ def open_inpace(path: str = "/", home: Path | None = None) -> None:
 def notify(title: str, body: str, path: str = "/", home: Path | None = None, picture: str = "", open_label: str = "") -> bool:
     """Show a notification, with Tempo's face when `picture` names one (tempo_cheer, villain...).
     Clicking it opens inPace on that page, where the computer allows it."""
+    LAST["why"] = ""
     if os.environ.get("INPACE_HOSTED"):  # someone using a shared inPace: nothing pops up on the host computer
         return False
     try:
@@ -376,6 +418,7 @@ def notify(title: str, body: str, path: str = "/", home: Path | None = None, pic
         if sys.platform == "darwin":
             return _osascript(['display notification (item 2 of argv) with title (item 1 of argv) sound name "Glass"'],
                               [title, body]).returncode == 0
+        LAST["why"] = _linux_blocked()
         ns = shutil.which("notify-send")
         if ns:
             # The inPace icon as the app's icon, Tempo's face as the picture beside the text, and the hints that make
@@ -384,13 +427,18 @@ def notify(title: str, body: str, path: str = "/", home: Path | None = None, pic
             r = _run([ns, "-a", "inPace", *(["-i", app_icon] if app_icon else []),
                       "-h", "string:desktop-entry:inpace",
                       *(["-h", f"string:image-path:{face}"] if face else []), title, body], timeout=15)
-            return r.returncode == 0
+            if r.returncode == 0:
+                return True
+            # notify-send failed: try the desktop's notification service directly below
         gdbus = shutil.which("gdbus")
         if gdbus:
             r = _run([gdbus, "call", "--session", "--dest", "org.freedesktop.Notifications", "--object-path",
                       "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.Notify",
-                      "inPace", "0", _icon_png(picture), title, body, "[]", "{}", "10000"], timeout=15)
-            return r.returncode == 0
+                      "inPace", "0", _icon_png(picture), title, body, "[]", "{'desktop-entry': <'inpace'>}", "10000"],
+                     timeout=15)
+            if r.returncode == 0:
+                return True
+        LAST["why"] = "failed"
     except Exception:
         return False
     return False
@@ -428,7 +476,7 @@ class _Ringer:
             end = time.time() + 600  # never ring for more than 10 minutes
             while not self.stop.is_set() and time.time() < end:
                 try:
-                    subprocess.run(self.cmd, capture_output=True, timeout=30)
+                    subprocess.run(self.cmd, capture_output=True, timeout=30, env=_sys_env())
                 except Exception:
                     return
                 self.stop.wait(0.6)

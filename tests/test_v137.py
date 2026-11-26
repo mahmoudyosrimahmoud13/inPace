@@ -113,3 +113,23 @@ def test_linux_notifications_show_tempo_beside_the_text(monkeypatch):
     assert notifier.notify("Title", "Body", picture="tempo_cheer")
     cmd = calls[0]
     assert "string:desktop-entry:inpace" in cmd and any(a.startswith("string:image-path:") and a.endswith("tempo_cheer.png") for a in cmd)
+
+
+def test_linux_notifications_use_the_system_libraries_and_say_when_gnome_blocks_them(app, monkeypatch):
+    from inpace import notifier
+    v, c = app
+    calls = []
+    monkeypatch.setattr(notifier.sys, "platform", "linux")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/_MEI123")
+    monkeypatch.setenv("LD_LIBRARY_PATH_ORIG", "/usr/lib/custom")
+
+    def run(cmd, **kw):
+        calls.append((cmd, kw.get("env") or {}))
+        out = "false" if "application:" in " ".join(cmd) else "true"
+        return type("R", (), {"returncode": 0, "stdout": out})()
+    monkeypatch.setattr(notifier, "_run", lambda cmd, **kw: run(cmd, env=notifier._sys_env(), **kw))
+    monkeypatch.setattr(notifier.shutil, "which", lambda n: f"/usr/bin/{n}" if n in ("notify-send", "gsettings") else None)
+    r = c.post("/reminders/test", data={"kind": "notify"}, follow_redirects=True)
+    assert "Notifications are turned off for inPace" in r.text
+    send = next(env for cmd, env in calls if cmd[0].endswith("notify-send"))
+    assert send["LD_LIBRARY_PATH"] == "/usr/lib/custom"  # the system's libraries, not the app's
