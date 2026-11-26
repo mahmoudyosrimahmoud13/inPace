@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.2
+
+- **The sprint card shows the real day window.** It said "days run 09:00 to 09:00" even when you set the day to end at 23:00. It now says "each day runs 09:00 to 23:00".
+
 ## v1.37.1
 
 - **The Android app opens faster, and no more long white screen.** Three things made a start slow, worst right after an update: the app rebuilt its compiled copy of the Python libraries after every update even when they hadn't changed (now the copy is kept unless the libraries themselves change); the template warm-up and that library copy ran in the background at full speed while the first pages were drawing, so those pages waited (now they step aside whenever a page is being drawn); and at every start the app re-scheduled up to 400 reminder alarms on the phone's screen thread, which froze the page in white on slower phones (now it schedules two weeks ahead, 20 seconds after the page is up, only when the plan changed, with a breath between alarms).
