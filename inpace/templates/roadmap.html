@@ -110,7 +110,7 @@
         {% if sp.before %}{{ T('Sprint starts on {date}', date=sp.start) }}
         {% elif sp.over %}{% if sp.finished %}{% trans trimmed %}Sprint done!{% endtrans %}{% else %}{{ T('The {n} days are over', n=sp.days) }}{% endif %}
         {% else %}{{ T('Sprint · day {d} of {n}', d=sp.day, n=sp.days) }}{% endif %}</h2>
-      <span class="small muted">{% if sp.hour %}{{ T('days run {t} to {t}', t='%02d:00'|format(sp.hour)) }} · {% endif %}{% if sp.hours %}{{ T('about {h} h a day', h=sp.hours) }} · {% endif %}{{ T('{p}% of the plan ticked', p=sp.percent) }}</span>
+      <span class="small muted">{% if sp.end_time %}{{ T('each day runs {a} to {b}', a='%02d:00'|format(sp.hour), b=sp.end_time) }} · {% elif sp.hour %}{{ T('days run {t} to {t}', t='%02d:00'|format(sp.hour)) }} · {% endif %}{% if sp.hours %}{{ T('about {h} h a day', h=sp.hours) }} · {% endif %}{{ T('{p}% of the plan ticked', p=sp.percent) }}</span>
     </div>
     <ol class="sp-strip" aria-label="{{ _('Sprint days') }}">
       {% for d in sp.strip %}<li class="{{ d.state }}" title="{{ T('Day {n}', n=d.d) }}{% if d.focus %} · {{ hm(d.focus) }}{% endif %}">{{ d.d }}</li>{% endfor %}

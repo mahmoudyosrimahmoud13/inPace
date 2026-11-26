@@ -65,3 +65,13 @@ def test_a_new_copy_starts_with_a_clean_environment(monkeypatch):
     monkeypatch.setattr(updater, "is_frozen", lambda: False)
     cmd = updater.restart_command()
     assert cmd[1:3] == ["-m", "inpace"]
+
+
+def test_the_sprint_card_shows_the_window_with_its_end(app):
+    import datetime as dt
+    from inpace import roadmaps
+    v, c = app
+    rm = roadmaps.parse({"id": "win-sprint", "title": "W", "steps": [{"course": "python-basics"}], "sprint": {"days": 3, "hours": 8}}, "mine")
+    roadmaps.save(v.home, roadmaps.start_sprint(rm, {}, 3, 8, dt.date.today().isoformat(), 9, end=23))
+    page = c.get("/roadmaps/win-sprint").text
+    assert "each day runs 09:00 to 23:00" in page and "days run 09:00 to 09:00" not in page
