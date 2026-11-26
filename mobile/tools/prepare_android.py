@@ -30,7 +30,10 @@ import android.os.Looper
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.os.SystemClock
 import android.util.Rational
+import android.view.View
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -45,6 +48,8 @@ import java.net.URL
 // The page drives both through the "inpace/pip" channel (see main.dart and app.js).
 class MainActivity : FlutterActivity() {
     private var autoPip = false
+    private var pendingOpen: String? = null
+    private var pendingTimer: String? = null
     private var channel: MethodChannel? = null
     private var session: MediaSessionCompat? = null
     private var artUrl = ""
@@ -73,6 +78,12 @@ class MainActivity : FlutterActivity() {
                 }
                 "enter" -> result.success(enter())
                 "install" -> result.success(install(call.arguments as? String ?: ""))
+                "live" -> result.success(try { live(call.arguments as? Map<*, *>) } catch (e: Exception) { false })
+                "takeOpen" -> {
+                    result.success(mapOf("url" to pendingOpen, "timer" to pendingTimer))
+                    pendingOpen = null
+                    pendingTimer = null
+                }
                 "media" -> {
                     try { media(call.arguments as? Map<*, *>) } catch (e: Exception) { }
                     result.success(null)
@@ -83,6 +94,25 @@ class MainActivity : FlutterActivity() {
         try {
             ContextCompat.registerReceiver(this, mediaReceiver, IntentFilter(mediaAction), ContextCompat.RECEIVER_NOT_EXPORTED)
         } catch (e: Exception) { }
+        handleIntent(intent, false)  // opened from the sprint card: the app asks for it once it's ready (takeOpen)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent, true)
+    }
+
+    private fun handleIntent(i: Intent?, now: Boolean) {
+        if (i == null) return
+        val url = i.getStringExtra("inpace_url")
+        val act = i.getStringExtra("inpace_timer")
+        i.removeExtra("inpace_url")
+        i.removeExtra("inpace_timer")
+        if (act != null) {
+            if (now && channel != null) channel?.invokeMethod("timer", act) else pendingTimer = act
+        } else if (url != null) {
+            if (now && channel != null) channel?.invokeMethod("open", url) else pendingOpen = url
+        }
     }
 
     override fun onDestroy() {
@@ -91,6 +121,123 @@ class MainActivity : FlutterActivity() {
         session = null
         cancelMedia()
         super.onDestroy()
+    }
+
+    // ---- the sprint and timer card (v1.37.3) ----
+    // Android 12+ ignores an app's colors on ordinary notifications, so this card brings its own layout (the
+    // yellow box, big black countdown, the phase pill, the progress bar, Tempo, Pause and Stop), inside Android's
+    // standard frame. The countdowns are Chronometers, so Android keeps them ticking even when inPace sleeps.
+    // The channel alerts once (not in the "Silent" group) but makes no sound or buzz on every update.
+    private fun live(a: Map<*, *>?): Boolean {
+        if (a == null) return false
+        val id = (a["id"] as? Number)?.toInt() ?: return false
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (a["cancel"] == true) {
+            nm.cancel(id)
+            return true
+        }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return true
+        if (Build.VERSION.SDK_INT >= 26) {
+            if (nm.getNotificationChannel(LIVE_CH) == null) {
+                val ch = NotificationChannel(LIVE_CH, (a["channel"] as? String) ?: "Sprint and timer", NotificationManager.IMPORTANCE_DEFAULT)
+                ch.setSound(null, null)
+                ch.enableVibration(false)
+                ch.setShowBadge(false)
+                nm.createNotificationChannel(ch)
+            }
+            for (old in arrayOf("inpace_sprint", "inpace_trip")) {  // the old silent channels
+                try { nm.deleteNotificationChannel(old) } catch (e: Exception) { }
+            }
+        }
+        val small = RemoteViews(packageName, R.layout.inpace_live)
+        val big = RemoteViews(packageName, R.layout.inpace_live_big)
+        fill(small, a, id, false)
+        fill(big, a, id, true)
+        var icon = resources.getIdentifier("ic_stat_inpace", "drawable", packageName)
+        if (icon == 0) icon = applicationInfo.icon
+        val b = NotificationCompat.Builder(this, LIVE_CH)
+            .setSmallIcon(icon)
+            .setColor(0xFFFFD43B.toInt())
+            .setContentTitle((a["title"] as? String) ?: "inPace")
+            .setContentText((a["body"] as? String) ?: "")
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(small)
+            .setCustomBigContentView(big)
+            .setContentIntent(openIntent(id * 4, (a["url"] as? String) ?: "/", null))
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setOngoing(a["ongoing"] == true)
+            .setAutoCancel(false)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        val timeout = (a["timeout_ms"] as? Number)?.toLong() ?: 0L
+        if (timeout > 0) b.setTimeoutAfter(timeout)
+        nm.notify(id, b.build())
+        return true
+    }
+
+    private fun openIntent(req: Int, url: String, timer: String?): PendingIntent {
+        val i = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("inpace_url", url)
+        if (timer != null) i.putExtra("inpace_timer", timer)
+        return PendingIntent.getActivity(this, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun clock(v: RemoteViews, clockId: Int, textId: Int, ends: Long?, text: String) {
+        val left = (ends ?: 0L) - System.currentTimeMillis()
+        if (ends != null && left > 0) {
+            v.setViewVisibility(clockId, View.VISIBLE)
+            v.setViewVisibility(textId, View.GONE)
+            v.setChronometer(clockId, SystemClock.elapsedRealtime() + left, null, true)
+            v.setChronometerCountDown(clockId, true)
+        } else {
+            v.setViewVisibility(clockId, View.GONE)
+            v.setViewVisibility(textId, View.VISIBLE)
+            v.setTextViewText(textId, text)
+        }
+    }
+
+    private fun fill(v: RemoteViews, a: Map<*, *>, id: Int, big: Boolean) {
+        v.setTextViewText(R.id.live_kicker, (a["kicker"] as? String) ?: "")
+        v.setTextViewText(R.id.live_title, (a["title"] as? String) ?: "")
+        clock(v, R.id.live_clock, R.id.live_clock_text, (a["ends_ms"] as? Number)?.toLong(), (a["clock_text"] as? String) ?: "")
+        val face = resources.getIdentifier((a["face"] as? String) ?: "tempo_read", "drawable", packageName)
+        if (face != 0) v.setImageViewResource(R.id.live_face, face)
+        if (!big) return
+        v.setTextViewText(R.id.live_left, (a["clock_label"] as? String) ?: "")
+        val body = (a["body"] as? String) ?: ""
+        v.setViewVisibility(R.id.live_body, if (body.isEmpty()) View.GONE else View.VISIBLE)
+        v.setTextViewText(R.id.live_body, body)
+        val phase = (a["phase"] as? String) ?: ""
+        if (phase.isEmpty()) {
+            v.setViewVisibility(R.id.live_phase_row, View.GONE)
+        } else {
+            v.setViewVisibility(R.id.live_phase_row, View.VISIBLE)
+            v.setTextViewText(R.id.live_phase, phase)
+            clock(v, R.id.live_phase_clock, R.id.live_phase_text, (a["phase_ends_ms"] as? Number)?.toLong(),
+                (a["phase_text"] as? String) ?: "")
+        }
+        val pct = (a["progress"] as? Number)?.toInt() ?: -1
+        if (pct < 0) {
+            v.setViewVisibility(R.id.live_bar, View.GONE)
+        } else {
+            v.setViewVisibility(R.id.live_bar, View.VISIBLE)
+            v.setProgressBar(R.id.live_bar, 100, pct.coerceIn(0, 100), false)
+        }
+        val acts = (a["actions"] as? List<*>) ?: emptyList<Any>()
+        val ids = intArrayOf(R.id.live_btn1, R.id.live_btn2)
+        v.setViewVisibility(R.id.live_btns, if (acts.isEmpty()) View.GONE else View.VISIBLE)
+        for (k in ids.indices) {
+            val pair = acts.getOrNull(k) as? List<*>
+            if (pair == null || pair.size < 2) {
+                v.setViewVisibility(ids[k], View.GONE)
+                continue
+            }
+            v.setViewVisibility(ids[k], View.VISIBLE)
+            v.setTextViewText(ids[k], pair[1].toString())
+            v.setOnClickPendingIntent(ids[k], openIntent(id * 4 + 1 + k, (a["url"] as? String) ?: "/", pair[0].toString()))
+        }
     }
 
     // ---- updates (v1.37): open Android's install dialog for a downloaded APK ----
@@ -251,6 +398,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         const val MEDIA_ID = 7301
         const val MEDIA_CH = "inpace_media"
+        const val LIVE_CH = "inpace_live"
     }
 }
 """
@@ -350,6 +498,117 @@ paths_xml.write_text('<?xml version="1.0" encoding="utf-8"?>\n<paths>\n    <cach
 if "showWhenLocked" not in m:
     m = re.sub(r'(<activity\b(?=[^>]*MainActivity))', r'\1 android:showWhenLocked="true" android:turnScreenOn="true"', m, count=1)
 manifest.write_text(m, encoding="utf-8")
+
+# The sprint and timer card (v1.37.3): its own layout, so it looks like inPace on Android 12+ too (Android ignores an
+# app's colors on ordinary notifications there). Collapsed: one row, 48dp tall at most. Expanded: the full card.
+_lay = ROOT / "src" / "main" / "res" / "layout"
+_lay.mkdir(parents=True, exist_ok=True)
+_drw = ROOT / "src" / "main" / "res" / "drawable"
+_drw.mkdir(parents=True, exist_ok=True)
+(_drw / "inpace_live_box.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFD43B"/><corners android:radius="14dp"/><stroke android:width="2dp" android:color="#111111"/>
+</shape>
+""", encoding="utf-8")
+(_drw / "inpace_live_pill.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#111111"/><corners android:radius="999dp"/>
+</shape>
+""", encoding="utf-8")
+(_drw / "inpace_live_face.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="#FFFFFF"/><stroke android:width="2dp" android:color="#111111"/>
+</shape>
+""", encoding="utf-8")
+(_drw / "inpace_live_btn_dark.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#111111"/><corners android:radius="8dp"/>
+</shape>
+""", encoding="utf-8")
+(_drw / "inpace_live_btn_light.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF"/><corners android:radius="8dp"/><stroke android:width="2dp" android:color="#111111"/>
+</shape>
+""", encoding="utf-8")
+(_lay / "inpace_live.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="@drawable/inpace_live_box" android:paddingStart="12dp" android:paddingEnd="6dp"
+    android:paddingTop="3dp" android:paddingBottom="3dp">
+    <Chronometer android:id="@+id/live_clock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#111111" android:textSize="20sp" android:textStyle="bold" android:fontFamily="monospace"/>
+    <TextView android:id="@+id/live_clock_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#111111" android:textSize="15sp" android:textStyle="bold" android:visibility="gone"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:orientation="vertical" android:layout_marginStart="10dp">
+        <TextView android:id="@+id/live_kicker" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#5A4A00" android:textSize="11sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+        <TextView android:id="@+id/live_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#111111" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout>
+    <ImageView android:id="@+id/live_face" android:layout_width="34dp" android:layout_height="34dp"
+        android:background="@drawable/inpace_live_face" android:padding="3dp" android:scaleType="fitCenter"
+        android:contentDescription="Tempo"/>
+</LinearLayout>
+""", encoding="utf-8")
+(_lay / "inpace_live_big.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"
+    android:background="@drawable/inpace_live_box" android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView android:id="@+id/live_kicker" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textColor="#5A4A00" android:textSize="12sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+            <TextView android:id="@+id/live_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:textColor="#111111" android:textSize="16sp" android:textStyle="bold" android:maxLines="2" android:ellipsize="end"/>
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:gravity="bottom" android:layout_marginTop="2dp">
+                <Chronometer android:id="@+id/live_clock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#111111" android:textSize="32sp" android:textStyle="bold" android:fontFamily="monospace"/>
+                <TextView android:id="@+id/live_clock_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#111111" android:textSize="22sp" android:textStyle="bold" android:visibility="gone"/>
+                <TextView android:id="@+id/live_left" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:textColor="#5A4A00" android:textSize="12sp" android:textStyle="bold"
+                    android:layout_marginStart="6dp" android:layout_marginBottom="6dp"/>
+            </LinearLayout>
+        </LinearLayout>
+        <ImageView android:id="@+id/live_face" android:layout_width="56dp" android:layout_height="56dp"
+            android:background="@drawable/inpace_live_face" android:padding="5dp" android:scaleType="fitCenter"
+            android:contentDescription="Tempo"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/live_phase_row" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/inpace_live_pill"
+        android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="4dp" android:paddingBottom="4dp"
+        android:layout_marginTop="6dp">
+        <TextView android:id="@+id/live_phase" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:maxLines="1"/>
+        <Chronometer android:id="@+id/live_phase_clock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFD43B" android:textSize="14sp" android:textStyle="bold" android:fontFamily="monospace"
+            android:layout_marginStart="8dp"/>
+        <TextView android:id="@+id/live_phase_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFD43B" android:textSize="13sp" android:textStyle="bold" android:layout_marginStart="8dp"
+            android:visibility="gone"/>
+    </LinearLayout>
+    <ProgressBar android:id="@+id/live_bar" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="10dp"
+        android:max="100" android:progressTint="#111111" android:progressBackgroundTint="#8A7300"/>
+    <TextView android:id="@+id/live_body" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:textColor="#2B2400" android:textSize="13sp" android:textStyle="bold" android:layout_marginTop="8dp"
+        android:maxLines="2" android:ellipsize="end"/>
+    <LinearLayout android:id="@+id/live_btns" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="10dp">
+        <TextView android:id="@+id/live_btn1" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1"
+            android:gravity="center" android:background="@drawable/inpace_live_btn_dark" android:textColor="#FFFFFF"
+            android:textSize="14sp" android:textStyle="bold"/>
+        <TextView android:id="@+id/live_btn2" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1"
+            android:gravity="center" android:background="@drawable/inpace_live_btn_light" android:textColor="#111111"
+            android:textSize="14sp" android:textStyle="bold" android:layout_marginStart="8dp"/>
+    </LinearLayout>
+</LinearLayout>
+""", encoding="utf-8")
 
 # The small notification icon (white inPace mark), kept even when unused resources are removed from release builds.
 # Tempo's faces for notifications (tempo_*.png, villain.png) come from mobile/icon/res and are kept the same way.

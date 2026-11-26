@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.37.3
+
+- **The sprint and timer notifications look like inPace on Android 12 and newer.** Android 12+ ignores an app's colors on ordinary notifications, so 1.37's yellow cards came out grey. The card now has its own layout: a yellow box with the countdown in big black digits (Android keeps it ticking even while inPace sleeps), how far through the day you are, Tempo, and Pause and Stop buttons right on the card.
+- **One card for a sprint, not two.** While the sprint timer runs, the block or break and its countdown ("Focus block 2 · 32:40") sit on the sprint card instead of a second "Sprint timer paused" card. When a block or break ends, the card moves on to the next one by itself.
+- **Not in the "Silent" group anymore.** The sprint and timer card is in a new "Sprint and timer" channel that shows with your normal notifications, without a sound or a buzz every time it updates.
+
 ## v1.37.2
 
 - **The sprint card shows the real day window.** It said "days run 09:00 to 09:00" even when you set the day to end at 23:00. It now says "each day runs 09:00 to 23:00".

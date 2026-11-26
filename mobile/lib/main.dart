@@ -61,6 +61,14 @@ class Reminders {
   static String _tripKey = '';
   static String _sprintKey = '';
   static Timer? _sprintTick; // redraws the sprint card's progress bar every minute while the app lives
+  // The sprint and timer card (v1.37.3) is drawn by MainActivity with its own layout: Android 12+ ignores an app's
+  // colors on ordinary notifications. When the sprint timer runs, it's part of the sprint card (one card, not two).
+  static const _native = MethodChannel('inpace/pip');
+  static bool _nativeOk = true;
+  static Map<String, dynamic>? _liveTrip; // the running or paused timer or focus trip
+  static Map<String, dynamic>? _liveSprint; // today's open sprint window
+  static Timer? _phaseEnd; // when a block or break ends, ask inPace what runs next
+  static Future<void> Function()? onRefresh; // set by the app: fetch the timer and the sprint again
   // inPace's sun yellow: every notification carries it, and the live ones (timer, sprint, downloads) are painted with it.
   static const sun = Color(0xFFFFD43B);
   static Map<String, dynamic> labels = {};
@@ -79,6 +87,101 @@ class Reminders {
           : AndroidNotificationAction('timer_resume', (t['l_resume'] as String?) ?? 'Go on', showsUserInterface: true),
       AndroidNotificationAction('timer_stop', (t['l_stop'] as String?) ?? 'Stop', showsUserInterface: true, cancelNotification: true),
     ];
+  }
+
+  static Future<bool> _drawNative(Map<String, dynamic> a) async {
+    if (!_nativeOk) return false;
+    try {
+      return (await _native.invokeMethod<bool>('live', a)) == true;
+    } on MissingPluginException {
+      _nativeOk = false;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static String _mmss(Object? seconds) {
+    final s = ((seconds as num?) ?? 0).toInt().clamp(0, 359999);
+    final h = s ~/ 3600, m = (s % 3600) ~/ 60, r = s % 60;
+    String two(int x) => x.toString().padLeft(2, '0');
+    return h > 0 ? '$h:${two(m)}:${two(r)}' : '${two(m)}:${two(r)}';
+  }
+
+  static List<List<String>> _liveActions(Map<String, dynamic> t, bool running) {
+    if (t['actions'] != true) return [];
+    return [
+      running ? ['pause', (t['l_pause'] as String?) ?? 'Pause'] : ['resume', (t['l_resume'] as String?) ?? 'Go on'],
+      ['stop', (t['l_stop'] as String?) ?? 'Stop'],
+    ];
+  }
+
+  static Map<String, dynamic> _sprintCard(Map<String, dynamic> sp, Map<String, dynamic>? t) {
+    final start = ((sp['start_ms'] as num?) ?? 0).toInt();
+    final end = ((sp['end_ms'] as num?) ?? 0).toInt();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final pct = (((now - start) * 100) ~/ (end - start).clamp(1, 1 << 40)).clamp(0, 100);
+    final running = t != null && t['state'] == 'running';
+    final stopped = sp['stopped'] == true && t == null;
+    return {
+      'id': sprintId,
+      'channel': (sp['live_channel'] as String?) ?? 'Sprint and timer',
+      'kicker': '${sp['l_sprint'] ?? 'Sprint'} · ${sp['head'] ?? ''}',
+      'title': (sp['title'] as String?) ?? '',
+      'ends_ms': end,
+      'clock_label': (sp['l_left'] as String?) ?? '',
+      'progress': pct,
+      'body': stopped ? ((sp['stopped_body'] as String?) ?? '') : ((sp['body'] as String?) ?? ''),
+      'face': (stopped || (t != null && !running)) ? 'tempo_sleepy' : 'tempo_read',
+      'url': (sp['url'] as String?) ?? '/',
+      'ongoing': true,
+      'timeout_ms': end - now,
+      if (t != null) 'phase': running ? ((t['short'] as String?) ?? '') : ((t['l_paused'] as String?) ?? 'Paused'),
+      if (running) 'phase_ends_ms': t!['ends_ms'],
+      if (t != null && !running) 'phase_text': _mmss(t['left_s']),
+      'actions': t == null ? <List<String>>[] : _liveActions(t, running),
+    };
+  }
+
+  static Map<String, dynamic> _timerCard(Map<String, dynamic> t) {
+    final running = t['state'] == 'running';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final ends = (t['ends_ms'] as num?)?.toInt();
+    final goal = ((t['goal'] as num?) ?? 0).toInt() * 60000;
+    final pct = (running && ends != null && goal > 0) ? (100 - ((ends - now) * 100 ~/ goal)).clamp(0, 100) : -1;
+    return {
+      'id': tripId,
+      'channel': (t['live_channel'] as String?) ?? 'Sprint and timer',
+      'kicker': (t['channel'] as String?) ?? 'inPace',
+      'title': running ? ((t['title'] as String?) ?? '') : ((t['paused_title'] as String?) ?? ''),
+      'ends_ms': running ? ends : null,
+      'clock_text': _mmss(t['left_s']),
+      'clock_label': '',
+      'progress': pct,
+      'body': running ? ((t['body'] as String?) ?? '') : ((t['paused_body'] as String?) ?? ''),
+      'face': running ? 'tempo_read' : 'tempo_sleepy',
+      'url': (t['url'] as String?) ?? '/island/trip',
+      'ongoing': running,
+      'timeout_ms': (running && ends != null) ? ends - now : 0,
+      'actions': _liveActions(t, running),
+    };
+  }
+
+  // Draw both cards from what we know now. False when the app's own layout isn't available (then the plain
+  // notifications below are used, as before).
+  static Future<bool> _renderLive() async {
+    final t = _liveTrip;
+    final sp = _liveSprint;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final spOpen = sp != null && ((sp['end_ms'] as num?) ?? 0) > now;
+    final merged = spOpen && t != null && t['sprint'] == true;
+    if (spOpen) {
+      if (!await _drawNative(_sprintCard(sp!, merged ? t : null))) return false;
+    } else if (!await _drawNative({'id': sprintId, 'cancel': true})) {
+      return false;
+    }
+    if (t != null && !merged) return _drawNative(_timerCard(t));
+    return _drawNative({'id': tripId, 'cancel': true});
   }
 
   static AndroidFlutterLocalNotificationsPlugin? get android =>
@@ -259,19 +362,25 @@ class Reminders {
       for (var i = 0; i < 4; i++) {
         await plugin.cancel(id: tripNextId + i); // a sprint's alerts are scheduled again below, if it still runs
       }
+      _phaseEnd?.cancel();
       if (t == null || (state != 'running' && state != 'paused')) {
+        _liveTrip = null;
         await plugin.cancel(id: tripId);
         await plugin.cancel(id: tripDoneId);
+        await _renderLive();
         return;
       }
+      _liveTrip = t;
       final channel = (t['channel'] as String?) ?? 'Focus trip';
       final payload = jsonEncode({'url': (t['url'] as String?) ?? '/island/trip'});
       if (state == 'paused') {
         await plugin.cancel(id: tripDoneId);
+        if (await _renderLive()) return;
         final body = (t['paused_body'] as String?) ?? '';
         await plugin.show(id: tripId, title: t['paused_title'] as String?, body: body, payload: payload,
-            notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
-                importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+            notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_live', (t['live_channel'] as String?) ?? channel,
+                importance: Importance.defaultImportance, priority: Priority.defaultPriority, onlyAlertOnce: true,
+                playSound: false, enableVibration: false,
                 category: AndroidNotificationCategory.progress, styleInformation: BigTextStyleInformation(body),
                 color: sun, colorized: true,
                 actions: _timerActions(t, false),
@@ -281,13 +390,18 @@ class Reminders {
       final ends = DateTime.fromMillisecondsSinceEpoch((t['ends_ms'] as num).toInt());
       final left = ends.difference(DateTime.now());
       if (left.inSeconds <= 0) {
+        _liveTrip = null;
         await plugin.cancel(id: tripId);
+        await _renderLive();
         return;
       }
+      // When this block or break ends, ask inPace what runs next, so the card moves on by itself.
+      _phaseEnd = Timer(left + const Duration(seconds: 3), () => onRefresh?.call());
       final body = (t['body'] as String?) ?? '';
-      await plugin.show(id: tripId, title: t['title'] as String?, body: body, payload: payload,
-          notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_trip', channel,
-              importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+      if (!await _renderLive()) await plugin.show(id: tripId, title: t['title'] as String?, body: body, payload: payload,
+          notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_live', (t['live_channel'] as String?) ?? channel,
+              importance: Importance.defaultImportance, priority: Priority.defaultPriority, onlyAlertOnce: true,
+              playSound: false, enableVibration: false,
               ongoing: true, autoCancel: false,
               showWhen: true, when: ends.millisecondsSinceEpoch, usesChronometer: true, chronometerCountDown: true,
               timeoutAfter: left.inMilliseconds, // gone when the time is up
@@ -327,7 +441,9 @@ class Reminders {
     _sprintTick = null;
     try {
       if (sp == null) {
+        _liveSprint = null;
         await plugin.cancel(id: sprintId);
+        await _renderLive();
         return;
       }
       await _drawSprint(sp);
@@ -344,9 +460,13 @@ class Reminders {
     if (end <= now) {
       _sprintTick?.cancel();
       _sprintTick = null;
+      _liveSprint = null;
       await plugin.cancel(id: sprintId);
+      await _renderLive();
       return;
     }
+    _liveSprint = sp;
+    if (await _renderLive()) return;
     final total = (end - start).clamp(1, 1 << 40);
     final pct = (((now - start) * 100) ~/ total).clamp(0, 100);
     final stopped = sp['stopped'] == true;
@@ -356,8 +476,9 @@ class Reminders {
       await plugin.show(id: sprintId, title: title, body: body,
           payload: jsonEncode({'url': (sp['url'] as String?) ?? '/'}),
           notificationDetails: NotificationDetails(android: AndroidNotificationDetails(
-              'inpace_sprint', (sp['channel'] as String?) ?? 'Sprint',
-              importance: Importance.low, priority: Priority.low, onlyAlertOnce: true,
+              'inpace_live', (sp['live_channel'] as String?) ?? 'Sprint and timer',
+              importance: Importance.defaultImportance, priority: Priority.defaultPriority, onlyAlertOnce: true,
+              playSound: false, enableVibration: false,
               ongoing: true, autoCancel: false,
               showWhen: true, when: end, usesChronometer: true, chronometerCountDown: true,
               timeoutAfter: end - now,
@@ -447,6 +568,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         // A button in the media controls: play, pause, back, fwd, prev, next or seek:<ms>.
         await _web?.runJavaScript('window.inpaceMediaControl && window.inpaceMediaControl(${jsonEncode(call.arguments)})');
       }
+      if (call.method == 'open') {
+        // the sprint or timer card was tapped while inPace was open
+        final page = (call.arguments as String? ?? '/').replaceFirst(RegExp(r'^/'), '');
+        if (_ready) {
+          _openPage(page);
+        } else {
+          _pendingLink = page;
+        }
+      }
+      if (call.method == 'timer') {
+        Reminders.onTimerAction?.call(call.arguments as String? ?? '');
+      }
       if (call.method == 'changed') {
         if (mounted) setState(() => _inPip = call.arguments == true);
         // The page shows only the video and the timer while it floats.
@@ -518,6 +651,21 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       _ready = true;
       _listenForLinks();
       await Reminders.ready;
+      String? cardTimer;
+      try {  // opened from the sprint or timer card (or one of its buttons) while inPace was closed
+        final o = await _pip.invokeMethod<Map>('takeOpen');
+        final url = o?['url'] as String?;
+        if (url != null) _pendingLink = url.replaceFirst(RegExp(r'^/'), '');
+        cardTimer = o?['timer'] as String?;
+      } catch (_) {}
+      Reminders.onRefresh = () async {
+        try {
+          final r = await http.get(Uri.parse('${_base}island/live.json')).timeout(const Duration(seconds: 6));
+          final d = jsonDecode(r.body) as Map<String, dynamic>;
+          await Reminders.trip(d['trip'] == null ? null : Map<String, dynamic>.from(d['trip'] as Map));
+          await Reminders.sprint(d['sprint'] == null ? null : Map<String, dynamic>.from(d['sprint'] as Map));
+        } catch (_) {}
+      };
       final fromNotification = Reminders.takePending();
       if (fromNotification != null) _pendingLink = fromNotification.replaceFirst(RegExp(r'^/'), '');
       Reminders.onOpen = (page) => _openPage(page.replaceFirst(RegExp(r'^/'), ''));
@@ -528,7 +676,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         } catch (_) {}
         // The page fetches the timer again and sends the notification its new state.
         await _web?.runJavaScript('window.inpaceTimer && window.inpaceTimer.refresh()');
+        await Reminders.onRefresh?.call(); // and the card updates even if no page is open
       };
+      if (cardTimer != null && cardTimer.isNotEmpty) Reminders.onTimerAction?.call(cardTimer);
       Reminders.onDownloadsStop = () async {
         try {
           await http.post(Uri.parse('${_base}downloads/stop'), headers: {'x-inpace-soft': '1'});

@@ -75,3 +75,18 @@ def test_the_sprint_card_shows_the_window_with_its_end(app):
     roadmaps.save(v.home, roadmaps.start_sprint(rm, {}, 3, 8, dt.date.today().isoformat(), 9, end=23))
     page = c.get("/roadmaps/win-sprint").text
     assert "each day runs 09:00 to 23:00" in page and "days run 09:00 to 09:00" not in page
+
+
+def test_the_phone_card_gets_the_sprint_phase_and_time_left(app):
+    import datetime as dt
+    from inpace import focus, roadmaps
+    v, c = app
+    rm = roadmaps.parse({"id": "card-sprint", "title": "Card", "steps": [{"course": "python-basics"}],
+                         "sprint": {"days": 3, "hours": 8}}, "mine")
+    roadmaps.save(v.home, roadmaps.start_sprint(rm, {}, 3, 8, dt.date.today().isoformat(), 0, end=0))
+    focus.start_sprint(v, "card-sprint", "Sprint day 1", 8 * 3600, 50, 10)
+    d = c.get("/island/live.json").json()
+    trip, sp = d["trip"], d["sprint"]
+    assert trip["sprint"] is True and trip["short"] == "Focus block 1" and 2990 <= trip["left_s"] <= 3000
+    assert trip["live_channel"] == "Sprint and timer" and trip["l_paused"] == "Paused"
+    assert sp["l_sprint"] == "Sprint" and sp["live_channel"] == "Sprint and timer" and sp["rid"] == "card-sprint"

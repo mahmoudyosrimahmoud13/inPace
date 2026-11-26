@@ -2889,5 +2889,7 @@
   "Download and install": "تنزيل وتثبيت",
   "The app looks for new versions by itself and downloads them to the phone; Android then asks you to install. Your courses and progress stay.": "يبحث التطبيق عن الإصدارات الجديدة بنفسه وينزّلها إلى الهاتف؛ ثم يطلب منك أندرويد التثبيت. تبقى دوراتك وتقدمك.",
   "The app downloads it and Android asks you to install it over this one. If Android asks first, allow inPace to install updates.": "ينزّله التطبيق ويطلب منك أندرويد تثبيته فوق هذا. إن سأل أندرويد أولًا، اسمح لـ inPace بتثبيت التحديثات.",
-  "each day runs {a} to {b}": "كل يوم من {a} إلى {b}"
+  "each day runs {a} to {b}": "كل يوم من {a} إلى {b}",
+  "Focus block {n}": "كتلة تركيز {n}",
+  "Sprint and timer": "السبرنت والمؤقت"
 }
