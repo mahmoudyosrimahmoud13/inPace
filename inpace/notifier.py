@@ -273,6 +273,15 @@ def _icon_png(picture: str = "") -> str:
     return ""
 
 
+def _hero_png(picture: str = "") -> str:
+    """The yellow inPace banner with Tempo for the top of a Windows notification (v1.37.3)."""
+    name = Path(picture or "tempo_wave").name
+    if not name.startswith("tempo_"):
+        name = "tempo_wave"  # the villain and anything else: Tempo waving
+    p = Path(__file__).parent / "static" / "notify" / f"hero_{name}.png"
+    return str(p) if p.exists() else ""
+
+
 def _windows_register_aumid() -> None:
     """Windows shows a toast under the name of a registered app id; register "inPace" for this user."""
     try:
@@ -286,27 +295,34 @@ def _windows_register_aumid() -> None:
         pass
 
 
-def windows_toast_xml(title: str, body: str, link: str, alarm: bool = False, image: str = "") -> str:
+def windows_toast_xml(title: str, body: str, link: str, alarm: bool = False, image: str = "", hero: str = "",
+                      open_label: str = "") -> str:
+    q = {'"': "&quot;"}
     attrs = ' scenario="alarm"' if alarm else ""
     if link:
-        attrs += ' activationType="protocol" launch="' + escape(link, {'"': "&quot;"}) + '"'
-    logo = ""
+        attrs += ' activationType="protocol" launch="' + escape(link, q) + '"'
+    pics = ""
+    if hero:  # v1.37.3: the yellow inPace banner with Tempo across the top, so it looks like the app
+        pics += f'<image placement="hero" src="{escape(Path(hero).resolve().as_uri(), q)}"/>'
     if image:  # Tempo's face next to the text
         uri = Path(image).resolve().as_uri()
-        logo = f'<image placement="appLogoOverride" hint-crop="circle" src="{escape(uri, {chr(34): "&quot;"})}"/>'
+        pics += f'<image placement="appLogoOverride" hint-crop="circle" src="{escape(uri, q)}"/>'
     parts = [f"<toast{attrs}>", '<visual><binding template="ToastGeneric">',
-             f"<text>{escape(title)}</text><text>{escape(body)}</text>{logo}", "</binding></visual>"]
+             f"<text>{escape(title)}</text><text>{escape(body)}</text>{pics}<text placement=\"attribution\">inPace</text>",
+             "</binding></visual>"]
     if alarm:
         parts.append('<audio src="ms-winsoundevent:Notification.Looping.Alarm" loop="true"/>')
         parts.append('<actions><action activationType="system" arguments="snooze" content=""/>'
                      '<action activationType="system" arguments="dismiss" content=""/></actions>')
+    elif link and open_label:
+        parts.append(f'<actions><action activationType="protocol" arguments="{escape(link, q)}" content="{escape(open_label, q)}"/></actions>')
     parts.append("</toast>")
     return "".join(parts)
 
 
-def _windows_toast(title: str, body: str, link: str, alarm: bool, image: str = "") -> bool:
+def _windows_toast(title: str, body: str, link: str, alarm: bool, image: str = "", hero: str = "", open_label: str = "") -> bool:
     _windows_register_aumid()
-    xml = windows_toast_xml(title, body, link, alarm, image).replace("'", "''")
+    xml = windows_toast_xml(title, body, link, alarm, image, hero, open_label).replace("'", "''")
     script = (
         "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null\n"
         "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null\n"
@@ -342,21 +358,32 @@ def open_inpace(path: str = "/", home: Path | None = None) -> None:
     subprocess.Popen(cmd + [go_link(path)], **kw)
 
 
-def notify(title: str, body: str, path: str = "/", home: Path | None = None, picture: str = "") -> bool:
+def notify(title: str, body: str, path: str = "/", home: Path | None = None, picture: str = "", open_label: str = "") -> bool:
     """Show a notification, with Tempo's face when `picture` names one (tempo_cheer, villain...).
     Clicking it opens inPace on that page, where the computer allows it."""
     if os.environ.get("INPACE_HOSTED"):  # someone using a shared inPace: nothing pops up on the host computer
         return False
     try:
         if sys.platform == "win32":
-            return _windows_toast(title, body, go_link(path), alarm=False, image=_icon_png(picture) if picture else "")
+            if not open_label:
+                try:
+                    from .app import say  # in the language you picked in Settings
+                    open_label = say("Open inPace")
+                except Exception:
+                    open_label = "Open inPace"
+            return _windows_toast(title, body, go_link(path), alarm=False, image=_icon_png(picture or "tempo_wave"),
+                                  hero=_hero_png(picture), open_label=open_label)
         if sys.platform == "darwin":
             return _osascript(['display notification (item 2 of argv) with title (item 1 of argv) sound name "Glass"'],
                               [title, body]).returncode == 0
         ns = shutil.which("notify-send")
         if ns:
-            icon = _icon_png(picture)
-            r = _run([ns, "-a", "inPace", *(["-i", icon] if icon else []), title, body], timeout=15)
+            # The inPace icon as the app's icon, Tempo's face as the picture beside the text, and the hints that make
+            # GNOME and KDE file it under inPace (v1.37.3: Linux desktops draw the card themselves).
+            app_icon, face = _icon_png(), _icon_png(picture or "tempo_wave")
+            r = _run([ns, "-a", "inPace", *(["-i", app_icon] if app_icon else []),
+                      "-h", "string:desktop-entry:inpace",
+                      *(["-h", f"string:image-path:{face}"] if face else []), title, body], timeout=15)
             return r.returncode == 0
         gdbus = shutil.which("gdbus")
         if gdbus:
@@ -443,7 +470,7 @@ def alarm(title: str, body: str, path: str, labels: dict, home: Path | None = No
         return ""
     if sys.platform == "win32":
         # Windows rings, snoozes and stops it by itself
-        _windows_toast(title, body, go_link(path), alarm=True, image=_icon_png(picture) if picture else "")
+        _windows_toast(title, body, go_link(path), alarm=True, image=_icon_png(picture or "tempo_wave"), hero=_hero_png(picture))
         return "shown"
     for _ in range(4):
         ringer = _Ringer()

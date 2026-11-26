@@ -40,6 +40,8 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.net.URL
+import org.json.JSONArray
+import org.json.JSONObject
 
 // inPace's one screen, plus:
 //  - picture-in-picture: leave inPace while a video plays or a timer runs, and it keeps floating over other apps
@@ -79,6 +81,9 @@ class MainActivity : FlutterActivity() {
                 "enter" -> result.success(enter())
                 "install" -> result.success(install(call.arguments as? String ?: ""))
                 "live" -> result.success(try { live(call.arguments as? Map<*, *>) } catch (e: Exception) { false })
+                "schedule" -> result.success(try { InpaceCards.schedule(this, call.arguments as? Map<*, *>) } catch (e: Exception) { false })
+                "unschedule" -> result.success(try { InpaceCards.unschedule(this, call.arguments as? List<*>) } catch (e: Exception) { false })
+                "unscheduleBelow" -> result.success(try { InpaceCards.unscheduleBelow(this, (call.arguments as? Number)?.toInt() ?: 0) } catch (e: Exception) { false })
                 "takeOpen" -> {
                     result.success(mapOf("url" to pendingOpen, "timer" to pendingTimer))
                     pendingOpen = null
@@ -123,122 +128,8 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
     }
 
-    // ---- the sprint and timer card (v1.37.3) ----
-    // Android 12+ ignores an app's colors on ordinary notifications, so this card brings its own layout (the
-    // yellow box, big black countdown, the phase pill, the progress bar, Tempo, Pause and Stop), inside Android's
-    // standard frame. The countdowns are Chronometers, so Android keeps them ticking even when inPace sleeps.
-    // The channel alerts once (not in the "Silent" group) but makes no sound or buzz on every update.
-    private fun live(a: Map<*, *>?): Boolean {
-        if (a == null) return false
-        val id = (a["id"] as? Number)?.toInt() ?: return false
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (a["cancel"] == true) {
-            nm.cancel(id)
-            return true
-        }
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return true
-        if (Build.VERSION.SDK_INT >= 26) {
-            if (nm.getNotificationChannel(LIVE_CH) == null) {
-                val ch = NotificationChannel(LIVE_CH, (a["channel"] as? String) ?: "Sprint and timer", NotificationManager.IMPORTANCE_DEFAULT)
-                ch.setSound(null, null)
-                ch.enableVibration(false)
-                ch.setShowBadge(false)
-                nm.createNotificationChannel(ch)
-            }
-            for (old in arrayOf("inpace_sprint", "inpace_trip")) {  // the old silent channels
-                try { nm.deleteNotificationChannel(old) } catch (e: Exception) { }
-            }
-        }
-        val small = RemoteViews(packageName, R.layout.inpace_live)
-        val big = RemoteViews(packageName, R.layout.inpace_live_big)
-        fill(small, a, id, false)
-        fill(big, a, id, true)
-        var icon = resources.getIdentifier("ic_stat_inpace", "drawable", packageName)
-        if (icon == 0) icon = applicationInfo.icon
-        val b = NotificationCompat.Builder(this, LIVE_CH)
-            .setSmallIcon(icon)
-            .setColor(0xFFFFD43B.toInt())
-            .setContentTitle((a["title"] as? String) ?: "inPace")
-            .setContentText((a["body"] as? String) ?: "")
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(small)
-            .setCustomBigContentView(big)
-            .setContentIntent(openIntent(id * 4, (a["url"] as? String) ?: "/", null))
-            .setOnlyAlertOnce(true)
-            .setShowWhen(false)
-            .setOngoing(a["ongoing"] == true)
-            .setAutoCancel(false)
-            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        val timeout = (a["timeout_ms"] as? Number)?.toLong() ?: 0L
-        if (timeout > 0) b.setTimeoutAfter(timeout)
-        nm.notify(id, b.build())
-        return true
-    }
-
-    private fun openIntent(req: Int, url: String, timer: String?): PendingIntent {
-        val i = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("inpace_url", url)
-        if (timer != null) i.putExtra("inpace_timer", timer)
-        return PendingIntent.getActivity(this, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-    }
-
-    private fun clock(v: RemoteViews, clockId: Int, textId: Int, ends: Long?, text: String) {
-        val left = (ends ?: 0L) - System.currentTimeMillis()
-        if (ends != null && left > 0) {
-            v.setViewVisibility(clockId, View.VISIBLE)
-            v.setViewVisibility(textId, View.GONE)
-            v.setChronometer(clockId, SystemClock.elapsedRealtime() + left, null, true)
-            v.setChronometerCountDown(clockId, true)
-        } else {
-            v.setViewVisibility(clockId, View.GONE)
-            v.setViewVisibility(textId, View.VISIBLE)
-            v.setTextViewText(textId, text)
-        }
-    }
-
-    private fun fill(v: RemoteViews, a: Map<*, *>, id: Int, big: Boolean) {
-        v.setTextViewText(R.id.live_kicker, (a["kicker"] as? String) ?: "")
-        v.setTextViewText(R.id.live_title, (a["title"] as? String) ?: "")
-        clock(v, R.id.live_clock, R.id.live_clock_text, (a["ends_ms"] as? Number)?.toLong(), (a["clock_text"] as? String) ?: "")
-        val face = resources.getIdentifier((a["face"] as? String) ?: "tempo_read", "drawable", packageName)
-        if (face != 0) v.setImageViewResource(R.id.live_face, face)
-        if (!big) return
-        v.setTextViewText(R.id.live_left, (a["clock_label"] as? String) ?: "")
-        val body = (a["body"] as? String) ?: ""
-        v.setViewVisibility(R.id.live_body, if (body.isEmpty()) View.GONE else View.VISIBLE)
-        v.setTextViewText(R.id.live_body, body)
-        val phase = (a["phase"] as? String) ?: ""
-        if (phase.isEmpty()) {
-            v.setViewVisibility(R.id.live_phase_row, View.GONE)
-        } else {
-            v.setViewVisibility(R.id.live_phase_row, View.VISIBLE)
-            v.setTextViewText(R.id.live_phase, phase)
-            clock(v, R.id.live_phase_clock, R.id.live_phase_text, (a["phase_ends_ms"] as? Number)?.toLong(),
-                (a["phase_text"] as? String) ?: "")
-        }
-        val pct = (a["progress"] as? Number)?.toInt() ?: -1
-        if (pct < 0) {
-            v.setViewVisibility(R.id.live_bar, View.GONE)
-        } else {
-            v.setViewVisibility(R.id.live_bar, View.VISIBLE)
-            v.setProgressBar(R.id.live_bar, 100, pct.coerceIn(0, 100), false)
-        }
-        val acts = (a["actions"] as? List<*>) ?: emptyList<Any>()
-        val ids = intArrayOf(R.id.live_btn1, R.id.live_btn2)
-        v.setViewVisibility(R.id.live_btns, if (acts.isEmpty()) View.GONE else View.VISIBLE)
-        for (k in ids.indices) {
-            val pair = acts.getOrNull(k) as? List<*>
-            if (pair == null || pair.size < 2) {
-                v.setViewVisibility(ids[k], View.GONE)
-                continue
-            }
-            v.setViewVisibility(ids[k], View.VISIBLE)
-            v.setTextViewText(ids[k], pair[1].toString())
-            v.setOnClickPendingIntent(ids[k], openIntent(id * 4 + 1 + k, (a["url"] as? String) ?: "/", pair[0].toString()))
-        }
-    }
+    // ---- inPace's own notification cards (v1.37.3): see InpaceCards below ----
+    private fun live(a: Map<*, *>?): Boolean = InpaceCards.post(this, a)
 
     // ---- updates (v1.37): open Android's install dialog for a downloaded APK ----
     // Returns "ask" when Android first wants you to allow inPace to install apps (its setting opens), else "ok".
@@ -401,6 +292,304 @@ class MainActivity : FlutterActivity() {
         const val LIVE_CH = "inpace_live"
     }
 }
+
+// inPace's notification cards (v1.37.3). Android 12+ ignores an app's colors on ordinary notifications, so every
+// inPace notification brings its own layout: a yellow box like the app, Tempo's face, the text, and buttons.
+//  - "live": the sprint and timer card, with countdowns Android keeps ticking (Chronometers)
+//  - "reminder", "tempo": a reminder or one of Tempo's nudges, with Open
+//  - "alarm": rings until you act (alarm sound, full screen on a locked phone), with Snooze and Stop
+// Scheduled cards are kept by inPace itself (AlarmManager), saved in a small store so they come back after a
+// restart of the phone, and drawn by InpaceCardReceiver when their time comes, even if inPace is closed.
+object InpaceCards {
+    private const val STORE = "inpace_cards"
+    const val FIRE = "org.inpace.inpace_mobile.CARD"
+    const val SNOOZE = "org.inpace.inpace_mobile.CARD_SNOOZE"
+    const val STOP = "org.inpace.inpace_mobile.CARD_STOP"
+
+    private fun mapOfJson(o: JSONObject): Map<String, Any?> {
+        val m = HashMap<String, Any?>()
+        for (k in o.keys()) {
+            val v = o.opt(k)
+            m[k] = when (v) {
+                is JSONArray -> (0 until v.length()).map { i ->
+                    val x = v.opt(i)
+                    if (x is JSONArray) (0 until x.length()).map { j -> x.opt(j) } else x
+                }
+                JSONObject.NULL -> null
+                else -> v
+            }
+        }
+        return m
+    }
+
+    private fun jsonOf(a: Map<*, *>): String {
+        val o = JSONObject()
+        for ((k, v) in a) {
+            o.put(k.toString(), when (v) {
+                is List<*> -> JSONArray(v.map { x -> if (x is List<*>) JSONArray(x) else x })
+                null -> JSONObject.NULL
+                else -> v
+            })
+        }
+        return o.toString()
+    }
+
+    private fun channel(ctx: Context, kind: String, name: String): String {
+        val id = when (kind) {
+            "alarm" -> "inpace_alarms"
+            "reminder" -> "inpace_reminders"
+            "tempo" -> "inpace_tempo"
+            else -> MainActivity.LIVE_CH
+        }
+        if (Build.VERSION.SDK_INT < 26) return id
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(id) != null) return id
+        val imp = when (kind) {
+            "alarm" -> NotificationManager.IMPORTANCE_HIGH
+            "reminder" -> NotificationManager.IMPORTANCE_HIGH
+            else -> NotificationManager.IMPORTANCE_DEFAULT
+        }
+        val ch = NotificationChannel(id, name, imp)
+        when (kind) {
+            "alarm" -> ch.setSound(android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI,
+                android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            "live" -> { ch.setSound(null, null); ch.enableVibration(false); ch.setShowBadge(false) }
+            else -> { }
+        }
+        nm.createNotificationChannel(ch)
+        return id
+    }
+
+    fun openIntent(ctx: Context, req: Int, url: String, timer: String?): PendingIntent {
+        val i = Intent(ctx, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("inpace_url", url)
+        if (timer != null) i.putExtra("inpace_timer", timer)
+        return PendingIntent.getActivity(ctx, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun broadcast(ctx: Context, action: String, req: Int, id: Int, json: String): PendingIntent {
+        val i = Intent(ctx, InpaceCardReceiver::class.java).setAction(action).putExtra("id", id).putExtra("card", json)
+        return PendingIntent.getBroadcast(ctx, req, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun clock(v: RemoteViews, clockId: Int, textId: Int, ends: Long?, text: String?) {
+        val left = (ends ?: 0L) - System.currentTimeMillis()
+        if (ends != null && left > 0) {
+            v.setViewVisibility(clockId, View.VISIBLE)
+            v.setViewVisibility(textId, View.GONE)
+            v.setChronometer(clockId, SystemClock.elapsedRealtime() + left, null, true)
+            v.setChronometerCountDown(clockId, true)
+        } else if (!text.isNullOrEmpty()) {
+            v.setViewVisibility(clockId, View.GONE)
+            v.setViewVisibility(textId, View.VISIBLE)
+            v.setTextViewText(textId, text)
+        } else {  // a reminder: no clock at all
+            v.setViewVisibility(clockId, View.GONE)
+            v.setViewVisibility(textId, View.GONE)
+        }
+    }
+
+    private fun fill(ctx: Context, v: RemoteViews, a: Map<*, *>, id: Int, big: Boolean, json: String) {
+        v.setTextViewText(R.id.live_kicker, (a["kicker"] as? String) ?: "")
+        v.setTextViewText(R.id.live_title, (a["title"] as? String) ?: "")
+        clock(v, R.id.live_clock, R.id.live_clock_text, (a["ends_ms"] as? Number)?.toLong(), a["clock_text"] as? String)
+        val face = ctx.resources.getIdentifier((a["face"] as? String) ?: "tempo_read", "drawable", ctx.packageName)
+        if (face != 0) v.setImageViewResource(R.id.live_face, face)
+        if (!big) return
+        val label = (a["clock_label"] as? String) ?: ""
+        v.setViewVisibility(R.id.live_left, if (label.isEmpty()) View.GONE else View.VISIBLE)
+        v.setTextViewText(R.id.live_left, label)
+        val body = (a["body"] as? String) ?: ""
+        v.setViewVisibility(R.id.live_body, if (body.isEmpty()) View.GONE else View.VISIBLE)
+        v.setTextViewText(R.id.live_body, body)
+        val phase = (a["phase"] as? String) ?: ""
+        if (phase.isEmpty()) {
+            v.setViewVisibility(R.id.live_phase_row, View.GONE)
+        } else {
+            v.setViewVisibility(R.id.live_phase_row, View.VISIBLE)
+            v.setTextViewText(R.id.live_phase, phase)
+            clock(v, R.id.live_phase_clock, R.id.live_phase_text, (a["phase_ends_ms"] as? Number)?.toLong(),
+                (a["phase_text"] as? String) ?: "")
+        }
+        val pct = (a["progress"] as? Number)?.toInt() ?: -1
+        if (pct < 0) {
+            v.setViewVisibility(R.id.live_bar, View.GONE)
+        } else {
+            v.setViewVisibility(R.id.live_bar, View.VISIBLE)
+            v.setProgressBar(R.id.live_bar, 100, pct.coerceIn(0, 100), false)
+        }
+        val acts = (a["actions"] as? List<*>) ?: emptyList<Any>()
+        val ids = intArrayOf(R.id.live_btn1, R.id.live_btn2)
+        v.setViewVisibility(R.id.live_btns, if (acts.isEmpty()) View.GONE else View.VISIBLE)
+        val url = (a["url"] as? String) ?: "/"
+        for (k in ids.indices) {
+            val pair = acts.getOrNull(k) as? List<*>
+            if (pair == null || pair.size < 2) {
+                v.setViewVisibility(ids[k], View.GONE)
+                continue
+            }
+            v.setViewVisibility(ids[k], View.VISIBLE)
+            v.setTextViewText(ids[k], pair[1].toString())
+            val key = pair[0].toString()
+            val req = id * 4 + 1 + k
+            v.setOnClickPendingIntent(ids[k], when (key) {
+                "snooze" -> broadcast(ctx, SNOOZE, req, id, json)
+                "dismiss" -> broadcast(ctx, STOP, req, id, json)
+                "open" -> openIntent(ctx, req, url, null)
+                else -> openIntent(ctx, req, url, key)  // pause, resume, stop: the timer's buttons
+            })
+        }
+    }
+
+    // Show a card now. a: id, kind, title, body, kicker, face, url, and for the live card its clocks.
+    fun post(ctx: Context, a: Map<*, *>?): Boolean {
+        if (a == null) return false
+        val id = (a["id"] as? Number)?.toInt() ?: return false
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (a["cancel"] == true) {
+            nm.cancel(id)
+            return true
+        }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return true
+        val kind = (a["kind"] as? String) ?: "live"
+        val ch = channel(ctx, kind, (a["channel"] as? String) ?: "inPace")
+        if (kind == "live" && Build.VERSION.SDK_INT >= 26) {
+            for (old in arrayOf("inpace_sprint", "inpace_trip")) {  // the old silent channels
+                try { nm.deleteNotificationChannel(old) } catch (e: Exception) { }
+            }
+        }
+        val json = jsonOf(a)
+        val small = RemoteViews(ctx.packageName, R.layout.inpace_live)
+        val big = RemoteViews(ctx.packageName, R.layout.inpace_live_big)
+        fill(ctx, small, a, id, false, json)
+        fill(ctx, big, a, id, true, json)
+        var icon = ctx.resources.getIdentifier("ic_stat_inpace", "drawable", ctx.packageName)
+        if (icon == 0) icon = ctx.applicationInfo.icon
+        val open = openIntent(ctx, id * 4, (a["url"] as? String) ?: "/", null)
+        val b = NotificationCompat.Builder(ctx, ch)
+            .setSmallIcon(icon)
+            .setColor(0xFFFFD43B.toInt())
+            .setContentTitle((a["title"] as? String) ?: "inPace")
+            .setContentText((a["body"] as? String) ?: "")
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(small)
+            .setCustomBigContentView(big)
+            .setContentIntent(open)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        when (kind) {
+            "live" -> b.setOnlyAlertOnce(true).setShowWhen(false).setOngoing(a["ongoing"] == true).setAutoCancel(false)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS).setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            "alarm" -> b.setCategory(NotificationCompat.CATEGORY_ALARM).setPriority(NotificationCompat.PRIORITY_MAX)
+                .setFullScreenIntent(open, true).setAutoCancel(true).setTimeoutAfter(10 * 60 * 1000L)
+                .setSound(android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI, android.media.AudioManager.STREAM_ALARM)
+            "reminder" -> b.setCategory(NotificationCompat.CATEGORY_REMINDER).setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true)
+            else -> b.setCategory(NotificationCompat.CATEGORY_REMINDER).setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true)
+        }
+        val timeout = (a["timeout_ms"] as? Number)?.toLong() ?: 0L
+        if (timeout > 0) b.setTimeoutAfter(timeout)
+        val n = b.build()
+        if (kind == "alarm") n.flags = n.flags or android.app.Notification.FLAG_INSISTENT  // keeps ringing until you act
+        nm.notify(id, n)
+        return true
+    }
+
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences(STORE, Context.MODE_PRIVATE)
+
+    private fun arm(ctx: Context, id: Int, at: Long, kind: String, json: String) {
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        val pi = broadcast(ctx, FIRE, id, id, json)
+        val exact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
+        try {
+            when {
+                kind == "alarm" && exact -> am.setAlarmClock(android.app.AlarmManager.AlarmClockInfo(at, openIntent(ctx, id * 4, "/", null)), pi)
+                exact -> am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pi)
+                else -> am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pi)  // a few minutes late at most
+            }
+        } catch (e: SecurityException) {
+            am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pi)
+        }
+    }
+
+    // Schedule a card for later: a has at_ms plus everything post() takes.
+    fun schedule(ctx: Context, a: Map<*, *>?): Boolean {
+        if (a == null) return false
+        val id = (a["id"] as? Number)?.toInt() ?: return false
+        val at = (a["at_ms"] as? Number)?.toLong() ?: return false
+        val json = jsonOf(a)
+        arm(ctx, id, at, (a["kind"] as? String) ?: "reminder", json)
+        prefs(ctx).edit().putString("c$id", json).apply()
+        return true
+    }
+
+    fun unschedule(ctx: Context, ids: List<*>?): Boolean {
+        val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        val ed = prefs(ctx).edit()
+        for (x in ids ?: emptyList<Any>()) {
+            val id = (x as? Number)?.toInt() ?: continue
+            val i = Intent(ctx, InpaceCardReceiver::class.java).setAction(FIRE)
+            val pi = PendingIntent.getBroadcast(ctx, id, i, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+            if (pi != null) { am.cancel(pi); pi.cancel() }
+            ed.remove("c$id")
+        }
+        ed.apply()
+        return true
+    }
+
+    fun unscheduleBelow(ctx: Context, limit: Int): Boolean {
+        val ids = prefs(ctx).all.keys.mapNotNull { it.removePrefix("c").toIntOrNull() }.filter { it < limit }
+        return unschedule(ctx, ids)
+    }
+
+    // The time came (or the phone restarted): draw due cards, arm the rest again.
+    fun fire(ctx: Context, id: Int, json: String?) {
+        prefs(ctx).edit().remove("c$id").apply()
+        if (json == null) return
+        try { post(ctx, mapOfJson(JSONObject(json))) } catch (e: Exception) { }
+    }
+
+    fun rearm(ctx: Context) {
+        val now = System.currentTimeMillis()
+        for ((k, v) in prefs(ctx).all) {
+            val id = k.removePrefix("c").toIntOrNull() ?: continue
+            val json = v as? String ?: continue
+            try {
+                val o = JSONObject(json)
+                val at = o.optLong("at_ms", 0L)
+                if (at > now) arm(ctx, id, at, o.optString("kind", "reminder"), json)
+                else if (now - at < 6 * 3600 * 1000L) fire(ctx, id, json)  // missed while the phone was off
+                else prefs(ctx).edit().remove(k).apply()
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun snooze(ctx: Context, id: Int, json: String?) {
+        (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(id)
+        if (json == null) return
+        try {
+            val o = JSONObject(json)
+            o.put("at_ms", System.currentTimeMillis() + 10 * 60 * 1000L)
+            val nid = 900000 + (System.currentTimeMillis() / 1000 % 60).toInt()  // the snoozed range: a new plan never removes it
+            o.put("id", nid)
+            schedule(ctx, mapOfJson(o))
+        } catch (e: Exception) { }
+    }
+}
+
+class InpaceCardReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val id = intent.getIntExtra("id", 0)
+        val json = intent.getStringExtra("card")
+        when (intent.action) {
+            InpaceCards.FIRE -> InpaceCards.fire(context, id, json)
+            InpaceCards.SNOOZE -> InpaceCards.snooze(context, id, json)
+            InpaceCards.STOP -> (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(id)
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED, "android.intent.action.QUICKBOOT_POWERON" ->
+                InpaceCards.rearm(context)
+        }
+    }
+}
 """
 
 ROOT = Path(__file__).resolve().parent.parent / "android" / "app"
@@ -482,6 +671,16 @@ for p in ("android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUN
 if "flutterlocalnotifications.ForegroundService" not in m:
     m = m.replace("</application>", """        <service android:name="com.dexterous.flutterlocalnotifications.ForegroundService"
             android:exported="false" android:stopWithTask="false" android:foregroundServiceType="dataSync"/>
+    </application>""", 1)
+# inPace's own notification cards (v1.37.3): drawn when their time comes, and armed again after a phone restart.
+if "InpaceCardReceiver" not in m:
+    m = m.replace("</application>", """        <receiver android:name=".InpaceCardReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
     </application>""", 1)
 # Updates (v1.37): the app downloads the new APK itself and opens Android's install dialog.
 if "REQUEST_INSTALL_PACKAGES" not in m:

@@ -90,3 +90,26 @@ def test_the_phone_card_gets_the_sprint_phase_and_time_left(app):
     assert trip["sprint"] is True and trip["short"] == "Focus block 1" and 2990 <= trip["left_s"] <= 3000
     assert trip["live_channel"] == "Sprint and timer" and trip["l_paused"] == "Paused"
     assert sp["l_sprint"] == "Sprint" and sp["live_channel"] == "Sprint and timer" and sp["rid"] == "card-sprint"
+
+
+def test_windows_notifications_carry_the_inpace_banner_and_an_open_button():
+    from inpace import notifier
+    x = notifier.windows_toast_xml("Hi", "Body", "inpace://go/", image=notifier._icon_png("tempo_cheer"),
+                                   hero=notifier._hero_png("tempo_cheer"), open_label="Open inPace")
+    import xml.dom.minidom
+    xml.dom.minidom.parseString(x)
+    assert 'placement="hero"' in x and "hero_tempo_cheer.png" in x and 'content="Open inPace"' in x
+    assert notifier._hero_png("villain").endswith("hero_tempo_wave.png")  # no villain banner: Tempo waves
+    alarm = notifier.windows_toast_xml("A", "B", "inpace://go/", alarm=True, hero=notifier._hero_png("tempo_wave"))
+    assert 'arguments="snooze"' in alarm and "Open inPace" not in alarm
+
+
+def test_linux_notifications_show_tempo_beside_the_text(monkeypatch):
+    from inpace import notifier
+    calls = []
+    monkeypatch.setattr(notifier.sys, "platform", "linux")
+    monkeypatch.setattr(notifier.shutil, "which", lambda n: "/usr/bin/notify-send" if n == "notify-send" else None)
+    monkeypatch.setattr(notifier, "_run", lambda cmd, **kw: calls.append(cmd) or type("R", (), {"returncode": 0})())
+    assert notifier.notify("Title", "Body", picture="tempo_cheer")
+    cmd = calls[0]
+    assert "string:desktop-entry:inpace" in cmd and any(a.startswith("string:image-path:") and a.endswith("tempo_cheer.png") for a in cmd)

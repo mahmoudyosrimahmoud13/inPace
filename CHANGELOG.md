@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.37.4
+
+- **Every phone notification looks like inPace now, not just the sprint card.** Reminders, alarms, Tempo's nudges, "Break time", "Back to focus", "Your plant is ready", the test notification, "Downloads finished" and the update download all use the same yellow card with Tempo's face. Reminders and nudges have a **Start studying** button; alarms have **Snooze 10 min** and **Stop** on the card and keep ringing until you press one (full screen on a locked phone, like before).
+- **inPace keeps its own reminder schedule on the phone.** The notification library we used can't draw custom cards, so inPace now schedules them itself. They come back after the phone restarts, and one that was due while the phone was off shows when it's back on (up to 6 hours late).
+- **Windows notifications get the inPace banner.** A yellow banner with Tempo across the top, Tempo's face beside the text, and an **Open inPace** button.
+- **Linux notifications show Tempo beside the text** and are filed under inPace. The look of the card itself comes from your desktop (GNOME, KDE...), so that's as far as it goes there.
+- Mac notifications stay plain: macOS doesn't let a script add a picture to them.
+
 ## v1.37.3
 
 - **The sprint and timer notifications look like inPace on Android 12 and newer.** Android 12+ ignores an app's colors on ordinary notifications, so 1.37's yellow cards came out grey. The card now has its own layout: a yellow box with the countdown in big black digits (Android keeps it ticking even while inPace sleeps), how far through the day you are, Tempo, and Pause and Stop buttons right on the card.

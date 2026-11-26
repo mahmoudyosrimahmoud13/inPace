@@ -89,6 +89,8 @@ class Reminders {
     ];
   }
 
+  static Future<bool> showCard(Map<String, dynamic> a) => _drawNative(a);
+
   static Future<bool> _drawNative(Map<String, dynamic> a) async {
     if (!_nativeOk) return false;
     try {
@@ -273,8 +275,57 @@ class Reminders {
     );
   }
 
+  // A reminder, one of Tempo's nudges or an alarm as inPace's own card (v1.37.3): yellow like the app, Tempo's
+  // face, and Open (or Snooze and Stop for an alarm). Android 12+ would draw a plain grey card otherwise.
+  static Map<String, dynamic> _card(int id, String title, String body, String kind, String url, String picture) {
+    final k = kind == 'alarm' ? 'alarm' : (kind == 'tempo' ? 'tempo' : 'reminder');
+    return {
+      'id': id,
+      'kind': k,
+      'channel': k == 'alarm'
+          ? ((labels['alarms'] as String?) ?? 'Alarms')
+          : k == 'tempo' ? ((labels['tempo'] as String?) ?? 'Tempo') : ((labels['channel'] as String?) ?? 'Reminders'),
+      'kicker': k == 'alarm'
+          ? ((labels['k_alarm'] as String?) ?? 'Alarm')
+          : k == 'tempo' ? ((labels['tempo'] as String?) ?? 'Tempo') : ((labels['k_reminder'] as String?) ?? 'Reminder'),
+      'title': title,
+      'body': body,
+      'face': picture.isEmpty ? 'tempo_wave' : picture,
+      'url': url,
+      'actions': k == 'alarm'
+          ? [
+              ['snooze', (labels['snooze'] as String?) ?? 'Snooze 10 min'],
+              ['dismiss', (labels['stop'] as String?) ?? 'Stop'],
+            ]
+          : [
+              ['open', (labels['open'] as String?) ?? 'Start studying'],
+            ],
+    };
+  }
+
+  static Future<bool> _nativeCall(String method, Object? args) async {
+    if (!_nativeOk) return false;
+    try {
+      return (await _native.invokeMethod<bool>(method, args)) == true;
+    } on MissingPluginException {
+      _nativeOk = false;
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Cancel a scheduled or shown notification, wherever it was made.
+  static Future<void> _cancel(int id) async {
+    try { await plugin.cancel(id: id); } catch (_) {}
+    await _nativeCall('unschedule', [id]);
+  }
+
   static Future<void> _at(int id, DateTime when, String title, String body, String kind, String url,
       {String picture = '', bool exact = false}) async {
+    if (await _nativeCall('schedule', {..._card(id, title, body, kind, url, picture), 'at_ms': when.millisecondsSinceEpoch})) {
+      return;
+    }
     final at = tz.TZDateTime.from(when, tz.UTC);
     final payload = jsonEncode({'url': url, 'title': title, 'body': body, 'kind': kind, 'picture': picture});
     final mode = kind == 'alarm'
@@ -313,6 +364,7 @@ class Reminders {
     for (final p in await plugin.pendingNotificationRequests()) {
       if (p.id < tripId) await plugin.cancel(id: p.id); // the trip and the test have their own, kept
     }
+    await _nativeCall('unscheduleBelow', tripId);
     final now = DateTime.now();
     var id = 1;
     for (final raw in (plan['reminders'] as List? ?? const [])) {
@@ -360,13 +412,13 @@ class Reminders {
     _tripKey = key;
     try {
       for (var i = 0; i < 4; i++) {
-        await plugin.cancel(id: tripNextId + i); // a sprint's alerts are scheduled again below, if it still runs
+        await _cancel(tripNextId + i); // a sprint's alerts are scheduled again below, if it still runs
       }
       _phaseEnd?.cancel();
       if (t == null || (state != 'running' && state != 'paused')) {
         _liveTrip = null;
         await plugin.cancel(id: tripId);
-        await plugin.cancel(id: tripDoneId);
+        await _cancel(tripDoneId);
         await _renderLive();
         return;
       }
@@ -374,7 +426,7 @@ class Reminders {
       final channel = (t['channel'] as String?) ?? 'Focus trip';
       final payload = jsonEncode({'url': (t['url'] as String?) ?? '/island/trip'});
       if (state == 'paused') {
-        await plugin.cancel(id: tripDoneId);
+        await _cancel(tripDoneId);
         if (await _renderLive()) return;
         final body = (t['paused_body'] as String?) ?? '';
         await plugin.show(id: tripId, title: t['paused_title'] as String?, body: body, payload: payload,
@@ -508,6 +560,10 @@ class Reminders {
     labels = {...labels, ...newLabels};
     if (!await enabled() && !await allow()) return;
     final body = (message['body'] as String?) ?? '';
+    if (await _drawNative(_card(testId, (message['title'] as String?) ?? '', body, kind == 'alarm' ? 'alarm' : 'notify',
+        (message['url'] as String?) ?? '/', (message['picture'] as String?) ?? 'tempo_wave'))) {
+      return;
+    }
     await plugin.show(id: testId, title: message['title'] as String?, body: body,
         notificationDetails: _details(kind == 'alarm' ? 'alarm' : 'notify', body, (message['picture'] as String?) ?? 'tempo_wave'),
         payload: jsonEncode({...message, 'kind': kind}));
@@ -931,7 +987,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           _dlForeground = false;
         }
         await Reminders.plugin.cancel(id: Reminders.downloadsId);
-        if (((n['saved'] as num?) ?? 0) > 0) {
+        if (((n['saved'] as num?) ?? 0) > 0 &&
+            !await Reminders.showCard({'id': Reminders.downloadsDoneId, 'kind': 'tempo', 'channel': channel,
+              'kicker': channel, 'title': (n['title'] as String?) ?? '', 'body': (n['body'] as String?) ?? '',
+              'face': 'tempo_cheer', 'url': '/downloads', 'actions': []})) {
           await Reminders.plugin.show(id: Reminders.downloadsDoneId, title: n['title'] as String?, body: n['body'] as String?,
               payload: payload,
               notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_downloads', channel,
@@ -1017,6 +1076,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Future<void> _updateNotice(String version, int pct, int total) async {
     final mb = total > 0 ? ' · ${(total / 1048576).toStringAsFixed(0)} MB' : '';
+    if (await Reminders.showCard({'id': Reminders.updateId, 'kind': 'live', 'kicker': 'inPace $version',
+        'title': 'Downloading the update$mb', 'body': '', 'face': 'tempo_read', 'url': '/settings#updates',
+        'progress': total > 0 ? pct : 0, 'ongoing': true, 'actions': []})) {
+      return;
+    }
     try {
       await Reminders.plugin.show(id: Reminders.updateId, title: 'inPace $version', body: 'Downloading the update$mb',
           notificationDetails: NotificationDetails(android: AndroidNotificationDetails('inpace_downloads', 'Downloads',

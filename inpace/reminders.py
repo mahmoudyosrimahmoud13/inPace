@@ -426,7 +426,7 @@ def plan(v: Vault, now: datetime | None = None) -> dict:
             auto.append({k: x[k] for k in ("key", "after", "title", "body", "url", "picture")} | {"exact": bool(x.get("exact"))})
     labels = {"stop": say("Stop"), "snooze": say("Snooze 10 min"), "open": say("Start studying"),
               "snoozed": say("Snoozed for 10 minutes."), "channel": say("Reminders"), "alarms": say("Alarms"),
-              "tempo": say("Tempo")}
+              "tempo": say("Tempo"), "k_reminder": say("Reminder"), "k_alarm": say("Alarm")}
     test = reminder_message(v, {"label": say("Test: this is how a reminder looks")})
     return {"reminders": reminders, "auto": auto, "labels": labels, "evening": "18:30", "test": test}
 

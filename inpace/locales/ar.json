@@ -2891,5 +2891,7 @@
   "The app downloads it and Android asks you to install it over this one. If Android asks first, allow inPace to install updates.": "ينزّله التطبيق ويطلب منك أندرويد تثبيته فوق هذا. إن سأل أندرويد أولًا، اسمح لـ inPace بتثبيت التحديثات.",
   "each day runs {a} to {b}": "كل يوم من {a} إلى {b}",
   "Focus block {n}": "كتلة تركيز {n}",
-  "Sprint and timer": "السبرنت والمؤقت"
+  "Sprint and timer": "السبرنت والمؤقت",
+  "Reminder": "تذكير",
+  "Open inPace": "افتح inPace"
 }
