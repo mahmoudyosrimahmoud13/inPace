@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.38.1
+
+- **No more blank screen between pages.** Tapping a link used to hand the window a new page to load, and on a phone the page you were on vanished at once, leaving a white or black screen until the next one was drawn: a second or more with nothing to look at. Now the page's own script asks inPace for the next page in the background while the page you're on stays put (the thin bar at the top shows if it takes more than a moment), then draws the new page in one go. Back, Forward, the tabs, the Back-like links, the search box, "next lesson" and the page a saved form sends you to all work the same way. Files, downloads, other apps and other sites are still left to the window. Opening a notification while the app is already open swaps the page in too.
+- **Faster start.** The translations for all 13 languages were read and prepared when inPace started (about 2 seconds on a phone); now only the language in use. Checking that a kept course is still current no longer walks its folder twice, and a course's progress is copied 4 times faster. The first Home on the 89-course phone vault went from 0.24 s to 0.13 s on a computer, and a warm Home from 86 to 48 ms.
+- The phone speed test marks pages that were swapped in this way ("swapped in") and times them from the tap.
+
 ## v1.38.0
 
 Found with the phone speed test on a real phone with 89 courses. Everything below is measured.

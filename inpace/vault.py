@@ -267,14 +267,45 @@ class Vault:
         self._no_course.pop(course.id, None)
         return self.get_course(course.id) or course
 
-    def _course_stamp(self, folder: Path) -> str:
-        """What the course's text files look like on disk: changes when any of them does."""
-        parts = []
-        for p in sorted(folder.rglob("*")):
-            if p.is_file() and p.suffix in (".yaml", ".yml", ".md") and "files" not in p.relative_to(folder).parts[:1]:
-                st = p.stat()
-                parts.append(f"{p.relative_to(folder).as_posix()}:{st.st_mtime_ns}:{st.st_size}")
-        return "|".join(parts)
+    def _course_stamp(self, folder: Path) -> dict:
+        """What the course's text files look like on disk: every folder's time (it changes when a file is added or
+        removed) and every text file's time and size. The course's own files (videos, pictures) aren't walked."""
+        dirs, files = {}, {}
+        root = str(folder)
+        for here, names, fnames in os.walk(root):
+            rel = os.path.relpath(here, root)
+            if rel == ".":
+                rel = ""
+                names[:] = [d for d in names if d != "files"]
+            try:
+                dirs[rel] = os.stat(here).st_mtime_ns
+            except OSError:
+                continue
+            for n in fnames:
+                if n.endswith((".yaml", ".yml", ".md")):
+                    try:
+                        st = os.stat(os.path.join(here, n))
+                    except OSError:
+                        continue
+                    files[(rel + "/" + n) if rel else n] = (st.st_mtime_ns, st.st_size)
+        return {"dirs": dirs, "files": files}
+
+    def _stamp_holds(self, folder: Path, stamp) -> bool:
+        """True when nothing the stamp recorded has changed: a few stats, no walk (v1.38.1)."""
+        if not isinstance(stamp, dict):
+            return False
+        root = str(folder)
+        try:
+            for rel, mt in stamp["dirs"].items():
+                if os.stat(os.path.join(root, rel) if rel else root).st_mtime_ns != mt:
+                    return False
+            for rel, (mt, size) in stamp["files"].items():
+                st = os.stat(os.path.join(root, rel))
+                if st.st_mtime_ns != mt or st.st_size != size:
+                    return False
+        except OSError:
+            return False
+        return True
 
     def get_course(self, course_id: str) -> Course | None:
         if course_id in self._courses:
@@ -290,15 +321,16 @@ class Vault:
         # folder and read back from there until one of its files changes.
         from . import __version__
         cache = self.home / "cache" / "courses" / f"{course_id}.pickle"
-        stamp = f"{__version__}|{self._course_stamp(folder)}"
         try:
             with open(cache, "rb") as f:
-                saved_stamp, c = pickle.load(f)
-            if saved_stamp == stamp and isinstance(c, Course):
+                saved = pickle.load(f)
+            version, stamp, c = saved
+            if version == __version__ and isinstance(c, Course) and self._stamp_holds(folder, stamp):
                 self._courses[course_id] = c
                 return c
         except Exception:
             pass
+        stamp = self._course_stamp(folder)
         try:
             c = load_course(files_from_folder(folder))
         except CourseError:
@@ -308,7 +340,7 @@ class Vault:
             cache.parent.mkdir(parents=True, exist_ok=True)
             tmp = cache.with_suffix(".tmp")
             with open(tmp, "wb") as f:
-                pickle.dump((stamp, c), f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump((__version__, stamp, c), f, protocol=pickle.HIGHEST_PROTOCOL)
             os.replace(tmp, cache)
         except Exception:
             pass
@@ -507,7 +539,7 @@ class Vault:
         key = (last, course.hash if course else "", bool(j and j.get("archived")))
         hit = self._progress_cache.get(journey)
         if hit and hit[0] == key:
-            return _copy_progress(hit[1])
+            return _unpack_progress(hit[1], course)
         out = None
         skey = json.dumps(key)
         if course is not None:  # v1.38: kept in the database too, so a fresh start doesn't work it all out again
@@ -528,7 +560,7 @@ class Vault:
                     _bump()
                 except Exception:
                     pass
-        self._progress_cache[journey] = (key, _copy_progress(out))
+        self._progress_cache[journey] = (key, _pack_progress(out))
         return out
 
     def _progress_uncached(self, journey: str, j, course) -> dict:
@@ -826,10 +858,16 @@ def display_name(p: dict | None) -> str:
     return p.get("nickname") or p.get("name") or "Someone"
 
 
-def _copy_progress(p: dict) -> dict:
-    """A copy of a progress dict that shares the (unchanging) Course object and copies everything else."""
-    import copy
-    return {k: (v if k == "course" else copy.deepcopy(v)) for k, v in p.items()}
+def _pack_progress(p: dict) -> bytes:
+    """A progress dict without its Course, as bytes: a copy made from these (v1.38.1) is many times faster than
+    deepcopy, and Home makes one for every course on every roadmap."""
+    return pickle.dumps({k: v for k, v in p.items() if k != "course"}, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def _unpack_progress(blob: bytes, course) -> dict:
+    out = pickle.loads(blob)
+    out["course"] = course
+    return out
 
 
 def active_minutes(events: list[dict]) -> int:

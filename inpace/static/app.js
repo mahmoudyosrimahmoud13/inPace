@@ -17,6 +17,7 @@ function sendForm(form) {
 // bought) wouldn't show until you reloaded by hand.
 function goFresh(url) {
   const next = new URL(url, location.href);
+  if (window.inpaceGo && inpaceGo(next.href, { replace: true, fresh: true })) return;
   const samePage = next.origin === location.origin && next.pathname === location.pathname && next.search === location.search;
   if (samePage && next.hash) {
     history.replaceState(history.state, "", next.href);
@@ -25,6 +26,102 @@ function goFresh(url) {
     location.replace(next.href);
   }
 }
+// Go to one of inPace's own pages (see "Pages load without a blank" below), or the usual way where that can't be done.
+function goTo(url, replace) {
+  if (window.inpaceGo && inpaceGo(url, { replace: !!replace })) return;
+  if (replace) location.replace(url); else location.assign(url);
+}
+
+// ---- Pages load without a blank (v1.38.1) ---------------------------------------------------------------------
+// Tapping a link used to hand the window a new page to load. On a slow phone the page you were on disappears at
+// once, and a blank screen stays until the new page is drawn: a second or more, with nothing to look at. Now the
+// script asks Python for the next page in the background while the page you're on stays put (the thin bar at the
+// top shows if it takes more than a moment), and then draws the new page in one go. Back and Forward work the
+// same way. Everything else is as before: the address changes, the page's own scripts run, and a link that opens
+// a file, another app or another site is left to the window.
+(() => {
+  // Pages that answer with a file to save (the same list the Android app uses to hand files to Android).
+  window.inpaceDownloads = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|settings\/backup\/file$|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$|evidence\/[0-9a-f]{64}$|codenote\/lesson\.md$)/;
+  if (!window.fetch || !history.pushState || !document.open) return;
+  // Addresses that answer with a file, not a page (the window saves or shows those).
+  const FILES = /\.(json|zip|pdf|md|yaml|svg|png|jpe?g|gif|webp|mp4|mp3|m4a|ogg|webm|inpace|ics|csv|txt)$|^\/(static|m|files|evidence|media)\//;
+  const ROOT = () => document.documentElement;
+  let seq = 0;
+  window.inpaceSoftHere = location.pathname + location.search;
+  const timing = window.inpaceSoftTiming || { started: 0, python: 0, html_done: 0, ready: 0, kb: 0 };
+  window.inpaceSoftTiming = timing;
+
+  // Draw a page's HTML in this window, as if it had been loaded, under the given address.
+  const draw = (html, url, opts) => {
+    const now = performance.now();
+    // The old page's timers stop here, the way they would have on a normal load (its countdowns, its refreshes).
+    const t = setTimeout(() => {}, 0), f = requestAnimationFrame(() => {});
+    for (let i = 1; i <= t; i++) { clearTimeout(i); clearInterval(i); }
+    for (let i = 1; i <= f; i++) cancelAnimationFrame(i);
+    try { history.replaceState({ ...(history.state || {}), y: window.scrollY }, "", location.href); } catch (e) { /* nothing */ }
+    const state = { soft: 1, y: 0 };
+    document.open();  // the window keeps the old page on screen until the new one is parsed below
+    try {
+      if (opts && opts.replace) history.replaceState(state, "", url); else history.pushState(state, "", url);
+    } catch (e) { /* a different origin: can't happen, the address was checked */ }
+    window.inpaceSoftHere = location.pathname + location.search;
+    document.write(html);
+    document.close();
+    const done = () => {
+      timing.ready = Math.round(performance.now() - timing.started);
+      const y = opts && opts.y;
+      if (y) window.scrollTo(0, y);
+      else if (location.hash) { const el = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (el) el.scrollIntoView(); else window.scrollTo(0, 0); }
+      else window.scrollTo(0, 0);
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", done); else done();
+    return now;
+  };
+  window.inpaceDraw = draw;
+
+  // Load one of inPace's pages here. Says whether it took the job (false: let the window load it the usual way).
+  const go = (href, opts) => {
+    let url;
+    try { url = new URL(href, location.href); } catch (e) { return false; }
+    if (url.origin !== location.origin || url.protocol !== location.protocol) return false;
+    if (FILES.test(url.pathname) || inpaceDownloads.test(url.pathname)) return false;
+    if (url.pathname === location.pathname && url.search === location.search && url.hash && !(opts && opts.fresh)) return false;  // just a #section
+    const my = ++seq;
+    timing.started = performance.now(); timing.python = timing.html_done = timing.ready = 0;
+    const busy = setTimeout(() => ROOT().classList.add("nav-busy"), 180);
+    const ctl = window.AbortController ? new AbortController() : null;
+    (async () => {
+      let r, html;
+      try {
+        r = await fetch(url.href, { cache: "no-store", credentials: "same-origin", signal: ctl && ctl.signal,
+                                    headers: { Accept: "text/html,*/*;q=0.5" } });
+        if (my !== seq) { ctl && ctl.abort(); return; }
+        timing.python = Math.round(performance.now() - timing.started);
+        const type = r.headers.get("content-type") || "";
+        if (!type.includes("text/html")) { ctl && ctl.abort(); clearTimeout(busy); location.assign(url.href); return; }
+        html = await r.text();
+        if (my !== seq) return;
+      } catch (e) {
+        if (my !== seq) return;
+        clearTimeout(busy); ROOT().classList.remove("nav-busy");
+        if (opts && opts.replace) location.replace(url.href); else location.assign(url.href);  // offline or stopped: the usual way
+        return;
+      }
+      timing.html_done = Math.round(performance.now() - timing.started);
+      timing.kb = Math.round(html.length / 1024);
+      clearTimeout(busy);
+      let to = r.url || url.href;
+      if (opts && opts.back) {  // a one-off page (a finished quiz) behind Back: show the page it belongs to instead
+        const m = /<meta name="inpace-dispose" content="([^"]*)"/.exec(html);
+        if (m) { go(m[1], { replace: true }); return; }
+      }
+      draw(html, to, opts);
+    })();
+    return true;
+  };
+  window.inpaceGo = go;
+
+})();
 
 // Small helpers only. The app works without JavaScript too.
 // Page helpers listen on the whole document (not on each element), so parts of a page that are updated in place
@@ -1998,7 +2095,7 @@ document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
       li.setAttribute("role", "option");
       li.innerHTML = "<b dir='auto'></b><span dir='auto'></span>";
       li.firstChild.textContent = it.t; li.lastChild.textContent = it.k;
-      li.addEventListener("click", () => (location.href = it.u));
+      li.addEventListener("click", () => goTo(it.u));
       li.addEventListener("mousemove", () => { if (sel !== i) { sel = i; mark(); } });
       list.append(li);
     });
@@ -2018,7 +2115,7 @@ document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
     input.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") { e.preventDefault(); sel = Math.min(shown.length - 1, sel + 1); mark(); }
       else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); mark(); }
-      else if (e.key === "Enter" && shown[sel]) location.href = shown[sel].u;
+      else if (e.key === "Enter" && shown[sel]) goTo(shown[sel].u);
       else if (e.key === "Escape") close();
     });
     input.focus();
@@ -2034,7 +2131,7 @@ document.querySelectorAll("[data-lesson-editor]").forEach((form) => {
              !e.target.closest("[data-player]")) {
       // N and P: next and previous lesson.
       const a = document.querySelector(e.key === "n" ? "[data-key-next]" : "[data-key-prev]");
-      if (a) { e.preventDefault(); a.hasAttribute("data-replace") ? location.replace(a.href) : (location.href = a.href); }
+      if (a) { e.preventDefault(); goTo(a.href, a.hasAttribute("data-replace")); }
     }
   });
 })();
@@ -2182,7 +2279,7 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   if (!bridge) return;
   document.documentElement.classList.add("android");
   const send = (msg) => bridge.postMessage(JSON.stringify(msg));
-  const DOWNLOADS = /^\/(courses\/[^/]+\/(export|publish\/file)|milestones\/[^/]+\/(export|files|record)|settings\/backup\/file$|people\/card|outbox\/|files\/[0-9a-f]{64}$|races\/[^/]+\/(invite|update)$|me\/turtle\.svg$|island\/share\.svg$|evidence\/[0-9a-f]{64}$|codenote\/lesson\.md$)/;
+  const DOWNLOADS = window.inpaceDownloads;
 
   // Downloads: the app saves or shares the file.
   document.addEventListener("click", (e) => {
@@ -2564,14 +2661,14 @@ document.querySelectorAll("[data-rem-other]").forEach((btn) => {
         if (path(list[i].url) === want) { nav.traverseTo(list[i].key); return; }
       }
     } else if (document.referrer && path(document.referrer) === want && history.length > 1) { history.back(); return; }
-    location.href = href;
+    goTo(href, true);
   };
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest("a[data-replace], a[data-up]");
     if (!a || a.target) return;
     e.preventDefault();
-    if (a.hasAttribute("data-up")) goUp(a.href); else location.replace(a.href);
+    if (a.hasAttribute("data-up")) goUp(a.href); else goTo(a.href, true);
   });
   // Forms marked [data-nav-form] are sent in the background. The server answers with where to go,
   // and the page is replaced, so a sent form never sits behind the Back button.
@@ -2900,13 +2997,13 @@ document.addEventListener("click", (ev) => {
   window.inpaceBack = () => {
     if (closeTop()) return "handled";
     if (here() === "/") return "exit";
-    if (isRoot(here())) { hint("back"); busy(); location.replace("/"); return "handled"; }
+    if (isRoot(here())) { hint("back"); busy(); goTo("/", true); return "handled"; }
     const nav = window.navigation;
     const canBack = nav && nav.canGoBack !== undefined ? nav.canGoBack : history.length > 1;
     if (canBack) { history.back(); return "handled"; }
     const up = document.querySelector("a[data-up]");
     hint("back"); busy();
-    location.replace(up ? up.href : "/");
+    goTo(up ? up.href : "/", true);
     return "handled";
   };
 
@@ -2928,7 +3025,7 @@ document.addEventListener("click", (ev) => {
     if (tab && isRoot(here())) {  // tab to tab: swap, don't stack
       e.preventDefault();
       hint("tab"); busy();
-      location.replace(a.href);
+      goTo(a.href, true);
       return;
     }
     if (url.pathname !== location.pathname || url.search !== location.search) busy();
@@ -3104,16 +3201,20 @@ document.addEventListener("click", (ev) => {
           // Allowed", v1.36.1): send the form the usual way instead, so the window saves the file.
           running = false; btns.forEach((b) => { b.disabled = false; });
           HTMLFormElement.prototype.submit.call(f);
-        } else location.assign(r.url);
+        } else goTo(r.url);
         return;
       }
-      if (to.pathname !== here.pathname || to.search !== here.search) { location.assign(r.url); return; }
+      if (to.pathname !== here.pathname || to.search !== here.search) {  // another page came back: show it as it is
+        const html = await r.text();
+        if (window.inpaceDraw) inpaceDraw(html, r.url, {}); else location.assign(r.url);
+        return;
+      }
       const doc = new DOMParser().parseFromString(await r.text(), "text/html");
       btns.forEach((b) => { b.disabled = false; });  // back as Python drew them, so the page compares clean
       try {
         apply(doc);
       } catch (err) {
-        location.replace(r.url);  // the change is saved; this only shows it
+        goTo(r.url, true);  // the change is saved; this only shows it
         return;
       }
       if (f.isConnected) f.reset();
@@ -3489,7 +3590,7 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
       const v = box && box.querySelector("video");
       if (v) { if (m.t) v.currentTime = m.t; v.play().catch(() => {}); }
       else location.reload();
-    } else location.href = m.lesson;
+    } else goTo(m.lesson);
   });
 })();
 
@@ -3666,13 +3767,13 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
       if (cur) cur.v.pause();
       if (window.inpaceNowPlaying) { try { window.inpaceNowPlaying.v.pause(); } catch (e) { /* gone */ } }
       try { sessionStorage.setItem("inpace-autoplay", JSON.stringify({ url, fig, choice, at: Date.now() })); } catch (e) { /* private */ }
-      location.href = url;
+      goTo(url);
     },
     close() {  // stop the video and stay on the page you're on now
       if (cur) cur.v.pause();
       let to = null;
       try { to = host && host.contentWindow.location.href; } catch (e) { to = null; }
-      if (to) location.href = to; else api.expand();
+      if (to) goTo(to); else api.expand();
     },
   };
   // Back from the first page in the frame comes back here: show the lesson again.
@@ -3725,7 +3826,7 @@ window.inpaceMediaInfo = (box) => {
 window.inpaceMediaControl = (what) => {
   const n = window.inpaceNowPlaying;
   const v = n && n.v;
-  const go = (sel) => { const a = document.querySelector(sel); if (a) location.href = a.href; };
+  const go = (sel) => { const a = document.querySelector(sel); if (a) goTo(a.href); };
   if (what === "next") return go("[data-key-next]");
   if (what === "prev") return go("[data-key-prev]");
   if (!v) return;
@@ -3750,7 +3851,7 @@ window.inpaceMediaSession = (box, v) => {
   set("seekbackward", (d) => jump(-((d && d.seekOffset) || 10)));
   set("seekforward", (d) => jump((d && d.seekOffset) || 10));
   set("seekto", (d) => { if (d && typeof d.seekTime === "number") v.currentTime = d.seekTime; });
-  const go = (sel) => { const a = document.querySelector(sel); return a ? () => { location.href = a.href; } : null; };
+  const go = (sel) => { const a = document.querySelector(sel); return a ? () => { goTo(a.href); } : null; };
   set("previoustrack", go("[data-key-prev]"));
   set("nexttrack", go("[data-key-next]"));
   const state = () => {
@@ -3919,7 +4020,7 @@ window.inpaceMediaSession = (box, v) => {
     f.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     try {
       const r = await fetch(sub && sub.hasAttribute("formaction") ? sub.formAction : f.action, { method: "POST", body, headers: { "X-InPace-Soft": "1" } });
-      if (sub && sub.hasAttribute("formaction")) { location.href = r.url; return; }  // the page changes (yt-dlp is ready)
+      if (sub && sub.hasAttribute("formaction")) { goTo(r.url); return; }  // the page changes (yt-dlp is ready)
       const msg = new URL(r.url).searchParams.get("ok") || new URL(r.url).searchParams.get("err");
       if (msg && window.inpaceToast) inpaceToast(msg);
     } catch (x) { /* offline */ }
@@ -4317,4 +4418,26 @@ document.addEventListener("click", (e) => {
   addEventListener("inpace-timer", (e) => { td = e.detail; t0 = Date.now(); phase(); });
   setInterval(phase, 1000);
   if (window.inpaceTimer) { td = window.inpaceTimer.get(); t0 = Date.now(); phase(); }
+})();
+
+// ---- Pages load without a blank: the listeners (see the top of this file) -----------------------------------------
+// Last on purpose: every other handler for a tap on a link (tabs, Back-like links, downloads) has had its say first.
+(() => {
+  if (!window.inpaceGo) return;
+  const go = window.inpaceGo;
+  // Links: a tap on one of inPace's own pages.
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || a.target || a.hasAttribute("download") || a.hasAttribute("data-hard")) return;
+    if (a.closest("article, .lesson, .prose") && !a.getAttribute("href").startsWith("/")) return;  // lesson links: as written
+    if (go(a.href, { replace: a.hasAttribute("data-replace") })) e.preventDefault();
+  });
+  // Back and Forward (the phone's Back, the buttons at the top, Alt+←): the address has already changed.
+  window.addEventListener("popstate", (e) => {
+    const now = location.pathname + location.search;
+    if (now === window.inpaceSoftHere) return;  // only the #section changed
+    const y = e.state && e.state.y;
+    if (!go(location.href, { replace: true, back: true, y })) location.reload();
+  });
 })();

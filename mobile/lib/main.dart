@@ -810,9 +810,22 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void _openPage(String path) {
     if (!_ready) {
       _pendingLink = path;
+    } else if (_shown) {
+      _openShown(path);
     } else {
       _web!.loadRequest(Uri.parse(_base + path));
     }
+  }
+
+  // A page is on screen (a notification was tapped while the app was open): the page's own script fetches the
+  // next page and swaps it in, so the screen never goes blank. If the page can't do that, load it the usual way.
+  Future<void> _openShown(String path) async {
+    final url = jsonEncode(_base + path);
+    try {
+      final r = await _web!.runJavaScriptReturningResult('window.inpaceGo && inpaceGo($url, {replace: true}) ? 1 : 0');
+      if (r == 1 || r == '1') return;
+    } catch (_) {}
+    await _web!.loadRequest(Uri.parse(_base + path));
   }
 
   bool _isOurs(String url) => url.startsWith(_base);

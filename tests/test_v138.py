@@ -13,8 +13,9 @@ def test_a_parsed_course_is_kept_on_disk_and_dropped_when_its_files_change(tmp_p
     c.post("/courses/sample/python-basics")
     cache = v.home / "cache" / "courses" / "python-basics.pickle"
     assert cache.exists()
-    stamp, course = pickle.load(open(cache, "rb"))
+    version, stamp, course = pickle.load(open(cache, "rb"))
     assert course.id == "python-basics"
+    assert "dirs" in stamp and "files" in stamp
     # a fresh vault reads the pickle, not the YAML
     v2 = Vault(v.home)
     assert v2.get_course("python-basics").title == course.title
@@ -25,7 +26,7 @@ def test_a_parsed_course_is_kept_on_disk_and_dropped_when_its_files_change(tmp_p
     os.utime(yaml, (os.stat(yaml).st_atime, os.stat(yaml).st_mtime + 5))
     v3 = Vault(v.home)
     assert v3.get_course("python-basics").title == "Python Basics 2"
-    assert pickle.load(open(cache, "rb"))[1].title == "Python Basics 2"
+    assert pickle.load(open(cache, "rb"))[2].title == "Python Basics 2"
 
 
 def test_progress_is_kept_in_the_database_between_starts(tmp_path):
@@ -86,3 +87,14 @@ def test_the_database_uses_a_write_ahead_log_and_backups_still_restore(tmp_path)
     assert not (home2 / "vault.db-wal").exists() or (home2 / "vault.db-wal").read_bytes() != b"stale"
     v3 = Vault(home2)
     assert v3._meta("name") == "Mona" and v3.get_course("python-basics")
+
+
+def test_pages_are_swapped_in_by_the_script_not_loaded_blank():
+    """v1.38.1: the page script fetches the next page and draws it in place of the current one, so a phone never
+    shows a blank screen between pages. The Android download list is shared with it, so files are left alone."""
+    js = (vault_mod.Path(__file__).parent.parent / "inpace" / "static" / "app.js").read_text(encoding="utf-8")
+    assert "window.inpaceGo = go" in js and "window.inpaceDraw = draw" in js
+    assert js.count("window.inpaceDownloads = /") == 1 and "const DOWNLOADS = window.inpaceDownloads" in js
+    assert 'window.addEventListener("popstate"' in js
+    # the old hard navigations to inPace's own pages go through it
+    assert "location.replace(a.href)" not in js and "location.href = a.href" not in js

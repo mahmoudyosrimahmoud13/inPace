@@ -184,6 +184,9 @@ def connect(timeout=120):
 LONGTASKS = ("window.__lt=[];try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){__lt.push(e.duration)})})"
              ".observe({type:'longtask',buffered:true})}catch(e){}")
 TIMINGS = """(function(){var n=performance.getEntriesByType('navigation')[0]||{};var lt=window.__lt||[];
+var s=window.inpaceSoftTiming;if(s&&s.started&&s.ready){return {python:s.python, html_done:s.html_done, ready:s.ready,
+loaded:s.ready, kb:s.kb, nodes:document.getElementsByTagName('*').length, images:document.images.length, longtasks:lt.length,
+longtask_ms:Math.round(lt.reduce(function(a,b){return a+b},0)), soft:1}}
 return {python:Math.round(n.responseStart-n.requestStart), html_done:Math.round(n.responseEnd-n.startTime),
 ready:Math.round(n.domContentLoadedEventEnd-n.startTime), loaded:Math.round(n.loadEventEnd-n.startTime),
 kb:Math.round((n.encodedBodySize||0)/1024), nodes:document.getElementsByTagName('*').length,
@@ -322,7 +325,8 @@ def tour(page, base, limit=70):
         tm = page.js(TIMINGS) or {}
         rows.append((ms, target, tm, clicked, shown))
         say(f"  {ms:6.0f} ms  {target[:60]:<60} python {tm.get('python')}  ready {tm.get('ready')}"
-            f"  busy {tm.get('longtask_ms')} ms" + ("" if shown else "  (didn't finish)") + ("" if clicked else "  (typed, no link)"))
+            f"  busy {tm.get('longtask_ms')} ms" + ("  swapped in" if tm.get("soft") else "") + ("" if shown else "  (didn't finish)")
+            + ("" if clicked else "  (typed, no link)"))
         for h in page.js(LINKS) or []:
             if h and not any(k in h for k in SKIP) and pattern(h) not in seen and h not in queue:
                 queue.append(h)

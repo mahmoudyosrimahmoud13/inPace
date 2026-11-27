@@ -192,8 +192,38 @@ def _bidi(state) -> None:
 
 env = Environment(loader=FileSystemLoader(HERE / "templates"), autoescape=select_autoescape(["html"]),
                   extensions=["jinja2.ext.i18n"])
-LOCALES = {p.stem: json.loads(p.read_text(encoding="utf-8"))
-           for p in sorted((HERE / "locales").glob("*.json")) if langs.known(p.stem)}
+class _Lazy(dict):
+    """A table per language, read from its file the first time that language is asked for (v1.38.1: all 13
+    were read at every start, and their patterns compiled, two seconds on a phone, for the one language in use)."""
+
+    def __init__(self, make):
+        super().__init__()
+        self._make = make
+        self._codes = [p.stem for p in sorted((HERE / "locales").glob("*.json")) if langs.known(p.stem)]
+
+    def __missing__(self, code):
+        if code not in self._codes:
+            raise KeyError(code)
+        self[code] = self._make(code)
+        return self[code]
+
+    def __contains__(self, code):
+        return code in self._codes
+
+    def __iter__(self):
+        return iter(self._codes)
+
+    def __len__(self):
+        return len(self._codes)
+
+    def get(self, code, default=None):
+        return self[code] if code in self._codes else default
+
+    def items(self):
+        return [(c, self[c]) for c in self._codes]
+
+
+LOCALES = _Lazy(lambda code: json.loads((HERE / "locales" / f"{code}.json").read_text(encoding="utf-8")))
 CURRENT = {"lang": "en"}
 
 
@@ -217,7 +247,7 @@ def _patterns(table: dict) -> list:
     return [(rx, val) for _, rx, val in out]
 
 
-PATTERNS = {lang: _patterns(t) for lang, t in LOCALES.items()}
+PATTERNS = _Lazy(lambda code: _patterns(LOCALES[code]))
 
 
 def gettext(text: str) -> str:
