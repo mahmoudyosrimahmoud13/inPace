@@ -134,3 +134,23 @@ def test_linux_notifications_use_the_system_libraries_and_say_when_gnome_blocks_
     assert "Notifications are turned off for inPace" in r.text
     send = next(env for cmd, env in calls if cmd[0].endswith("notify-send"))
     assert send["LD_LIBRARY_PATH"] == "/usr/lib/custom"  # the system's libraries, not the app's
+
+
+def test_the_speed_test_endpoints(app):
+    v, c = app
+    d = c.get("/debug/startup").json()
+    assert "python" in d and d["courses"] >= 1
+    assert c.get("/debug/profile?path=/debug/startup").status_code == 400  # no profiling itself
+
+
+def test_backup_walk_skips_caches_and_videos(tmp_path):
+    from inpace import pace
+    from inpace.vault import Vault
+    v = Vault(tmp_path / "h")
+    (v.home / "cache" / "libs").mkdir(parents=True)
+    (v.home / "cache" / "libs" / "x.py").write_text("x")
+    (v.home / "media" / "c" / "videos").mkdir(parents=True)
+    (v.home / "media" / "c" / "videos" / "a.mp4").write_bytes(b"0")
+    (v.home / "media" / "c" / "notes.md").write_text("n")
+    rels = {r for _p, r, _s in pace.backup_files(v)}
+    assert "media/c/notes.md" in rels and not any(r.startswith(("cache/", "media/c/videos")) for r in rels)

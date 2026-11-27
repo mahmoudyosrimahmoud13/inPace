@@ -473,15 +473,26 @@ def load(home: Path):
         return None
 
 
+_VERSION: dict = {}
+
+
 def version(home: Path) -> str:
-    """The yt-dlp version inPace has, or '' if it has none yet."""
+    """The yt-dlp version inPace has, or '' if it has none yet. Remembered until the file changes (v1.37.8):
+    opening the zip reads its whole table of contents, thousands of files, which took a phone seconds every
+    time Settings opened."""
     zp = tool_path(home)
     if zp.is_file():
         import zipfile
         try:
+            st = zp.stat()
+            key = (str(zp), st.st_size, st.st_mtime)
+            if _VERSION.get("key") == key:
+                return _VERSION["v"]
             with zipfile.ZipFile(zp) as z:
                 m = re.search(r"__version__\s*=\s*'([^']+)'", z.read("yt_dlp/version.py").decode("utf-8", "replace"))
-                return m.group(1) if m else "?"
+                v = m.group(1) if m else "?"
+            _VERSION.update(key=key, v=v)
+            return v
         except (OSError, KeyError, zipfile.BadZipFile):
             return ""
     try:

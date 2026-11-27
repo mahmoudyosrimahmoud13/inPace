@@ -15,7 +15,10 @@ again on each start, which is most of the waiting. Two things avoid that, both p
 """
 import os
 import sys
+import time
 import traceback
+
+os.environ["INPACE_T0"] = str(time.time())  # when Python started running inPace (v1.37.8: for the speed test)
 
 os.environ.setdefault("INPACE_MOBILE", "android")  # no desktop window, no desktop updater
 sys.dont_write_bytecode = False
@@ -169,6 +172,7 @@ def load():
 try:
     before = set(sys.modules)
     fast = use_fast_libs()
+    os.environ["INPACE_FASTLIBS"] = "1" if fast else "0"
     try:
         uvicorn, create_app, start_auto_updates, Vault = load()
     except Exception:
@@ -178,7 +182,9 @@ try:
         uvicorn, create_app, start_auto_updates, Vault = load()
 
     start_auto_updates(home)  # yt-dlp for offline YouTube lessons: a new copy once a day, if you chose that
+    os.environ["INPACE_T_IMPORT"] = str(time.time())
     app = create_app(Vault(home))
+    os.environ["INPACE_T_APP"] = str(time.time())
     make_fast_libs(float(os.environ.get("INPACE_LIBS_WAIT", "30")))
 
     # h11 and asyncio are pure Python, so they work everywhere (uvloop and httptools need compiled parts).

@@ -1181,6 +1181,10 @@ label.course-filter input { width: auto; border: 0; box-shadow: none; }
 .course-find { margin-block-end: 1rem; max-width: none; }
 .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem; }
 .course-card { position: relative; padding: 0; display: flex; flex-direction: column; overflow: visible; }
+/* v1.37.8: with many courses (90 on one phone) the page took 1.3 to 2.3 s to lay out. Cards off screen are only
+   drawn when you scroll near them. A card with its menu open is drawn whole, so the menu isn't cut off. */
+.course-card { content-visibility: auto; contain-intrinsic-size: auto 19rem; }
+.course-card:has(details[open]), .course-card:focus-within { content-visibility: visible; }
 .course-card .course-start { display: contents; }
 .course-main { display: flex; flex-direction: column; text-align: start; color: inherit; text-decoration: none; flex: 1;
   background: none; border: 0; padding: 0; font: inherit; cursor: pointer; width: 100%; }
@@ -2295,6 +2299,7 @@ html[lang="zh"] { --sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "
 /* where the thumbnails sit in the app */
 .rm-lib-top.rt-link { display: block; padding: 0; background: none; border-bottom: 2.5px solid var(--black); }
 .rm-card.has-thumb { padding: 0 0 1.15rem; overflow: hidden; }
+.rm-card { content-visibility: auto; contain-intrinsic-size: auto 22rem; }  /* v1.37.8: drawn when scrolled near */
 .rm-card.has-thumb > .rt { border-bottom: 2.5px solid var(--black); }
 .rm-card.has-thumb > :not(.rt) { margin-inline: 1.15rem; }
 .rm-head-thumb { max-width: 520px; margin-block: .4rem 1.1rem; }

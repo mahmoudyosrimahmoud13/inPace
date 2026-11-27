@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+import os
 import re
 import zipfile
 from datetime import date, datetime, timedelta, timezone
@@ -164,27 +165,50 @@ def _belongs_in_backup(p, rel: str) -> bool:
 
 
 def backup_files(v: Vault) -> list[tuple]:
-    """What goes in a backup, besides the database: [(path, name inside, size)]."""
+    """What goes in a backup, besides the database: [(path, name inside, size)].
+
+    v1.37.8: folders that never go in (earlier backups, caches, the downloader, downloaded videos) are skipped
+    without being opened. On a phone the cache holds a copy of Python's libraries, thousands of files, and
+    walking them made Settings take 2 to 3 seconds every time."""
     out = []
-    for p in v.home.rglob("*"):
-        rel = p.relative_to(v.home).as_posix()
-        if rel.split("/")[0] == "backups":  # earlier backups never go inside a backup
-            continue
-        if p.is_file() and not rel.startswith(("vault.db", "inpace.log")) and _belongs_in_backup(p, rel):
-            try:
-                out.append((p, rel, p.stat().st_size))
-            except OSError:
+    home = str(v.home)
+    for root, dirs, files in os.walk(home):
+        rel_root = os.path.relpath(root, home).replace(os.sep, "/")
+        rel_root = "" if rel_root == "." else rel_root + "/"
+        depth = rel_root.count("/")
+        if depth == 0:
+            dirs[:] = [d for d in dirs if d not in ("backups", "cache", "tools")]
+        elif depth == 2 and rel_root.startswith("media/"):
+            dirs[:] = [d for d in dirs if d != "videos"]
+        for name in files:
+            rel = rel_root + name
+            if rel.startswith(("vault.db", "inpace.log")):
                 continue
+            p = Path(root) / name
+            if _belongs_in_backup(p, rel):
+                try:
+                    out.append((p, rel, p.stat().st_size))
+                except OSError:
+                    continue
     return out
 
 
-def backup_size(v: Vault) -> int:
-    """About how much a backup would hold, before compression (for the Settings page)."""
+_SIZE = {"at": 0.0, "home": "", "size": 0}
+
+
+def backup_size(v: Vault, fresh: bool = False) -> int:
+    """About how much a backup would hold, before compression (for the Settings page). Remembered for ten
+    minutes, so opening Settings again doesn't walk the folder again."""
+    import time as _time
+    if not fresh and _SIZE["home"] == str(v.home) and _time.time() - _SIZE["at"] < 600:
+        return _SIZE["size"]
     try:
         db = (v.home / "vault.db").stat().st_size
     except OSError:
         db = 0
-    return db + sum(size for _p, _rel, size in backup_files(v))
+    size = db + sum(size for _p, _rel, size in backup_files(v))
+    _SIZE.update(at=_time.time(), home=str(v.home), size=size)
+    return size
 
 
 def make_backup(v: Vault, password: str, on_progress=None) -> bytes:
@@ -192,6 +216,7 @@ def make_backup(v: Vault, password: str, on_progress=None) -> bytes:
     if len(password) < 6:
         raise ValueError("Use a password with at least 6 characters.")
     v.db.commit()
+    _SIZE["at"] = 0.0  # Settings works the size out again after this
     files = backup_files(v)
     total = sum(size for _p, _rel, size in files) + 1
     done = 0
@@ -263,6 +288,7 @@ def open_backup(data: bytes, password: str) -> zipfile.ZipFile:
 
 def restore_backup(v: Vault, data: bytes, password: str, on_progress=None) -> int:
     """Put a backup's files in place. on_progress(n, of) as files are written. Returns how many."""
+    _SIZE["at"] = 0.0
     zf = open_backup(data, password)
     v.db.close()
     names = [n for n in zf.namelist() if ".." not in n.split("/") and not n.startswith("/") and n != "backup.json"]
