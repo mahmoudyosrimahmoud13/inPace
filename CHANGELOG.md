@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.9
+
+- **The phone speed test covers more** (packaging/inpace-phone-test.py): opening and closing inPace five times (fully closed, and from the background), opening it from a notification tap, and a tour of every kind of page, timing each tap until the page is shown. Same app as 1.37.8; this release carries the newest test script.
+
 ## v1.37.8
 
 - **Settings opens much faster on phones.** It took 2 to 3 seconds every time, found with the new speed test on a real phone: it counted every file in inPace's folder (on a phone that includes a copy of Python's libraries, thousands of files) to show how big a backup would be, and opened the video downloader's zip (thousands of files) to read its version number. Now the folders that never go in a backup are skipped without being opened, and both answers are remembered.

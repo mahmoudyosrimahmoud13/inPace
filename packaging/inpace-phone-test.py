@@ -197,10 +197,11 @@ FETCH = """(async function(){var r=[];for(var i=0;i<3;i++){var t=performance.now
 await x.text();r.push(Math.round(performance.now()-t))}return r})()"""
 
 
-def start_only(times=3):
-    """python3 inpace-phone-test.py start : open inPace from closed a few times, to see the usual start time
-    (the first start after installing an update is slower: Python prepares inPace's code once)."""
-    say("inPace start test  " + time.strftime("%Y-%m-%d %H:%M"))
+def start_test(times=5):
+    """Open inPace again and again: fully closed (like swiping it away), and from the background (like pressing
+    Home and coming back). The first start after installing an update is slower: Python prepares inPace's code."""
+    say(f"== Opening and closing inPace, {times} times each, and opening it from a notification")
+    cold, warm = [], []
     for n in range(1, times + 1):
         adb("shell", "am", "force-stop", PKG)
         time.sleep(3)
@@ -208,14 +209,124 @@ def start_only(times=3):
         adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1")
         page = connect(150)
         if not page:
-            say(f"  start {n}: couldn't reach inPace's pages")
+            say(f"  closed start {n}: couldn't reach inPace's pages")
             continue
         ok = page.wait_loaded("", 150)
-        say(f"  start {n}: first page shown after {time.time() - t0:.1f} s" + ("" if ok else " (timed out)"))
+        t = time.time() - t0
+        cold.append(t)
+        inside = page.js("fetch('/debug/startup').then(function(r){return r.ok ? r.text() : ''})") or ""
+        say(f"  closed start {n}: first page after {t:.1f} s" + ("" if ok else " (timed out)") + (f"   {inside}" if inside else ""))
+        time.sleep(3)
+    for n in range(1, times + 1):
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(4)
-    with open("inpace-start-report.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(OUT) + "\n")
-    print("\nSaved inpace-start-report.txt")
+        t0 = time.time()
+        adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1")
+        page = connect(60)
+        answered = page.js("1") if page else None
+        t = time.time() - t0
+        warm.append(t)
+        say(f"  from background {n}: answering again after {t:.1f} s" + ("" if answered == 1 else " (no answer)"))
+        time.sleep(2)
+    # Tapping one of inPace's notifications: Android opens the app with the page to show (the same thing a tap does)
+    notif = []
+    for n in range(1, min(times, 3) * 2 + 1):
+        closed = n % 2 == 1
+        target = "/sprints" if closed else "/insights"
+        if closed:
+            adb("shell", "am", "force-stop", PKG)
+        else:
+            adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(3)
+        t0 = time.time()
+        adb("shell", "am", "start", "-n", PKG + "/.MainActivity", "-f", "0x20000000", "--es", "inpace_url", target)
+        page = connect(150)
+        shown = False
+        end = time.time() + 150
+        while page and time.time() < end:
+            v = page.js("document.readyState + '|' + location.pathname")
+            if v and v == "complete|" + target:
+                shown = True
+                break
+            time.sleep(0.1)
+        t = time.time() - t0
+        notif.append(t)
+        say(f"  notification tap, app {'closed' if closed else 'in background'}: {target} shown after {t:.1f} s"
+            + ("" if shown else " (that page never came)"))
+        time.sleep(2)
+    if cold:
+        say(f"  closed starts: fastest {min(cold):.1f} s, slowest {max(cold):.1f} s, middle {sorted(cold)[len(cold) // 2]:.1f} s")
+    if warm:
+        say(f"  from background: fastest {min(warm):.1f} s, slowest {max(warm):.1f} s")
+    say()
+
+
+SKIP = ("remove", "delete", "export", "download", "/stop", "quit", "/file", ".json", ".svg", ".zip", ".pdf", "backup",
+        "/m/", "sample-file", "reset", "/debug", "logout", "/static/", "share.html", "record", "/files/", "/evidence/",
+        "codenote/lesson", "/print", "outbox", "/new", "/ai", "/card", "/report", ".md", ".yaml", ".inpace")
+
+
+def pattern(path):
+    import re
+    p = path.split("#")[0]
+    p = re.sub(r"/[0-9a-f]{8,}", "/:id", p)
+    p = re.sub(r"/lesson/[^/?]+", "/lesson/:l", p)
+    p = re.sub(r"/(courses|roadmaps|library|people|review|races|module|modules)/[^/?]+", r"/\1/:x", p)
+    return p.split("?")[0]
+
+
+def tour(page, base, limit=70):
+    """Visit every kind of page in the app, the way you would: tap a link on the page you're on and wait until the
+    next page is shown. One of each kind (one course, one lesson...)."""
+    say(f"== Every page, one after another (tap a link, wait until the page is shown; up to {limit} kinds)")
+    LINKS = """[].map.call(document.querySelectorAll('a[href^="/"]'),function(a){return a.getAttribute('href')})"""
+    seen, queue, rows = set(), ["/"], []
+    page.call("Page.navigate", url=base + "/")
+    page.wait_loaded("", 60)
+    time.sleep(1)
+    while queue and len(rows) < limit:
+        path = queue.pop(0)
+        pat = pattern(path)
+        if pat in seen:
+            continue
+        seen.add(pat)
+        target = path.split("#")[0]
+        before = page.js("location.href")
+        t0 = time.time()
+        clicked = page.js("(function(){var a=[].filter.call(document.querySelectorAll('a[href]'),function(x){return x.getAttribute('href')==%s})[0];"
+                          "if(a){a.click();return true}location.href=%s;return false})()" % (json.dumps(path), json.dumps(target)))
+        shown = False
+        end = time.time() + 60
+        while time.time() < end:
+            v = page.js("document.readyState + '|' + location.pathname + location.search + '|' + location.href")
+            if v and v.startswith("complete|"):
+                _, here, href = v.split("|", 2)
+                if here == target:
+                    shown = True
+                    break
+                if href != before and time.time() - t0 > 2:  # it went somewhere else (a redirect): that counts
+                    shown = True
+                    target = here
+                    break
+                if href == before and time.time() - t0 > 8:  # nothing happened
+                    break
+            time.sleep(0.05)
+        ms = (time.time() - t0) * 1000
+        time.sleep(0.6)
+        tm = page.js(TIMINGS) or {}
+        rows.append((ms, target, tm, clicked, shown))
+        say(f"  {ms:6.0f} ms  {target[:60]:<60} python {tm.get('python')}  ready {tm.get('ready')}"
+            f"  busy {tm.get('longtask_ms')} ms" + ("" if shown else "  (didn't finish)") + ("" if clicked else "  (typed, no link)"))
+        for h in page.js(LINKS) or []:
+            if h and not any(k in h for k in SKIP) and pattern(h) not in seen and h not in queue:
+                queue.append(h)
+    if rows:
+        rows.sort(key=lambda r: -r[0])
+        say("  slowest 10:")
+        for ms, target, tm, _c, _s in rows[:10]:
+            say(f"    {ms:6.0f} ms  {target}")
+        say(f"  {len(rows)} pages, middle {sorted(r[0] for r in rows)[len(rows) // 2]:.0f} ms, slowest {rows[0][0]:.0f} ms")
+    say()
 
 
 METRICS = ("TaskDuration", "ScriptDuration", "LayoutDuration", "RecalcStyleDuration", "LayoutCount", "RecalcStyleCount",
@@ -267,8 +378,25 @@ def server_profile(page, path):
 
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "start":
-        return start_only()
+    if len(sys.argv) > 1 and sys.argv[1] in ("start", "tour"):
+        mode = sys.argv[1]
+        if not adb("version"):
+            sys.exit("adb isn't installed. Run: sudo apt install adb")
+        say(f"inPace {mode} test  " + time.strftime("%Y-%m-%d %H:%M"))
+        if mode == "start":
+            start_test(int(sys.argv[2]) if len(sys.argv) > 2 else 5)
+        else:
+            page = connect(60)
+            if not page:
+                sys.exit("Open inPace on the phone first.")
+            page.call("Page.enable")
+            page.call("Page.addScriptToEvaluateOnNewDocument", source=LONGTASKS)
+            tour(page, page.js("location.origin"))
+        name = f"inpace-{mode}-report.txt"
+        with open(name, "w", encoding="utf-8") as f:
+            f.write("\n".join(OUT) + "\n")
+        print("\nSaved " + name)
+        return
     if not adb("version"):
         sys.exit("adb isn't installed. Run: sudo apt install adb")
     devs = [l for l in adb("devices").splitlines()[1:] if l.strip()]
@@ -378,6 +506,9 @@ def main():
         say(f"  {path:<12} {page.js(FETCH, 60)}")
     say()
 
+    # 3a. Every page, one after another
+    tour(page, base)
+
     # 3b. Where Python's time goes on each page (inPace's own profiler, 1.37.8 and newer)
     say("== 3b. Inside inPace: which code the time goes to (3 renders each)")
     for path in ["/", "/courses", found.get("course"), found.get("lesson"), "/roadmaps", "/library", "/settings"]:
@@ -427,6 +558,8 @@ def main():
     for l in adb("shell", "dumpsys", "cpuinfo").splitlines()[1:12]:
         say("    " + l.strip())
     say()
+    # 6. Opening and closing, several times (last: it restarts inPace)
+    start_test(5)
     say("Done.")
     adb("forward", "--remove", f"tcp:{PORT}")
     with open("inpace-speed-report.txt", "w", encoding="utf-8") as f:
