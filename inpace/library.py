@@ -159,12 +159,25 @@ def index_stale(home: Path) -> bool:
         return True
 
 
+_INDEX: dict = {"key": None, "index": {}}
+
+
 def cached_index(home: Path) -> dict:
-    """The last library list we downloaded, without going online. Empty if we never looked."""
+    """The last library list we downloaded, without going online. Empty if we never looked. Kept in memory until
+    the file changes (v1.38): it's a big file, and several parts of every page asked for it."""
+    p = home / "library.json"
     try:
-        return json.loads((home / "library.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        st = p.stat()
+        key = (str(p), st.st_mtime_ns, st.st_size)
+    except OSError:
         return {}
+    if _INDEX["key"] != key:
+        try:
+            _INDEX["index"] = json.loads(p.read_text(encoding="utf-8"))
+            _INDEX["key"] = key
+        except (OSError, ValueError):
+            return {}
+    return dict(_INDEX["index"])  # a shallow copy: a page may add a note of its own (offline), the lists are shared
 
 
 def share_data(entry: dict) -> dict:

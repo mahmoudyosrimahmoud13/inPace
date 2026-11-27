@@ -9,10 +9,12 @@
 from __future__ import annotations
 
 import json
+import pickle
 import re
 import os
 import secrets
 import sqlite3
+import time
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +22,26 @@ from .canon import fingerprint, now_utc, sha256_hex
 from .course import Course, CourseError, files_from_folder, load_course, save_course_folder
 from .identity import Identity, verify
 
+# v1.38: short-lived copies of what pages read again and again (settings, events, milestones). Any write by any
+# Vault in this process (the download worker has its own) moves this counter on, and every copy is read again.
+_GEN = [0]
+
+
+def _bump() -> None:
+    _GEN[0] += 1
+
+
+class _Connection(sqlite3.Connection):
+    """Every commit, from any part of inPace, moves the counter on."""
+
+    def commit(self) -> None:
+        super().commit()
+        _GEN[0] += 1
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS progress_cache (journey TEXT PRIMARY KEY, key TEXT, data BLOB);
 CREATE TABLE IF NOT EXISTS journeys (
   id TEXT PRIMARY KEY, course_id TEXT, started_at TEXT, archived INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS events (
@@ -126,9 +146,15 @@ class Vault:
         self.home.mkdir(parents=True, exist_ok=True)
         (self.home / "courses").mkdir(exist_ok=True)
         (self.home / "evidence").mkdir(exist_ok=True)
-        self.db = sqlite3.connect(self.home / "vault.db", check_same_thread=False)
+        self.db = sqlite3.connect(self.home / "vault.db", check_same_thread=False, factory=_Connection)
         self._progress_cache: dict[str, tuple] = {}
         self.db.row_factory = sqlite3.Row
+        try:  # v1.38: a write no longer waits for the phone's storage to confirm it (WAL journal; the data is safe
+            # unless the phone loses power in that second). Opening a lesson used to spend half its time here.
+            self.db.execute("PRAGMA journal_mode=WAL")
+            self.db.execute("PRAGMA synchronous=NORMAL")
+        except sqlite3.DatabaseError:
+            pass
         self.db.executescript(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(people)")}
         for col in ("avatar", "island"):
@@ -137,17 +163,56 @@ class Vault:
             if col not in cols:
                 self.db.execute(f"ALTER TABLE people ADD COLUMN {col} TEXT DEFAULT ''")
                 self.db.commit()
+                _bump()
         self._courses: dict[str, Course] = {}
         self._identity: Identity | None = None
+        self._meta_cache: dict[str, tuple[float, str | None]] = {}
+        self._journey_of: dict[str, str | None] | None = None
+        # v1.38: Home asks for a journey's events and milestones three or four times each, for every course.
+        # Both are kept for two seconds (and dropped at once when this copy adds to them).
+        self._events_cache: dict[str, tuple] = {}
+        self._milestones_cache: dict[str, tuple] = {}
+        self._chain_ok: dict[str, tuple[tuple, list]] = {}
+        self._journeys_cache: tuple | None = None
+        self._no_course: dict[str, float] = {}
+        self._last_seq: tuple | None = None
+
+    def fresh(self) -> None:
+        """Forget the short-lived copies (settings, events, milestones): called as each page starts, so a page
+        reads each thing once, and the next page sees whatever another part of inPace wrote meanwhile."""
+        self._meta_cache.clear()
+        self._events_cache.clear()
+        self._milestones_cache.clear()
+        self._no_course.clear()
+
+    def checkpoint(self) -> None:
+        """Fold the journal back into vault.db (before a backup copies the file)."""
+        try:
+            self.db.commit()
+            _bump()
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.DatabaseError:
+            pass
 
     # ---- small helpers ---------------------------------------------------
+    META_TTL = 5.0  # a copy is kept this long at most, in case another process wrote to the database
+
+    def _live(self, hit) -> bool:
+        return bool(hit) and hit[0] == _GEN[0] and time.monotonic() - hit[1] < self.META_TTL
+
     def _meta(self, key: str, default: str | None = None) -> str | None:
+        hit = self._meta_cache.get(key)
+        if self._live(hit):
+            return hit[2] if hit[2] is not None else default
         row = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
-        return row["value"] if row else default
+        value = row["value"] if row else None
+        self._meta_cache[key] = (_GEN[0], time.monotonic(), value)
+        return value if value is not None else default
 
     def _set_meta(self, key: str, value: str) -> None:
         self.db.execute("INSERT OR REPLACE INTO meta VALUES (?,?)", (key, value))
         self.db.commit()
+        _bump()
 
     # ---- me ----------------------------------------------------------------
     @property
@@ -199,19 +264,54 @@ class Vault:
             shutil.rmtree(folder)
         save_course_folder(course, folder)
         self._courses.pop(course.id, None)
+        self._no_course.pop(course.id, None)
         return self.get_course(course.id) or course
+
+    def _course_stamp(self, folder: Path) -> str:
+        """What the course's text files look like on disk: changes when any of them does."""
+        parts = []
+        for p in sorted(folder.rglob("*")):
+            if p.is_file() and p.suffix in (".yaml", ".yml", ".md") and "files" not in p.relative_to(folder).parts[:1]:
+                st = p.stat()
+                parts.append(f"{p.relative_to(folder).as_posix()}:{st.st_mtime_ns}:{st.st_size}")
+        return "|".join(parts)
 
     def get_course(self, course_id: str) -> Course | None:
         if course_id in self._courses:
             return self._courses[course_id]
         folder = self.home / "courses" / course_id
+        if self._no_course.get(course_id, 0) > time.monotonic():
+            return None  # asked for a course that isn't here, a moment ago (roadmaps name courses you don't have)
         if not (folder / "course.yaml").exists():
+            self._no_course[course_id] = time.monotonic() + 2.0
             return None
+        # v1.38: reading a course means parsing its YAML, slow in plain Python on a phone (a quarter of a second
+        # each, 89 courses on one phone: most of a 30-second first Home). The parsed course is kept in the cache
+        # folder and read back from there until one of its files changes.
+        from . import __version__
+        cache = self.home / "cache" / "courses" / f"{course_id}.pickle"
+        stamp = f"{__version__}|{self._course_stamp(folder)}"
+        try:
+            with open(cache, "rb") as f:
+                saved_stamp, c = pickle.load(f)
+            if saved_stamp == stamp and isinstance(c, Course):
+                self._courses[course_id] = c
+                return c
+        except Exception:
+            pass
         try:
             c = load_course(files_from_folder(folder))
         except CourseError:
             return None
         self._courses[course_id] = c
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            tmp = cache.with_suffix(".tmp")
+            with open(tmp, "wb") as f:
+                pickle.dump((stamp, c), f, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp, cache)
+        except Exception:
+            pass
         return c
 
     def courses(self) -> list[Course]:
@@ -239,6 +339,8 @@ class Vault:
         Adding the course again later starts fresh."""
         self.db.execute("UPDATE journeys SET archived=1 WHERE course_id=?", (course_id,))
         self.db.commit()
+        _bump()
+        self._journey_of = None
         self.delete_course(course_id)
 
     # ---- the course's own files (videos, audio, pages) -----------------------
@@ -326,7 +428,9 @@ class Vault:
         n = self.db.execute("SELECT COUNT(*) AS n FROM journeys WHERE course_id=?", (course_id,)).fetchone()["n"]
         jid = fingerprint({"learner": self.identity.id, "course": course_id, "started": started, "n": n})[:16]
         self.db.execute("INSERT INTO journeys (id, course_id, started_at) VALUES (?,?,?)", (jid, course_id, started))
+        self._journey_of = None
         self.db.commit()
+        _bump()
         self.add_event(jid, "journey_started", {"course": course_id})
         return jid
 
@@ -334,13 +438,26 @@ class Vault:
         rows = self.db.execute("SELECT * FROM journeys WHERE archived=0 ORDER BY started_at").fetchall()
         return [dict(r) for r in rows]
 
+    def _journeys_now(self) -> dict:
+        """Every journey by id, read once per write (v1.38: progress() asks for the journey on every call)."""
+        hit = self._journeys_cache
+        if hit and hit[0] == _GEN[0] and time.monotonic() - hit[1] < self.META_TTL:
+            return hit[2]
+        rows = {r["id"]: dict(r) for r in self.db.execute("SELECT * FROM journeys").fetchall()}
+        self._journeys_cache = (_GEN[0], time.monotonic(), rows)
+        return rows
+
     def journey(self, jid: str) -> dict | None:
-        r = self.db.execute("SELECT * FROM journeys WHERE id=?", (jid,)).fetchone()
+        r = self._journeys_now().get(jid)
         return dict(r) if r else None
 
     def journey_for_course(self, course_id: str) -> str | None:
-        r = self.db.execute("SELECT id FROM journeys WHERE course_id=? AND archived=0", (course_id,)).fetchone()
-        return r["id"] if r else None
+        # v1.38: asked once per course per roadmap on Home and Roadmaps (thousands of times with many courses);
+        # one query fills the map, kept until a course is started or archived.
+        if self._journey_of is None:
+            rows = self.db.execute("SELECT id, course_id FROM journeys WHERE archived=0").fetchall()
+            self._journey_of = {r["course_id"]: r["id"] for r in rows}
+        return self._journey_of.get(course_id)
 
     # ---- events --------------------------------------------------------------
     def add_event(self, journey: str, type_: str, data: dict) -> None:
@@ -349,13 +466,20 @@ class Vault:
             (journey, type_, json.dumps(data, ensure_ascii=False), now_utc()),
         )
         self.db.commit()
+        _bump()
         self._progress_cache.pop(journey, None)
+        _bump()
 
     def events(self, journey: str, after_seq: int = 0) -> list[dict]:
-        rows = self.db.execute(
-            "SELECT * FROM events WHERE journey=? AND seq>? ORDER BY seq", (journey, after_seq)
-        ).fetchall()
-        return [{"seq": r["seq"], "type": r["type"], "data": json.loads(r["data"]), "at": r["at"]} for r in rows]
+        hit = self._events_cache.get(journey)
+        if self._live(hit):
+            evs = hit[2]
+        else:
+            rows = self.db.execute("SELECT * FROM events WHERE journey=? ORDER BY seq", (journey,)).fetchall()
+            evs = [{"seq": r["seq"], "type": r["type"], "data": json.loads(r["data"]), "at": r["at"]} for r in rows]
+            self._events_cache[journey] = (_GEN[0], time.monotonic(), evs)
+        out = [e for e in evs if e["seq"] > after_seq] if after_seq else list(evs)
+        return [dict(e) for e in out]  # callers may add to an event; the kept list stays as it was
 
     def save_evidence(self, journey: str, req_id: str, filename: str, content: bytes, task: str = "") -> str:
         digest = sha256_hex(content)
@@ -375,12 +499,35 @@ class Vault:
         changes; a caller gets its own copy, so what it does to it can't leak into the next page."""
         j = self.journey(journey)
         course = self.get_course(j["course_id"]) if j else None
-        last = self.db.execute("SELECT COALESCE(MAX(seq), 0) FROM events WHERE journey=?", (journey,)).fetchone()[0]
+        ls = self._last_seq
+        if not (ls and ls[0] == _GEN[0] and time.monotonic() - ls[1] < self.META_TTL):
+            rows = self.db.execute("SELECT journey, MAX(seq) AS last FROM events GROUP BY journey").fetchall()
+            ls = self._last_seq = (_GEN[0], time.monotonic(), {r["journey"]: r["last"] for r in rows})
+        last = ls[2].get(journey, 0)
         key = (last, course.hash if course else "", bool(j and j.get("archived")))
         hit = self._progress_cache.get(journey)
         if hit and hit[0] == key:
             return _copy_progress(hit[1])
-        out = self._progress_uncached(journey, j, course)
+        out = None
+        skey = json.dumps(key)
+        if course is not None:  # v1.38: kept in the database too, so a fresh start doesn't work it all out again
+            try:
+                row = self.db.execute("SELECT key, data FROM progress_cache WHERE journey=?", (journey,)).fetchone()
+                if row and row["key"] == skey:
+                    out = pickle.loads(row["data"])
+                    out["course"] = course
+            except Exception:
+                out = None
+        if out is None:
+            out = self._progress_uncached(journey, j, course)
+            if course is not None:
+                try:
+                    data = pickle.dumps({k: v for k, v in out.items() if k != "course"}, protocol=pickle.HIGHEST_PROTOCOL)
+                    self.db.execute("INSERT OR REPLACE INTO progress_cache VALUES (?,?,?)", (journey, skey, data))
+                    self.db.commit()
+                    _bump()
+                except Exception:
+                    pass
         self._progress_cache[journey] = (key, _copy_progress(out))
         return out
 
@@ -492,6 +639,7 @@ class Vault:
              "text": text, "created_at": now, "updated_at": now}
         self.db.execute("INSERT INTO notes VALUES (:id, :course, :lesson, :journey, :quote, :text, :created_at, :updated_at)", n)
         self.db.commit()
+        _bump()
         return n
 
     def edit_note(self, nid: str, text: str) -> None:
@@ -501,19 +649,25 @@ class Vault:
             raise ValueError("A note needs some text.")
         self.db.execute("UPDATE notes SET text=?, updated_at=? WHERE id=?", (text, now_utc(), nid))
         self.db.commit()
+        _bump()
 
     def delete_note(self, nid: str) -> None:
         self.db.execute("DELETE FROM notes WHERE id=?", (nid,))
         self.db.commit()
+        _bump()
 
     # ---- milestones --------------------------------------------------------
     def milestones(self, journey: str) -> list[dict]:
+        hit = self._milestones_cache.get(journey)
+        if self._live(hit):
+            return [dict(m) for m in hit[2]]
         rows = self.db.execute("SELECT * FROM milestones WHERE journey=? ORDER BY seq", (journey,)).fetchall()
         out = []
         for r in rows:
             out.append({"seq": r["seq"], "hash": r["hash"], "sig": r["sig"], "body": json.loads(r["body"]),
                         "approvals": self.approvals_for(r["hash"])})
-        return out
+        self._milestones_cache[journey] = (_GEN[0], time.monotonic(), out)
+        return [dict(m) for m in out]
 
     def last_event_in_milestones(self, journey: str) -> int:
         ms = self.milestones(journey)
@@ -559,6 +713,7 @@ class Vault:
         self.db.execute("INSERT INTO milestones VALUES (?,?,?,?,?)",
                         (journey, body["seq"], h, json.dumps(body, ensure_ascii=False), sig))
         self.db.commit()
+        _bump()
         return {"seq": body["seq"], "hash": h, "body": body, "sig": sig}
 
     def approvals_for(self, milestone_hash: str) -> list[dict]:
@@ -573,7 +728,13 @@ class Vault:
         """Re-check my own milestones. Returns plain-language problems."""
         from .exchange import check_chain
         ms = self.milestones(journey)
-        return check_chain([{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms])
+        key = tuple((m["hash"], m["sig"]) for m in ms)
+        hit = self._chain_ok.get(journey)
+        if hit and hit[0] == key:  # the same milestones check out the same way (v1.38: no signature maths per page)
+            return list(hit[1])
+        out = check_chain([{"body": m["body"], "hash": m["hash"], "sig": m["sig"]} for m in ms])
+        self._chain_ok[journey] = (key, out)
+        return list(out)
 
     # ---- people --------------------------------------------------------------
     def people(self) -> list[dict]:
@@ -590,6 +751,7 @@ class Vault:
         if island:
             self.db.execute("UPDATE people SET island=? WHERE id=?", (island, pid))
         self.db.commit()
+        _bump()
 
     def add_person(self, pid: str, name: str, color: str, checks_me: bool, i_check: bool, avatar: str = "",
                    island: str = "") -> None:
@@ -610,10 +772,12 @@ class Vault:
         self.db.execute("UPDATE people SET checks_me=?, i_check=?, nickname=? WHERE id=?",
                         (int(checks_me), int(i_check), nickname.strip(), pid))
         self.db.commit()
+        _bump()
 
     def remove_person(self, pid: str) -> None:
         self.db.execute("DELETE FROM people WHERE id=?", (pid,))
         self.db.commit()
+        _bump()
 
     def my_checkers(self) -> list[dict]:
         return [p for p in self.people() if p["checks_me"]]
@@ -624,6 +788,7 @@ class Vault:
                         (data["learner"]["id"], data["journey"]["id"], data["journey"]["course"]["title"],
                          json.dumps(data, ensure_ascii=False), now_utc()))
         self.db.commit()
+        _bump()
 
     def received(self, learner: str | None = None) -> list[dict]:
         q, args = "SELECT * FROM received", ()
@@ -645,6 +810,7 @@ class Vault:
         self.db.execute("INSERT OR REPLACE INTO receipts VALUES (?,?,?,?,?,?,?)",
                         (learner, journey, seq, h, decision, note, at))
         self.db.commit()
+        _bump()
 
     def waiting_count(self, learner: str) -> int:
         total = 0

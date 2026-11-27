@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.38.0
+
+Found with the phone speed test on a real phone with 89 courses. Everything below is measured.
+
+- **Opening the app: the first Home no longer takes half a minute.** On that phone the first page took 37 seconds, and about 30 of them were Home working out every course from scratch: parsing 89 course files (slow in plain Python on a phone) and every course's progress from its whole history. Both are now kept between starts: each parsed course in the cache folder (read again only when its files change), and each course's progress in the database (worked out again only when something new happens in it). On a computer the first Home went from 3.1 s to 0.24 s with the same 89 courses; on the phone that's roughly 30 s to 3 s.
+- **Every page asks the database far less.** Settings, events, milestones and the list of journeys were read again and again within one page (Home asked for each course's journey thousands of times with many roadmaps). Each is now read once per page, and any write anywhere in inPace makes them read again, so nothing goes stale. Roadmap files are copied as JSON instead of deep-copied (20 times faster), the library's list stays in memory until its file changes, and the free-space check on a course page is remembered for half a minute.
+- **The reminders plan was sent on every page.** A rule meant to send it every 30 minutes was skipped on every page since 1.30, so each page made inPace rebuild the plan and the phone app reschedule its alarms. Now only when it's due.
+- **Opening a lesson writes faster.** The database no longer waits for the phone's storage to confirm each write (a write-ahead journal); opening a lesson spent half its time there.
+- **Course pictures are kept by the browser for a day** instead of being asked for on every page.
+- **The course editor** draws modules off screen only when you scroll near them.
+- **The fast copy of Python's libraries now gets finished.** It never did on that phone (the app was closed before it could, and polls from the page kept it waiting), so every start imported from the zip. It now carries on where it left off and pauses less.
+- The speed test reads the app's own clock for the start, counts sleeping threads as idle, and measures a return from the background without the connection overhead.
+
 ## v1.37.10
 
 - Fixed a test that failed on Windows: the downloader's version, remembered since 1.37.8 so Settings opens fast, wasn't read again when a new copy was installed within the same moment with the same size. inPace now forgets it whenever it installs a new copy, and compares the file's time more precisely.

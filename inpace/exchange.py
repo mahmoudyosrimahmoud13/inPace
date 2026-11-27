@@ -415,6 +415,8 @@ def import_approval_file(v: Vault, data: dict) -> dict:
             v.db.execute("INSERT OR IGNORE INTO approvals VALUES (?,?,?,?,?,?)",
                          (d["milestone"], d["checker"], d["decision"], d["note"], d["at"], d["sig"]))
         v.db.commit()
+        from .vault import _bump
+        _bump()  # the approvals shown with each milestone changed
     except Exception:
         v.db.rollback()
         raise

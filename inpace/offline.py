@@ -277,15 +277,24 @@ def status(vault, course) -> dict:
             "default_base": str(default_base(vault) or vault.media_dir(course.id))}
 
 
+_SPACE: dict = {}
+
+
 def free_space(folder: Path) -> int:
-    """Free bytes on the drive where this folder is (or would be). -1 if unknown."""
+    """Free bytes on the drive where this folder is (or would be). -1 if unknown. Remembered for half a minute
+    (v1.38): asking the phone's storage took a good part of every course page."""
     p = Path(folder)
     while not p.exists() and p.parent != p:
         p = p.parent
+    hit = _SPACE.get(str(p))
+    if hit and time.time() - hit[0] < 30:
+        return hit[1]
     try:
-        return shutil.disk_usage(p).free
+        free = shutil.disk_usage(p).free
     except OSError:
-        return -1
+        free = -1
+    _SPACE[str(p)] = (time.time(), free)
+    return free
 
 
 def _video_seconds(vault, course, it: dict, guess: bool = True) -> float:

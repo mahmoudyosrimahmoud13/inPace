@@ -562,7 +562,8 @@ class NavMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        if not scope.get("path", "").startswith("/static/"):
+        path = scope.get("path", "")
+        if not path.startswith(("/static/", "/m/")) and not path.endswith(".json"):  # pages, not polls or pictures
             LAST_REQUEST["at"] = _time.time()
             LAST_REQUEST.setdefault("first", LAST_REQUEST["at"])
         nav = False
@@ -3252,6 +3253,8 @@ def create_app(vault: Vault) -> Starlette:
         if not p or p.is_dir():
             return Response("Not found", status_code=404)
         headers = {"X-Content-Type-Options": "nosniff", "Cache-Control": "no-cache"}
+        if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+            headers["Cache-Control"] = "private, max-age=86400"  # v1.38: course covers aren't asked for again on every page
         if p.suffix.lower() in HTML_EXT + (".svg",):
             # Pages run sealed off: their own scripts work, but they can't reach inPace, your data, or the internet.
             headers["Content-Security-Policy"] = (
@@ -5832,7 +5835,19 @@ def create_app(vault: Vault) -> Starlette:
         first = LAST_REQUEST.get("first")
         pyc = Path(__file__).parent / "__pycache__"
         app_pyc = sorted(pyc.glob("app.*.pyc")) if pyc.is_dir() else []
+        try:
+            last_start = json.loads(V._meta("startup_last", "") or "null")  # the app's own clock: Python up, page shown
+        except ValueError:
+            last_start = None
+        libs_copy = ""
+        try:
+            root = V.home / "cache" / "libs"
+            libs_copy = ", ".join(sorted(d.name + ("" if (d / ".ok").exists() else " (unfinished)")
+                                         for d in root.iterdir() if d.is_dir())) if root.is_dir() else ""
+        except OSError:
+            pass
         return JSONResponse({
+            "app_clock_ms": last_start, "libs_copy": libs_copy,
             "python": sys.version.split()[0],
             "fast_libs": os.environ.get("INPACE_FASTLIBS"),
             "load_inpace_s": round(ti - t0, 2) if t0 and ti else None,
@@ -5859,6 +5874,13 @@ def create_app(vault: Vault) -> Starlette:
         stop = _th.Event()
         IDLE = {"wait", "sleep", "select", "_wait_for_tstate_lock", "wait_quiet", "get", "_worker", "run_forever",
                 "_run_once", "accept", "recv", "readinto", "debug_profile"}
+        import linecache
+
+        def asleep(f) -> bool:  # a thread whose current line is a sleep or a wait isn't working
+            if f.f_code.co_name in IDLE:
+                return True
+            line = linecache.getline(f.f_code.co_filename, f.f_lineno)
+            return any(k in line for k in ("sleep(", ".wait(", ".join(", "wait_quiet(", ".acquire(", ".get(timeout", "select("))
 
         def name(f):
             fn = f.f_code.co_filename
@@ -5878,7 +5900,7 @@ def create_app(vault: Vault) -> Starlette:
                     while f is not None:
                         stack.append(f)
                         f = f.f_back
-                    if not stack or stack[0].f_code.co_name in IDLE:
+                    if not stack or asleep(stack[0]):
                         continue
                     names = [n for n in (name(x) for x in stack) if n]
                     if not names:
@@ -6165,6 +6187,9 @@ def create_app(vault: Vault) -> Starlette:
 
     def needs_setup(handler):
         async def wrapped(request: Request):
+            path = request.url.path
+            if not path.startswith("/m/") and not path.endswith(".json"):
+                V.fresh()  # what this page reads is read once (v1.38); the next page reads it again
             if not V.is_set_up:
                 return go("/setup")
             return await handler(request)

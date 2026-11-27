@@ -2264,7 +2264,9 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
     const ask = document.querySelector("[data-notify-ask]");
     if (ask) ask.hidden = !!(state && state.enabled);
     notifyOn = !!(state && state.enabled);
-    if (notifyOn) syncPlan(true);
+    // v1.38: the plan was sent again on every page (the "every 30 minutes" rule was skipped here), and inPace
+    // rebuilt it each time. Now only when it's due, and after the page has settled.
+    if (notifyOn) setTimeout(() => syncPlan(onReminders), 15000);
     else setTimeout(() => askNicely(false), 1500);  // let the page settle first
   };
   send({ type: "notifyState" });

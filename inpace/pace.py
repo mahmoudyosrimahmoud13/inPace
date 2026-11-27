@@ -291,6 +291,11 @@ def restore_backup(v: Vault, data: bytes, password: str, on_progress=None) -> in
     _SIZE["at"] = 0.0
     zf = open_backup(data, password)
     v.db.close()
+    for extra in ("vault.db-wal", "vault.db-shm"):  # the old database's journal must not meet the new file
+        try:
+            (v.home / extra).unlink()
+        except OSError:
+            pass
     names = [n for n in zf.namelist() if ".." not in n.split("/") and not n.startswith("/") and n != "backup.json"]
     for i, name in enumerate(names, 1):
         target = v.home.joinpath(*name.split("/"))

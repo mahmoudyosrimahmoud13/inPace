@@ -222,8 +222,14 @@ def start_test(times=5):
         time.sleep(4)
         t0 = time.time()
         adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1")
-        page = connect(60)
-        answered = page.js("1") if page else None
+        answered, page = None, None
+        end = time.time() + 60
+        while time.time() < end and answered != 1:  # the page is still there: ask it straight away
+            try:
+                page = Page(page_targets()[0]["webSocketDebuggerUrl"])
+                answered = page.js("1")
+            except Exception:
+                time.sleep(0.1)
         t = time.time() - t0
         warm.append(t)
         say(f"  from background {n}: answering again after {t:.1f} s" + ("" if answered == 1 else " (no answer)"))

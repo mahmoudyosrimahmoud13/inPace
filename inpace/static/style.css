@@ -2871,3 +2871,7 @@ html.wk-gtk[dir="rtl"] body { direction: rtl; }
 .full-btn .when-full, html.is-full .full-btn .when-windowed { display: none; }
 html.is-full .full-btn .when-full { display: inline; }
 @media (max-width: 720px) { .full-btn { display: none; } }
+
+/* v1.38: the course editor lists every lesson with its own forms; modules off screen are drawn when scrolled near */
+.builder-module { content-visibility: auto; contain-intrinsic-size: auto 30rem; }
+.builder-module:has(details[open]), .builder-module:focus-within, .builder-module:target { content-visibility: visible; }

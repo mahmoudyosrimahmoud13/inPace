@@ -115,11 +115,14 @@ def make_fast_libs(wait=12.0):
                 return
             time.sleep(wait)  # let the first pages load first
             pause()
+            os.environ["INPACE_FASTLIBS_BUILDING"] = "1"
+            # v1.38: the copy carries on where an earlier start left off (files already there are kept), and
+            # pauses less: on one phone it never finished, because the app was closed again before it could.
             tmp = copy + ".tmp"
-            shutil.rmtree(tmp, ignore_errors=True)
             shutil.rmtree(copy, ignore_errors=True)
             os.makedirs(tmp, exist_ok=True)
             sources = []
+            n = 0
             with zipfile.ZipFile(zp) as z:
                 for info in z.infolist():
                     name = info.filename
@@ -129,24 +132,25 @@ def make_fast_libs(wait=12.0):
                     if name.endswith((".so", ".soref", ".pyd")):
                         raise RuntimeError("native part in a pure library: " + name)
                     target = os.path.join(tmp, *name.split("/"))
+                    if name.endswith(".py"):
+                        sources.append(target)
+                    if os.path.isfile(target) and os.path.getsize(target) == info.file_size:
+                        continue  # from an earlier, unfinished start
                     os.makedirs(os.path.dirname(target), exist_ok=True)
                     with z.open(info) as src, open(target, "wb") as dst:
                         shutil.copyfileobj(src, dst)
-                    if name.endswith(".py"):
-                        sources.append(target)
-                    time.sleep(0.002)
-                    if len(sources) % 25 == 0:
+                    n += 1
+                    if n % 50 == 0:
                         pause()
             if not sources:
                 raise RuntimeError("no libraries found in the zip")
             for i, path in enumerate(sources):
-                if i % 10 == 0:
+                if i % 40 == 0:
                     pause()
                 try:
-                    py_compile.compile(path, doraise=True, quiet=1)
+                    py_compile.compile(path, doraise=True, quiet=1)  # already compiled: quick, nothing is written
                 except Exception:
                     pass  # Python compiles that one itself when it's first used
-                time.sleep(0.005)
             os.rename(tmp, copy)
             with open(os.path.join(copy, ".ok"), "w") as f:
                 f.write("ok")
@@ -154,8 +158,7 @@ def make_fast_libs(wait=12.0):
                 if os.path.join(root, other) != copy:
                     shutil.rmtree(os.path.join(root, other), ignore_errors=True)
         except Exception:
-            if tmp:
-                shutil.rmtree(tmp, ignore_errors=True)
+            pass  # what was copied so far is picked up by the next start
 
     threading.Thread(target=work, daemon=True, name="inpace-fast-libs").start()
 
