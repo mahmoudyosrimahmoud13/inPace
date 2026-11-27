@@ -2287,6 +2287,17 @@ function nearWord(term, words) {  // one letter wrong, missing or extra (for wor
   let trip = null;
   try { trip = JSON.parse((document.getElementById("inpace-trip") || {}).textContent || "null"); } catch (e) {}
   if (document.getElementById("inpace-trip")) send({ type: "trip", trip });
+  // Testing (v1.37.7): let a computer on a USB cable inspect the app's pages (Chrome's chrome://inspect), to find
+  // what's slow on a real phone. The app remembers it; this box shows what was last chosen here.
+  const insp = document.querySelector("[data-inspect-toggle]");
+  if (insp) {
+    try { insp.checked = localStorage.getItem("inpace-inspect") === "1"; } catch (e) {}
+    insp.addEventListener("change", () => {
+      try { localStorage.setItem("inpace-inspect", insp.checked ? "1" : "0"); } catch (e) {}
+      send({ type: "inspect", on: insp.checked });
+    });
+  }
+
   // Updates (v1.37): "Download and install" hands the APK's address to the app, which downloads it to the
   // phone and opens Android's install dialog. In a plain browser the link just downloads the file.
   document.querySelectorAll("[data-android-update]").forEach((a) => {
