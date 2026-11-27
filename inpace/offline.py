@@ -485,7 +485,7 @@ def version(home: Path) -> str:
         import zipfile
         try:
             st = zp.stat()
-            key = (str(zp), st.st_size, st.st_mtime)
+            key = (str(zp), st.st_size, st.st_mtime_ns, getattr(st, "st_ino", 0))
             if _VERSION.get("key") == key:
                 return _VERSION["v"]
             with zipfile.ZipFile(zp) as z:
@@ -556,6 +556,7 @@ def update_tool(home: Path, fetch=_get, first_time: bool = False) -> tuple[bool,
         tmp = zp.with_suffix(".new")
         tmp.write_bytes(data)
         os.replace(tmp, zp)
+        _VERSION.clear()  # a new copy: read its version again
         if str(zp) in sys.path:
             sys.path.remove(str(zp))
         _purge(zp)  # the next download uses the new copy

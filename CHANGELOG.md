@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.37.10
+
+- Fixed a test that failed on Windows: the downloader's version, remembered since 1.37.8 so Settings opens fast, wasn't read again when a new copy was installed within the same moment with the same size. inPace now forgets it whenever it installs a new copy, and compares the file's time more precisely.
+
 ## v1.37.9
 
 - **The phone speed test covers more** (packaging/inpace-phone-test.py): opening and closing inPace five times (fully closed, and from the background), opening it from a notification tap, and a tour of every kind of page, timing each tap until the page is shown. Same app as 1.37.8; this release carries the newest test script.
