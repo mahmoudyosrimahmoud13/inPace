@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.37.7
+
+- **Android: Settings → Testing from a computer.** "Allow inspecting over USB" lets a computer on a USB cable (with USB debugging on) look inside inPace's pages in Chrome's inspector, to find what makes the app slow on a real phone. Off unless you turn it on.
+- Stopping a sprint timer that started without its day's start time now keeps it stopped for the rest of the day (it could start again by itself).
+
 ## v1.37.6
 
 - **Notifications show again on Linux.** 1.37.4 tagged each notification as coming from the installed "inpace" app. GNOME 46 (Zorin 17, Ubuntu 24.04) silently drops a notification with that tag when it can't find the app, for example when inPace runs from its code folder, so nothing appeared even though the test said "Sent". The tag is gone; the inPace icon and Tempo's face stay.

@@ -681,6 +681,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       // If Python fails while starting, main.py writes why to this file, and the error screen shows it.
       _errorFile = File('${data.path}/inPace/start-error.txt');
       _bgFile = File('${data.path}/inPace/window-bg.txt');
+      _inspectFile = File('${data.path}/inPace/inspect-on.txt');
+      try {  // "Allow inspecting over USB" from Settings, kept across starts
+        if (await _inspectFile!.exists()) await AndroidWebViewController.enableDebugging(true);
+      } catch (_) {}
       try {
         if (await _bgFile!.exists()) _setBg((await _bgFile!.readAsString()).trim(), save: false);
       } catch (_) {}
@@ -907,6 +911,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         try { await _pip.invokeMethod('auto', msg['auto'] == true); } catch (_) {}
       case 'downloads':
         _watchDownloads();
+      case 'inspect':
+        await _setInspect(msg['on'] == true);
       case 'bg':
         _setBg(msg['color'] as String? ?? '');
       case 'codenoteCheck':
@@ -1104,6 +1110,25 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     } catch (e) {
       _apkWaiting = null;
       _toast("Couldn't open the installer: $e");
+    }
+  }
+
+  // Testing (v1.37.7): a computer on a USB cable (with USB debugging on) can inspect the pages in chrome://inspect.
+  File? _inspectFile;
+  Future<void> _setInspect(bool on) async {
+    try {
+      await AndroidWebViewController.enableDebugging(on);
+      final f = _inspectFile;
+      if (f != null) {
+        if (on) {
+          await f.create(recursive: true);
+        } else if (await f.exists()) {
+          await f.delete();
+        }
+      }
+      _toast(on ? 'A computer on USB can inspect inPace now.' : 'Inspecting is off.');
+    } catch (e) {
+      _toast("Couldn't change it: $e");
     }
   }
 

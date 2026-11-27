@@ -199,7 +199,11 @@ def stop(v) -> None:
             _bank(v, min(elapsed(d), d["goal"]))
         if d and d.get("chain"):  # you stopped the sprint timer: it doesn't start again this sprint day
             ch = d["chain"]
-            v._set_meta("sprint_timer_off", f"{int(ch.get('day_from') or 0)}|{ch['rid']}")
+            day_from = ch.get("day_from")
+            if not day_from:  # started without its day's start: the day began at midnight
+                import datetime as _dt
+                day_from = _dt.datetime.combine(_dt.date.today(), _dt.time()).timestamp()
+            v._set_meta("sprint_timer_off", f"{int(day_from)}|{ch['rid']}")
     _save(v, None)
 
 

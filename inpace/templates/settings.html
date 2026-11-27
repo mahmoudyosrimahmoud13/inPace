@@ -238,6 +238,13 @@
   <form method="post" action="/settings/window-retry"><button class="btn">{% trans trimmed %}Try the graphics card again{% endtrans %}</button></form>
 </section>
 {% endif %}
+{% if on_phone() %}
+<section class="card" style="max-width:620px" id="inspect" data-inspect-card>
+  <h3 class="set-h">{% trans trimmed %}Testing from a computer{% endtrans %}</h3>
+  <p class="muted">{% trans trimmed %}Lets a computer connected with a USB cable look inside inPace's pages, to find what makes the app slow. It only works with USB debugging on in Android's developer options. Turn it off when you're done.{% endtrans %}</p>
+  <label class="check"><input type="checkbox" data-inspect-toggle> <span>{% trans trimmed %}Allow inspecting over USB{% endtrans %}</span></label>
+</section>
+{% endif %}
 {% if not hosted %}
 <section class="card" style="max-width:620px" id="updates">
   <h3 class="set-h">{% trans trimmed %}Updates{% endtrans %}</h3>

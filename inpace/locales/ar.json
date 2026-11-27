@@ -2895,5 +2895,8 @@
   "Reminder": "تذكير",
   "Open inPace": "افتح inPace",
   "Notifications are turned off for inPace on this computer. Turn them on in your system Settings → Notifications → inPace, then try again.": "الإشعارات مغلقة لـ inPace على هذا الكمبيوتر. شغّلها من إعدادات النظام ← الإشعارات ← inPace، ثم جرّب مرة أخرى.",
-  "Sent, but Do Not Disturb is on, so it went straight to the notification list.": "أُرسل، لكن وضع عدم الإزعاج مفعّل، لذلك ذهب مباشرة إلى قائمة الإشعارات."
+  "Sent, but Do Not Disturb is on, so it went straight to the notification list.": "أُرسل، لكن وضع عدم الإزعاج مفعّل، لذلك ذهب مباشرة إلى قائمة الإشعارات.",
+  "Testing from a computer": "الاختبار من كمبيوتر",
+  "Allow inspecting over USB": "السماح بالفحص عبر USB",
+  "Lets a computer connected with a USB cable look inside inPace's pages, to find what makes the app slow. It only works with USB debugging on in Android's developer options. Turn it off when you're done.": "يسمح لكمبيوتر متصل بكابل USB بفحص صفحات inPace لمعرفة سبب البطء. يعمل فقط مع تفعيل تصحيح USB من خيارات المطوّر في أندرويد. أوقفه عندما تنتهي."
 }
