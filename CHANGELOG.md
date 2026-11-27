@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.37.8
+
+- **Settings opens much faster on phones.** It took 2 to 3 seconds every time, found with the new speed test on a real phone: it counted every file in inPace's folder (on a phone that includes a copy of Python's libraries, thousands of files) to show how big a backup would be, and opened the video downloader's zip (thousands of files) to read its version number. Now the folders that never go in a backup are skipped without being opened, and both answers are remembered.
+- **My courses and Roadmaps with many courses draw faster.** Cards off screen are only drawn when you scroll near them (a card with its menu open is drawn whole), and cover pictures are decoded without holding up the page.
+- **A speed test for phones** (inpace-phone-test.py, run on a computer with the phone on USB): how long the app takes to open and why, each page's time split between inPace's answer and the phone drawing it, which code and which JavaScript the time goes to, and memory. inPace has two small pages for it, /debug/startup and /debug/profile, only on this device and never in host mode.
+
 ## v1.37.7
 
 - **Android: Settings → Testing from a computer.** "Allow inspecting over USB" lets a computer on a USB cable (with USB debugging on) look inside inPace's pages in Chrome's inspector, to find what makes the app slow on a real phone. Off unless you turn it on.

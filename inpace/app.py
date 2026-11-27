@@ -475,7 +475,7 @@ def cover(c, big: bool = False, sample: bool = False) -> Markup:
     img = (c.extra or {}).get("image")
     if img:
         base = "/sample-file" if sample else "/m"
-        return Markup('<img class="{}" src="{}/{}/{}" alt="" loading="lazy">').format(cls, base, quote(c.id), quote(img))
+        return Markup('<img class="{}" src="{}/{}/{}" alt="" loading="lazy" decoding="async">').format(cls, base, quote(c.id), quote(img))
     hue = sum(ord(ch) for ch in c.id) % 360
     letter = (c.title.strip()[:1] or "?").upper()
     return Markup('<span class="{} blank" style="--hue:{}" aria-hidden="true">{}</span>').format(cls, hue, letter)
@@ -564,6 +564,7 @@ class NavMiddleware:
             return await self.app(scope, receive, send)
         if not scope.get("path", "").startswith("/static/"):
             LAST_REQUEST["at"] = _time.time()
+            LAST_REQUEST.setdefault("first", LAST_REQUEST["at"])
         nav = False
         static = b""
         if scope.get("path", "").startswith("/static/"):
@@ -5814,6 +5815,99 @@ def create_app(vault: Vault) -> Starlette:
         trip = garden.active(V)
         return JSONResponse({"grown": bool(just) or not trip, "elapsed": int(garden.elapsed(trip)) if trip else 0})
 
+    # ---- the speed test (v1.37.8): where the time goes, from a computer on USB (see inpace-phone-test.py) ----
+    def _debug_ok(request: Request) -> bool:
+        return not hosting.is_hosted() and (request.client is None or request.client.host in ("127.0.0.1", "::1", "testclient"))
+
+    async def debug_startup(request: Request):
+        """How the last start went: Python loading inPace, setting it up, and the first page asked for."""
+        if not _debug_ok(request):
+            return Response("Not found", status_code=404)
+        def num(k):
+            try:
+                return float(os.environ.get(k, ""))
+            except ValueError:
+                return None
+        t0, ti, ta = num("INPACE_T0"), num("INPACE_T_IMPORT"), num("INPACE_T_APP")
+        first = LAST_REQUEST.get("first")
+        pyc = Path(__file__).parent / "__pycache__"
+        app_pyc = sorted(pyc.glob("app.*.pyc")) if pyc.is_dir() else []
+        return JSONResponse({
+            "python": sys.version.split()[0],
+            "fast_libs": os.environ.get("INPACE_FASTLIBS"),
+            "load_inpace_s": round(ti - t0, 2) if t0 and ti else None,
+            "set_up_s": round(ta - ti, 2) if ti and ta else None,
+            "first_page_asked_s": round(first - t0, 2) if t0 and first else None,
+            "code_cache": bool(app_pyc), "code_cache_writable": os.access(str(Path(__file__).parent), os.W_OK),
+            "courses": len(V.courses()), "home_mb": round(sum(f.stat().st_size for f in V.home.glob("*") if f.is_file()) / 1048576, 1)})
+
+    async def debug_profile(request: Request):
+        """Render a page a few times while noting, 500 times a second, which part of inPace is running. The answer
+        is a plain list: the functions and templates the time goes to (their own time, and with what they call)."""
+        if not _debug_ok(request):
+            return Response("Not found", status_code=404)
+        import threading as _th
+        import urllib.request as _ur
+        from collections import Counter
+        path = request.query_params.get("path", "/")
+        if not path.startswith("/") or path.startswith("/debug"):
+            return Response("path?", status_code=400)
+        runs = max(1, min(5, int(request.query_params.get("runs", "3") or 3)))
+        here = str(Path(__file__).parent)
+        own, total = Counter(), Counter()
+        count = [0]
+        stop = _th.Event()
+        IDLE = {"wait", "sleep", "select", "_wait_for_tstate_lock", "wait_quiet", "get", "_worker", "run_forever",
+                "_run_once", "accept", "recv", "readinto", "debug_profile"}
+
+        def name(f):
+            fn = f.f_code.co_filename
+            if fn.endswith(".html"):
+                return "template " + Path(fn).name + ":" + str(f.f_lineno)
+            if fn.startswith(here):
+                return fn[len(here) + 1:] + " " + f.f_code.co_name + "()"
+            return None
+
+        def sample():
+            me = _th.get_ident()
+            while not stop.is_set():
+                for tid, fr in sys._current_frames().items():
+                    if tid == me:
+                        continue
+                    stack, f = [], fr
+                    while f is not None:
+                        stack.append(f)
+                        f = f.f_back
+                    if not stack or stack[0].f_code.co_name in IDLE:
+                        continue
+                    names = [n for n in (name(x) for x in stack) if n]
+                    if not names:
+                        continue
+                    count[0] += 1
+                    own[names[0]] += 1
+                    for n in set(names):
+                        total[n] += 1
+                _time.sleep(0.002)
+
+        base = f"http://127.0.0.1:{request.url.port}"
+        times = []
+        t = _th.Thread(target=sample, daemon=True)
+        t.start()
+        try:
+            for _ in range(runs):
+                t1 = _time.time()
+                await run_in_threadpool(lambda: _ur.urlopen(base + path, timeout=120).read())
+                times.append(round((_time.time() - t1) * 1000))
+        finally:
+            stop.set()
+            t.join(1)
+        n = max(1, count[0])
+        lines = [f"{path}: {times} ms ({count[0]} samples)", "  own time (the code itself):"]
+        lines += [f"    {100 * c / n:5.1f}%  {k}" for k, c in own.most_common(15)]
+        lines += ["  with what it calls:"]
+        lines += [f"    {100 * c / n:5.1f}%  {k}" for k, c in total.most_common(15)]
+        return Response("\n".join(lines) + "\n", media_type="text/plain")
+
     async def startup_time(request: Request):
         """The phone app reports how long it took to start (Python ready, first page shown), for Settings."""
         form = await request.form()
@@ -6268,6 +6362,8 @@ def create_app(vault: Vault) -> Starlette:
         Route("/tour/again", needs_setup(tour_again), methods=["POST"]),
         Route("/ping", ping),
         Route("/startup-time", startup_time, methods=["POST"]),
+        Route("/debug/startup", debug_startup),
+        Route("/debug/profile", needs_setup(debug_profile)),
         Route("/updates/setting", needs_setup(update_setting), methods=["POST"]),
         Route("/updates/check", needs_setup(update_check), methods=["POST"]),
         Route("/updates/later", needs_setup(update_later), methods=["POST"]),
