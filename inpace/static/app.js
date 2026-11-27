@@ -3485,13 +3485,16 @@ document.querySelectorAll("[data-issue-form]").forEach((box) => {
     });
   }
   // Drag it anywhere; the spot is kept for next time (separately for phone-size and computer-size windows).
-  const spotKey = () => "inpace-timer-spot-" + (innerWidth < 860 ? "s" : "l");
+  // matchMedia, not innerWidth (v1.38.2): reading innerWidth while the page is still being built makes the phone lay
+  // out the whole page right there, before it can show anything (60 ms on a lesson).
+  const narrow = matchMedia("(max-width: 859.98px)");
+  const spotKey = () => "inpace-timer-spot-" + (narrow.matches ? "s" : "l");
   const place = (x, y) => {
     const r = box.getBoundingClientRect();
     x = Math.min(Math.max(8, x), innerWidth - r.width - 8); y = Math.min(Math.max(8, y), innerHeight - r.height - 8);
     Object.assign(box.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" });
   };
-  const phone = () => innerWidth < 860;  // there it's a bar under the header: nothing to move or resize
+  const phone = () => narrow.matches;  // there it's a bar under the header: nothing to move or resize
   try { const s = JSON.parse(localStorage.getItem(spotKey()) || "null"); if (s && !phone()) requestAnimationFrame(() => place(s.x, s.y)); } catch (e) { /* none */ }
   // Resize: drag the corner handle; the size (70% to 180%) is kept for next time.
   const setScale = (k) => { k = Math.min(1.8, Math.max(0.7, k)); box.style.setProperty("--ft-scale", k.toFixed(2)); return k; };
@@ -4190,7 +4193,10 @@ window.inpaceMediaSession = (box, v) => {
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", soon); } catch (e) { /* old engine */ }
   window.addEventListener("pywebviewready", () => { last = ""; tell(); });
   window.addEventListener("pageshow", (e) => { if (e.persisted) { last = ""; soon(); } });  // back from the page cache
-  tell();
+  // v1.38.2: after the page is first drawn, not while it's being built. Reading its colour straight away made the
+  // phone work out the styles of the whole page before it could show it (the window's colour is already right:
+  // it's the one the last page told it).
+  soon();
 })();
 
 // ---- Long buttons: progress you can see (v1.31.2) -------------------------------------------------------------

@@ -301,13 +301,15 @@ def tour(page, base, limit=70):
         seen.add(pat)
         target = path.split("#")[0]
         before = page.js("location.href")
+        page.js("window.__lt=[];if(window.inpaceSoftTiming){inpaceSoftTiming.started=0;inpaceSoftTiming.ready=0}")  # this page's busy time only
         t0 = time.time()
         clicked = page.js("(function(){var a=[].filter.call(document.querySelectorAll('a[href]'),function(x){return x.getAttribute('href')==%s})[0];"
                           "if(a){a.click();return true}location.href=%s;return false})()" % (json.dumps(path), json.dumps(target)))
         shown = False
         end = time.time() + 60
         while time.time() < end:
-            v = page.js("document.readyState + '|' + location.pathname + location.search + '|' + location.href")
+            v = page.js("(window.inpaceSoftTiming && inpaceSoftTiming.started && !inpaceSoftTiming.ready ? 'loading' : document.readyState)"
+                        " + '|' + location.pathname + location.search + '|' + location.href")
             if v and v.startswith("complete|"):
                 _, here, href = v.split("|", 2)
                 if here == target:

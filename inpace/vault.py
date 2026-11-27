@@ -204,6 +204,24 @@ class Vault:
         hit = self._meta_cache.get(key)
         if self._live(hit):
             return hit[2] if hit[2] is not None else default
+        # v1.38.2: a page asks for 100 or more settings (one or two per course), and each question to the database
+        # costs about half a millisecond on a phone. The first miss reads every short setting in one go; a key
+        # that isn't there is then known to be missing too. Long values (a few hundred KB of JSON) are read alone.
+        whole = self._meta_cache.get("\0all")
+        if not self._live(whole):
+            gen, now = _GEN[0], time.monotonic()
+            rows = self.db.execute("SELECT key, value FROM meta WHERE length(value) <= 4096").fetchall()
+            for r in rows:
+                self._meta_cache[r["key"]] = (gen, now, r["value"])
+            long = {r["key"] for r in self.db.execute("SELECT key FROM meta WHERE length(value) > 4096")}
+            self._meta_cache["\0all"] = (gen, now, long)
+            whole = self._meta_cache["\0all"]
+            hit = self._meta_cache.get(key)
+            if self._live(hit):
+                return hit[2] if hit[2] is not None else default
+        if key not in whole[2]:  # not a long one, so not there at all
+            self._meta_cache[key] = (whole[0], whole[1], None)
+            return default
         row = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         value = row["value"] if row else None
         self._meta_cache[key] = (_GEN[0], time.monotonic(), value)

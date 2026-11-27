@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.38.2
+
+From the 1.38.1 phone report: pages now swap in with no blank screen, starts are down to about 5 seconds (from 9 to 11), and these were the next slowest things.
+
+- **Each page asked the database 100 times for small settings** (one or two per course). Now one question reads them all.
+- **Pages show sooner on a phone.** Two bits of script made the phone lay out the whole page while it was still being built: checking the window's width for the focus timer, and reading the page's colour for the window behind it. Both now happen after the page is first drawn.
+- **Settings opens at once the first time too.** The downloader's version and the backup size are worked out in the background a little after the start.
+- **The twice-a-day library check waits until you stop tapping.** On the phone it ran right after a start and took half the processor while the first pages opened.
+- The phone test times each swapped-in page on its own (its "busy" column kept adding up from page to page).
+
 ## v1.38.1
 
 - **No more blank screen between pages.** Tapping a link used to hand the window a new page to load, and on a phone the page you were on vanished at once, leaving a white or black screen until the next one was drawn: a second or more with nothing to look at. Now the page's own script asks inPace for the next page in the background while the page you're on stays put (the thin bar at the top shows if it takes more than a moment), then draws the new page in one go. Back, Forward, the tabs, the Back-like links, the search box, "next lesson" and the page a saved form sends you to all work the same way. Files, downloads, other apps and other sites are still left to the window. Opening a notification while the app is already open swaps the page in too.

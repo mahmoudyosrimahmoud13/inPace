@@ -744,6 +744,14 @@ def create_app(vault: Vault) -> Starlette:
     def _warm_templates():
         import time as _t
         _t.sleep(15 if os.environ.get("INPACE_MOBILE") else 3)
+        # v1.38.2: what Settings works out the first time (the downloader's version, which opens its zip, and how
+        # big a backup would be, which walks the data folder) is worked out here, so Settings opens at once.
+        for job in (lambda: offline.version(V.home), lambda: pace.backup_size(type("Home", (), {"home": V.home})())):
+            wait_quiet(2.0)
+            try:
+                job()
+            except Exception:
+                pass
         for name in env.list_templates(filter_func=lambda n: n.endswith(".html")):
             wait_quiet(2.0)  # never while a page is being drawn (v1.37.1): on a phone that made the first screens wait
             try:
@@ -6051,6 +6059,11 @@ def create_app(vault: Vault) -> Starlette:
         def run():
             try:
                 V._set_meta("library_checked", str(int(_time.time())))
+                # v1.38.2: not while pages are being drawn. On a phone this check (the network, and reading the list
+                # of trusted certificates) took half the processor while the first pages after a start were opening.
+                if os.environ.get("INPACE_MOBILE"):
+                    _time.sleep(20)
+                wait_quiet(3.0)
                 fresh_index = library.load_index(V.home, True)
                 _note_library(fresh_index, tell=True)
                 _sync_roadmaps(fresh_index)

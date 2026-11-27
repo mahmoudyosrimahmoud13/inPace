@@ -1,422 +1,422 @@
-inPace phone speed test  2026-11-27 17:43
+inPace phone speed test  2026-11-27 18:41
 Phone: Xiaomi M2010J19CG, Android 13, 8 CPU cores
-Memory: MemTotal:        3793416 kB MemFree:           48340 kB MemAvailable:     302228 kB
+Memory: MemTotal:        3793416 kB MemFree:           56904 kB MemAvailable:     575028 kB
 Battery saver: 0
-inPace: versionName=1.38.0
+inPace: versionName=1.38.1
 
 == 1. Opening inPace from closed
-  web view ready after 2.8 s; first page shown after 10.5 s
-  inside inPace: {"app_clock_ms":{"python":4594,"page":8747,"at":"2026-11-27T15:43:21Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":3.0,"set_up_s":0.08,"first_page_asked_s":3.31,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.0}
+  web view ready after 2.7 s; first page shown after 8.3 s
+  inside inPace: {"app_clock_ms":{"python":3969,"page":6940,"at":"2026-11-27T16:42:04Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":2.36,"set_up_s":0.08,"first_page_asked_s":2.61,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.5}
 
 == 2. Pages (times in ms; python = waiting for inPace's answer, ready = page usable, loaded = all done)
-  /                            first python 146  ready 424  loaded 535  | 122 KB, 1512 elements, 1 images  | busy 221 ms in 2 long tasks  | scroll 56 fps, worst frame 133 ms
-      phone time: script 25 ms, layout 126 ms (99x), styles 154 ms (100x), all tasks 900 ms; JS memory 1 MB
-      slowest files: /static/style.css?v=712570610c 10 ms 220 KB;  /static/icon.svg 6 ms 0 KB;  /static/icon.svg 4 ms 0 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /                            again python 133  ready 380  loaded 503  | 122 KB, 1512 elements, 1 images  | busy 124 ms in 1 long tasks  | scroll 59 fps, worst frame 50 ms
-  /courses                     first python 905  ready 1541  loaded 2969  | 402 KB, 3498 elements, 92 images  | busy 1350 ms in 4 long tasks  | scroll 59 fps, worst frame 34 ms
-      phone time: script 209 ms, layout 486 ms (202x), styles 604 ms (202x), all tasks 2468 ms; JS memory 1 MB
-      slowest files: /m/tensorflow-2-advanced/cover.jpg 1628 ms 120 KB;  /sample-file/tour/cover.jpg 1625 ms 45 KB;  /m/system-design-beginners/cover.jpg 1618 ms 155 KB;  sample-file/python-basics-ar/cover.jpg 1618 ms 27 KB
-  /courses                     again python 167  ready 627  loaded 1511  | 402 KB, 3498 elements, 92 images  | busy 1067 ms in 3 long tasks  | scroll 59 fps, worst frame 33 ms
-  /learn/4882877043b64185      first python 864  ready 1125  loaded 1180  | 108 KB, 1165 elements, 2 images  | busy 71 ms in 1 long tasks  | scroll 60 fps, worst frame 34 ms
-      phone time: script 28 ms, layout 115 ms (79x), styles 107 ms (80x), all tasks 703 ms; JS memory 3 MB
-      slowest files: jetbrains-mono-latin-wght-normal.woff2 25 ms 39 KB;  /static/icon.svg 14 ms 0 KB;  /static/icon.svg 13 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB
-  /learn/4882877043b64185      again python 76  ready 412  loaded 441  | 108 KB, 1165 elements, 2 images  | busy 54 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-  /learn/4882877043b64185/lesson/m1-l1 first python 473  ready 652  loaded 665  | 86 KB, 910 elements, 1 images  | busy 93 ms in 1 long tasks  | scroll 61 fps, worst frame 17 ms
-      phone time: script 38 ms, layout 74 ms (76x), styles 72 ms (78x), all tasks 558 ms; JS memory 1 MB
-      slowest files: /static/icon.svg 14 ms 0 KB;  /static/icon.svg 4 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /learn/4882877043b64185/lesson/m1-l1 again python 60  ready 200  loaded 227  | 86 KB, 910 elements, 1 images  | busy 61 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-  /roadmaps                    first python 182  ready 434  loaded 444  | 127 KB, 1675 elements, 73 images  | busy 150 ms in 2 long tasks  | scroll 59 fps, worst frame 33 ms
-      phone time: script 26 ms, layout 116 ms (70x), styles 102 ms (76x), all tasks 707 ms; JS memory 1 MB
-      slowest files: /m/spanish-b1-ar/cover.jpg 75 ms 99 KB;  /m/spanish-a1-ar/cover.jpg 73 ms 100 KB;  chess-3-openings-endgames-ar/cover.jpg 72 ms 111 KB;  /m/spanish-a2-ar/cover.jpg 72 ms 100 KB
-  /roadmaps                    again python 165  ready 373  loaded 379  | 127 KB, 1675 elements, 73 images  | busy 0 ms in 0 long tasks  | scroll 60 fps, worst frame 17 ms
-  /sprints                     first python 59  ready 224  loaded 224  | 87 KB, 917 elements, 1 images  | busy 0 ms in 0 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 14 ms, layout 78 ms (81x), styles 56 ms (82x), all tasks 575 ms; JS memory 1 MB
-      slowest files: /static/icon.svg 6 ms 0 KB;  /static/icon.svg 6 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /sprints                     again python 47  ready 155  loaded 158  | 87 KB, 917 elements, 1 images  | busy 50 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-  /insights                    first python 109  ready 284  loaded 284  | 92 KB, 1004 elements, 1 images  | busy 69 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 21 ms, layout 86 ms (81x), styles 65 ms (83x), all tasks 630 ms; JS memory 1 MB
-      slowest files: /static/icon.svg 10 ms 0 KB;  /static/icon.svg 4 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /insights                    again python 77  ready 196  loaded 199  | 92 KB, 1004 elements, 1 images  | busy 0 ms in 0 long tasks  | scroll 60 fps, worst frame 33 ms
-  /library                     first python 188  ready 618  loaded 626  | 682 KB, 4160 elements, 146 images  | busy 271 ms in 2 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 105 ms, layout 120 ms (83x), styles 107 ms (83x), all tasks 969 ms; JS memory 2 MB
-      slowest files: vers/aws-fundamentals.jpg?v=a22e8adb73 1124 ms 0 KB;  git-zero-to-master-ar.jpg?v=780b7e668a 919 ms 0 KB;  /static/icon.svg 20 ms 0 KB;  /static/icon.svg 11 ms 0 KB
-  /library                     again python 297  ready 661  loaded 669  | 682 KB, 4160 elements, 146 images  | busy 220 ms in 3 long tasks  | scroll 59 fps, worst frame 34 ms
-  /island                      first python 157  ready 314  loaded 317  | 89 KB, 882 elements, 1 images  | busy 59 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 22 ms, layout 71 ms (74x), styles 51 ms (74x), all tasks 491 ms; JS memory 2 MB
-      slowest files: /static/icon.svg 13 ms 0 KB;  /static/icon.svg 6 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /island                      again python 97  ready 240  loaded 243  | 89 KB, 882 elements, 1 images  | busy 54 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-  /downloads                   first python 220  ready 413  loaded 441  | 88 KB, 875 elements, 1 images  | busy 115 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 56 ms, layout 87 ms (79x), styles 84 ms (80x), all tasks 629 ms; JS memory 1 MB
-      slowest files: /downloads.json 22 ms 0 KB;  /static/icon.svg 8 ms 0 KB;  /static/icon.svg 7 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB
-  /downloads                   again python 123  ready 251  loaded 262  | 88 KB, 875 elements, 1 images  | busy 0 ms in 0 long tasks  | scroll 60 fps, worst frame 17 ms
-  /settings                    first python 892  ready 1214  loaded 1235  | 217 KB, 1733 elements, 1 images  | busy 218 ms in 2 long tasks  | scroll 60 fps, worst frame 33 ms
-      phone time: script 51 ms, layout 154 ms (80x), styles 128 ms (80x), all tasks 883 ms; JS memory 1 MB
-      slowest files: /static/icon.svg 14 ms 0 KB;  /static/icon.svg 14 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=4598d6f26e 0 ms 239 KB
-  /settings                    again python 88  ready 606  loaded 626  | 217 KB, 1733 elements, 1 images  | busy 132 ms in 1 long tasks  | scroll 55 fps, worst frame 117 ms
+  /                            first python 123  ready 648  loaded 787  | 122 KB, 1512 elements, 1 images  | busy 248 ms in 3 long tasks  | scroll 60 fps, worst frame 17 ms
+      phone time: script 34 ms, layout 154 ms (101x), styles 175 ms (102x), all tasks 1074 ms; JS memory 1 MB
+      slowest files: /static/style.css?v=712570610c 22 ms 220 KB;  /static/icon.svg 14 ms 0 KB;  /static/icon.svg 7 ms 0 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /                            again python 116  ready 393  loaded 523  | 122 KB, 1512 elements, 1 images  | busy 187 ms in 2 long tasks  | scroll 60 fps, worst frame 33 ms
+  /courses                     first python 1035  ready 1810  loaded 3111  | 402 KB, 3498 elements, 92 images  | busy 1470 ms in 3 long tasks  | scroll 60 fps, worst frame 33 ms
+      phone time: script 204 ms, layout 606 ms (176x), styles 609 ms (177x), all tasks 2622 ms; JS memory 1 MB
+      slowest files: /m/tensorflow-2-advanced/cover.jpg 1635 ms 120 KB;  /sample-file/tour/cover.jpg 1628 ms 45 KB;  sample-file/python-basics-ar/cover.jpg 1627 ms 27 KB;  /m/system-design-beginners/cover.jpg 1617 ms 155 KB
+  /courses                     again python 230  ready 689  loaded 1558  | 402 KB, 3498 elements, 92 images  | busy 1063 ms in 3 long tasks  | scroll 59 fps, worst frame 34 ms
+  /learn/4882877043b64185      first python 199  ready 515  loaded 616  | 108 KB, 1165 elements, 2 images  | busy 136 ms in 2 long tasks  | scroll 58 fps, worst frame 33 ms
+      phone time: script 31 ms, layout 122 ms (79x), styles 122 ms (80x), all tasks 741 ms; JS memory 3 MB
+      slowest files: jetbrains-mono-latin-wght-normal.woff2 37 ms 39 KB;  /static/icon.svg 13 ms 0 KB;  /static/icon.svg 12 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB
+  /learn/4882877043b64185      again python 76  ready 249  loaded 270  | 108 KB, 1165 elements, 2 images  | busy 70 ms in 1 long tasks  | scroll 59 fps, worst frame 34 ms
+  /learn/4882877043b64185/lesson/m1-l1 first python 498  ready 660  loaded 670  | 86 KB, 910 elements, 1 images  | busy 84 ms in 1 long tasks  | scroll 60 fps, worst frame 17 ms
+      phone time: script 33 ms, layout 75 ms (69x), styles 61 ms (71x), all tasks 504 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 8 ms 0 KB;  /static/icon.svg 7 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /learn/4882877043b64185/lesson/m1-l1 again python 67  ready 190  loaded 201  | 86 KB, 910 elements, 1 images  | busy 58 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
+  /roadmaps                    first python 166  ready 464  loaded 471  | 127 KB, 1675 elements, 73 images  | busy 195 ms in 2 long tasks  | scroll 60 fps, worst frame 33 ms
+      phone time: script 39 ms, layout 165 ms (74x), styles 107 ms (79x), all tasks 741 ms; JS memory 1 MB
+      slowest files: /m/german-a2-ar/cover.jpg 68 ms 109 KB;  /m/spanish-b1-ar/cover.jpg 66 ms 99 KB;  /m/spanish-a2-ar/cover.jpg 65 ms 100 KB;  chess-3-openings-endgames-ar/cover.jpg 63 ms 111 KB
+  /roadmaps                    again python 126  ready 384  loaded 390  | 127 KB, 1675 elements, 73 images  | busy 58 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
+  /sprints                     first python 55  ready 197  loaded 201  | 87 KB, 917 elements, 1 images  | busy 54 ms in 1 long tasks  | scroll 59 fps, worst frame 33 ms
+      phone time: script 17 ms, layout 86 ms (79x), styles 66 ms (79x), all tasks 675 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 10 ms 0 KB;  /static/icon.svg 4 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /sprints                     again python 47  ready 180  loaded 185  | 87 KB, 917 elements, 1 images  | busy 54 ms in 1 long tasks  | scroll 59 fps, worst frame 33 ms
+  /insights                    first python 113  ready 266  loaded 267  | 92 KB, 1004 elements, 1 images  | busy 75 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
+      phone time: script 18 ms, layout 80 ms (79x), styles 69 ms (80x), all tasks 631 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 15 ms 0 KB;  /static/icon.svg 3 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /insights                    again python 57  ready 170  loaded 174  | 92 KB, 1004 elements, 1 images  | busy 54 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
+  /library                     first python 214  ready 843  loaded 852  | 682 KB, 4160 elements, 146 images  | busy 388 ms in 3 long tasks  | scroll 60 fps, worst frame 33 ms
+      phone time: script 124 ms, layout 211 ms (79x), styles 117 ms (79x), all tasks 1132 ms; JS memory 2 MB
+      slowest files: vers/aws-fundamentals.jpg?v=a22e8adb73 1294 ms 0 KB;  git-zero-to-master-ar.jpg?v=780b7e668a 881 ms 0 KB;  /static/icon.svg 14 ms 0 KB;  /static/icon.svg 8 ms 0 KB
+  /library                     again python 192  ready 660  loaded 667  | 682 KB, 4160 elements, 146 images  | busy 251 ms in 3 long tasks  | scroll 58 fps, worst frame 34 ms
+  /island                      first python 178  ready 438  loaded 439  | 89 KB, 882 elements, 1 images  | busy 100 ms in 1 long tasks  | scroll 60 fps, worst frame 17 ms
+      phone time: script 47 ms, layout 80 ms (75x), styles 88 ms (76x), all tasks 746 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 27 ms 0 KB;  /static/icon.svg 8 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /island                      again python 86  ready 244  loaded 247  | 89 KB, 882 elements, 1 images  | busy 60 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
+  /downloads                   first python 262  ready 649  loaded 672  | 88 KB, 875 elements, 1 images  | busy 233 ms in 2 long tasks  | scroll 60 fps, worst frame 33 ms
+      phone time: script 118 ms, layout 100 ms (81x), styles 93 ms (81x), all tasks 812 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 28 ms 0 KB;  /static/icon.svg 10 ms 0 KB;  /downloads.json 10 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB
+  /downloads                   again python 134  ready 247  loaded 258  | 88 KB, 875 elements, 1 images  | busy 0 ms in 0 long tasks  | scroll 60 fps, worst frame 33 ms
+  /settings                    first python 1027  ready 1434  loaded 1456  | 217 KB, 1733 elements, 1 images  | busy 285 ms in 2 long tasks  | scroll 61 fps, worst frame 17 ms
+      phone time: script 49 ms, layout 170 ms (77x), styles 163 ms (77x), all tasks 980 ms; JS memory 1 MB
+      slowest files: /static/icon.svg 37 ms 0 KB;  /static/icon.svg 17 ms 0 KB;  /static/style.css?v=712570610c 0 ms 220 KB;  /static/app.js?v=08dba3db35 0 ms 246 KB
+  /settings                    again python 100  ready 668  loaded 687  | 217 KB, 1733 elements, 1 images  | busy 138 ms in 1 long tasks  | scroll 60 fps, worst frame 33 ms
 
 == 3. inPace's answer alone, 3 times each (ms)
-  /            [316, 255, 221]
-  /courses     [278, 185, 170]
-  /roadmaps    [212, 199, 195]
-  /settings    [67, 65, 74]
+  /            [121, 112, 110]
+  /courses     [146, 148, 150]
+  /roadmaps    [166, 138, 134]
+  /settings    [55, 68, 64]
 
 == Every page, one after another (tap a link, wait until the page is shown; up to 70 kinds)
-      76 ms  /                                                            python 200  ready 504  busy 326 ms
-     435 ms  /settings                                                    python 46  ready 279  busy 125 ms
-     357 ms  /learn/4882877043b64185/lesson/m1-l1                         python 91  ready 240  busy 75 ms
-    1723 ms  /courses                                                     python 186  ready 751  busy 1267 ms
-     639 ms  /roadmaps                                                    python 172  ready 460  busy 118 ms
-     301 ms  /sprints                                                     python 66  ready 193  busy 51 ms
-     401 ms  /insights                                                    python 95  ready 269  busy 56 ms
-     392 ms  /milestones                                                  python 81  ready 227  busy 74 ms
-     348 ms  /island                                                      python 110  ready 235  busy 59 ms
-     306 ms  /races                                                       python 51  ready 209  busy 77 ms
-     288 ms  /add                                                         python 38  ready 175  busy 68 ms
-     730 ms  /library                                                     python 210  ready 574  busy 187 ms
-     337 ms  /people                                                      python 67  ready 228  busy 66 ms
-     474 ms  /reminders                                                   python 47  ready 340  busy 156 ms
-     370 ms  /feedback                                                    python 41  ready 222  busy 100 ms
-     217 ms  /open                                                        python 47  ready 153  busy 0 ms
-     821 ms  /roadmaps/ml-engineer-sprint                                 python 297  ready 623  busy 240 ms
-     471 ms  /learn/4882877043b64185                                      python 144  ready 334  busy 74 ms
-     399 ms  /learn/4882877043b64185/module/m1                            python 51  ready 257  busy 111 ms
-     221 ms  /learn/4882877043b64185/notes                                python 38  ready 146  busy 0 ms  (typed, no link)
-     996 ms  /build/bishop-dl-1-foundations                               python 63  ready 859  busy 585 ms  (typed, no link)
-    2151 ms  /edit/bishop-dl-1-foundations                                python 129  ready 701  busy 1716 ms
-     357 ms  /courses/bishop-dl-1-foundations/share                       python 46  ready 293  busy 0 ms  (typed, no link)
-     408 ms  /courses/bishop-dl-1-foundations/publish                     python 118  ready 272  busy 55 ms  (typed, no link)
-     537 ms  /build/docker-kubernetes-en                                  python 38  ready 411  busy 176 ms  (typed, no link)
-    2298 ms  /edit/docker-kubernetes-en                                   python 122  ready 546  busy 1920 ms
-     691 ms  /build/fastapi                                               python 35  ready 568  busy 309 ms  (typed, no link)
-    2634 ms  /edit/fastapi                                                python 138  ready 581  busy 2247 ms
-     486 ms  /build/numpy-pandas-ml                                       python 36  ready 364  busy 194 ms  (typed, no link)
-    1005 ms  /edit/numpy-pandas-ml                                        python 68  ready 359  busy 725 ms
-     571 ms  /build/os-fundamentals                                       python 36  ready 425  busy 226 ms  (typed, no link)
-    2309 ms  /edit/os-fundamentals                                        python 123  ready 555  busy 1916 ms
-     415 ms  /build/python-basics                                         python 39  ready 282  busy 90 ms  (typed, no link)
-     457 ms  /edit/python-basics                                          python 45  ready 244  busy 108 ms
-     548 ms  /build/python-full                                           python 40  ready 398  busy 195 ms  (typed, no link)
-    2626 ms  /edit/python-full                                            python 142  ready 584  busy 2238 ms
-     472 ms  /build/asm-x86-64-beginners                                  python 39  ready 388  busy 175 ms  (typed, no link)
-    1116 ms  /edit/asm-x86-64-beginners                                   python 66  ready 380  busy 831 ms
-     615 ms  /build/asm-x86-64-beginners-ar                               python 41  ready 502  busy 338 ms  (typed, no link)
-    1142 ms  /edit/asm-x86-64-beginners-ar                                python 70  ready 385  busy 835 ms
-     545 ms  /build/aws-fundamentals                                      python 45  ready 410  busy 199 ms  (typed, no link)
-    1635 ms  /edit/aws-fundamentals                                       python 94  ready 444  busy 1330 ms
-     581 ms  /build/bash-automation                                       python 38  ready 483  busy 267 ms  (typed, no link)
-    1674 ms  /edit/bash-automation                                        python 103  ready 473  busy 1369 ms
-    1295 ms  /build/bishop-dl-2-deep-networks                             python 48  ready 1155  busy 984 ms  (typed, no link)
-    2083 ms  /edit/bishop-dl-2-deep-networks                              python 119  ready 568  busy 1691 ms
-    1008 ms  /build/bishop-dl-3-architectures                             python 72  ready 902  busy 542 ms  (typed, no link)
-    1760 ms  /edit/bishop-dl-3-architectures                              python 115  ready 521  busy 1395 ms
-    1395 ms  /build/bishop-dl-4-latent-variables                          python 51  ready 1269  busy 660 ms  (typed, no link)
-    1816 ms  /edit/bishop-dl-4-latent-variables                           python 106  ready 564  busy 1395 ms
-     757 ms  /build/bishop-dl-5-generative                                python 46  ready 649  busy 430 ms  (typed, no link)
-    1848 ms  /edit/bishop-dl-5-generative                                 python 117  ready 643  busy 1238 ms
-     626 ms  /build/c-programming-beginners                               python 38  ready 506  busy 0 ms  (typed, no link)
-    1223 ms  /edit/c-programming-beginners                                python 77  ready 409  busy 932 ms
-     685 ms  /build/c-programming-beginners-ar                            python 37  ready 575  busy 344 ms  (typed, no link)
-    1292 ms  /edit/c-programming-beginners-ar                             python 84  ready 433  busy 975 ms
-     478 ms  /build/chess-1-rules-ar                                      python 31  ready 347  busy 145 ms  (typed, no link)
-     880 ms  /edit/chess-1-rules-ar                                       python 59  ready 388  busy 593 ms
-     485 ms  /build/chess-2-tactics-ar                                    python 33  ready 343  busy 164 ms  (typed, no link)
-     878 ms  /edit/chess-2-tactics-ar                                     python 60  ready 348  busy 615 ms
-     473 ms  /build/chess-3-openings-endgames-ar                          python 41  ready 307  busy 124 ms  (typed, no link)
-     909 ms  /edit/chess-3-openings-endgames-ar                           python 73  ready 386  busy 647 ms
-     440 ms  /build/cloud-linux-admin                                     python 39  ready 312  busy 119 ms  (typed, no link)
-    1552 ms  /edit/cloud-linux-admin                                      python 84  ready 515  busy 1193 ms
-     459 ms  /build/computer-vision                                       python 39  ready 352  busy 0 ms  (typed, no link)
-    1032 ms  /edit/computer-vision                                        python 71  ready 352  busy 749 ms
-     491 ms  /build/cpp-advanced                                          python 36  ready 378  busy 173 ms  (typed, no link)
-    1244 ms  /edit/cpp-advanced                                           python 66  ready 514  busy 738 ms
-     942 ms  /build/cpp-advanced-ar                                       python 42  ready 864  busy 346 ms  (typed, no link)
-    1233 ms  /edit/cpp-advanced-ar                                        python 70  ready 509  busy 772 ms
+     107 ms  /                                                            python 97  ready 275  busy 368 ms
+     417 ms  /settings                                                    python 64  ready 357  busy 659 ms  swapped in
+     267 ms  /learn/4882877043b64185/lesson/m1-l1                         python 84  ready 229  busy 803 ms  swapped in
+    1306 ms  /courses                                                     python 213  ready 1223  busy 1815 ms  swapped in
+     352 ms  /roadmaps                                                    python 146  ready 257  busy 1926 ms  swapped in
+     207 ms  /sprints                                                     python 60  ready 149  busy 2014 ms  swapped in
+     184 ms  /insights                                                    python 76  ready 167  busy 2104 ms  swapped in
+     264 ms  /milestones                                                  python 69  ready 199  busy 2233 ms  swapped in
+     182 ms  /island                                                      python 70  ready 163  busy 2325 ms  swapped in
+     226 ms  /races                                                       python 74  ready 170  busy 2420 ms  swapped in
+     193 ms  /add                                                         python 54  ready 141  busy 2507 ms  swapped in
+     527 ms  /library                                                     python 201  ready 447  busy 2757 ms  swapped in
+     263 ms  /people                                                      python 78  ready 208  busy 2878 ms  swapped in
+     341 ms  /reminders                                                   python 54  ready 286  busy 3109 ms  swapped in
+     199 ms  /feedback                                                    python 52  ready 174  busy 3227 ms  swapped in
+     183 ms  /open                                                        python 49  ready 122  busy 3299 ms  swapped in
+     517 ms  /roadmaps/ml-engineer-sprint                                 python 110  ready 458  busy 3645 ms  swapped in
+     379 ms  /learn/4882877043b64185                                      python 152  ready 323  busy 3808 ms  swapped in
+     227 ms  /learn/4882877043b64185/module/m1                            python 58  ready 197  busy 3944 ms  swapped in
+     387 ms  /learn/4882877043b64185/notes                                python 41  ready 203  busy 50 ms  (typed, no link)
+     966 ms  /build/bishop-dl-1-foundations                               python 44  ready 866  busy 725 ms  (typed, no link)
+    2063 ms  /edit/bishop-dl-1-foundations                                python 168  ready 1988  busy 2498 ms  swapped in
+     307 ms  /courses/bishop-dl-1-foundations/share                       python 50  ready 206  busy 66 ms  (typed, no link)
+     453 ms  /courses/bishop-dl-1-foundations/publish                     python 127  ready 298  busy 69 ms  (typed, no link)
+     535 ms  /build/docker-kubernetes-en                                  python 37  ready 414  busy 171 ms  (typed, no link)
+    2182 ms  /edit/docker-kubernetes-en                                   python 308  ready 2122  busy 1973 ms  swapped in
+     742 ms  /build/fastapi                                               python 36  ready 552  busy 316 ms  (typed, no link)
+    2311 ms  /edit/fastapi                                                python 158  ready 457  busy 2323 ms  swapped in
+     456 ms  /build/numpy-pandas-ml                                       python 39  ready 313  busy 116 ms  (typed, no link)
+    1021 ms  /edit/numpy-pandas-ml                                        python 82  ready 970  busy 1002 ms  swapped in
+     798 ms  /build/os-fundamentals                                       python 42  ready 673  busy 270 ms  (typed, no link)
+    2171 ms  /edit/os-fundamentals                                        python 137  ready 391  busy 2053 ms  swapped in
+     448 ms  /build/python-basics                                         python 45  ready 308  busy 63 ms  (typed, no link)
+     390 ms  /edit/python-basics                                          python 63  ready 339  busy 338 ms  swapped in
+     534 ms  /build/python-full                                           python 41  ready 401  busy 184 ms  (typed, no link)
+    2569 ms  /edit/python-full                                            python 163  ready 2512  busy 2507 ms  swapped in
+     685 ms  /build/asm-x86-64-beginners                                  python 39  ready 554  busy 303 ms  (typed, no link)
+     959 ms  /edit/asm-x86-64-beginners                                   python 79  ready 266  busy 970 ms  swapped in
+     626 ms  /build/asm-x86-64-beginners-ar                               python 42  ready 505  busy 284 ms  (typed, no link)
+    1175 ms  /edit/asm-x86-64-beginners-ar                                python 86  ready 1124  busy 1320 ms  swapped in
+     490 ms  /build/aws-fundamentals                                      python 38  ready 339  busy 150 ms  (typed, no link)
+    1869 ms  /edit/aws-fundamentals                                       python 127  ready 1810  busy 1830 ms  swapped in
+     683 ms  /build/bash-automation                                       python 45  ready 588  busy 329 ms  (typed, no link)
+    1483 ms  /edit/bash-automation                                        python 118  ready 351  busy 1567 ms  swapped in
+    1458 ms  /build/bishop-dl-2-deep-networks                             python 46  ready 1344  busy 697 ms  (typed, no link)
+    1743 ms  /edit/bishop-dl-2-deep-networks                              python 136  ready 1677  busy 2210 ms  swapped in
+     944 ms  /build/bishop-dl-3-architectures                             python 49  ready 804  busy 506 ms  (typed, no link)
+    1480 ms  /edit/bishop-dl-3-architectures                              python 126  ready 357  busy 1718 ms  swapped in
+     643 ms  /build/bishop-dl-4-latent-variables                          python 48  ready 539  busy 347 ms  (typed, no link)
+    1697 ms  /edit/bishop-dl-4-latent-variables                           python 121  ready 1625  busy 1849 ms  swapped in
+     961 ms  /build/bishop-dl-5-generative                                python 45  ready 789  busy 635 ms  (typed, no link)
+    1429 ms  /edit/bishop-dl-5-generative                                 python 123  ready 386  busy 1834 ms  swapped in
+     493 ms  /build/c-programming-beginners                               python 34  ready 389  busy 179 ms  (typed, no link)
+    1138 ms  /edit/c-programming-beginners                                python 83  ready 1089  busy 1173 ms  swapped in
+     572 ms  /build/c-programming-beginners-ar                            python 34  ready 454  busy 242 ms  (typed, no link)
+    1420 ms  /edit/c-programming-beginners-ar                             python 94  ready 1354  busy 1500 ms  swapped in
+     524 ms  /build/chess-1-rules-ar                                      python 41  ready 397  busy 142 ms  (typed, no link)
+     831 ms  /edit/chess-1-rules-ar                                       python 86  ready 770  busy 815 ms  swapped in
+     497 ms  /build/chess-2-tactics-ar                                    python 41  ready 340  busy 146 ms  (typed, no link)
+     894 ms  /edit/chess-2-tactics-ar                                     python 82  ready 843  busy 905 ms  swapped in
+     487 ms  /build/chess-3-openings-endgames-ar                          python 45  ready 344  busy 146 ms  (typed, no link)
+     855 ms  /edit/chess-3-openings-endgames-ar                           python 77  ready 801  busy 868 ms  swapped in
+     600 ms  /build/cloud-linux-admin                                     python 68  ready 475  busy 219 ms  (typed, no link)
+    1481 ms  /edit/cloud-linux-admin                                      python 109  ready 1415  busy 1523 ms  swapped in
+     689 ms  /build/computer-vision                                       python 38  ready 552  busy 150 ms  (typed, no link)
+    1051 ms  /edit/computer-vision                                        python 84  ready 998  busy 1062 ms  swapped in
+     597 ms  /build/cpp-advanced                                          python 38  ready 445  busy 235 ms  (typed, no link)
+     932 ms  /edit/cpp-advanced                                           python 81  ready 256  busy 978 ms  swapped in
+     609 ms  /build/cpp-advanced-ar                                       python 44  ready 502  busy 264 ms  (typed, no link)
+    1138 ms  /edit/cpp-advanced-ar                                        python 87  ready 1092  busy 1255 ms  swapped in
   slowest 10:
-      2634 ms  /edit/fastapi
-      2626 ms  /edit/python-full
-      2309 ms  /edit/os-fundamentals
-      2298 ms  /edit/docker-kubernetes-en
-      2151 ms  /edit/bishop-dl-1-foundations
-      2083 ms  /edit/bishop-dl-2-deep-networks
-      1848 ms  /edit/bishop-dl-5-generative
-      1816 ms  /edit/bishop-dl-4-latent-variables
-      1760 ms  /edit/bishop-dl-3-architectures
-      1723 ms  /courses
-  70 pages, middle 639 ms, slowest 2634 ms
+      2569 ms  /edit/python-full
+      2311 ms  /edit/fastapi
+      2182 ms  /edit/docker-kubernetes-en
+      2171 ms  /edit/os-fundamentals
+      2063 ms  /edit/bishop-dl-1-foundations
+      1869 ms  /edit/aws-fundamentals
+      1743 ms  /edit/bishop-dl-2-deep-networks
+      1697 ms  /edit/bishop-dl-4-latent-variables
+      1483 ms  /edit/bash-automation
+      1481 ms  /edit/cloud-linux-admin
+  70 pages, middle 626 ms, slowest 2569 ms
 
 == 3b. Inside inPace: which code the time goes to (3 renders each)
-  /: [311, 198, 184] ms (76 samples)
+  /: [245, 121, 114] ms (66 samples)
     own time (the code itself):
-       17.1%  vault.py courses()
-       15.8%  vault.py _copy_progress()
-       13.2%  roadmaps.py mine()
-        7.9%  vault.py milestones()
-        6.6%  roadmaps.py _read()
-        6.6%  vault.py _meta()
-        6.6%  vault.py events()
-        3.9%  roadmaps.py <genexpr>()
-        3.9%  vault.py is_set_up()
-        3.9%  app.py <lambda>()
-        2.6%  checks.py requests_for()
-        2.6%  roadmaps.py status()
-        2.6%  template home.html:611
-        1.3%  vault.py journeys()
-        1.3%  vault.py people()
+       18.2%  vault.py courses()
+       16.7%  roadmaps.py mine()
+       13.6%  roadmaps.py _read()
+       12.1%  app.py <lambda>()
+        6.1%  vault.py events()
+        6.1%  app.py page()
+        4.5%  vault.py is_set_up()
+        4.5%  vault.py _meta()
+        4.5%  template home.html:611
+        3.0%  vault.py get_course()
+        3.0%  vault.py milestones()
+        1.5%  template home.html:16
+        1.5%  checks.py my_exams()
+        1.5%  vault.py _unpack_progress()
+        1.5%  vault.py people()
     with what it calls:
-       96.1%  app.py wrapped()
-       96.1%  app.py __call__()
-       94.7%  app.py home()
-       22.4%  roadmaps.py status()
-  /courses: [235, 183, 195] ms (81 samples)
+       87.9%  app.py __call__()
+       87.9%  app.py wrapped()
+       87.9%  app.py home()
+       47.0%  app.py page()
+  /courses: [270, 173, 166] ms (79 samples)
     own time (the code itself):
-       43.2%  vault.py _meta()
-        9.9%  roadmaps.py _read()
-        7.4%  roadmaps.py mine()
-        2.5%  vault.py courses()
-        2.5%  template courses.html:210
-        2.5%  vault.py is_set_up()
-        2.5%  template courses.html:294
-        2.5%  template courses.html:466
+       40.5%  vault.py _meta()
+       11.4%  roadmaps.py _read()
+        7.6%  roadmaps.py mine()
+        5.1%  vault.py is_set_up()
+        5.1%  app.py cover()
+        3.8%  vault.py courses()
+        2.5%  template courses.html:331
         2.5%  template courses.html:152
-        2.5%  template courses.html:38
-        2.5%  app.py wrapped()
-        1.2%  app.py <lambda>()
-        1.2%  template courses.html:19
-        1.2%  template courses.html:191
-        1.2%  course.py <genexpr>()
+        1.3%  app.py page()
+        1.3%  template base.html:458
+        1.3%  app.py gettext()
+        1.3%  template courses.html:227
+        1.3%  template courses.html:210
+        1.3%  mascot.py _eyes()
+        1.3%  template courses.html:243
     with what it calls:
-       98.8%  app.py wrapped()
-       98.8%  app.py __call__()
-       96.3%  app.py courses()
-       53.1%  app.py page()
-  /learn/4882877043b64185: [187, 91, 93] ms (85 samples)
+      100.0%  app.py wrapped()
+      100.0%  app.py __call__()
+       98.7%  app.py courses()
+       58.2%  app.py page()
+  /learn/4882877043b64185: [128, 103, 96] ms (67 samples)
     own time (the code itself):
-       40.0%  offline.py free_space()
-       10.6%  roadmaps.py _read()
-        9.4%  roadmaps.py mine()
-        8.2%  vault.py find_media()
-        5.9%  vault.py _meta()
-        5.9%  app.py course_overview()
-        4.7%  app.py page()
-        3.5%  vault.py is_set_up()
-        2.4%  app.py wrapped()
-        1.2%  vault.py ok()
-        1.2%  vault.py notes()
-        1.2%  mascot.py _rim()
-        1.2%  template course.html:976
-        1.2%  app.py <lambda>()
-        1.2%  template course.html:627
+       34.3%  offline.py free_space()
+       16.4%  roadmaps.py mine()
+       10.4%  vault.py find_media()
+        9.0%  roadmaps.py _read()
+        7.5%  vault.py _meta()
+        4.5%  app.py course_overview()
+        3.0%  app.py page()
+        3.0%  template course.html:572
+        1.5%  template course.html:976
+        1.5%  app.py t()
+        1.5%  template base.html:790
+        1.5%  template _timer.html:55
+        1.5%  vault.py notes()
+        1.5%  template course.html:453
+        1.5%  template base.html:652
     with what it calls:
-       98.8%  app.py __call__()
-       97.6%  app.py wrapped()
-       95.3%  app.py course_overview()
-       43.5%  offline.py status()
-  /learn/4882877043b64185/lesson/m1-l1: [98, 75, 63] ms (43 samples)
+      100.0%  app.py wrapped()
+      100.0%  app.py __call__()
+       98.5%  app.py course_overview()
+       38.8%  app.py page()
+  /learn/4882877043b64185/lesson/m1-l1: [75, 82, 74] ms (39 samples)
     own time (the code itself):
-       25.6%  roadmaps.py mine()
-       11.6%  vault.py add_event()
-        9.3%  vault.py _meta()
-        9.3%  roadmaps.py _read()
-        9.3%  app.py page()
-        9.3%  vault.py is_set_up()
-        7.0%  mdfix.py render()
-        4.7%  vault.py progress()
-        2.3%  template lesson.html:369
-        2.3%  vault.py commit()
-        2.3%  template lesson.html:332
-        2.3%  app.py wrapped()
-        2.3%  app.py <lambda>()
-        2.3%  template base.html:939
-    with what it calls:
-       97.7%  app.py wrapped()
-       97.7%  app.py __call__()
-       88.4%  app.py lesson()
-       62.8%  app.py page()
-       34.9%  roadmaps.py mine()
-  /roadmaps: [214, 399, 196] ms (86 samples)
-    own time (the code itself):
-       14.0%  vault.py _copy_progress()
-       10.5%  roadmaps.py mine()
-        9.3%  roadmaps.py _read()
-        8.1%  vault.py _meta()
-        7.0%  vault.py get_course()
-        5.8%  template _roadmap.html:57
-        4.7%  roadmaps.py status()
-        4.7%  roadmaps.py _text()
-        4.7%  app.py page()
-        3.5%  vault.py is_set_up()
-        2.3%  roadmaps.py <genexpr>()
-        2.3%  ytrules.py refresh_later()
-        2.3%  app.py roadmap_thumb()
-        2.3%  roadmaps.py parse()
-        2.3%  template _roadmap.html:56
-    with what it calls:
-       98.8%  app.py wrapped()
-       98.8%  app.py __call__()
-       95.3%  app.py roadmaps_page()
-       54.7%  app.py page()
-  /library: [213, 213, 218] ms (101 samples)
-    own time (the code itself):
-       24.8%  vault.py get_course()
-       11.9%  roadmaps.py mine()
-        8.9%  roadmaps.py _read()
-        5.9%  app.py page()
-        5.9%  template library.html:335
-        4.0%  vault.py _meta()
-        4.0%  template library.html:396
-        3.0%  app.py <lambda>()
-        3.0%  roadmaps.py _text()
-        3.0%  app.py library_page()
-        3.0%  app.py wrapped()
-        3.0%  vault.py is_set_up()
-        2.0%  template library.html:388
-        2.0%  template library.html:337
-        2.0%  app.py t()
-    with what it calls:
-       97.0%  app.py __call__()
-       96.0%  app.py wrapped()
-       92.1%  app.py library_page()
-       54.5%  app.py page()
-  /settings: [92, 64, 58] ms (39 samples)
-    own time (the code itself):
-       17.9%  roadmaps.py mine()
-       15.4%  vault.py _meta()
-       10.3%  offline.py version()
-       10.3%  app.py page()
-        7.7%  roadmaps.py _read()
-        7.7%  app.py wrapped()
-        5.1%  template _turtle.html:161
-        2.6%  app.py settings()
-        2.6%  template settings.html:19
-        2.6%  ytrules.py refresh_later()
-        2.6%  template settings.html:13
-        2.6%  template settings.html:136
+       30.8%  roadmaps.py mine()
+       10.3%  vault.py commit()
+       10.3%  roadmaps.py _read()
+        7.7%  vault.py is_set_up()
+        5.1%  app.py gettext()
+        5.1%  vault.py add_event()
+        5.1%  app.py wrapped()
+        5.1%  vault.py _meta()
+        2.6%  app.py <genexpr>()
+        2.6%  app.py page()
         2.6%  app.py <lambda>()
-        2.6%  vault.py is_set_up()
-        2.6%  pace.py latest_backup()
+        2.6%  vault.py progress()
+        2.6%  mdfix.py render()
+        2.6%  app.py icon()
+        2.6%  app.py __call__()
     with what it calls:
        97.4%  app.py __call__()
-       94.9%  app.py wrapped()
-       87.2%  app.py settings()
-       66.7%  app.py page()
+       89.7%  app.py wrapped()
+       84.6%  app.py lesson()
+       61.5%  app.py page()
+  /roadmaps: [169, 172, 163] ms (67 samples)
+    own time (the code itself):
+       20.9%  roadmaps.py _read()
+       11.9%  roadmaps.py mine()
+       10.4%  vault.py get_course()
+       10.4%  roadmaps.py _text()
+        4.5%  app.py roadmap_thumb()
+        3.0%  template _roadmap.html:60
+        3.0%  template base.html:889
+        3.0%  app.py wrapped()
+        3.0%  vault.py _unpack_progress()
+        3.0%  vault.py _meta()
+        3.0%  app.py _rm_pics()
+        3.0%  app.py <genexpr>()
+        1.5%  app.py <lambda>()
+        1.5%  vault.py commit()
+        1.5%  course.py <genexpr>()
+    with what it calls:
+       98.5%  app.py wrapped()
+       98.5%  app.py __call__()
+       95.5%  app.py roadmaps_page()
+       65.7%  app.py page()
+  /library: [300, 293, 342] ms (219 samples)
+    own time (the code itself):
+       22.8%  net.py urlopen()
+       16.0%  net.py _certifi_file()
+       11.4%  vault.py get_course()
+        7.8%  net.py context()
+        5.9%  roadmaps.py mine()
+        4.6%  roadmaps.py _read()
+        4.1%  vault.py _meta()
+        3.7%  updater.py _get()
+        1.8%  app.py <lambda>()
+        1.8%  roadmaps.py _text()
+        1.8%  template library.html:335
+        1.4%  template library.html:383
+        1.4%  app.py page()
+        0.9%  app.py gettext()
+        0.9%  roadmaps.py parse()
+    with what it calls:
+       50.2%  library.py load_index()
+       50.2%  library.py _get()
+       50.2%  app.py run()
+       50.2%  updater.py _get()
+  /settings: [110, 80, 81] ms (104 samples)
+    own time (the code itself):
+       51.9%  net.py urlopen()
+       11.5%  roadmaps.py _read()
+        6.7%  roadmaps.py mine()
+        5.8%  vault.py is_set_up()
+        3.8%  app.py <lambda>()
+        3.8%  vault.py _meta()
+        2.9%  app.py page()
+        1.9%  pace.py latest_backup()
+        1.9%  template settings.html:19
+        1.9%  template _turtle.html:194
+        1.9%  app.py wrapped()
+        1.0%  offline.py version()
+        1.0%  ytrules.py refresh_later()
+        1.0%  template base.html:889
+        1.0%  template settings.html:13
+    with what it calls:
+       51.9%  updater.py _get()
+       51.9%  library.py load_index()
+       51.9%  net.py urlopen()
+       51.9%  library.py _get()
 
 == 3c. JavaScript time while the page opens (top functions)
   /
-        878 ms  95.0%  (program)
-         12 ms   1.3%  spotKey  /static/app.js:3387
-         10 ms   1.1%  (anonymous)
-          9 ms   1.0%  tell  /static/app.js:4075
-          5 ms   0.5%  cloneNode
-          3 ms   0.3%  querySelectorAll
-          2 ms   0.2%  send  /static/app.js:2184
-          1 ms   0.1%  draw  /static/app.js:3320
-          1 ms   0.1%  querySelector
-          1 ms   0.1%  (anonymous)  /static/app.js:2958
+        931 ms  95.1%  (program)
+         12 ms   1.2%  (anonymous)
+         10 ms   1.1%  spotKey  /static/app.js:3488
+          5 ms   0.5%  tell  /static/app.js:4176
+          4 ms   0.5%  cloneNode
+          4 ms   0.4%  querySelector
+          2 ms   0.2%  draw  /static/app.js:3421
+          2 ms   0.2%  querySelectorAll
+          1 ms   0.1%  tick  /static/app.js:4380
+          1 ms   0.1%  (anonymous)  /static/app.js:42
   /courses
-       2214 ms  89.3%  (program)
-         83 ms   3.4%  cloneNode
-         46 ms   1.8%  (garbage collector)
-         31 ms   1.3%  searchFold  /static/app.js:2085
-         26 ms   1.0%  (anonymous)  /static/app.js:2106
-         15 ms   0.6%  querySelectorAll
-         12 ms   0.5%  tell  /static/app.js:4075
-          9 ms   0.4%  spotKey  /static/app.js:3387
-          8 ms   0.3%  (anonymous)
-          8 ms   0.3%  querySelector
+       2183 ms  89.8%  (program)
+         67 ms   2.8%  cloneNode
+         47 ms   1.9%  (garbage collector)
+         25 ms   1.0%  spotKey  /static/app.js:3488
+         23 ms   1.0%  searchFold  /static/app.js:2182
+         22 ms   0.9%  (anonymous)  /static/app.js:2203
+         15 ms   0.6%  (anonymous)
+         11 ms   0.5%  querySelectorAll
+          9 ms   0.4%  (anonymous)  /static/app.js:3384
+          7 ms   0.3%  querySelector
   /library
-        959 ms  89.5%  (program)
-         25 ms   2.4%  (anonymous)  /static/app.js:2106
-         17 ms   1.5%  spotKey  /static/app.js:3387
-         14 ms   1.3%  querySelectorAll
-         13 ms   1.2%  (anonymous)  /library:14
-         12 ms   1.1%  searchFold  /static/app.js:2085
-          8 ms   0.7%  querySelector
-          6 ms   0.5%  (anonymous)
-          5 ms   0.5%  tell  /static/app.js:4075
-          2 ms   0.2%  (garbage collector)
+        961 ms  89.8%  (program)
+         31 ms   2.9%  (anonymous)  /static/app.js:2203
+         16 ms   1.5%  querySelectorAll
+         15 ms   1.4%  (garbage collector)
+         10 ms   0.9%  spotKey  /static/app.js:3488
+          9 ms   0.8%  querySelector
+          7 ms   0.6%  (anonymous)
+          6 ms   0.6%  searchFold  /static/app.js:2182
+          6 ms   0.6%  tell  /static/app.js:4176
+          2 ms   0.1%  tick  /static/app.js:4380
   /learn/4882877043b64185/lesson/m1-l1
-        540 ms  82.5%  (program)
-         66 ms  10.1%  spotKey  /static/app.js:3387
-         18 ms   2.7%  (anonymous)  /static/app.js:447
+        546 ms  83.0%  (program)
+         61 ms   9.3%  spotKey  /static/app.js:3488
+         24 ms   3.6%  (anonymous)  /static/app.js:544
           5 ms   0.8%  (anonymous)
-          3 ms   0.5%  (garbage collector)
-          2 ms   0.4%  set
-          2 ms   0.3%  tell  /static/app.js:4075
-          2 ms   0.3%  draw  /static/app.js:3320
-          2 ms   0.3%  send  /static/app.js:2184
-          2 ms   0.3%  paint  /static/app.js:557
+          3 ms   0.5%  tell  /static/app.js:4176
+          2 ms   0.3%  (garbage collector)
+          2 ms   0.3%  querySelectorAll
+          2 ms   0.3%  querySelector
+          1 ms   0.2%  set
+          1 ms   0.2%  (anonymous)  /static/app.js:4174
 
 == 4. Frames the phone drew (Android's own count)
-  Total frames rendered: 22318
-  Janky frames: 910 (4.08%)
-  Janky frames (legacy): 3453 (15.47%)
+  Total frames rendered: 21804
+  Janky frames: 846 (3.88%)
+  Janky frames (legacy): 3160 (14.49%)
   50th percentile: 12ms
-  90th percentile: 30ms
-  99th percentile: 46ms
-  Number Missed Vsync: 205
-  Number Slow UI thread: 592
+  90th percentile: 29ms
+  99th percentile: 42ms
+  Number Missed Vsync: 132
+  Number Slow UI thread: 574
 
 == 5. The phone right now
-  Tasks: 617 total,   2 running, 615 sleeping,   0 stopped,   0 zombie
-    Mem:  3793416K total,  3727596K used,    65820K free,      652K buffers
-   Swap:  4194300K total,  3443716K used,   750584K free,   458168K cached
-  800%cpu 188%user   0%nice 127%sys 476%idle   0%iow   9%irq   0%sirq   0%host
+  Tasks: 629 total,   4 running, 625 sleeping,   0 stopped,   0 zombie
+    Mem:  3793416K total,  3720692K used,    72724K free,      436K buffers
+   Swap:  4194300K total,  2454944K used,  1739356K free,   570780K cached
+  800%cpu 167%user   6%nice 133%sys 485%idle   0%iow   9%irq   0%sirq   0%host
     PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS
-  15184 root         20   0  10G 2.4M 2.3M R 96.9   0.0 572:10.10 libwebserver_exec.so --resources /data/user/0/org.adaway/files/webserver --icon
-   8694 u0_a225      10 -10  43G 209M  97M S 72.7   5.6   3:54.42 org.inpace.inpace_mobile
-   8745 u0_i9031     10 -10 313G 194M  75M S 36.3   5.2   2:53.44 com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
-    859 system       -3  -8  11G  20M  15M S 36.3   0.5  39:35.55 surfaceflinger
-   9118 shell        20   0  10G 4.7M 3.6M R 18.1   0.1   0:00.11 top -b -n 1
-    823 system       -3   0  11G 4.9M 3.7M S 15.1   0.1  13:09.80 vendor.qti.hardware.display.composer-service
-  30804 root         20   0    0    0    0 I  9.0   0.0   0:41.88 [kworker/u16:6-kgsl-workqueue]
-    267 root         RT   0    0    0    0 S  9.0   0.0   3:25.04 [kgsl_worker_thr]
-   9004 root         20   0    0    0    0 I  6.0   0.0   0:01.57 [kworker/u16:16-kgsl-mementry]
-    313 root         RT   0    0    0    0 S  6.0   0.0   3:48.01 [crtc_commit:72]
-   7755 root          0 -20    0    0    0 I  3.0   0.0   0:01.50 [kworker/u17:4-kgsl-events]
+  15184 root         20   0  10G 4.8M 4.0M R 90.9   0.1 627:42.97 libwebserver_exec.so --resources /data/user/0/org.adaway/files/webserver --icon
+  18104 u0_a225      10 -10  43G 236M 109M R 72.7   6.3   3:53.10 org.inpace.inpace_mobile
+    859 system       -3  -8  11G  20M  15M S 42.4   0.5  46:42.23 surfaceflinger
+  18157 u0_i9048     10 -10 313G 220M  79M S 36.3   5.9   2:51.50 com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0
+  18598 shell        20   0  10G 4.9M 3.8M R 18.1   0.1   0:00.12 top -b -n 1
+    823 system       -3   0  11G 4.8M 3.8M S 15.1   0.1  15:34.66 vendor.qti.hardware.display.composer-service
+   1538 system       18  -2  19G 451M 356M S 12.1  12.1 120:24.14 system_server
+   2169 u0_a169      20   0  16G 275M 139M S  9.0   7.4  38:59.69 com.android.systemui
+    267 root         RT   0    0    0    0 S  9.0   0.0   4:21.84 [kgsl_worker_thr]
+  15548 root         20   0    0    0    0 R  6.0   0.0   0:10.15 [kworker/u16:6+memlat_wq]
+   2554 u0_a184      20   0  14G  62M  39M S  6.0   1.6   3:04.17 android.ext.services
    App Summary
                          Pss(KB)                        Rss(KB)
                           ------                         ------
-             Java Heap:    10456                          19984
-           Native Heap:    22432                          30104
-                  Code:    16244                          87116
-                 Stack:      712                            816
-              Graphics:   138420                         138420
-         Private Other:    70120
-                System:    75253
-               Unknown:                                   64496
+             Java Heap:    17348                          27444
+           Native Heap:    34484                          39720
+                  Code:    21688                          98240
+                 Stack:      864                            992
+              Graphics:   139004                         139004
+         Private Other:    64880
+                System:    59172
+               Unknown:                                   64100
   
-             TOTAL PSS:   333637            TOTAL RSS:   340936       TOTAL SWAP PSS:    63849
+             TOTAL PSS:   337440            TOTAL RSS:   369500       TOTAL SWAP PSS:    46893
   busiest apps (CPU %, last minutes):
-    CPU usage from 32193ms to 103ms ago (2026-11-27 18:46:51.216 to 2026-11-27 18:47:23.305):
-    106% 8694/org.inpace.inpace_mobile: 83% user + 22% kernel / faults: 99490 minor 11079 major
-    99% 15184/libwebserver_exec.so: 43% user + 55% kernel / faults: 16 minor
-    79% 8745/com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0: 69% user + 10% kernel / faults: 65256 minor 342 major
-    35% 859/surfaceflinger: 24% user + 11% kernel / faults: 1554 minor 1 major
-    15% 2169/com.android.systemui: 12% user + 3.1% kernel / faults: 50609 minor 786 major
-    13% 823/vendor.qti.hardware.display.composer-service: 9.1% user + 4.5% kernel / faults: 666 minor
-    9.4% 1538/system_server: 6.4% user + 2.9% kernel / faults: 16432 minor 13623 major
-    7% 267/kgsl_worker_thr: 0% user + 7% kernel
-    4.4% 313/crtc_commit:72: 0% user + 4.4% kernel
-    4.2% 152/kswapd0: 0% user + 4.2% kernel
+    CPU usage from 89862ms to 101ms ago (2026-11-27 19:44:27.732 to 2026-11-27 19:45:57.492):
+    101% 18104/org.inpace.inpace_mobile: 79% user + 21% kernel / faults: 151997 minor 2804 major
+    99% 15184/libwebserver_exec.so: 43% user + 55% kernel / faults: 254 minor 168 major
+    93% 18157/com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0: 84% user + 8.3% kernel / faults: 187855 minor 181 major
+    34% 859/surfaceflinger: 22% user + 11% kernel / faults: 2160 minor 13 major
+    14% 2169/com.android.systemui: 11% user + 2.6% kernel / faults: 93853 minor 229 major
+    12% 823/vendor.qti.hardware.display.composer-service: 8.2% user + 4.2% kernel / faults: 952 minor
+    8.2% 1538/system_server: 5.6% user + 2.6% kernel / faults: 33893 minor 1298 major
+    6.6% 267/kgsl_worker_thr: 0% user + 6.6% kernel
+    4.1% 313/crtc_commit:72: 0% user + 4.1% kernel
+    3.2% 11477/kworker/u16:1-ufs_clkscaling_0: 0% user + 3.2% kernel / faults: 3 minor
 
 == Opening and closing inPace, 5 times each, and opening it from a notification
-  closed start 1: first page after 10.9 s   {"app_clock_ms":{"python":4594,"page":8747,"at":"2026-11-27T15:43:21Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":3.04,"set_up_s":0.1,"first_page_asked_s":3.4,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.3}
-  closed start 2: first page after 9.7 s   {"app_clock_ms":{"python":4707,"page":9271,"at":"2026-11-27T15:47:37Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":2.55,"set_up_s":0.09,"first_page_asked_s":2.87,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.3}
-  closed start 3: first page after 9.9 s   {"app_clock_ms":{"python":4166,"page":8026,"at":"2026-11-27T15:47:53Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":2.84,"set_up_s":0.09,"first_page_asked_s":3.12,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.3}
-  closed start 4: first page after 9.9 s   {"app_clock_ms":{"python":4315,"page":8367,"at":"2026-11-27T15:48:09Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":2.84,"set_up_s":0.07,"first_page_asked_s":3.16,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.3}
-  closed start 5: first page after 9.4 s   {"app_clock_ms":{"python":4223,"page":8321,"at":"2026-11-27T15:48:26Z"},"libs_copy":"libs-96447ffc","python":"3.12.16","fast_libs":"1","load_inpace_s":3.01,"set_up_s":0.07,"first_page_asked_s":3.23,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.4}
-  from background 1: answering again after 1.3 s
-  from background 2: answering again after 1.3 s
-  from background 3: answering again after 1.1 s
-  from background 4: answering again after 2.0 s
-  from background 5: answering again after 2.3 s
-  notification tap, app closed: /sprints shown after 7.0 s
+  closed start 1: first page after 8.9 s   {"app_clock_ms":{"python":3969,"page":6940,"at":"2026-11-27T16:42:04Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":2.45,"set_up_s":0.08,"first_page_asked_s":2.76,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.8}
+  closed start 2: first page after 5.8 s   {"app_clock_ms":{"python":3866,"page":6846,"at":"2026-11-27T16:46:09Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":2.28,"set_up_s":0.07,"first_page_asked_s":2.51,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.8}
+  closed start 3: first page after 4.9 s   {"app_clock_ms":{"python":2584,"page":4016,"at":"2026-11-27T16:46:32Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":1.58,"set_up_s":0.06,"first_page_asked_s":1.79,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.8}
+  closed start 4: first page after 4.8 s   {"app_clock_ms":{"python":2584,"page":4016,"at":"2026-11-27T16:46:32Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":1.6,"set_up_s":0.06,"first_page_asked_s":1.78,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.8}
+  closed start 5: first page after 5.2 s   {"app_clock_ms":{"python":2835,"page":4271,"at":"2026-11-27T16:46:55Z"},"libs_copy":"libs-6d8ad60b","python":"3.12.16","fast_libs":"1","load_inpace_s":1.78,"set_up_s":0.09,"first_page_asked_s":2.02,"code_cache":true,"code_cache_writable":true,"courses":89,"home_mb":2.8}
+  from background 1: answering again after 0.8 s
+  from background 2: answering again after 0.7 s
+  from background 3: answering again after 0.8 s
+  from background 4: answering again after 0.8 s
+  from background 5: answering again after 0.7 s
+  notification tap, app closed: /sprints shown after 6.3 s
+  notification tap, app in background: /insights shown after 0.7 s
+  notification tap, app closed: /sprints shown after 5.5 s
+  notification tap, app in background: /insights shown after 1.1 s
+  notification tap, app closed: /sprints shown after 6.8 s
   notification tap, app in background: /insights shown after 1.0 s
-  notification tap, app closed: /sprints shown after 6.6 s
-  notification tap, app in background: /insights shown after 1.0 s
-  notification tap, app closed: /sprints shown after 6.5 s
-  notification tap, app in background: /insights shown after 1.0 s
-  closed starts: fastest 9.4 s, slowest 10.9 s, middle 9.9 s
-  from background: fastest 1.1 s, slowest 2.3 s
+  closed starts: fastest 4.8 s, slowest 8.9 s, middle 5.2 s
+  from background: fastest 0.7 s, slowest 0.8 s
 
 Done.
