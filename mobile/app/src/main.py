@@ -172,7 +172,32 @@ def load():
     return uvicorn, create_app, start_auto_updates, Vault
 
 
+def watch_slow_start():
+    """v1.38.3: if inPace hasn't started after 90 seconds, write what every part of Python is doing to
+    start-slow.txt (the app's "took too long" screen shows it), so a stuck start can be found and fixed."""
+    try:
+        import faulthandler
+        import socket
+        import threading
+        os.makedirs(home, exist_ok=True)
+        out = open(os.path.join(home, "start-slow.txt"), "w", encoding="utf-8")
+        faulthandler.dump_traceback_later(90, file=out)
+
+        def up():
+            for _ in range(1200):
+                try:
+                    socket.create_connection(("127.0.0.1", port), timeout=1).close()
+                    faulthandler.cancel_dump_traceback_later()
+                    return
+                except OSError:
+                    time.sleep(0.25)
+        threading.Thread(target=up, daemon=True, name="inpace-start-watch").start()
+    except Exception:
+        pass
+
+
 try:
+    watch_slow_start()
     before = set(sys.modules)
     fast = use_fast_libs()
     os.environ["INPACE_FASTLIBS"] = "1" if fast else "0"

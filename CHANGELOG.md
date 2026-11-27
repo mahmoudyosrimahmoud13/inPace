@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.38.3
+
+- **Fixed "inPace could not start: inPace took too long to start".** inPace's Python runs inside the app, and Android often keeps the app running in the background after you leave it with Back. Opening inPace again then tried to start a second Python inside the same app, which can never work: after two minutes the app gave up with this message, and "Try again" did the same thing again. Now it notices the Python that's already running and uses it, so opening inPace again is almost instant.
+- If a start ever does get stuck, the error screen now shows what Python was doing after 90 seconds (so it can be fixed), and has a "Close inPace" button for a clean start.
+
 ## v1.38.2
 
 From the 1.38.1 phone report: pages now swap in with no blank screen, starts are down to about 5 seconds (from 9 to 11), and these were the next slowest things.

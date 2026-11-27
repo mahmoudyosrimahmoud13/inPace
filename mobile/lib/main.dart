@@ -677,9 +677,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         final i = ext?.path.indexOf('/Android/') ?? -1;
         if (ext != null && i > 0) storage = ext.path.substring(0, i);
       } catch (_) {}
-      _port = await _freePort();
+      // v1.38.3: Python runs inside the app's process, and Android often keeps that process alive after you leave
+      // inPace with Back. Opening inPace again then started a second Python in the same process, which can never
+      // work: the app waited two minutes and said "inPace took too long to start" (and "Try again" did the same).
+      // The process number and port of the Python we started are kept in a file: same process, same Python.
+      _runFile = File('${data.path}/inPace/python-run.txt');
+      int? running;
+      try {
+        final parts = (await _runFile!.readAsString()).trim().split(' ');
+        if (parts.length == 2 && parts[0] == '$pid') running = int.tryParse(parts[1]);
+      } catch (_) {}
+      _port = running ?? await _freePort();
       // If Python fails while starting, main.py writes why to this file, and the error screen shows it.
       _errorFile = File('${data.path}/inPace/start-error.txt');
+      _slowFile = File('${data.path}/inPace/start-slow.txt');
       _bgFile = File('${data.path}/inPace/window-bg.txt');
       _inspectFile = File('${data.path}/inPace/inspect-on.txt');
       try {  // "Allow inspecting over USB" from Settings, kept across starts
@@ -688,13 +699,15 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       try {
         if (await _bgFile!.exists()) _setBg((await _bgFile!.readAsString()).trim(), save: false);
       } catch (_) {}
-      try {
-        if (await _errorFile!.exists()) await _errorFile!.delete();
-      } catch (_) {}
+      if (running == null) {
+        try {
+          if (await _errorFile!.exists()) await _errorFile!.delete();
+        } catch (_) {}
+      }
       // Python runs on its own thread for as long as the app is open.
       // The build ships the plain main.py, exactly like 1.20 (1.21 and 1.22 shipped compiled-only code without it,
       // and Python couldn't start).
-      SeriousPython.run(
+      if (running == null) SeriousPython.run(
         appFileName: 'main.py',
         environmentVariables: {
           'INPACE_HOME': '${data.path}/inPace',
@@ -706,6 +719,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         },
         sync: false,
       );
+      if (running == null) {
+        try {
+          await Directory('${data.path}/inPace').create(recursive: true);
+          await _runFile!.writeAsString('$pid $_port');
+        } catch (_) {}
+      }
+      _pythonStarted = true;
       await _waitUntilUp();
       _pythonMs = startClock.elapsedMilliseconds;
       _ready = true;
@@ -757,6 +777,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   File? _errorFile;
+  File? _runFile;
+  File? _slowFile; // what Python was doing, written by main.py if it hasn't started after 90 seconds
+  bool _pythonStarted = false;
 
   Future<String> _pythonError() async {
     try {
@@ -782,7 +805,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (why.isNotEmpty) throw Exception('Python stopped while starting:\n$why');
       await Future.delayed(const Duration(milliseconds: 100));
     }
-    final why = await _pythonError();
+    var why = await _pythonError();
+    try {
+      if (why.isEmpty && _slowFile != null && await _slowFile!.exists()) {
+        final t = (await _slowFile!.readAsString()).trim();
+        if (t.isNotEmpty) why = 'What it was doing:\n${t.length > 3000 ? t.substring(0, 3000) : t}';
+      }
+    } catch (_) {}
     throw Exception('inPace took too long to start.${why.isEmpty ? '' : '\n$why'}');
   }
 
@@ -1283,6 +1312,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 },
                 child: const Text('Try again'),
               ),
+              // Python lives in the app's process: if it's stuck, only a fresh start of the app gets a new one.
+              if (_pythonStarted) ...[
+                const SizedBox(height: 8),
+                TextButton(onPressed: () => exit(0), child: const Text('Close inPace (then open it again)')),
+              ],
             ]),
           ),
         ),
